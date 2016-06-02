@@ -1,0 +1,10 @@
+## Interface: 70000
+## Version: 1.0.70000
+## Title: DynamicCam
+## Author: mpstark
+## SavedVariables: DynamicCamDB
+## Notes: A more dynamic camera using Legion's new camera features.
+
+embeds.xml
+
+Core.lua
