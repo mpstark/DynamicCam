@@ -450,7 +450,7 @@ function Camera:ResetConfidence(value)
 	zoom.value = 0;
 	zoom.confident = true;
 
-	self:SetZoom(15);
+	self:SetZoom(15, .5, true);
 end
 
 function Camera:IsConfident()

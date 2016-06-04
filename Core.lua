@@ -186,7 +186,9 @@ local changelog = {
 --[[
 TODO
 - SOON
-    - implement zoom fit, which will fit zoom to the current target on activation
+    - implement zoom fit to nameplates
+    - find new ways to zoom fit
+    - fix problem with rotate degrees where the rotate is canceled on the rotate back
     - Situations should be able to specify that they are 'short term' and the previous situation shouldn't be exited
     - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
     - 'Interface Actions' should allow for hiding the minimap cluster, the chat, the main bar, the quest tracker, closing all panels, etc.
