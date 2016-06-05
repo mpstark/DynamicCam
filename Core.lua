@@ -122,7 +122,7 @@ local changelog = {
 [[Test Version 8:
     - Zoom fit now has a nameplate option, please break it in new and interesting ways
         - Saved zoom levels will take priority for now, but will revisit that later
-        - default situation NPC Interaction now uses this, but also saved zoom, so it should only fit once and then remember
+        - NPC Interaction default now uses this, but also saved zoom, so it should only fit once and then remember
     - Should now restore zoom levels in cases where zoom was interrupted
     - Hopefully fix a rotate degrees bug where it would continously rotate
     - '/zi' slash command should be a little better and not say things that don't matter]],
