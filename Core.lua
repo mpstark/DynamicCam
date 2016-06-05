@@ -119,6 +119,13 @@ Use reddit or the Discord (you should have gotten an invite link!) to get in tou
 
 local changelog = {
 [[As always, you have to reset your profile to get the new default changes if you want them.]],
+[[Test Version 8:
+    - Zoom fit now has a nameplate option, please break it in new and interesting ways
+        - Saved zoom levels will take priority for now, but will revisit that later
+        - default situation NPC Interaction now uses this, but also saved zoom, so it should only fit once and then remember
+    - Should now restore zoom levels in cases where zoom was interrupted
+    - Hopefully fix a rotate degrees bug where it would continously rotate
+    - '/zi' slash command should be a little better and not say things that don't matter]],
 [[Test Version 7:
     - Added a rotate degrees option
         - ROTATION ISN'T EXACT because of Blizzard's smoothing code, right now we're assuming linear
@@ -604,7 +611,7 @@ local situationOptions = {
             desc = "If this situation should be checked and activated",
             get = function() return S.enabled end,
             set = function(_, newValue) S.enabled = newValue end,
-            width = "full",
+            width = "half",
             order = 2,
         },
         selectedSituation = {
@@ -735,8 +742,8 @@ local situationOptions = {
                             type = 'toggle',
                             name = "Fit Nameplates",
                             desc = "When this situation is activated (and only then), the view will try to fit your target's nameplate.",
-                            --hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
-                            hidden = true,
+                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
+                            --hidden = true,
                             get = function() return S.cameraActions.zoomFitNameplate end,
                             set = function(_, newValue) S.cameraActions.zoomFitNameplate = newValue end,
                             order = 5,
@@ -1180,7 +1187,7 @@ function DynamicCam:OnShutdown()
     end
 
     -- reset zoom
-    self:ResetZoomVars();
+    Camera:ResetZoomVars();
 
     -- apply default settings
     for cvar, value in pairs(self.db.profile.defaultCvars) do
@@ -1350,7 +1357,7 @@ function DynamicCam:EnterSituation(situation, oldSituation)
                     frame.Show = function() end;
                 end
             end
-            
+
             -- hide the frame
             frame:Hide();
         end
@@ -1395,6 +1402,7 @@ function DynamicCam:ExitSituation(situation, newSituation)
 
     -- stop zooming if we're still zooming
     if (situation.cameraActions.zoomSetting ~= "off" and Camera:IsZooming()) then
+        self:DebugPrint("Still zooming for situation, stop zooming.")
         Camera:StopZooming();
     end
 
@@ -1423,7 +1431,7 @@ function DynamicCam:ExitSituation(situation, newSituation)
                 -- restore show function
                 frame.Show = value;
             end
-            
+
             -- show the frame and fade it back in
             _G[frameName]:Show();
         end
@@ -1444,6 +1452,7 @@ function DynamicCam:GetSituationList()
 end
 
 -- TODO: add to another file
+-- TODO: have multiple defaults
 function DynamicCam:GetDefaultSituations()
     local situations = {};
     local newSituation;
@@ -1569,6 +1578,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.delay = .5;
     newSituation.condition = "return (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")) and ((BankFrame and BankFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown()) or (GossipFrame and GossipFrame:IsShown()) or (ClassTrainerFrame and ClassTrainerFrame:IsShown()) or (QuestFrame and QuestFrame:IsShown()))";
     newSituation.cameraActions.zoomSetting = "fit";
+    newSituation.cameraActions.zoomFitNameplate = true;
+    newSituation.cameraActions.zoomFitSave = true;
     newSituation.cameraActions.zoomMin = 3;
     newSituation.cameraActions.zoomMax = 30;
     newSituation.cameraActions.zoomValue = 4;
@@ -1639,8 +1650,8 @@ end
 
 -- TODO: organization
 function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
-    -- don't restore if we don't know where we are or we don't have a saved zoom value
-    if (not Camera:IsConfident() or (not restoration[oldSituation].zoom)) then
+    -- don't restore if we don't have a saved zoom value
+    if (not restoration[oldSituation].zoom) then
         return false;
     end
 

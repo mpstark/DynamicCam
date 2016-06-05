@@ -7,7 +7,7 @@
 -- CONSTANTS --
 ---------------
 local CONTINOUS_FUDGE_FACTOR = 1.1;
-local VIEW_TRANSITION_SPEED = 10; -- 
+local VIEW_TRANSITION_SPEED = 10; -- TODO: remove this awful thing
 
 
 -------------
@@ -33,7 +33,7 @@ local zoom = {
 	action = nil,
 	time = nil,
 	continousSpeed = 1,
-	
+
 	timer = nil,
 	oldSpeed = nil,
 	oldMaxDistance = nil,
@@ -83,6 +83,7 @@ local function GetMaxZoom()
 end
 
 local function SetMaxZoom(value)
+    parent:DebugPrint("SetMaxZoom:", value);
 	SetCVar("cameradistancemax", value);
 end
 
@@ -99,6 +100,7 @@ local function GetZoomSpeed()
 end
 
 local function SetZoomSpeed(value)
+    parent:DebugPrint("SetZoomSpeed:", value);
 	SetCVar("cameradistancemovespeed", value);
 end
 
@@ -227,19 +229,6 @@ function Camera:CameraZoomIn(increments)
 		end
 	end
 
-	-- TODO: implement dynamic zoom, better, faster.
-	-- -- dynamic zoom
-	-- if (self.db.profile.settings.reactiveZoom and not self:IsZooming()) then
-		-- local zoomSpeed = tonumber(GetCVar("cameraDistanceMoveSpeed"));
-
-		-- if (math.abs(increments) > (zoomSpeed * self.db.profile.settings.reactiveZoomTime)) then
-			-- SetCVar("cameraDistanceMoveSpeed", math.min(50, math.abs(increments)/self.db.profile.settings.reactiveZoomTime));
-
-			-- -- set a timer for reverting the zoom speed
-			-- self:ScheduleTimer("SetZoomSpeed", (math.abs(increments)/GetCVar("cameraDistanceMoveSpeed")), self.db.profile.defaultCvars["cameraDistanceMoveSpeed"]);
-		-- end
-	-- end
-
 	-- set zoom done time
 	-- (yard) / (yards/second) = seconds
 	local timeToZoom = GetEstimatedZoomTime(increments);
@@ -307,19 +296,6 @@ function Camera:CameraZoomOut(increments)
 			-- TODO: zoom confidence doesn't mean the same thing as relative
 		end
 	end
-
-	-- TODO: implement dynamic zoom, better, faster.
-	-- -- dynamic zoom speed
-	-- if (self.db.profile.settings.reactiveZoom and not self:IsZooming()) then
-		-- local zoomSpeed = tonumber(GetCVar("cameraDistanceMoveSpeed"));
-
-		-- if (math.abs(increments) > (zoomSpeed * self.db.profile.settings.reactiveZoomTime)) then
-			-- SetCVar("cameraDistanceMoveSpeed", math.min(50, math.abs(increments)/self.db.profile.settings.reactiveZoomTime));
-
-			-- -- set a timer for reverting the zoom speed
-			-- self:ScheduleTimer("SetZoomSpeed", self.db.profile.settings.reactiveZoomTime, self.db.profile.defaultCvars["cameraDistanceMoveSpeed"]);
-		-- end
-	-- end
 
 	-- set zoom done time
 	-- (yard) / (yards/second) = seconds
@@ -439,7 +415,7 @@ end
 -- ZOOM ACTIONS --
 ------------------
 function Camera:PrintCameraVars()
-	parent:Print("Zoom info:", "value:", zoom.value, (zoom.action or "no action"), (zoom.time and ""..(zoom.time - GetTime()) or ""), (zoom.confident and "" or "not confident"));
+	parent:Print("Zoom info:", "value:", zoom.value, ((zoom.time and (zoom.time - GetTime() > 0)) and (zoom.action or "no action").." "..(zoom.time - GetTime()) or ""), (zoom.confident and "" or "not confident"));
 end
 
 function Camera:ResetConfidence(value)
@@ -450,7 +426,7 @@ function Camera:ResetConfidence(value)
 	zoom.value = 0;
 	zoom.confident = true;
 
-	self:SetZoom(15, .5, true);
+	self:SetZoom(value, .5, true);
 end
 
 function Camera:IsConfident()
@@ -464,6 +440,10 @@ function Camera:IsZooming()
 		else
 			zoom.time = nil;
 		end
+    elseif (zoom.timer and (self:TimeLeft(zoom.timer) > 0)) then
+        -- has an active timer running
+        parent:DebugPrint("Active timer running, so is zooming")
+        return true;
 	end
 
 	return false;
@@ -471,19 +451,22 @@ end
 
 function Camera:StopZooming()
 	-- has a timer waiting
-	if (zoom.timer and (self:TimeLeft(zoom.timer) > 0)) then
+	if (zoom.timer and (self:TimeLeft(zoom.timer) ~= 0)) then
 		-- restore oldMax if it exists
 		if (zoom.oldMax) then
 			SetMaxZoom(zoom.oldMax);
+            zoom.oldMax = nil;
 		end
-		
+
 		-- restore oldSpeed if it exists
 		if (zoom.oldSpeed) then
 			SetZoomSpeed(zoom.oldSpeed);
+            zoom.oldSpeed = nil;
 		end
-		
+
 		-- kill the timer
 		self:CancelTimer(zoom.timer);
+        parent:DebugPrint("Killing zoom timer!");
 	end
 
 	if (zoom.action == "in") then
@@ -506,24 +489,24 @@ function Camera:SetZoom(level, time, timeIsMax)
 	if (zoom.confident) then
 		-- know where we are, perform just a zoom in or zoom out to level
 		local difference = self:GetZoom() - level;
-		
+
 		-- set zoom speed to match time
 		if (difference ~= 0) then
 			zoom.oldSpeed = GetZoomSpeed();
 			local speed = math.min(50, GetEstimatedZoomSpeed(math.abs(difference), time));
-			
+
 			if ((not timeIsMax) or (timeIsMax and (speed > zoom.oldSpeed))) then
 				SetZoomSpeed(speed);
-				
+
 				local func = function ()
 					SetZoomSpeed(zoom.oldSpeed);
 					zoom.oldSpeed = nil;
 				end
-				
+
 				zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(math.abs(difference)));
 			end
 		end
-		
+
 		if (self:GetZoom() > level) then
 			CameraZoomIn(difference);
 			return true;
@@ -534,7 +517,7 @@ function Camera:SetZoom(level, time, timeIsMax)
 	else
 		-- we don't know where we are, so use max zoom trick
 		zoom.oldMax = GetMaxZoom();
-		
+
 		-- set max zoom to the level
 		SetMaxZoom(level);
 
@@ -552,7 +535,42 @@ function Camera:SetZoom(level, time, timeIsMax)
 end
 
 function Camera:ZoomUntil(condition, incrPerTick, speed)
-	-- TODO: implement
+    if (condition) then
+        local zoomDir = condition();
+
+        -- TODO: deal with speed
+
+        if (zoomDir) then
+            -- set speed, StopZooming will set it back
+            if (not zoom.oldSpeed) then
+                zoom.oldSpeed = GetZoomSpeed();
+                SetZoomSpeed(speed);
+            end
+
+            -- actually zoom in the direction
+            if (zoomDir == "in") then
+                CameraZoomIn(incrPerTick);
+            elseif (zoomDir == "out") then
+                CameraZoomOut(incrPerTick);
+            end
+
+            -- set a timer for when this should be called again
+            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(incrPerTick)/2, condition, incrPerTick, speed);
+
+            return true;
+        else
+            -- the condition is met
+            -- set confidence to false because we lose precision somehow?
+            if (zoom.oldSpeed) then
+                SetZoomSpeed(zoom.oldSpeed);
+                zoom.oldSpeed = nil;
+            end
+
+            zoom.confident = false;
+
+            return;
+        end
+	end
 end
 
 
@@ -602,17 +620,56 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 end
 
 function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, restoreZoom, time, timeIsMax)
-	-- TODO: implement nameplate fitting
     if (UnitExists("target")) then
 		-- restore saved
 		local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
+        local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 		if (restoreZoom and parent.db.global.savedZooms.npcs[npcID]) then
-            -- TODO: this is messy, clean it up
+            -- TODO: this is messy, clean it up, checking db from here is awful, passing a lot of parameters is awful
 			parent:DebugPrint("Restoring saved zoom for this NPC");
 			return self:SetZoom(math.min(zoomMax, math.max(zoomMin, parent.db.global.savedZooms.npcs[npcID])), time, timeIsMax);
-		else
+		elseif (fitNameplate and nameplate) then
+            parent:DebugPrint("Fitting Nameplate for target");
+
+            local increments = 1;
+
+            if (zoom.value < zoomMin) then
+                self:SetZoom(zoomMin+increments, time, timeIsMax);
+            elseif (zoom.value > zoomMax) then
+                self:SetZoom(zoomMax+increments, time, timeIsMax);
+            end
+
+            -- create a function that returns the zoom direction or nil for stop zooming
+            local condition = function()
+                if (zoom.value > zoomMin and zoom.value < zoomMax) then
+                    local _, y = nameplate:GetCenter();
+                    local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+                    local ratio = (1 - (screenHeight - y)/screenHeight) * 100;
+
+                    if (ratio > 80) then
+                        -- zoom in
+                        return "out";
+                    elseif (ratio > 50 and ratio < 75) then
+                        -- zoom in
+                        return "in";
+                    end
+                end
+
+                return nil;
+            end
+
+            -- make sure that speed is larger than current zoom speed, and less than 50
+            -- we don't actually know where the zoom will end up, but we can get the "worst" case in both directions
+            -- local inWorst = GetEstimatedZoomSpeed(math.abs(zoom.value - zoomMin), time);
+            -- local outWorst = GetEstimatedZoomSpeed(math.abs(zoom.value - zoomMax), time);
+            -- local speed = math.min(50, math.max(GetZoomSpeed(), math.max(inWorst, outWorst), time));
+
+            local speed = 20; -- TODO: constant value!
+
+            return self:ZoomUntil(condition, increments, speed);
+        else
             -- TODO: implement something better than this
-        return self:SetZoom(zoomMin, time, timeIsMax);
+            return self:SetZoom(zoomMin, time, timeIsMax);
         end
     end
 end
@@ -625,7 +682,7 @@ function Camera:IsRotating()
 	if (rotation.action) then
 		return true;
 	end
-	
+
 	return false;
 end
 
@@ -644,18 +701,23 @@ function Camera:StopRotating()
 		-- find the amount of degrees that we rotated for
 		degrees = GetEstimatedRotationDegrees(GetTime() - rotation.time, rotation.speed)
 	end
-	
+
 	if (degrees ~= 0) then
 		-- reset rotation variables
 		rotation.action = nil;
 		rotation.speed = 0;
 		rotation.time = nil;
 	end
-	
+
 	return degrees;
 end
 
 function Camera:StartContinousRotate(speed)
+    -- stop rotating if we are already
+    if (self:IsRotating()) then
+        self:StopRotating();
+    end
+
 	if (speed < 0) then
 		rotation.action = "continousLeft";
 		rotation.speed = -speed;
@@ -671,18 +733,28 @@ end
 
 function Camera:StartArcRotate(degrees, speed)
 	-- TODO: implement
+
+    -- stop rotating if we are already
+    if (self:IsRotating()) then
+        self:StopRotating();
+    end
 end
 
 function Camera:RotateDegrees(degrees, transitionTime)
 	parent:DebugPrint("RotateDegrees", degrees, transitionTime);
 	local speed = GetEstimatedRotationSpeed(degrees, transitionTime);
-	
+
+    -- stop rotating if we are already
+    if (self:IsRotating()) then
+        self:StopRotating();
+    end
+
 	if (speed < 0) then
 		-- save rotation variables
 		rotation.action = "degreesLeft";
 		rotation.speed = -speed;
 		rotation.time = GetTime();
-		
+
 		-- start actually rotating
 		MoveViewLeftStart(rotation.speed);
 	elseif (speed > 0) then
@@ -690,11 +762,11 @@ function Camera:RotateDegrees(degrees, transitionTime)
 		rotation.action = "degreesRight";
 		rotation.speed = speed;
 		rotation.time = GetTime();
-		
+
 		-- start actually rotating
 		MoveViewRightStart(speed);
 	end
-	
+
 	-- setup a timer to stop the rotation
 	if (speed ~= 0) then
 		rotation.timer = self:ScheduleTimer("StopRotating", transitionTime);
