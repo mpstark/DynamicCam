@@ -7,7 +7,6 @@
     - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
     - Close all panels interface action
     - Under advanced mode, you should be able to add/delete situations
-    - Fix GUI if there is no selectedSituation
     - Shoulder offset should have an indication of what shoulder it's over instead of negative positive
     - Look into just setting the shoulder offset at a default cvar and taking it out of the default situations
 - SOONISH

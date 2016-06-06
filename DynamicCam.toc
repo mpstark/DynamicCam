@@ -9,3 +9,4 @@ embeds.xml
 
 Core.lua
 Camera.lua
+Options.lua
