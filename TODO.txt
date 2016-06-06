@@ -1,0 +1,31 @@
+- INVESTIGATE
+    - Taxi situation with the flight master's whistle
+    - RotateDegrees causing continous rotate when the rotate back is canceled
+- SOON
+    - Find new ways to cheat zoom fit
+    - "Short Term" Situations that won't exit previous situation
+    - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
+    - Close all panels interface action
+    - Under advanced mode, you should be able to add/delete situations
+    - Fix GUI if there is no selectedSituation
+    - Shoulder offset should have an indication of what shoulder it's over instead of negative positive
+    - Look into just setting the shoulder offset at a default cvar and taking it out of the default situations
+- SOONISH
+    - Adjust shoulder offset in steps over some time, to avoid abrupt movements
+    - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
+    - Toggle nameplate settings in situations
+    - Better combat detection
+        - only assume that we're in combat when the player has taken a direct offensive action
+        - how should this work with charge skills?
+- DOWN THE LINE
+    - Move to event-based with situations specifying which events, polling as an option still though
+    - Easing for camera actions
+    - Slash commands for temp situations or to force an existing situation
+    - Should be using a syntax highlighter for lua code editing in-game, but that's a ways off
+    - 'Interface Actions' should allow for hiding arbitary frames while under advanced mode
+    - Weak Aura's support
+        - be able to trigger a camera transition from a weak aura
+    - Under advanced mode, you should be able to edit the lua functions (init, onEnter, onExit) that aren't being used right now
+    - Lua env for all lua code executed by condition, init, onEnter, onExit
+        - use a whitelist, with constant functions so nothing "bad" can happen
+    - WeakAura's style import/export for situations, entire group of situations

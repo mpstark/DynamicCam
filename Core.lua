@@ -195,37 +195,6 @@ local changelog = {
         - workaround: toggle it off and then back on."]],
 };
 
---[[
-TODO
-- SOON
-    - implement zoom fit to nameplates
-    - find new ways to zoom fit
-    - fix problem with rotate degrees where the rotate is canceled on the rotate back
-    - Situations should be able to specify that they are 'short term' and the previous situation shouldn't be exited
-    - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
-    - 'Interface Actions' should allow for hiding the minimap cluster, the chat, the main bar, the quest tracker, closing all panels, etc.
-    - Under advanced mode, you should be able to add/delete situations
-    - Don't try to hide frames that are already hidden and don't try to show frames that we didn't hide
-    - Fix GUI if there is no selectedSituation
-    - Shoulder offset should have an indication of what shoulder it's over instead of negative positive
-    - Look into just setting the shoulder offset at a default cvar and taking it out of the default situations
-- SOONISH
-    - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
-    - You should be able to toggle nameplate settings in situations
-    - new camera action to rotate x degrees at a quickish speed
-    - better combat detection
-- DOWN THE LINE
-    - easing for rotation
-    - Export and import situations
-    - Slash commands for temp situations or to force an existing situation
-    - Weak Aura's support
-    - Have situations be able to specify events
-    - Have advanced mode be able to turn off polling
-    - Should be using a syntax highlighter for lua code editing in-game, but that's a ways off
-    - 'Interface Actions' should allow for hiding arbitary frames while under advanced mode
-    - Under advanced mode, you should be able to edit the lua functions (init, onEnter, onExit) that aren't being used right now
-]]--
-
 local options = {
     name = "DynamicCam",
     handler = DynamicCam,
