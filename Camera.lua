@@ -101,7 +101,7 @@ end
 
 local function SetZoomSpeed(value)
     parent:DebugPrint("SetZoomSpeed:", value);
-	SetCVar("cameradistancemovespeed", value);
+	SetCVar("cameradistancemovespeed", math.min(50,value));
 end
 
 local function GetYawSpeed()
@@ -150,7 +150,7 @@ local function GetEstimatedZoomTime(increments)
 end
 
 local function GetEstimatedZoomSpeed(increments, time)
-	return increments/time;
+	return math.min(50, (increments/time));
 end
 
 local function GetEstimatedRotationSpeed(degrees, time)
@@ -493,7 +493,7 @@ function Camera:SetZoom(level, time, timeIsMax)
 		-- set zoom speed to match time
 		if (difference ~= 0) then
 			zoom.oldSpeed = GetZoomSpeed();
-			local speed = math.min(50, GetEstimatedZoomSpeed(math.abs(difference), time));
+			local speed = GetEstimatedZoomSpeed(math.abs(difference), time);
 
 			if ((not timeIsMax) or (timeIsMax and (speed > zoom.oldSpeed))) then
 				SetZoomSpeed(speed);
@@ -534,28 +534,29 @@ function Camera:SetZoom(level, time, timeIsMax)
 	end
 end
 
-function Camera:ZoomUntil(condition, incrPerTick, speed)
+function Camera:ZoomUntil(condition)
     if (condition) then
-        local zoomDir = condition();
-
-        -- TODO: deal with speed
+        local zoomDir, increments, speed = condition();
 
         if (zoomDir) then
             -- set speed, StopZooming will set it back
             if (not zoom.oldSpeed) then
                 zoom.oldSpeed = GetZoomSpeed();
+            end
+
+            if (speed ~= GetZoomSpeed()) then
                 SetZoomSpeed(speed);
             end
 
             -- actually zoom in the direction
             if (zoomDir == "in") then
-                CameraZoomIn(incrPerTick);
+                CameraZoomIn(increments);
             elseif (zoomDir == "out") then
-                CameraZoomOut(incrPerTick);
+                CameraZoomOut(increments);
             end
 
             -- set a timer for when this should be called again
-            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(incrPerTick)/2, condition, incrPerTick, speed);
+            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.75, condition);
 
             return true;
         else
@@ -565,6 +566,8 @@ function Camera:ZoomUntil(condition, incrPerTick, speed)
                 SetZoomSpeed(zoom.oldSpeed);
                 zoom.oldSpeed = nil;
             end
+
+            --self:StopZooming();
 
             zoom.confident = false;
 
@@ -633,10 +636,10 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, restoreZoom, time, timeI
 
             local increments = 1;
 
-            if (zoom.value < zoomMin) then
+            if (zoom.value <= zoomMin) then
                 self:SetZoom(zoomMin+increments, time, timeIsMax);
-            elseif (zoom.value > zoomMax) then
-                self:SetZoom(zoomMax+increments, time, timeIsMax);
+            elseif (zoom.value >= zoomMax) then
+                self:SetZoom(zoomMax-increments, time, timeIsMax);
             end
 
             -- create a function that returns the zoom direction or nil for stop zooming
@@ -644,29 +647,30 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, restoreZoom, time, timeI
                 if (zoom.value > zoomMin and zoom.value < zoomMax) then
                     local _, y = nameplate:GetCenter();
                     local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-                    local ratio = (1 - (screenHeight - y)/screenHeight) * 100;
+                    local difference = screenHeight - y;
+                    local ratio = (1 - difference/screenHeight) * 100;
 
-                    if (ratio > 80) then
-                        -- zoom in
-                        return "out";
-                    elseif (ratio > 50 and ratio < 75) then
-                        -- zoom in
-                        return "in";
+                    parent:DebugPrint("Nameplate at ratio:", ratio);
+
+                    if (difference < 51) then
+                        -- we're at the top, go at top speed
+                        return "out", 1, 25;
+                    elseif (ratio > 85) then
+                        -- we're on screen, but above the target
+                        return "out", .5, 15;
+                    elseif (ratio > 70 and ratio <= 80) then
+                        -- we're on screen, "in front" of the player
+                        return "in", .5, 15;
+                    elseif (ratio > 50 and ratio <= 70) then
+                        -- we're on screen, "in front" of the player
+                        return "in", 1, 25;
                     end
                 end
 
                 return nil;
             end
 
-            -- make sure that speed is larger than current zoom speed, and less than 50
-            -- we don't actually know where the zoom will end up, but we can get the "worst" case in both directions
-            -- local inWorst = GetEstimatedZoomSpeed(math.abs(zoom.value - zoomMin), time);
-            -- local outWorst = GetEstimatedZoomSpeed(math.abs(zoom.value - zoomMax), time);
-            -- local speed = math.min(50, math.max(GetZoomSpeed(), math.max(inWorst, outWorst), time));
-
-            local speed = 20; -- TODO: constant value!
-
-            return self:ZoomUntil(condition, increments, speed);
+            return self:ZoomUntil(condition);
         else
             -- TODO: implement something better than this
             return self:SetZoom(zoomMin, time, timeIsMax);

@@ -118,7 +118,12 @@ Other than that, I've been very happy with the progress so far with the addon an
 Use reddit or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
 
 local changelog = {
-[[As always, you have to reset your profile to get the new default changes if you want them.]],
+[[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
+[[Test Version 9:
+    - Nameplate zoom should be a little more responsive
+    - Fixed nameplate zoom-in when the camera is further out than max
+    - Fixed '/zc'
+    - Default NPC interaction now affect order hall recruiters]],
 [[Test Version 8:
     - Zoom fit now has a nameplate option, please break it in new and interesting ways
         - Saved zoom levels will take priority for now, but will revisit that later
@@ -210,6 +215,7 @@ TODO
     - new camera action to rotate x degrees at a quickish speed
     - better combat detection
 - DOWN THE LINE
+    - easing for rotation
     - Export and import situations
     - Slash commands for temp situations or to force an existing situation
     - Weak Aura's support
@@ -1576,7 +1582,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation = self:CreateSituation("NPC Interaction");
     newSituation.priority = 20;
     newSituation.delay = .5;
-    newSituation.condition = "return (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")) and ((BankFrame and BankFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown()) or (GossipFrame and GossipFrame:IsShown()) or (ClassTrainerFrame and ClassTrainerFrame:IsShown()) or (QuestFrame and QuestFrame:IsShown()))";
+    newSituation.condition = "return (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")) and ((GarrisonCapacitiveDisplayFrame and GarrisonCapacitiveDisplayFrame:IsShown()) or (BankFrame and BankFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown()) or (GossipFrame and GossipFrame:IsShown()) or (ClassTrainerFrame and ClassTrainerFrame:IsShown()) or (QuestFrame and QuestFrame:IsShown()))";
     newSituation.cameraActions.zoomSetting = "fit";
     newSituation.cameraActions.zoomFitNameplate = true;
     newSituation.cameraActions.zoomFitSave = true;
@@ -1783,7 +1789,7 @@ function DynamicCam:SaveViewCC(input)
 end
 
 function DynamicCam:ZoomConfidenceCC(input)
-    Camera:ResetConfidence();
+    Camera:ResetConfidence(15);
 end
 
 function DynamicCam:ZoomInfoCC(input)
