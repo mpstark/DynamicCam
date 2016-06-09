@@ -32,6 +32,8 @@ TESTING FOCUS/QUESTIONS:
 Use reddit or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
+[[Test Version 10:
+    - The UI doesn't allow you to use view 1 anymore, since it's reserved for save/restore views]],
 [[Test Version 9:
     - Nameplate zoom should be a little more responsive
     - New option for Zoom Fit; Fit Continously, will keep trying to adjust zoom after initial fit
@@ -722,7 +724,7 @@ local situationOptions = {
                             desc = "Which view should be set",
                             get = function() return S.view.viewNumber end,
                             set = function(_, newValue) S.view.viewNumber = newValue; end,
-                            values = {"1", "2", "3", "4", "5"},
+                            values = {[2] = "2", [3] = "3", [4] = "4", [5] = "5"},
                             order = 2,
                             width = "half",
                         },

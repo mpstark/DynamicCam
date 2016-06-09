@@ -1,7 +1,10 @@
 - INVESTIGATE
     - Taxi situation with the flight master's whistle
     - RotateDegrees causing continous rotate when the rotate back is canceled
+    - Restore views might be broken with nameplate fit
+    - Not restoring zoom properly http://i.imgur.com/pGyd5Oq.png http://i.imgur.com/DKjdMOY.png http://i.imgur.com/NqGDi2U.gifv
 - SOON
+    - Zoom in/out by increments
     - Find new ways to cheat zoom fit
     - "Short Term" Situations that won't exit previous situation
     - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
@@ -10,6 +13,9 @@
     - Shoulder offset should have an indication of what shoulder it's over instead of negative positive
     - Look into just setting the shoulder offset at a default cvar and taking it out of the default situations
 - SOONISH
+    - Change Camera follow settings
+    - Zoom to fit, update when target change, without continous
+    - Zoom to fit nameplates should be able to specify where the nameplate should be
     - Adjust shoulder offset in steps over some time, to avoid abrupt movements
     - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
     - Toggle nameplate settings in situations
