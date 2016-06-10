@@ -2,7 +2,6 @@
     - Taxi situation with the flight master's whistle
     - RotateDegrees causing continous rotate when the rotate back is canceled
     - Restore views might be broken with nameplate fit
-    - Not restoring zoom properly http://i.imgur.com/pGyd5Oq.png http://i.imgur.com/DKjdMOY.png http://i.imgur.com/NqGDi2U.gifv
 - SOON
     - Zoom in/out by increments
     - Find new ways to cheat zoom fit
@@ -16,6 +15,7 @@
     - Change Camera follow settings
     - Zoom to fit, update when target change, without continous
     - Zoom to fit nameplates should be able to specify where the nameplate should be
+    - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
     - Adjust shoulder offset in steps over some time, to avoid abrupt movements
     - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
     - Toggle nameplate settings in situations

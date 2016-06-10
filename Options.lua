@@ -33,7 +33,8 @@ Use reddit or the Discord (you should have gotten an invite link!) to get in tou
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
 [[Test Version 10:
-    - The UI doesn't allow you to use view 1 anymore, since it's reserved for save/restore views]],
+    - The UI doesn't allow you to use view 1 anymore, since it's reserved for save/restore views
+    - Fit nameplates with continous enabled will now work if you don't have a target when situation starts]],
 [[Test Version 9:
     - Nameplate zoom should be a little more responsive
     - New option for Zoom Fit; Fit Continously, will keep trying to adjust zoom after initial fit

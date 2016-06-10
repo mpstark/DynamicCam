@@ -639,15 +639,12 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
     if (UnitExists("target")) then
 		-- restore saved
 		local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
-        local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 		if (restoreZoom and parent.db.global.savedZooms.npcs[npcID]) then
             -- TODO: this is messy, clean it up, checking db from here is awful, passing a lot of parameters is awful
 			parent:DebugPrint("Restoring saved zoom for this NPC");
 			return self:SetZoom(math.min(zoomMax, math.max(zoomMin, parent.db.global.savedZooms.npcs[npcID])), time, timeIsMax);
-		elseif (fitNameplate and nameplate) then
+		elseif (fitNameplate) then
             parent:DebugPrint("Fitting Nameplate for target");
-
-            local increments = 1;
 
             -- create a function that returns the zoom direction or nil for stop zooming
             local condition = function()
@@ -679,18 +676,21 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     elseif (ratio > 50 and ratio <= 65) then
                         -- we're on screen, "in front" of the player
                         if (zoom.value > zoomMin) then
-                            return "in", .5, 12;
+                            return "in", .5, 17;
                         end
                     end
                 end
 
                 return nil;
             end
-
-            if (continously) then
-                return self:ZoomUntil(condition, .75); -- TODO: constant time here
+            
+            -- if we're not confident, then just set to min, then ZoomUntil
+            if (not zoom.confident) then
+                parent:DebugPrint("Zoom fit with no confidence, going to min");
+                self:SetZoom(zoomMin, .3, true);
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(zoomMin), condition, continously and .75 or nil);
             else
-                return self:ZoomUntil(condition);
+                return self:ZoomUntil(condition, continously and .75 or nil);
             end
         else
             -- TODO: implement something better than this
