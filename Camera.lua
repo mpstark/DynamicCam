@@ -78,8 +78,12 @@ local function GetMaxZoom()
 end
 
 local function SetMaxZoom(value)
-    parent:DebugPrint("SetMaxZoom:", value);
-	SetCVar("cameradistancemax", value);
+    if (value) then
+        parent:DebugPrint("SetMaxZoom:", value);
+        SetCVar("cameradistancemax", value);
+    else
+        parent:DebugPrint("SERIOUS FUCKING ERROR");
+    end
 end
 
 local function GetMaxZoomFactor()
@@ -492,6 +496,8 @@ function Camera:SetZoom(level, time, timeIsMax)
 		-- know where we are, perform just a zoom in or zoom out to level
 		local difference = self:GetZoom() - level;
 
+        parent:DebugPrint("SetZoom with confident zoom");
+
 		-- set zoom speed to match time
 		if (difference ~= 0) then
 			zoom.oldSpeed = GetZoomSpeed();
@@ -519,6 +525,8 @@ function Camera:SetZoom(level, time, timeIsMax)
 			return true;
 		end
 	else
+        parent:DebugPrint("SetZoom with not confident zoom");
+
 		-- we don't know where we are, so use max zoom trick
 		zoom.oldMax = GetMaxZoom();
 
@@ -531,8 +539,11 @@ function Camera:SetZoom(level, time, timeIsMax)
 		-- set a timer to restore max zoom and to set confidence
 		local func = function ()
 			zoom.confident = true;
-			SetMaxZoom(zoom.oldMax);
-			zoom.oldMax = nil;
+
+            if (zoom.oldMax) then
+                SetMaxZoom(zoom.oldMax);
+                zoom.oldMax = nil;
+            end
 		end
 		zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(level+1));
 	end
@@ -597,7 +608,6 @@ function Camera:ZoomInTo(level, time, timeIsMax)
 	if (zoom.confident) then
 		-- we know where we are, so check zoom level and only zoom in if we need to
 		if (self:GetZoom() > level) then
-			parent:DebugPrint("Zoom is too far out, zooming in");
 			return self:SetZoom(level, time, timeIsMax);
 		end
 	else
@@ -610,7 +620,6 @@ function Camera:ZoomOutTo(level, time, timeIsMax)
 	if (zoom.confident) then
 		-- we know where we are, so check zoom level and only zoom out if we need to
 		if (self:GetZoom() < level) then
-			parent:DebugPrint("Zoom is too far in, zooming out");
 			return self:SetZoom(level, time, timeIsMax);
 		end
 	else
@@ -623,10 +632,8 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 	if (zoom.confident) then
 		-- we know where we are, so check zoom level and only zoom if we need to
 		if (self:GetZoom() < minLevel) then
-			parent:DebugPrint("Zoom is too far in, zooming out");
 			return self:SetZoom(minLevel, time, timeIsMax);
 		elseif (self:GetZoom() > maxLevel) then
-			parent:DebugPrint("Zoom is too far out, zooming in");
 			return self:SetZoom(maxLevel, time, timeIsMax);
 		end
 	else

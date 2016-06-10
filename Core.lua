@@ -402,8 +402,6 @@ function DynamicCam:ExitSituation(situation, newSituation)
     if (self:ShouldRestoreZoom(situation, newSituation)) then
         Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
         self:DebugPrint("Restoring zoom level.");
-    else
-        self:DebugPrint("Not restoring zoom level.");
     end
 
     -- unhide hidden frames
