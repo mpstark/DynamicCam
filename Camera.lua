@@ -554,30 +554,36 @@ function Camera:ZoomUntil(condition, continousTime)
         local zoomDir, increments, speed = condition();
 
         if (zoomDir) then
-            -- set speed, StopZooming will set it back
-            if (not zoom.oldSpeed) then
-                zoom.oldSpeed = GetZoomSpeed();
-            end
+            if (speed) then
+                -- set speed, StopZooming will set it back
+                if (not zoom.oldSpeed) then
+                    zoom.oldSpeed = GetZoomSpeed();
+                end
 
-            if (speed ~= GetZoomSpeed()) then
-                SetZoomSpeed(speed);
+                if (speed ~= GetZoomSpeed()) then
+                    SetZoomSpeed(speed);
+                end
             end
 
             -- actually zoom in the direction
             if (zoomDir == "in") then
-                if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time > GetTime())) then
+                if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time >= GetTime())) then
                     -- if we're not already zooming out, zoom in
                     CameraZoomIn(increments);
                 end
             elseif (zoomDir == "out") then
-                if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time > GetTime())) then
+                if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time >= GetTime())) then
                     -- if we're not already zooming in, zoom out
                    CameraZoomOut(increments);
                 end
+            elseif (zoomDir == "wait") then
+                zoom.timer = self:ScheduleTimer("ZoomUntil", .1, condition, continousTime);
             end
 
-            -- set a timer for when this should be called again
-            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.5, condition, continousTime);
+            if (increments) then
+                -- set a timer for when this should be called again
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.75, condition, continousTime);
+            end
 
             return true;
         else
@@ -657,6 +663,13 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
             local condition = function()
                 local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
+                -- we're out of the min and max
+                if (zoom.value > zoomMax) then
+                    return "in", (zoom.value - zoomMax), 20;
+                elseif (zoom.value < zoomMin) then
+                    return "out", (zoomMin - zoom.value), 20;
+                end
+
                 if (nameplate) then
                     local _, y = nameplate:GetCenter();
                     local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
@@ -667,30 +680,34 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
 
                     if (difference < 51) then
                         -- we're at the top, go at top speed
-                        if (zoom.value < zoomMax) then
+                        if ((zoom.value + 1) <= zoomMax) then
                             return "out", 1, 25;
                         end
                     elseif (ratio > 85) then
                         -- we're on screen, but above the target
-                        if (zoom.value < zoomMax) then
-                            return "out", .1, 10;
+                        if ((zoom.value + .25) <= zoomMax) then
+                            return "out", .25, 10;
                         end
                     elseif (ratio > 65 and ratio <= 80) then
                         -- we're on screen, "in front" of the player
-                        if (zoom.value > zoomMin) then
-                            return "in", .3, 12;
+                        if ((zoom.value - .25) >= zoomMin) then
+                            return "in", .25, 12;
                         end
                     elseif (ratio > 50 and ratio <= 65) then
                         -- we're on screen, "in front" of the player
-                        if (zoom.value > zoomMin) then
+                        if ((zoom.value - .5) >= zoomMin) then
                             return "in", .5, 17;
                         end
                     end
+                else
+                    -- namemplate doesn't exist, just wait
+                    parent:DebugPrint("No nameplate, waiting");
+                    return "wait";
                 end
 
                 return nil;
             end
-            
+
             -- if we're not confident, then just set to min, then ZoomUntil
             if (not zoom.confident) then
                 parent:DebugPrint("Zoom fit with no confidence, going to min");

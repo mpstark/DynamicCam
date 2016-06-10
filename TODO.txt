@@ -3,6 +3,7 @@
     - RotateDegrees causing continous rotate when the rotate back is canceled
     - Restore views might be broken with nameplate fit
 - SOON
+    - Holy shit, there are tristate toggles, use them!
     - Zoom in/out by increments
     - Find new ways to cheat zoom fit
     - "Short Term" Situations that won't exit previous situation
@@ -23,6 +24,7 @@
         - only assume that we're in combat when the player has taken a direct offensive action
         - how should this work with charge skills?
 - DOWN THE LINE
+    - Faux camera shake should be possible
     - Move to event-based with situations specifying which events, polling as an option still though
     - Easing for camera actions
     - Slash commands for temp situations or to force an existing situation
