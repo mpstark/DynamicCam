@@ -666,12 +666,12 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     elseif (ratio > 85) then
                         -- we're on screen, but above the target
                         if (zoom.value < zoomMax) then
-                            return "out", .25, 10;
+                            return "out", .1, 10;
                         end
                     elseif (ratio > 65 and ratio <= 80) then
                         -- we're on screen, "in front" of the player
                         if (zoom.value > zoomMin) then
-                            return "in", .25, 12;
+                            return "in", .3, 12;
                         end
                     elseif (ratio > 50 and ratio <= 65) then
                         -- we're on screen, "in front" of the player
