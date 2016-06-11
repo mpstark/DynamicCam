@@ -472,7 +472,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomMin = 8;
     newSituation.cameraActions.zoomMax = 20;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
-    newSituation.cameraCVars["cameradynamicpitch"] = 1;
     situations["004"] = newSituation;
 
     newSituation = self:CreateSituation("World (Indoors)");
@@ -494,7 +493,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomMax = 30;
     newSituation.cameraCVars["cameraovershoulder"] = 1.5;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 2;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.nameplateVisible = true;
     situations["006"] = newSituation;

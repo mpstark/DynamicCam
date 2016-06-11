@@ -34,6 +34,8 @@ local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
 [[Test Version 10:
     - Defaults changed to include zoom fit with continous on in the World Combat situations
+    - Defaults changed with more overall tweaks, again, won't touch any saved settings
+        - Biggest change is, at least for now, headMovement is disabled by default on all situations
     - You can now toggle broad nameplate settings in a situation's settings
         - CAREFUL WITH THIS, IT WILL NOT WORK IN COMBAT
         - Default situation NPC Interaction automatically turns on friendly nameplates now
