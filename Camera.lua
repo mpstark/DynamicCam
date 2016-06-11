@@ -582,7 +582,7 @@ function Camera:ZoomUntil(condition, continousTime)
 
             if (increments) then
                 -- set a timer for when this should be called again
-                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.75, condition, continousTime);
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.8, condition, continousTime);
             end
 
             return true;
@@ -686,17 +686,12 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     elseif (ratio > 85) then
                         -- we're on screen, but above the target
                         if ((zoom.value + .25) <= zoomMax) then
-                            return "out", .25, 10;
+                            return "out", .25, 22;
                         end
-                    elseif (ratio > 65 and ratio <= 80) then
-                        -- we're on screen, "in front" of the player
-                        if ((zoom.value - .25) >= zoomMin) then
-                            return "in", .25, 12;
-                        end
-                    elseif (ratio > 50 and ratio <= 65) then
+                    elseif (ratio > 50 and ratio <= 80) then
                         -- we're on screen, "in front" of the player
                         if ((zoom.value - .5) >= zoomMin) then
-                            return "in", .5, 17;
+                            return "in", .5, 22;
                         end
                     end
                 else

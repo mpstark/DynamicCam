@@ -15,7 +15,7 @@
 - SOONISH
     - Change Camera follow settings
     - Zoom to fit, update when target change, without continous
-    - Zoom to fit nameplates should be able to specify where the nameplate should be
+    - Zoom to fit nameplates should be able to specify where the nameplate should be and how sensitive that it should be
     - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
     - Adjust shoulder offset in steps over some time, to avoid abrupt movements
     - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)

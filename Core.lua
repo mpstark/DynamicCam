@@ -78,7 +78,7 @@ local defaults = {
                     zoomMax = 20,
                     zoomFitNameplate = false,
                     zoomFitContinous = false,
-                    zoomFitSave = true,
+                    zoomFitSave = false,
                 },
                 view = {
                     enabled = false,
@@ -442,7 +442,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.priority = 1;
     newSituation.condition = "return IsResting();";
     newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 10;
+    newSituation.cameraActions.zoomMin = 8;
     newSituation.cameraActions.zoomMax = 20;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["001"] = newSituation;
@@ -451,7 +451,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.priority = 11;
     newSituation.condition = "return IsResting() and IsIndoors();";
     newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 7;
+    newSituation.cameraActions.zoomValue = 8;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["002"] = newSituation;
@@ -469,11 +469,10 @@ function DynamicCam:GetDefaultSituations()
     newSituation.priority = 0;
     newSituation.condition = "return not IsResting() and not IsInInstance();";
     newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 12;
+    newSituation.cameraActions.zoomMin = 8;
     newSituation.cameraActions.zoomMax = 20;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
-    newSituation.targetLock.enabled = true;
     situations["004"] = newSituation;
 
     newSituation = self:CreateSituation("World (Indoors)");
@@ -483,19 +482,21 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomValue = 10;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
-    newSituation.targetLock.enabled = true;
     situations["005"] = newSituation;
 
     newSituation = self:CreateSituation("World (Combat)");
     newSituation.priority = 50;
     newSituation.condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");";
-    newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 8;
+    newSituation.cameraActions.zoomSetting = "fit";
+    newSituation.cameraActions.zoomFitNameplate = true;
+    newSituation.cameraActions.zoomFitContinous = true;
+    newSituation.cameraActions.zoomMin = 7;
+    newSituation.cameraActions.zoomMax = 30;
     newSituation.cameraCVars["cameraovershoulder"] = 1.5;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 2;
     newSituation.targetLock.enabled = true;
-    newSituation.targetLock.nameplateVisible = false;
+    newSituation.targetLock.nameplateVisible = true;
     situations["006"] = newSituation;
 
     newSituation = self:CreateSituation("World (Mounted)");
@@ -566,6 +567,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["nameplateShowAll"] = 1;
+    newSituation.cameraCVars["nameplateShowEnemies"] = 1;
+    newSituation.cameraCVars["nameplateShowFriends"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.onlyAttackable = false;
     newSituation.targetLock.nameplateVisible = false;
@@ -608,7 +612,7 @@ function DynamicCam:CreateSituation(name)
             zoomMax = 20,
             zoomFitNameplate = false,
             zoomFitContinous = false,
-            zoomFitSave = true,
+            zoomFitSave = false,
         },
         view = {
             enabled = false,

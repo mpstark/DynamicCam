@@ -33,12 +33,15 @@ Use reddit or the Discord (you should have gotten an invite link!) to get in tou
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
 [[Test Version 10:
+    - Defaults changed to include zoom fit with continous on in the World Combat situations
     - You can now toggle broad nameplate settings in a situation's settings
+        - CAREFUL WITH THIS, IT WILL NOT WORK IN COMBAT
+        - Default situation NPC Interaction automatically turns on friendly nameplates now
     - When nameplate fit is used, it will try until it finds a nameplate for a target
         - Useful for waiting for nameplates to turn on, after using the new nameplate toggle settings
     - Hopefully fixed a bug that could set your max zoom to 0, sorry about that!
-    - Lots of Zoom fit tweaks, still playing with it
     - The UI doesn't allow you to use view 1 anymore, since it's reserved for save/restore views
+    - Lots of fit nameplate tweaks, should just be overall better
     - Fit nameplates with continous enabled will now work if you don't have a target when situation starts
     - Fit nameplates will work more consistantly (it deals with lack of zoom confidence)]],
 [[Test Version 9:
