@@ -2,6 +2,7 @@
     - Taxi situation with the flight master's whistle
     - RotateDegrees causing continous rotate when the rotate back is canceled
     - Restore views might be broken with nameplate fit
+    - Save/Restore zoom level for fit isn't working properly
 - SOON
     - Holy shit, there are tristate toggles, use them!
     - Zoom in/out by increments
@@ -19,11 +20,14 @@
     - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
     - Adjust shoulder offset in steps over some time, to avoid abrupt movements
     - There should be several sets of defaults, with ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
-    - Toggle nameplate settings in situations
     - Better combat detection
         - only assume that we're in combat when the player has taken a direct offensive action
         - how should this work with charge skills?
 - DOWN THE LINE
+    - Keybinds
+        - Zoom in/out quickly (ideal bind shift-mousewheel)
+        - Zoom fit keybind
+        - etc.
     - Faux camera shake should be possible
     - Move to event-based with situations specifying which events, polling as an option still though
     - Easing for camera actions
