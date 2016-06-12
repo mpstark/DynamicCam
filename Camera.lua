@@ -438,7 +438,7 @@ function Camera:IsZooming()
 
     -- has an active action running
 	if (zoom.action and zoom.time) then
-		if (zoom.time > GetTime()) then
+		if (zoom.time >= GetTime()) then
 			ret = true;
 		else
 			zoom.time = nil;
@@ -551,9 +551,9 @@ end
 
 function Camera:ZoomUntil(condition, continousTime)
     if (condition) then
-        local zoomDir, increments, speed = condition();
+        local command, increments, speed = condition();
 
-        if (zoomDir) then
+        if (command) then
             if (speed) then
                 -- set speed, StopZooming will set it back
                 if (not zoom.oldSpeed) then
@@ -566,17 +566,26 @@ function Camera:ZoomUntil(condition, continousTime)
             end
 
             -- actually zoom in the direction
-            if (zoomDir == "in") then
-                if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time >= GetTime())) then
+            if (not self:IsZooming()) then
+                if (command == "in") then
                     -- if we're not already zooming out, zoom in
                     CameraZoomIn(increments);
-                end
-            elseif (zoomDir == "out") then
-                if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time >= GetTime())) then
+                    
+                    zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
+                elseif (command == "out") then
                     -- if we're not already zooming in, zoom out
                    CameraZoomOut(increments);
+                   
+                   zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
+                elseif (command == "set") then
+                    parent:DebugPrint("Nameplate setting zoom!", increments);
+                    self:SetZoom(increments, .75, true); -- TODO: look at constant value here
                 end
-            elseif (zoomDir == "wait") then
+            end
+            
+            -- if the cammand is to wait, just setup the timer
+            if (command == "wait") then
+                parent:DebugPrint("Waiting on namemplate zoom");
                 zoom.timer = self:ScheduleTimer("ZoomUntil", .1, condition, continousTime);
             end
 
@@ -596,7 +605,6 @@ function Camera:ZoomUntil(condition, continousTime)
             -- if continously checking, then set the timer for that
             if (continousTime) then
                 zoom.timer = self:ScheduleTimer("ZoomUntil", continousTime, condition, continousTime);
-                zoom.confident = false;
             else
                 self:LoseConfidence();
             end
@@ -696,9 +704,17 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     end
                 else
                     -- namemplate doesn't exist, just wait
-                    parent:DebugPrint("No nameplate, waiting");
                     return "wait";
                 end
+                
+                if (not zoom.confident) then
+                    if (zoom.value == zoomMax) then
+                        return "set", zoomMax;
+                    elseif (zoom.value == zoomMin) then
+                        return "set", zoomMin;
+                    end
+                end
+                
 
                 return nil;
             end
