@@ -547,7 +547,7 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Annoying Spells");
     newSituation.priority = 1000;
-    newSituation.condition = "local spells = {46924, 188499}; for k,v in pairs(spells) do if (UnitBuff(\"player\", GetSpellInfo(v))) then return true; end end return false;";
+    newSituation.condition = "local spells = {46924, 51690, 188499, 210152}; for k,v in pairs(spells) do if (UnitBuff(\"player\", GetSpellInfo(v))) then return true; end end return false;";
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
     newSituation.cameraCVars["cameraovershoulder"] = 0;
