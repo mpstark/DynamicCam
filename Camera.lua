@@ -192,7 +192,7 @@ function Camera:CameraZoomIn(increments)
 	end
 
 	-- check to see if we were previously zooming out and we're not done yet
-	if (zoom.action == "out" and zoom.time and zoom.time > GetTime()) then
+	if (zoom.action == "out" and zoom.time and zoom.time >= GetTime()) then
 		-- canceled zooming out, get the time left and guess how much distance we didn't cover
 		local timeLeft = zoom.time - GetTime();
 
@@ -260,7 +260,7 @@ function Camera:CameraZoomOut(increments)
 	end
 
 	-- check to see if we were previously zooming in and we're not done yet
-	if (zoom.action == "in" and zoom.time and zoom.time > GetTime()) then
+	if (zoom.action == "in" and zoom.time and zoom.time >= GetTime()) then
 		-- canceled zooming in, get the time left and guess how much distance we didn't cover
 		local timeLeft = zoom.time - GetTime();
 
@@ -566,23 +566,27 @@ function Camera:ZoomUntil(condition, continousTime)
             end
 
             -- actually zoom in the direction
-            if (not self:IsZooming()) then
-                if (command == "in") then
-                    -- if we're not already zooming out, zoom in
+            if (command == "in") then
+                -- if we're not already zooming out, zoom in
+                if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time >= (GetTime() - .1))) then
                     CameraZoomIn(increments);
-                    
+
                     zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
-                elseif (command == "out") then
-                    -- if we're not already zooming in, zoom out
+                end
+            elseif (command == "out") then
+                -- if we're not already zooming in, zoom out
+               if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time >= (GetTime() - .1))) then
                    CameraZoomOut(increments);
-                   
+
                    zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
-                elseif (command == "set") then
+               end
+            elseif (command == "set") then
+                if (not (zoom.action and zoom.time and zoom.time >= (GetTime() - .1))) then
                     parent:DebugPrint("Nameplate setting zoom!", increments);
-                    self:SetZoom(increments, .75, true); -- TODO: look at constant value here
+                    self:SetZoom(increments, .5, true); -- TODO: look at constant value here
                 end
             end
-            
+
             -- if the cammand is to wait, just setup the timer
             if (command == "wait") then
                 parent:DebugPrint("Waiting on namemplate zoom");
@@ -591,7 +595,7 @@ function Camera:ZoomUntil(condition, continousTime)
 
             if (increments) then
                 -- set a timer for when this should be called again
-                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.8, condition, continousTime);
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.9, condition, continousTime);
             end
 
             return true;
@@ -605,8 +609,6 @@ function Camera:ZoomUntil(condition, continousTime)
             -- if continously checking, then set the timer for that
             if (continousTime) then
                 zoom.timer = self:ScheduleTimer("ZoomUntil", continousTime, condition, continousTime);
-            else
-                self:LoseConfidence();
             end
 
             return;
@@ -678,6 +680,7 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     return "out", (zoomMin - zoom.value), 20;
                 end
 
+                -- if the nameplate exists, then adjust
                 if (nameplate) then
                     local _, y = nameplate:GetCenter();
                     local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
@@ -706,7 +709,8 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                     -- namemplate doesn't exist, just wait
                     return "wait";
                 end
-                
+
+                -- if no adjustments made, and we're at the limits, re-establish confidence
                 if (not zoom.confident) then
                     if (zoom.value == zoomMax) then
                         return "set", zoomMax;
@@ -714,7 +718,6 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
                         return "set", zoomMin;
                     end
                 end
-                
 
                 return nil;
             end
