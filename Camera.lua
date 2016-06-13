@@ -456,20 +456,20 @@ function Camera:IsZooming()
 end
 
 function Camera:StopZooming()
+    -- restore oldMax if it exists
+    if (zoom.oldMax) then
+        SetMaxZoom(zoom.oldMax);
+        zoom.oldMax = nil;
+    end
+
+    -- restore oldSpeed if it exists
+    if (zoom.oldSpeed) then
+        SetZoomSpeed(zoom.oldSpeed);
+        zoom.oldSpeed = nil;
+    end
+
 	-- has a timer waiting
 	if (zoom.timer and (self:TimeLeft(zoom.timer) ~= 0)) then
-		-- restore oldMax if it exists
-		if (zoom.oldMax) then
-			SetMaxZoom(zoom.oldMax);
-            zoom.oldMax = nil;
-		end
-
-		-- restore oldSpeed if it exists
-		if (zoom.oldSpeed) then
-			SetZoomSpeed(zoom.oldSpeed);
-            zoom.oldSpeed = nil;
-		end
-
 		-- kill the timer
 		self:CancelTimer(zoom.timer);
         parent:DebugPrint("Killing zoom timer!");
@@ -500,7 +500,7 @@ function Camera:SetZoom(level, time, timeIsMax)
 
 		-- set zoom speed to match time
 		if (difference ~= 0) then
-			zoom.oldSpeed = GetZoomSpeed();
+			zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
 			local speed = GetEstimatedZoomSpeed(math.abs(difference), time);
 
 			if ((not timeIsMax) or (timeIsMax and (speed > zoom.oldSpeed))) then
@@ -528,7 +528,7 @@ function Camera:SetZoom(level, time, timeIsMax)
         parent:DebugPrint("SetZoom with not confident zoom");
 
 		-- we don't know where we are, so use max zoom trick
-		zoom.oldMax = GetMaxZoom();
+		zoom.oldMax = zoom.oldMax or GetMaxZoom();
 
 		-- set max zoom to the level
 		SetMaxZoom(level);
@@ -556,11 +556,8 @@ function Camera:ZoomUntil(condition, continousTime)
         if (command) then
             if (speed) then
                 -- set speed, StopZooming will set it back
-                if (not zoom.oldSpeed) then
-                    zoom.oldSpeed = GetZoomSpeed();
-                end
-
                 if (speed ~= GetZoomSpeed()) then
+                    zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
                     SetZoomSpeed(speed);
                 end
             end
