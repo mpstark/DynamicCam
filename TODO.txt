@@ -4,6 +4,7 @@
     - Restore views might be broken with nameplate fit
     - Save/Restore zoom level for fit isn't working properly
 - SOON
+    - Change to stack-based system for restoration
     - Holy shit, there are tristate toggles, use them!
     - Zoom in/out by increments
     - Find new ways to cheat zoom fit
