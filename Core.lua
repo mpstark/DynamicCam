@@ -305,7 +305,7 @@ function DynamicCam:EnterSituation(situation, oldSituation)
     elseif (situation.cameraActions.zoomSetting == "range") then
         adjustedZoom = Camera:ZoomToRange(situation.cameraActions.zoomMin, situation.cameraActions.zoomMax, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
     elseif (situation.cameraActions.zoomSetting == "fit") then
-        adjustedZoom = Camera:ZoomFit(situation.cameraActions.zoomMin, situation.cameraActions.zoomMax, situation.cameraActions.zoomFitNameplate, 85, .25, 2, 5, situation.cameraActions.zoomFitContinous, situation.cameraActions.zoomFitSave, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
+        adjustedZoom = Camera:ZoomFit(situation.cameraActions.zoomMin, situation.cameraActions.zoomMax, situation.cameraActions.zoomFitNameplate, 85, .25, 5, 2, situation.cameraActions.zoomFitContinous, situation.cameraActions.zoomFitSave, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
     end
 
     -- if we didn't adjust the soom, then reset oldZoom
@@ -387,10 +387,6 @@ function DynamicCam:ExitSituation(situation, newSituation)
     if (situation.cameraActions.zoomSetting ~= "off" and Camera:IsZooming()) then
         self:DebugPrint("Still zooming for situation, stop zooming.")
         Camera:StopZooming();
-
-        if (situation.cameraActions.zoomSetting == "fit") then
-            Camera:LoseConfidence();
-        end
     end
 
     -- save zoom for Zoom Fit
