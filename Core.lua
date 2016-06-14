@@ -839,6 +839,11 @@ end
 -- CHAT COMMANDS --
 -------------------
 function DynamicCam:OpenMenu(input)
+    if (not Options) then
+        Camera = self.Camera;
+        Options = self.Options;
+    end
+
     Options:SelectSituation();
 
     -- just open to the frame, double call because blizz bug
