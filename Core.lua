@@ -18,6 +18,7 @@ local _;
 local Camera;
 local Options;
 local conditionFunctionCache = {};
+local conditionExecutionCache = {};
 local evaluateTimer;
 local restoration = {};
 local delayTime;
@@ -188,15 +189,18 @@ function DynamicCam:EvaluateSituations()
 
     -- go through all situations pick the best one
     for name, situation in pairs(self.db.profile.situations) do
-        if (not conditionFunctionCache[situation.condition]) then
-            conditionFunctionCache[situation.condition] = assert(loadstring(situation.condition));
-        end
+        if (situation.enabled) then
+            if (not conditionFunctionCache[situation.condition]) then
+                conditionFunctionCache[situation.condition] = assert(loadstring(situation.condition));
+            end
 
-        -- evaluate the condition, if it checks out and the priority is larger then any other, set it
-        if (situation.enabled and conditionFunctionCache[situation.condition]() and (situation.priority > highestPriority)) then
-            highestPriority = situation.priority;
-            topSituation = situation;
-            topSituationName = name;
+            -- evaluate the condition, if it checks out and the priority is larger then any other, set it
+            conditionExecutionCache[situation] = conditionFunctionCache[situation.condition]();
+            if (conditionExecutionCache[situation] and (situation.priority > highestPriority)) then
+                highestPriority = situation.priority;
+                topSituation = situation;
+                topSituationName = name;
+            end
         end
     end
 
@@ -425,8 +429,22 @@ end
 function DynamicCam:GetSituationList()
     local situationList = {};
 
-    for k, v in pairs(self.db.profile.situations) do
-        situationList[k] = k.." | "..v.name;
+    for k, situation in pairs(self.db.profile.situations) do
+        local prefix = "";
+        local suffix = "";
+
+        if (self.currentSituation == situation) then
+            prefix = "|cFF00FF00";
+            suffix = "|r";
+        elseif (not situation.enabled) then
+            prefix = "|cFF808A87";
+            suffix = "|r";
+        elseif (conditionExecutionCache[situation]) then
+            prefix = "|cFF63B8FF";
+            suffix = "|r";
+        end
+
+        situationList[k] = prefix..situation.name..suffix;
     end
 
     return situationList;
@@ -506,6 +524,70 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameraovershoulder"] = 0;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     situations["007"] = newSituation;
+
+
+
+    newSituation = self:CreateSituation("Dungeon");
+    newSituation.enabled = false;
+    newSituation.priority = 2;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\");";
+    situations["020"] = newSituation;
+
+    newSituation = self:CreateSituation("Dungeon (Outdoors)");
+    newSituation.enabled = false;
+    newSituation.priority = 12;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsOutdoors();";
+    situations["021"] = newSituation;
+
+    newSituation = self:CreateSituation("Dungeon (Mounted)");
+    newSituation.enabled = false;
+    newSituation.priority = 102;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsMounted();";
+    situations["022"] = newSituation;
+
+    newSituation = self:CreateSituation("Dungeon (Combat, Boss)");
+    newSituation.enabled = false;
+    newSituation.priority = 302;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();";
+    situations["023"] = newSituation;
+
+    newSituation = self:CreateSituation("Dungeon (Combat, Trash)");
+    newSituation.enabled = false;
+    newSituation.priority = 202;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();";
+    situations["024"] = newSituation;
+
+
+
+    newSituation = self:CreateSituation("Raid");
+    newSituation.enabled = false;
+    newSituation.priority = 3;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\");";
+    situations["030"] = newSituation;
+
+    newSituation = self:CreateSituation("Raid (Outdoors)");
+    newSituation.enabled = false;
+    newSituation.priority = 13;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsOutdoors();";
+    situations["031"] = newSituation;
+
+    newSituation = self:CreateSituation("Raid (Mounted)");
+    newSituation.enabled = false;
+    newSituation.priority = 103;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsMounted();";
+    situations["032"] = newSituation;
+
+    newSituation = self:CreateSituation("Raid (Combat, Boss)");
+    newSituation.enabled = false;
+    newSituation.priority = 303;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();";
+    situations["033"] = newSituation;
+
+    newSituation = self:CreateSituation("Raid (Combat, Trash)");
+    newSituation.enabled = false;
+    newSituation.priority = 203;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();";
+    situations["034"] = newSituation;
 
 
 
