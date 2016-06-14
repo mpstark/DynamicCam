@@ -446,7 +446,7 @@ function Camera:IsZooming()
     end
 
     -- has an active timer running
-    if (zoom.timer and (self:TimeLeft(zoom.timer) > 0)) then
+    if (zoom.timer) then
         -- has an active timer running
         parent:DebugPrint("Active timer running, so is zooming")
         ret = true;
@@ -469,10 +469,11 @@ function Camera:StopZooming()
     end
 
 	-- has a timer waiting
-	if (zoom.timer and (self:TimeLeft(zoom.timer) ~= 0)) then
+	if (zoom.timer) then
 		-- kill the timer
 		self:CancelTimer(zoom.timer);
         parent:DebugPrint("Killing zoom timer!");
+        zoom.timer = nil;
 	end
 
 	if (zoom.action == "in") then
@@ -510,6 +511,7 @@ function Camera:SetZoom(level, time, timeIsMax)
                     if (zoom.oldSpeed) then
                         SetZoomSpeed(zoom.oldSpeed);
                         zoom.oldSpeed = nil;
+                        zoom.timer = nil;
                     end
 				end
 
@@ -543,15 +545,16 @@ function Camera:SetZoom(level, time, timeIsMax)
             if (zoom.oldMax) then
                 SetMaxZoom(zoom.oldMax);
                 zoom.oldMax = nil;
+                zoom.timer = nil;
             end
 		end
 		zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(level+1));
 	end
 end
 
-function Camera:ZoomUntil(condition, continousTime)
+function Camera:ZoomUntil(condition, continousTime, isFitting)
     if (condition) then
-        local command, increments, speed = condition();
+        local command, increments, speed = condition(isFitting);
 
         if (command) then
             if (speed) then
