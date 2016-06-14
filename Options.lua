@@ -15,27 +15,16 @@ local S, Skey;
 
 local welcomeMessage = [[Hello and welcome to an extremely prerelease build of DynamicCam!
 
-Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and, as far as I know, DynamicCam is the only addon in 11 years of WoW to attempt to use it in the ways that I am. So it might break.
+Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and I have to restort to "tricks" to do many things, so it might break.
 
-TESTING FOCUS/QUESTIONS:
-    - Nameplate Fitting; particularly with NPC interactions and Combat
-        - Try with continously fitting in combat; it's interesting, but kind of buggy
-    - GUI Usability; what needs some more polish?
-    - Creating sets of defaults:
-        - What works for melee characters? Ranged characters?
-        - Do you prefer the relatively close zoom? Or prefer farther.
-        - What other sets of defaults would you like to see?
-        - Do you think that frames being hidden by default would be acceptable?
-            - Example: World Combat hides the Minimap, the Chat, etc.
-        - Class specific situations (like current Annoying Spells default)
-
-Use reddit or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
+If you find a problem, PLEASE GET IN TOUCH WITH ME! It's really important that I know about problems right now, so I can fix them. Use reddit (I'm /u/mpstark) or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
 local changelog = {
-[[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
+[[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
 [[Test Version 11:
-    - Raid and dungeon situations added
+    - Raid and dungeon default situations added
         - These are disabled by default
-        - These don't actually do anything, customize them to your hearts content
+        - These don't actually do anything, enable them and customize them to your hearts content
+        - I'd love to hear if you really like particular settings here
     - PVP situations delayed for now, the dropdown is getting cluttered and I need to find a way to organize it
     - The select-a-situation dropdown is now color-coded
         - Grey is for disabled situations
@@ -44,12 +33,13 @@ local changelog = {
         - White is for everything else
     - More Zoom-to-fit tweaks
         - behavior around the edges of min/max should be better
-            - hopefully this should stop zooming in more than the set min/max
-        - add a 100ms delay to estimated time on zoom-fit so that it doesn't wobble in and out as much
-        - hopefully, zoom-to-fit shouldn't corrupt saved zoom info much anymore
+            - hopefully this should stop zooming more than the set min/max
+        - add a 100ms delay on zoom-fit between in and out
+            - it shouldn't wobble as much and is easier to track
     - MaxZoom and ZoomSpeed should be properly restored in a couple "weird" situations
         - hopefully this resolves ZoomSpeed getting stuck (especially when zoom is slowed)
-        - IF YOU ENCOUNTER A PROBLEM WITH MAX ZOOM OR ZOOM SPEED PLEASE TELL ME!]],
+        - IF YOU ENCOUNTER A PROBLEM WITH MAX ZOOM OR ZOOM SPEED PLEASE TELL ME!
+    - Dynamic Pitch in options now can be set to not affect the current setting at all (grey checkbox)]],
 [[Test Version 10:
     - Defaults changed to include zoom fit with continous on in the World Combat situations
     - Defaults changed with more overall tweaks, again, won't touch any saved settings
@@ -452,7 +442,7 @@ local settings = {
                 },
                 cameralockedtargetfocusing = {
                     type = 'toggle',
-                    name = "Target Locking",
+                    name = "Target Lock/Focus",
                     desc = "If the camera should follow the target",
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end end,
@@ -859,16 +849,33 @@ local situationOptions = {
 
                 dynamicPitch = {
                     type = 'toggle',
+                    tristate = true,
                     name = "Dynamic Pitch",
-                    desc = "Seems to adjust pitch on zoom",
-                    get = function() return (S.cameraCVars["cameradynamicpitch"] == 1) end,
-                    set = function(_, newValue) S.cameraCVars["cameradynamicpitch"] = (newValue and 1 or 0) end,
+                    desc = "Adjusts pitch based on zoom level, grey checkmark means that this situation won't change the current setting",
+                    get = function()
+                        if (S.cameraCVars["cameradynamicpitch"] == nil) then
+                            return nil;
+                        elseif (S.cameraCVars["cameradynamicpitch"] == 1) then
+                            return true;
+                        elseif (S.cameraCVars["cameradynamicpitch"] == 0) then
+                            return false;
+                        end
+                    end,
+                    set = function(_, newValue)
+                        if (newValue == nil) then
+                            S.cameraCVars["cameradynamicpitch"] = nil;
+                        elseif (newValue == true) then
+                            S.cameraCVars["cameradynamicpitch"] = 1;
+                        elseif (newValue == false) then
+                            S.cameraCVars["cameradynamicpitch"] = 0;
+                        end
+                    end,
                     order = 41,
                 },
 
                 targetLock = {
                     type = 'toggle',
-                    name = "Target Lock",
+                    name = "Target Lock/Focus",
                     desc = "Let the camera try to capture the target in view",
                     get = function() return S.targetLock.enabled end,
                     set = function(_, newValue) S.targetLock.enabled = newValue end,
@@ -876,7 +883,7 @@ local situationOptions = {
                 },
                 targetLockSettings = {
                     type = 'group',
-                    name = "Target Lock Settings",
+                    name = "Target Lock/Focus Settings",
                     order = 50,
                     inline = true,
                     hidden = function() return (not S.targetLock.enabled) end,
@@ -884,7 +891,7 @@ local situationOptions = {
                         onlyAttackable = {
                             type = 'toggle',
                             name = "Only Attackable",
-                            desc = "Only target lock attackable targets",
+                            desc = "Only target lock/focus attackable targets",
                             get = function() return S.targetLock.onlyAttackable end,
                             set = function(_, newValue) S.targetLock.onlyAttackable = newValue end,
                             order = 1,
@@ -892,7 +899,7 @@ local situationOptions = {
                         dead = {
                             type = 'toggle',
                             name = "Ignore Dead",
-                            desc = "Don't target lock dead targets",
+                            desc = "Don't target lock/focus dead targets",
                             get = function() return (not S.targetLock.dead) end,
                             set = function(_, newValue) S.targetLock.dead = not newValue end,
                             order = 2,
@@ -900,7 +907,7 @@ local situationOptions = {
                         nameplateVisible = {
                             type = 'toggle',
                             name = "Nameplate Visible",
-                            desc = "Only target lock units that have a visible nameplate",
+                            desc = "Only target lock/focus units that have a visible nameplate",
                             get = function() return S.targetLock.nameplateVisible end,
                             set = function(_, newValue) S.targetLock.nameplateVisible = newValue end,
                             order = 4,

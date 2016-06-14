@@ -4,12 +4,13 @@
     - Restore views might be broken with nameplate fit
     - Save/Restore zoom level for fit isn't working properly
 - SOON
-    - Change to stack-based system for restoration
+    - Change to stack-based system
+        -? "Short Term" Situations that won't exit previous situation
     - Holy shit, there are tristate toggles, use them!
     - Zoom in/out by increments
+        - initial tests with this are not looking good, hard to conceptialize how it *should* behave
     - Find new ways to cheat zoom fit
-    - "Short Term" Situations that won't exit previous situation
-    - 'Camera Settings' should allow for not adjusting target lock or dynamic pitch at all
+    - 'Camera Settings' should allow for not adjusting target lock
     - Close all panels interface action
     - Under advanced mode, you should be able to add/delete situations
     - Shoulder offset should have an indication of what shoulder it's over instead of negative positive
