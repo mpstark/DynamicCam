@@ -595,7 +595,7 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
 
             if (increments) then
                 -- set a timer for when this should be called again
-                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.9, condition, continousTime);
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.9, condition, continousTime, true);
             end
 
             return true;
@@ -658,19 +658,18 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 	end
 end
 
-function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom, time, timeIsMax)
+function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, npPosition, npInc, npSensitivity, npSpeedMult, continously, restoreZoom, time, timeIsMax) -- TODO: this is messy, clean it up, checking db from here is awful, passing a lot of parameters is awful
     if (UnitExists("target")) then
 		-- restore saved
 		local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
 		if (restoreZoom and parent.db.global.savedZooms.npcs[npcID]) then
-            -- TODO: this is messy, clean it up, checking db from here is awful, passing a lot of parameters is awful
 			parent:DebugPrint("Restoring saved zoom for this NPC");
 			return self:SetZoom(math.min(zoomMax, math.max(zoomMin, parent.db.global.savedZooms.npcs[npcID])), time, timeIsMax);
 		elseif (fitNameplate) then
             parent:DebugPrint("Fitting Nameplate for target");
 
             -- create a function that returns the zoom direction or nil for stop zooming
-            local condition = function()
+            local condition = function(isFitting)
                 local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
                 -- we're out of the min and max
@@ -691,18 +690,18 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
 
                     if (difference < 51) then
                         -- we're at the top, go at top speed
-                        if ((zoom.value + 1) <= zoomMax) then
-                            return "out", 1, 25;
+                        if ((zoom.value + (npInc*4)) <= zoomMax) then
+                            return "out", npInc*4, 14*npSpeedMult;
                         end
-                    elseif (ratio > 85) then
+                    elseif (ratio > (isFitting and (npPosition + npSensitivity/2) or math.min(92, npPosition + npSensitivity))) then
                         -- we're on screen, but above the target
-                        if ((zoom.value + .25) <= zoomMax) then
-                            return "out", .25, 22;
+                        if ((zoom.value + npInc) <= zoomMax) then
+                            return "out", npInc, 11*npSpeedMult;
                         end
-                    elseif (ratio > 50 and ratio <= 80) then
+                    elseif (ratio > 50 and ratio <= (isFitting and (npPosition - npSensitivity/2) or math.max(50, npPosition - npSensitivity))) then
                         -- we're on screen, "in front" of the player
-                        if ((zoom.value - .5) >= zoomMin) then
-                            return "in", .5, 22;
+                        if ((zoom.value - (npInc)) >= zoomMin) then
+                            return "in", npInc, 11*npSpeedMult;
                         end
                     end
                 else
@@ -712,9 +711,9 @@ function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, continously, restoreZoom
 
                 -- if no adjustments made, and we're at the limits, re-establish confidence
                 if (not zoom.confident) then
-                    if (zoom.value == zoomMax) then
+                    if (zoom.value > (zoomMax - npInc)) then
                         return "set", zoomMax;
-                    elseif (zoom.value == zoomMin) then
+                    elseif (zoom.value < (zoomMin + npInc)) then
                         return "set", zoomMin;
                     end
                 end
