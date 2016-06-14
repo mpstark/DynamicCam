@@ -32,6 +32,24 @@ TESTING FOCUS/QUESTIONS:
 Use reddit or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, if you want them.]],
+[[Test Version 11:
+    - Raid and dungeon situations added
+        - These are disabled by default
+        - These don't actually do anything, customize them to your hearts content
+    - PVP situations delayed for now, the dropdown is getting cluttered and I need to find a way to organize it
+    - The select-a-situation dropdown is now color-coded
+        - Grey is for disabled situations
+        - Green is for the currently active situation
+        - Blue is for situations that the condition is active but aren't currently selected because of priority
+        - White is for everything else
+    - More Zoom-to-fit tweaks
+        - behavior around the edges of min/max should be better
+            - hopefully this should stop zooming in more than the set min/max
+        - add a 100ms delay to estimated time on zoom-fit so that it doesn't wobble in and out as much
+        - hopefully, zoom-to-fit shouldn't corrupt saved zoom info much anymore
+    - MaxZoom and ZoomSpeed should be properly restored in a couple "weird" situations
+        - hopefully this resolves ZoomSpeed getting stuck (especially when zoom is slowed)
+        - IF YOU ENCOUNTER A PROBLEM WITH MAX ZOOM OR ZOOM SPEED PLEASE TELL ME!]],
 [[Test Version 10:
     - Defaults changed to include zoom fit with continous on in the World Combat situations
     - Defaults changed with more overall tweaks, again, won't touch any saved settings
