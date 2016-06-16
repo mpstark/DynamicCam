@@ -559,7 +559,7 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
         if (command) then
             if (speed) then
                 -- set speed, StopZooming will set it back
-                if (speed ~= GetZoomSpeed()) then
+                if (speed > GetZoomSpeed()) then
                     zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
                     SetZoomSpeed(speed);
                 end
@@ -595,7 +595,7 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
 
             if (increments) then
                 -- set a timer for when this should be called again
-                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.9, condition, continousTime, true);
+                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(increments)*.75, condition, continousTime, true);
             end
 
             return true;
@@ -609,6 +609,11 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
             -- if continously checking, then set the timer for that
             if (continousTime) then
                 zoom.timer = self:ScheduleTimer("ZoomUntil", continousTime, condition, continousTime);
+            else
+                -- reestablish confidence for non-continous zoom-fit
+                if (not zoom.confident) then
+                    self:SetZoom(zoom.value, .1, true); -- TODO: look at constant value here
+                end
             end
 
             return;
@@ -658,80 +663,66 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 	end
 end
 
-function Camera:ZoomFit(zoomMin, zoomMax, fitNameplate, npPosition, npInc, npSensitivity, npSpeedMult, continously, restoreZoom, time, timeIsMax) -- TODO: this is messy, clean it up, checking db from here is awful, passing a lot of parameters is awful
+function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, sensitivity, speedMultiplier, continously)
     if (UnitExists("target")) then
-		-- restore saved
-		local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
-		if (restoreZoom and parent.db.global.savedZooms.npcs[npcID]) then
-			parent:DebugPrint("Restoring saved zoom for this NPC");
-			return self:SetZoom(math.min(zoomMax, math.max(zoomMin, parent.db.global.savedZooms.npcs[npcID])), time, timeIsMax);
-		elseif (fitNameplate) then
-            parent:DebugPrint("Fitting Nameplate for target");
+        parent:DebugPrint("Fitting Nameplate for target");
 
-            -- create a function that returns the zoom direction or nil for stop zooming
-            local condition = function(isFitting)
-                local nameplate = C_NamePlate.GetNamePlateForUnit("target");
+        -- create a function that returns the zoom direction or nil for stop zooming
+        local condition = function(isFitting)
+            local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
-                -- we're out of the min and max
-                if (zoom.value > zoomMax) then
-                    return "in", (zoom.value - zoomMax), 20;
-                elseif (zoom.value < zoomMin) then
-                    return "out", (zoomMin - zoom.value), 20;
-                end
-
-                -- if the nameplate exists, then adjust
-                if (nameplate) then
-                    local _, y = nameplate:GetCenter();
-                    local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-                    local difference = screenHeight - y;
-                    local ratio = (1 - difference/screenHeight) * 100;
-
-                    parent:DebugPrint("Nameplate at ratio:", ratio);
-
-                    if (difference < 51) then
-                        -- we're at the top, go at top speed
-                        if ((zoom.value + (npInc*4)) <= zoomMax) then
-                            return "out", npInc*4, 14*npSpeedMult;
-                        end
-                    elseif (ratio > (isFitting and (npPosition + npSensitivity/2) or math.min(92, npPosition + npSensitivity))) then
-                        -- we're on screen, but above the target
-                        if ((zoom.value + npInc) <= zoomMax) then
-                            return "out", npInc, 11*npSpeedMult;
-                        end
-                    elseif (ratio > 50 and ratio <= (isFitting and (npPosition - npSensitivity/2) or math.max(50, npPosition - npSensitivity))) then
-                        -- we're on screen, "in front" of the player
-                        if ((zoom.value - (npInc)) >= zoomMin) then
-                            return "in", npInc, 11*npSpeedMult;
-                        end
-                    end
-                else
-                    -- namemplate doesn't exist, just wait
-                    return "wait";
-                end
-
-                -- if no adjustments made, and we're at the limits, re-establish confidence
-                if (not zoom.confident) then
-                    if (zoom.value > (zoomMax - npInc)) then
-                        return "set", zoomMax;
-                    elseif (zoom.value < (zoomMin + npInc)) then
-                        return "set", zoomMin;
-                    end
-                end
-
-                return nil;
+            -- we're out of the min and max
+            if (zoom.value > zoomMax) then
+                return "in", (zoom.value - zoomMax), 20;
+            elseif (zoom.value < zoomMin) then
+                return "out", (zoomMin - zoom.value), 20;
             end
 
-            -- if we're not confident, then just set to min, then ZoomUntil
-            if (not zoom.confident) then
-                parent:DebugPrint("Zoom fit with no confidence, going to min");
-                self:SetZoom(zoomMin, .3, true);
-                zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(zoomMin), condition, continously and .75 or nil);
+            -- if the nameplate exists, then adjust
+            if (nameplate) then
+                local top = nameplate:GetTop();
+                local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+                local difference = screenHeight - top;
+                local ratio = (1 - difference/screenHeight) * 100;
+
+                parent:DebugPrint("Nameplate at ratio:", ratio);
+
+                if (difference < 40) then
+                    -- we're at the top, go at top speed
+                    if ((zoom.value + (increments*4)) <= zoomMax) then
+                        return "out", increments*4, 14*speedMultiplier;
+                    end
+                elseif (ratio > (isFitting and math.min(94, nameplatePosition + sensitivity/2) or math.min(94, nameplatePosition + sensitivity))) then
+                    -- we're on screen, but above the target
+                    if ((zoom.value + increments) <= zoomMax) then
+                        return "out", increments, 11*speedMultiplier;
+                    end
+                elseif (ratio > 50 and ratio <= (isFitting and math.max(50, nameplatePosition - sensitivity/2) or math.max(50, nameplatePosition - sensitivity))) then
+                    -- we're on screen, "in front" of the player
+                    if ((zoom.value - (increments)) >= zoomMin) then
+                        return "in", increments, 11*speedMultiplier;
+                    end
+                end
             else
-                return self:ZoomUntil(condition, continously and .75 or nil);
+                -- namemplate doesn't exist, just wait
+                return "wait";
             end
+            
+            -- if we're not fitting then use the time to establish zoom confidence
+            if (not fitting and not zoom.confident) then
+                self:SetZoom(zoom.value, .1, true); -- TODO: look at constant value here
+            end
+
+            return nil;
+        end
+
+        -- if we're not confident, then just set to min, then ZoomUntil
+        if (not zoom.confident) then
+            parent:DebugPrint("Zoom fit with no confidence, going to min");
+            self:SetZoom(zoomMin, .5, true);
+            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(zoomMin), condition, continously and .75 or nil);
         else
-            -- TODO: implement something better than this
-            return self:SetZoom(zoomMin, time, timeIsMax);
+            return self:ZoomUntil(condition, continously and .75 or nil);
         end
     end
 end

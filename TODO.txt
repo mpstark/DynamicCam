@@ -3,8 +3,10 @@
     - RotateDegrees causing continous rotate when the rotate back is canceled
     - Restore views might be broken with nameplate fit
     - Save/Restore zoom level for fit isn't working properly
+    - Hidden secure frames, nameplates need to be shown/hidden during combat lockdown grace period
 
 - PLANNED SOON
+    - Reimplement Save/Restore zoom level
     - Change Camera follow settings
     - Close all panels interface action
     - 'Camera Settings' should allow for not adjusting target lock
@@ -12,10 +14,11 @@
     - Modify CameraZoomIn/Out to take second param so that we can 'mark' automatic changes vs. manual ones
         - Zoom to fit, allow continous to be canceled by manual zooming
     - Zoom to fit, update when target changes, without continous
-    - Zoom to fit nameplates should be able to specify where the nameplate should be and how sensitive that it should be
     - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
 
-- PLANNED BEFORE BETA
+- PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
+    - Change database structure
+        - upgrade old structure
     - There should be several sets of defaults
         - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
     - Clean-up settings menu
@@ -39,7 +42,7 @@
         - etc.
     - Slash commands for temp situations or to force an existing situation
 
-- PLANNED BEFORE FULL RELEASE
+- PLANNED BEFORE FULL RELEASE (@LEGION FULL RELEASE)
     - Lua env for all lua code executed by condition, init, onEnter, onExit
         - use a whitelist, with constant functions so nothing "bad" can happen
 

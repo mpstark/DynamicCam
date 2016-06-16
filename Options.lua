@@ -18,6 +18,15 @@ local welcomeMessage = [[Hello and welcome to an extremely prerelease build of D
 Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and I have to restort to "tricks" to do many things, so it might break.
 
 If you find a problem, PLEASE GET IN TOUCH WITH ME! It's really important that I know about problems right now, so I can fix them. Use reddit (I'm /u/mpstark) or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
+local knownIssues = [[- Sometimes it loses track of zoom, use "/zc" to reset to a known good configuration
+    - "/zi" will print out what info that it "knows" about zoom
+- The combat UI lockdown prevents hiding/showing the actionbars/nameplates in combat
+- Views in WoW are.. odd, I would recommend using them with caution
+- Fit nameplates is still a work in progress, can do a little in-and-out number
+    - Framerate can really affect this at current, I'm looking at ways to avoid this
+- Not all planned situations are in, notably PvP ones are missing
+- The defaults are placeholder ones, a much more robust system is planned
+- Boss vs. Trash combat can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
 [[Test Version 11:
@@ -31,9 +40,12 @@ local changelog = {
         - Green is for the currently active situation
         - Blue is for situations that the condition is active but aren't currently selected because of priority
         - White is for everything else
-    - More Zoom-to-fit tweaks
-        - behavior around the edges of min/max should be better
-            - hopefully this should stop zooming more than the set min/max
+    - "Zoom Fit" now called "Zoom Fit Nameplates"
+    - Added some advanced options under "Zoom Fit Nameplates"
+    - Save/Restore zoom level has been removed, will probably be back in some form
+    - More fit nameplates tweaks
+        - Blizz changes to positioning have been adjusted for
+        - zoom confidence is restored when the zooming is done
         - add a 100ms delay on zoom-fit between in and out
             - it shouldn't wobble as much and is easier to track
     - MaxZoom and ZoomSpeed should be properly restored in a couple "weird" situations
@@ -122,18 +134,6 @@ local changelog = {
     - Add Debug Mode, just in case, off by default]],
 [[Test Version 1:
     - Initial Release]],
-[[Known Issues:
-    - Things can be odd when the camera has a zoom interrupted.
-    - Not all planned default situations are in yet.
-    - Not all advanced options are in, like the option to add situations (!), or custom lua.
-    - Sometimes it loses track of zoom.
-        - '/zc' will go to a known good configuration
-        - '/zi' will tell you some info about what the addon currently \"knows\" about zoom.
-    - Views can be odd, this is mostly a Blizzard issue.
-        - '/sv #' will save a view to that number slot, # can be 2-5
-    - View 1 is currently reserved by the addon for restoring views
-    - Changing a situation that is active doesn't do anything immediately
-        - workaround: toggle it off and then back on."]],
 };
 local general = {
     name = "DynamicCam",
@@ -182,6 +182,21 @@ local general = {
                 message = {
                     type = 'description',
                     name = welcomeMessage,
+                    fontSize = "small",
+                    width = "full",
+                    order = 1,
+                },
+            }
+        },
+        knownIssuesGroup = {
+            type = 'group',
+            name = "Known Issues",
+            order = 5.5,
+            inline = true,
+            args = {
+                issues = {
+                    type = 'description',
+                    name = knownIssues,
                     fontSize = "small",
                     width = "full",
                     order = 1,
@@ -613,7 +628,7 @@ local situationOptions = {
                             desc = "How the camera should react to this situation with regards to zoom",
                             get = function() return S.cameraActions.zoomSetting end,
                             set = function(_, newValue) S.cameraActions.zoomSetting = newValue; end,
-                            values = {["fit"] = "Zoom Fit", ["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
+                            values = {["fit"] = "Zoom Fit Nameplate", ["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
                             order = 1,
                         },
                         zoomValue = {
@@ -653,33 +668,46 @@ local situationOptions = {
                             set = function(_, newValue) S.cameraActions.zoomMax = newValue; end,
                             order = 4,
                         },
-                        fitNameplate = {
-                            type = 'toggle',
-                            name = "Fit Nameplates",
-                            desc = "When this situation is activated (and only then), the view will try to fit your target's nameplate.",
-                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
-                            --hidden = true,
-                            get = function() return S.cameraActions.zoomFitNameplate end,
-                            set = function(_, newValue) S.cameraActions.zoomFitNameplate = newValue end,
-                            order = 5,
-                        },
                         fitContinously = {
                             type = 'toggle',
-                            name = "Fit Continously",
-                            desc = "Keep trying to fit after initial fit. EXPERIMENTAL!",
-                            hidden = function() return (not (S.cameraActions.zoomSetting == "fit")) or (not S.cameraActions.zoomFitNameplate) end,
+                            name = "Continously Adjust",
+                            desc = "Keep trying to fit after initial fit. This will prevent you from adjusting zoom.",
+                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
                             get = function() return S.cameraActions.zoomFitContinous end,
                             set = function(_, newValue) S.cameraActions.zoomFitContinous = newValue end,
                             order = 6,
                         },
-                        fitSaveHistory = {
-                            type = 'toggle',
-                            name = "Save/Restore Fit",
-                            desc = "Save the zoom level for this target while exiting this situation.",
-                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
-                            get = function() return S.cameraActions.zoomFitSave end,
-                            set = function(_, newValue) S.cameraActions.zoomFitSave = newValue end,
+                        fitPosition = {
+                            type = 'select',
+                            name = "Closeness (Advanced)",
+                            desc = "How close should the camera fit to",
+                            hidden = function() return not ((S.cameraActions.zoomSetting == "fit") and DynamicCam.db.profile.advanced) end,
+                            get = function() return S.cameraActions.zoomFitPosition end,
+                            set = function(_, newValue) S.cameraActions.zoomFitPosition = newValue; end,
+                            values = {[60] = "Extremely Far", [70] = "Very Far", [75] = "Far", [80] = "Normal", [84] = "Close", [90] = "Very Close"},
                             order = 7,
+                        },
+                        fitSpeed = {
+                            type = 'select',
+                            name = "Speed (Adv)",
+                            desc = "How fast the camera should adjust",
+                            hidden = function() return not ((S.cameraActions.zoomSetting == "fit") and DynamicCam.db.profile.advanced) end,
+                            get = function() return S.cameraActions.zoomFitSpeedMultiplier end,
+                            set = function(_, newValue) S.cameraActions.zoomFitSpeedMultiplier = newValue; end,
+                            values = {[1.5] = "Normal", [2] = "Quick", [3] = "V.Quick"},
+                            width = "half",
+                            order = 8,
+                        },
+                        fitIncrements = {
+                            type = 'select',
+                            name = "Incr (Adv)",
+                            desc = "How much each step should adjust zoom, finer can mean slower",
+                            hidden = function() return not ((S.cameraActions.zoomSetting == "fit") and DynamicCam.db.profile.advanced) end,
+                            get = function() return S.cameraActions.zoomFitIncrements end,
+                            set = function(_, newValue) S.cameraActions.zoomFitIncrements = newValue; end,
+                            values = {[.25] = "Fine", [.5] = "Normal", [.75] = "Course"},
+                            width = "half",
+                            order = 9,
                         },
                     },
                 },

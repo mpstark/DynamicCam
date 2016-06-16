@@ -77,9 +77,12 @@ local defaults = {
                     zoomValue = 10,
                     zoomMin = 5,
                     zoomMax = 20,
-                    zoomFitNameplate = false,
+                    
                     zoomFitContinous = false,
-                    zoomFitSave = false,
+                    zoomFitSpeedMultiplier = 2,
+                    zoomFitPosition = 84,
+                    zoomFitSensitivity = 5,
+                    zoomFitIncrements = .25,
                 },
                 view = {
                     enabled = false,
@@ -296,16 +299,17 @@ function DynamicCam:EnterSituation(situation, oldSituation)
 
     -- set zoom level
     local adjustedZoom;
-    if (situation.cameraActions.zoomSetting == "in") then
-        adjustedZoom = Camera:ZoomInTo(situation.cameraActions.zoomValue, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
-    elseif (situation.cameraActions.zoomSetting == "out") then
-        adjustedZoom = Camera:ZoomOutTo(situation.cameraActions.zoomValue, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
-    elseif (situation.cameraActions.zoomSetting == "set") then
-        adjustedZoom = Camera:SetZoom(situation.cameraActions.zoomValue, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
-    elseif (situation.cameraActions.zoomSetting == "range") then
-        adjustedZoom = Camera:ZoomToRange(situation.cameraActions.zoomMin, situation.cameraActions.zoomMax, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
-    elseif (situation.cameraActions.zoomSetting == "fit") then
-        adjustedZoom = Camera:ZoomFit(situation.cameraActions.zoomMin, situation.cameraActions.zoomMax, situation.cameraActions.zoomFitNameplate, 85, .25, 5, 2, situation.cameraActions.zoomFitContinous, situation.cameraActions.zoomFitSave, situation.cameraActions.transitionTime, situation.cameraActions.timeIsMax);
+    local a = situation.cameraActions;
+    if (a.zoomSetting == "in") then
+        adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "out") then
+        adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "set") then
+        adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "range") then
+        adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "fit") then
+        adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
     end
 
     -- if we didn't adjust the soom, then reset oldZoom
@@ -315,11 +319,11 @@ function DynamicCam:EnterSituation(situation, oldSituation)
     end
 
     -- ROTATE --
-    if (situation.cameraActions.rotate) then
-        if (situation.cameraActions.rotateSetting == "continous") then
-            Camera:StartContinousRotate(situation.cameraActions.rotateSpeed);
-        elseif (situation.cameraActions.rotateSetting == "degrees") then
-            Camera:RotateDegrees(situation.cameraActions.rotateDegrees, situation.cameraActions.transitionTime);
+    if (a.rotate) then
+        if (a.rotateSetting == "continous") then
+            Camera:StartContinousRotate(a.rotateSpeed);
+        elseif (a.rotateSetting == "degrees") then
+            Camera:RotateDegrees(a.rotateDegrees, a.transitionTime);
         end
     end
 
@@ -366,37 +370,39 @@ function DynamicCam:ExitSituation(situation, newSituation)
         Camera:GotoView(1, .75, situation.view.instant, zoomAmount); -- TODO: look into constant time here
     end
 
+    local a = situation.cameraActions;
+    
     -- stop rotating if we started to
-    if (situation.cameraActions.rotate) then
-        if (situation.cameraActions.rotateSetting == "continous") then
+    if (a.rotate) then
+        if (a.rotateSetting == "continous") then
             local degrees = Camera:StopRotating();
             self:DebugPrint("Ended rotate, degrees rotated:", degrees);
             --Camera:RotateDegrees(-degrees, .5); -- TODO: this is a good idea until it's a bad idea
-        elseif (situation.cameraActions.rotateSetting == "degrees") then
+        elseif (a.rotateSetting == "degrees") then
             if (Camera:IsRotating()) then
                 -- interrupted rotation
                 local degrees = Camera:StopRotating();
                 Camera:RotateDegrees(-degrees, .75); -- TODO: look into constant time here
             else
-                Camera:RotateDegrees(-situation.cameraActions.rotateDegrees, .75); -- TODO: look into constant time here
+                Camera:RotateDegrees(-a.rotateDegrees, .75); -- TODO: look into constant time here
             end
         end
     end
 
     -- stop zooming if we're still zooming
-    if (situation.cameraActions.zoomSetting ~= "off" and Camera:IsZooming()) then
+    if (a.zoomSetting ~= "off" and Camera:IsZooming()) then
         self:DebugPrint("Still zooming for situation, stop zooming.")
         Camera:StopZooming();
     end
 
     -- save zoom for Zoom Fit
-    if (Camera:IsConfident() and situation.cameraActions.zoomSetting == "fit" and situation.cameraActions.zoomFitSave) then
-        if (UnitExists("target")) then
-            self:DebugPrint("Saving fit value for this target");
-            local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
-            self.db.global.savedZooms.npcs[npcID] = Camera:GetZoom();
-        end
-    end
+    -- if (Camera:IsConfident() and a.zoomSetting == "fit" and a.zoomFitSave) then
+        -- if (UnitExists("target")) then
+            -- self:DebugPrint("Saving fit value for this target");
+            -- local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
+            -- self.db.global.savedZooms.npcs[npcID] = Camera:GetZoom();
+        -- end
+    -- end
 
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situation, newSituation)) then
@@ -501,7 +507,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.priority = 50;
     newSituation.condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");";
     newSituation.cameraActions.zoomSetting = "fit";
-    newSituation.cameraActions.zoomFitNameplate = true;
     newSituation.cameraActions.zoomFitContinous = true;
     newSituation.cameraActions.zoomMin = 7;
     newSituation.cameraActions.zoomMax = 30;
@@ -636,11 +641,10 @@ function DynamicCam:GetDefaultSituations()
     newSituation.delay = .5;
     newSituation.condition = "return (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")) and ((GarrisonCapacitiveDisplayFrame and GarrisonCapacitiveDisplayFrame:IsShown()) or (BankFrame and BankFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown()) or (GossipFrame and GossipFrame:IsShown()) or (ClassTrainerFrame and ClassTrainerFrame:IsShown()) or (QuestFrame and QuestFrame:IsShown()))";
     newSituation.cameraActions.zoomSetting = "fit";
-    newSituation.cameraActions.zoomFitNameplate = true;
-    newSituation.cameraActions.zoomFitSave = true;
     newSituation.cameraActions.zoomMin = 3;
     newSituation.cameraActions.zoomMax = 30;
     newSituation.cameraActions.zoomValue = 4;
+    newSituation.cameraActions.zoomFitIncrements = .5;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.cameraCVars["nameplateShowAll"] = 1;
@@ -686,9 +690,12 @@ function DynamicCam:CreateSituation(name)
             zoomValue = 10,
             zoomMin = 5,
             zoomMax = 20,
-            zoomFitNameplate = false,
+            
             zoomFitContinous = false,
-            zoomFitSave = false,
+            zoomFitSpeedMultiplier = 2,
+            zoomFitPosition = 84,
+            zoomFitSensitivity = 5,
+            zoomFitIncrements = .25,
         },
         view = {
             enabled = false,
