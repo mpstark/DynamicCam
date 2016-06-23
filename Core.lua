@@ -221,7 +221,7 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
         local highestPriority = -100;
         local topSituation;
 
-        self:DebugPrint("EvaluateSituations", event, possibleUnit, ..., lastEvaluate and (GetTime() - lastEvaluate));
+        -- self:DebugPrint("EvaluateSituations", event, possibleUnit, ..., lastEvaluate and (GetTime() - lastEvaluate));
 
         lastEvaluate = GetTime();
         if (evaluateTimer) then
@@ -478,7 +478,7 @@ end
 function DynamicCam:GetSituationList()
     local situationList = {};
 
-    for k, situation in pairs(self.db.profile.situations) do
+    for id, situation in pairs(self.db.profile.situations) do
         local prefix = "";
         local suffix = "";
 
@@ -488,12 +488,12 @@ function DynamicCam:GetSituationList()
         elseif (not situation.enabled) then
             prefix = "|cFF808A87";
             suffix = "|r";
-        elseif (conditionExecutionCache[situation]) then
+        elseif (conditionExecutionCache[id]) then
             prefix = "|cFF63B8FF";
             suffix = "|r";
         end
 
-        situationList[k] = prefix..situation.name..suffix;
+        situationList[id] = prefix..situation.name..suffix;
     end
 
     return situationList;
@@ -888,7 +888,7 @@ function DynamicCam:RegisterEvents()
                 if (not events[event]) then
                     events[event] = true;
                     self:RegisterEvent(event, "EvaluateSituations");
-                    self:DebugPrint("Registered for event:", event);
+                    -- self:DebugPrint("Registered for event:", event);
                 end
             end
         end
