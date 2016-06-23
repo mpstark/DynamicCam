@@ -374,11 +374,11 @@ function Camera:SaveView(view)
 		parent.db.global.savedViews[view] = zoom.value;
 
 		if (view ~= 1) then
-			parent:Print("Saved view "..view.." with absolute zoom.");
+			parent:Print("Saved view", view, "with absolute zoom.");
 		end
 	else
 		if (view ~= 1) then
-			parent:Print("Saved view "..view.." but couldn't save zoom level!");
+			parent:Print("Saved view", view, "but couldn't save zoom level!");
 		end
 	end
 end
