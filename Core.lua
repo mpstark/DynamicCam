@@ -42,8 +42,7 @@ local defaults = {
         advanced = false,
         debugMode = false,
         defaultCvars = {
-            ["cameradistancemax"] = 50,
-            ["cameraDistanceMaxFactor"] = 1,
+            ["cameraDistanceMaxFactor"] = 1.9,
             ["cameraDistanceMoveSpeed"] = 8.33,
             ["cameraovershoulder"] = 0,
             ["cameraheadmovementstrength"] = 0,
@@ -78,7 +77,7 @@ local defaults = {
                     zoomSetting = "off",
                     zoomValue = 10,
                     zoomMin = 5,
-                    zoomMax = 20,
+                    zoomMax = 15,
 
                     zoomFitContinous = false,
                     zoomFitSpeedMultiplier = 2,
@@ -337,32 +336,36 @@ function DynamicCam:EnterSituation(situation, oldSituation)
         restoration[situation].cvars["cameralockedtargetfocusing"] = GetCVar("cameralockedtargetfocusing");
     end
 
-    -- ZOOM --
-    -- save old zoom level
-    if (Camera:IsConfident()) then
-        restoration[situation].zoom = Camera:GetZoom();
-        restoration[situation].zoomSituation = oldSituation;
-    end
-
-    -- set zoom level
-    local adjustedZoom;
     local a = situation.cameraActions;
-    if (a.zoomSetting == "in") then
-        adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "out") then
-        adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "set") then
-        adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "range") then
-        adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "fit") then
-        adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
-    end
 
-    -- if we didn't adjust the soom, then reset oldZoom
-    if (not adjustedZoom) then
-        restoration[situation].zoom = nil;
-        restoration[situation].zoomSituation = nil;
+    -- ZOOM --
+    if (not Camera:IsZooming()) then
+        -- save old zoom level
+        if (Camera:IsConfident()) then
+            restoration[situation].zoom = Camera:GetZoom();
+            restoration[situation].zoomSituation = oldSituation;
+        end
+
+        -- set zoom level
+        local adjustedZoom;
+        
+        if (a.zoomSetting == "in") then
+            adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "out") then
+            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "set") then
+            adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "range") then
+            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "fit") then
+            adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
+        end
+
+        -- if we didn't adjust the soom, then reset oldZoom
+        if (not adjustedZoom) then
+            restoration[situation].zoom = nil;
+            restoration[situation].zoomSituation = nil;
+        end
     end
 
     -- ROTATE --
@@ -453,8 +456,8 @@ function DynamicCam:ExitSituation(situation, newSituation)
 
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situation, newSituation)) then
-        Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
         self:DebugPrint("Restoring zoom level.");
+        Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
     end
 
     -- unhide hidden frames
@@ -511,7 +514,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING"};
     newSituation.cameraActions.zoomSetting = "range";
     newSituation.cameraActions.zoomMin = 8;
-    newSituation.cameraActions.zoomMax = 20;
+    newSituation.cameraActions.zoomMax = 15;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["001"] = newSituation;
 
@@ -541,7 +544,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "range";
     newSituation.cameraActions.zoomMin = 8;
-    newSituation.cameraActions.zoomMax = 20;
+    newSituation.cameraActions.zoomMax = 15;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["004"] = newSituation;
 
@@ -560,9 +563,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");";
     newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "fit";
-    newSituation.cameraActions.zoomFitContinous = true;
+    --newSituation.cameraActions.zoomFitContinous = true;
     newSituation.cameraActions.zoomMin = 7;
-    newSituation.cameraActions.zoomMax = 30;
+    newSituation.cameraActions.zoomMax = 28.5;
     newSituation.cameraCVars["cameraovershoulder"] = 1.5;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.targetLock.enabled = true;
@@ -680,7 +683,7 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Hearthing");
     newSituation.priority = 20;
-    newSituation.condition = "local spells = {8690, 222695}; for k,v in pairs(spells) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
+    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {8690, 222695, 171253}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
@@ -697,7 +700,7 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Annoying Spells");
     newSituation.priority = 1000;
-    newSituation.condition = "local spells = {46924, 51690, 188499, 210152}; for k,v in pairs(spells) do if (UnitBuff(\"player\", GetSpellInfo(v))) then return true; end end return false;";
+    newSituation.condition = "if (not DC_ANNOYING_SPELLS) then DC_ANNOYING_SPELLS = {46924, 51690, 188499, 210152}; end for k,v in pairs(DC_ANNOYING_SPELLS) do if (UnitBuff(\"player\", GetSpellInfo(v))) then return true; end end return false;";
     newSituation.events = {"UNIT_AURA"};
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
@@ -711,9 +714,10 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"};
     newSituation.cameraActions.zoomSetting = "fit";
     newSituation.cameraActions.zoomMin = 3;
-    newSituation.cameraActions.zoomMax = 30;
+    newSituation.cameraActions.zoomMax = 28.5;
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraActions.zoomFitIncrements = .5;
+    newSituation.cameraActions.zoomFitPosition = 90;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.cameraCVars["nameplateShowAll"] = 1;
@@ -954,7 +958,6 @@ end
 function DynamicCam:ResetCVars()
     SetCVar("cameraovershoulder", GetCVarDefault("cameraovershoulder"));
     SetCVar("cameralockedtargetfocusing", GetCVarDefault("cameralockedtargetfocusing"));
-    SetCVar("cameradistancemax", GetCVarDefault("cameradistancemax"));
     SetCVar("cameradistancemovespeed", GetCVarDefault("cameradistancemovespeed"));
     SetCVar("cameradynamicpitch", GetCVarDefault("cameradynamicpitch"));
     SetCVar("cameradynamicpitchbasefovpad", GetCVarDefault("cameradynamicpitchbasefovpad"));
@@ -970,6 +973,4 @@ function DynamicCam:ResetCVars()
     ResetView(3);
     ResetView(4);
     ResetView(5);
-
-    SetCVar("cameradistancemaxfactor", 1);
 end

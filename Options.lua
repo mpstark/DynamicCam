@@ -29,6 +29,13 @@ local knownIssues = [[- Sometimes it loses track of zoom, use "/zc" to reset to 
 - Boss vs. Trash combat can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
+[[Test Version 11 HOTFIX:
+    - Changed the way that we handle lack of zoom confidence, it'll use factor instead
+        - This is an imperfect solution because I can't get adjust it lower than 1, so any zoom lower than 15
+            will adjust to 15 then adjust to the actual zoom that we wanted
+    - Changed defaults to factor in new max zoom
+    - Fixed default condition for a couple situations causing a memory leak
+    - I WOULD HIGHLY RECOMMEND RESETING YOUR PROFILE]],
 [[Test Version 11:
     - Raid and dungeon default situations added
         - These are disabled by default
@@ -263,13 +270,13 @@ local general = {
                         },
                         distance = {
                             type = 'range',
-                            name = "Max Camera Distance",
+                            name = "Max Camera Distance Factor",
                             desc = "How far away the camera can get away from your character",
                             min = 0,
-                            max = 50,
-                            step = .5,
-                            get = function() return tonumber(GetCVar("cameradistancemax")) end,
-                            set = function(_, newValue) SetCVar("cameradistancemax", newValue) end,
+                            max = 1.9,
+                            step = .1,
+                            get = function() return tonumber(GetCVar("cameradistancemaxfactor")) end,
+                            set = function(_, newValue) SetCVar("cameradistancemaxfactor", newValue) end,
                             order = 2.5,
                         },
                         cameraDistanceMoveSpeed = {
@@ -463,22 +470,10 @@ local settings = {
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end end,
                     order = 0.5,
                 },
-                cameradistancemax = {
-                    type = 'range',
-                    name = "Camera Max Distance",
-                    desc = "The max the camera can zoom out",
-                    min = 0,
-                    max = 50,
-                    step = .5,
-                    get = function() return DynamicCam.db.profile.defaultCvars["cameradistancemax"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameradistancemax"] = newValue; end,
-                    order = 1,
-                    width = "full",
-                },
                 cameraDistanceMaxFactor = {
                     type = 'range',
                     name = "Camera Distance Max Factor",
-                    desc = "Factor for the camera max distance, but total max won't exceed 50",
+                    desc = "Factor for the camera max distance, but total max won't exceed 28.5",
                     min = 1,
                     max = 1.9,
                     step = .01,
@@ -637,7 +632,7 @@ local situationOptions = {
                             desc = "The zoom value to set",
                             hidden = function() return (S.cameraActions.zoomSetting == "range" or S.cameraActions.zoomSetting == "fit") end,
                             min = 0,
-                            max = 50,
+                            max = 28.5,
                             step = .5,
                             get = function() return S.cameraActions.zoomValue end,
                             set = function(_, newValue) S.cameraActions.zoomValue = newValue; end,
@@ -650,7 +645,7 @@ local situationOptions = {
                             desc = "The min zoom value to set",
                             hidden = function() return not (S.cameraActions.zoomSetting == "range" or S.cameraActions.zoomSetting == "fit") end,
                             min = 0,
-                            max = 50,
+                            max = 28.5,
                             step = .5,
                             get = function() return S.cameraActions.zoomMin end,
                             set = function(_, newValue) S.cameraActions.zoomMin = newValue; end,
@@ -662,7 +657,7 @@ local situationOptions = {
                             desc = "The max zoom value to set",
                             hidden = function() return not (S.cameraActions.zoomSetting == "range" or S.cameraActions.zoomSetting == "fit") end,
                             min = 0,
-                            max = 50,
+                            max = 28.5,
                             step = .5,
                             get = function() return S.cameraActions.zoomMax end,
                             set = function(_, newValue) S.cameraActions.zoomMax = newValue; end,
@@ -829,29 +824,6 @@ local situationOptions = {
                     order = 10,
                     width = "full",
                 },
-
-                distanceToggle = {
-                    type = 'toggle',
-                    name = "Adjust Max Distance",
-                    desc = "If this setting should be affected",
-                    get = function() return (S.cameraCVars["cameradistancemax"] ~= nil) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["cameradistancemax"] = 50 else S.cameraCVars["cameradistancemax"] = nil end end,
-                    order = 2,
-                },
-                distance = {
-                    type = 'range',
-                    name = "Max Camera Distance Value",
-                    desc = "How far away the camera can get away from your character",
-                    hidden = function() return (S.cameraCVars["cameradistancemax"] == nil) end,
-                    min = 0,
-                    max = 50,
-                    step = .5,
-                    get = function() return S.cameraCVars["cameradistancemax"] end,
-                    set = function(_, newValue) S.cameraCVars["cameradistancemax"] = newValue end,
-                    order = 11,
-                    width = "full",
-                },
-
                 headTrackingToggle = {
                     type = 'toggle',
                     name = "Adjust Head Tracking",
