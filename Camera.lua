@@ -1,10 +1,3 @@
----------------
--- CONSTANTS --
----------------
-local CONTINOUS_FUDGE_FACTOR = 1.1;
-local VIEW_TRANSITION_SPEED = 10; -- TODO: remove this awful thing
-
-
 -------------
 -- GLOBALS --
 -------------
@@ -22,16 +15,12 @@ local _;
 local viewTimer;
 
 local zoom = {
-	value = 0,
-	confident = false,
-
 	action = nil,
 	time = nil,
 	continousSpeed = 1,
 
 	timer = nil,
 	oldSpeed = nil,
-	oldMaxDistance = nil,
 }
 
 local rotation = {
@@ -178,8 +167,9 @@ end
 -----------
 -- HOOKS --
 -----------
-function Camera:CameraZoomIn(increments)
+function Camera:CameraZoomIn(inc)
 	local zoomMax = GetMaxZoom();
+	local increments = inc or 1;
 
 	-- maximum maxzoom is 28.5
 	zoomMax = math.min(28.5, zoomMax);
@@ -187,46 +177,16 @@ function Camera:CameraZoomIn(increments)
 	-- maximum increments is zoommax
 	increments = math.min(increments, zoomMax);
 
+	-- can't zoom in past 0
+	if ((GetCameraZoom() - increments) <= 0) then
+		increments = GetCameraZoom();
+	end
+
 	-- check if we were continously zooming before and stop tracking it if we were
 	if (zoom.action == "continousIn") then
 		self:MoveViewInStop();
 	elseif (zoom.action == "continousOut") then
 		self:MoveViewOutStop();
-	end
-
-	-- check to see if we were previously zooming out and we're not done yet
-	if (zoom.action == "out" and zoom.time and zoom.time >= GetTime()) then
-		-- canceled zooming out, get the time left and guess how much distance we didn't cover
-		local timeLeft = zoom.time - GetTime();
-
-		-- (seconds) * (yards/second) = yards
-		zoom.value = zoom.value - (timeLeft * GetZoomSpeed());
-
-		self:LoseConfidence();
-		zoom.action = nil;
-		zoom.time = nil;
-	end
-
-	-- set the zoom variable
-	if (zoom.confident) then
-		-- we know where we are, then set the zoom, zoom can only go to 0
-		local oldZoom = zoom.value;
-		zoom.value = math.max(zoom.value - increments, 0);
-
-		if (zoom.value < 0.5) then
-			zoom.value = 0;
-			increments = oldZoom;
-		end
-	else
-		-- we don't know where we are, just assume that we're not zooming in further than we can go
-		zoom.value = zoom.value - increments;
-
-		-- we've now zoomed in past the max, so we can assume that we're at 0
-		if (zoom.value <= -zoomMax) then
-			zoom.value = 0;
-			zoom.confident = true;
-			increments = 0;
-		end
 	end
 
 	-- set zoom done time
@@ -243,11 +203,12 @@ function Camera:CameraZoomIn(increments)
 
 	-- TODO: set timer for this
 
-	parent:DebugPrint("Zoom in:", "increments:", increments, "new:", zoom.value, "time:", timeToZoom, (zoom.confident and "" or "not confident"));
+	parent:DebugPrint("Zoom in:", "inc", inc, "increments:", increments, "time:", timeToZoom);
 end
 
-function Camera:CameraZoomOut(increments)
+function Camera:CameraZoomOut(inc)
 	local zoomMax = GetMaxZoom();
+	local increments = inc or 1;
 
 	-- maximum maxzoom is 28.5
 	zoomMax = math.min(28.5, zoomMax);
@@ -255,45 +216,16 @@ function Camera:CameraZoomOut(increments)
 	-- maximum increments is zoommax
 	increments = math.min(increments, zoomMax);
 
+	-- can't zoom out past zoomMax
+	if ((GetCameraZoom() + increments) >= zoomMax) then
+		increments = (zoomMax - GetCameraZoom() > .001) and (zoomMax - GetCameraZoom()) or 0;
+	end
+
 	-- check if we were continously zooming before and stop tracking it if we were
 	if (zoom.action == "continousIn") then
 		self:MoveViewInStop();
 	elseif (zoom.action == "continousOut") then
 		self:MoveViewOutStop();
-	end
-
-	-- check to see if we were previously zooming in and we're not done yet
-	if (zoom.action == "in" and zoom.time and zoom.time >= GetTime()) then
-		-- canceled zooming in, get the time left and guess how much distance we didn't cover
-		local timeLeft = zoom.time - GetTime();
-
-		-- (seconds) * (yards/second) = yards
-		zoom.value = zoom.value + (timeLeft * GetZoomSpeed());
-
-		self:LoseConfidence();
-		zoom.action = nil;
-		zoom.time = nil;
-	end
-
-	-- set the zoom variable
-	if (zoom.confident) then
-		--we know where we are, then set the zoom, zoom can only go to zoomMax
-		local oldZoom = zoom.value;
-		zoom.value = math.min(zoom.value + increments, zoomMax);
-
-		if (zoom.value >= zoomMax) then
-			increments = zoomMax - oldZoom;
-		end
-	else
-		-- we don't know where we are, just assume that we're not zooming out further than we can go
-		zoom.value = zoom.value + increments;
-
-		-- we've now zoomed out past the max, so we can assume that we're at max
-		if (zoom.value >= zoomMax) then
-			zoom.value = zoomMax;
-			zoom.confident = true;
-			increments = 0;
-		end
 	end
 
 	-- set zoom done time
@@ -310,7 +242,7 @@ function Camera:CameraZoomOut(increments)
 
 	-- TODO: set timer for this
 
-	parent:DebugPrint("Zoom out:", "increments:", increments, "new:", zoom.value, "time:", timeToZoom, (zoom.confident and "" or "not confident"));
+	parent:DebugPrint("Zoom out:", "inc", inc, "increments:", increments, "time:", timeToZoom);
 end
 
 function Camera:MoveViewInStart(speed)
@@ -326,12 +258,8 @@ end
 
 function Camera:MoveViewInStop()
 	if (zoom.action == "continousIn") then
-		-- set value based on time and movement
-		--zoom.value = math.max(0, zoom.value - ((GetTime() - zoom.time) * GetCVar("cameraDistanceMoveSpeed") * CONTINOUS_FUDGE_FACTOR * zoom.continousSpeed));
-
 		zoom.action = nil;
 		zoom.time = nil;
-		self:LoseConfidence();
 	end
 end
 
@@ -348,46 +276,21 @@ end
 
 function Camera:MoveViewOutStop()
 	if (zoom.action == "continousOut") then
-		-- set value based on time and movement
-		--zoom.value = math.min(50, zoom.value + ((GetTime() - zoom.time) * GetCVar("cameraDistanceMoveSpeed") * CONTINOUS_FUDGE_FACTOR * zoom.continousSpeed));
-
 		zoom.action = nil;
 		zoom.time = nil;
-		self:LoseConfidence();
 	end
 end
 
 function Camera:SetView(view)
-	-- restore zoom values from saves view if we can,
-	if (parent.db.global.savedViews[view]) then
-		zoom.value = parent.db.global.savedViews[view];
-		viewTimer = self:ScheduleTimer(function() zoom.confident = true; end, VIEW_TRANSITION_SPEED);
-	else
-		self:ResetZoomVars();
-	end
 end
 
 function Camera:ResetView(view)
-	parent.db.global.savedViews[view] = nil;
 end
 
 function Camera:SaveView(view)
-	-- if we know where we are, then save the zoom level to be restored when the view is set
-	if (zoom.confident) then
-		parent.db.global.savedViews[view] = zoom.value;
-
-		if (view ~= 1) then
-			parent:Print("Saved view", view, "with absolute zoom.");
-		end
-	else
-		if (view ~= 1) then
-			parent:Print("Saved view", view, "but couldn't save zoom level!");
-		end
-	end
 end
 
 function Camera:ResetZoomVars()
-	self:LoseConfidence();
 end
 
 
@@ -413,27 +316,7 @@ end
 -- ZOOM ACTIONS --
 ------------------
 function Camera:PrintCameraVars()
-	parent:Print("Zoom info:", "value:", zoom.value, ((zoom.time and (zoom.time - GetTime() > 0)) and (zoom.action or "no action").." "..(zoom.time - GetTime()) or ""), (zoom.confident and "" or "not confident"));
-end
-
-function Camera:ResetConfidence(value)
-	ResetView(1);
-	SetView(1);
-	SetView(1);
-
-	zoom.value = 0;
-	zoom.confident = true;
-
-	self:SetZoom(value, .5, true);
-end
-
-function Camera:LoseConfidence()
-    zoom.value = 0;
-    zoom.confident = false;
-end
-
-function Camera:IsConfident()
-	return zoom.confident;
+	parent:Print("Zoom info:", "curValue:", GetCameraZoom(), ((zoom.time and (zoom.time - GetTime() > 0)) and (zoom.action or "no action").." "..(zoom.time - GetTime()) or ""));
 end
 
 function Camera:IsZooming()
@@ -441,7 +324,7 @@ function Camera:IsZooming()
 
     -- has an active action running
 	if (zoom.action and zoom.time) then
-		if (zoom.time >= GetTime()) then
+		if (zoom.time > GetTime()) then
 			ret = true;
 		else
 			zoom.time = nil;
@@ -459,12 +342,6 @@ function Camera:IsZooming()
 end
 
 function Camera:StopZooming()
-    -- restore oldMax if it exists
-    if (zoom.oldMax) then
-        SetMaxZoom(zoom.oldMax);
-        zoom.oldMax = nil;
-    end
-
     -- restore oldSpeed if it exists
     if (zoom.oldSpeed) then
         SetZoomSpeed(zoom.oldSpeed);
@@ -479,10 +356,10 @@ function Camera:StopZooming()
         zoom.timer = nil;
 	end
 
-	if (zoom.action == "in") then
-		CameraZoomOut(0);
-	elseif (zoom.action == "out") then
-		CameraZoomIn(0);
+	if (zoom.action == "in" and zoom.time and zoom.time > GetTime()) then
+		--CameraZoomOut(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
+	elseif (zoom.action == "out" and zoom.time and zoom.time > GetTime()) then
+		--CameraZoomIn(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
 	elseif (zoom.action == "continousIn") then
 		MoveViewInStop();
 	elseif (zoom.action == "continousOut") then
@@ -490,81 +367,38 @@ function Camera:StopZooming()
 	end
 end
 
-function Camera:GetZoom()
-	-- TODO: check up on
-	return zoom.value;
-end
-
 function Camera:SetZoom(level, time, timeIsMax)
-	if (zoom.confident) then
-		-- know where we are, perform just a zoom in or zoom out to level
-		local difference = self:GetZoom() - level;
+	-- know where we are, perform just a zoom in or zoom out to level
+	local difference = GetCameraZoom() - level;
 
-        parent:DebugPrint("SetZoom with confident zoom");
+	parent:DebugPrint("SetZoom", level, time, timeIsMax, "difference", difference);
 
-		-- set zoom speed to match time
-		if (difference ~= 0) then
-			zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
-			local speed = GetEstimatedZoomSpeed(math.abs(difference), time);
+	-- set zoom speed to match time
+	if (difference ~= 0) then
+		zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
+		local speed = GetEstimatedZoomSpeed(math.abs(difference), time);
 
-			if ((not timeIsMax) or (timeIsMax and (speed > zoom.oldSpeed))) then
-				SetZoomSpeed(speed);
+		if ((not timeIsMax) or (timeIsMax and (speed > zoom.oldSpeed))) then
+			SetZoomSpeed(speed);
 
-				local func = function ()
-                    if (zoom.oldSpeed) then
-                        SetZoomSpeed(zoom.oldSpeed);
-                        zoom.oldSpeed = nil;
-                        zoom.timer = nil;
-                    end
+			local func = function ()
+				if (zoom.oldSpeed) then
+					SetZoomSpeed(zoom.oldSpeed);
+					zoom.oldSpeed = nil;
+					zoom.timer = nil;
 				end
-
-				zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(math.abs(difference)));
 			end
+
+			zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(math.abs(difference)));
 		end
+	end
 
-		if (self:GetZoom() > level) then
-			CameraZoomIn(difference);
-			return true;
-		elseif (self:GetZoom() < level) then
-			CameraZoomOut(-difference);
-			return true;
-		end
-	else
-		local newMax = level;
-
-        parent:DebugPrint("SetZoom with not confident zoom");
-
-		-- if the level is at a point where we cannot set it, set it to nearest value and then set a timer
-		if (level < 15) then
-			newMax = 15;
-		end
-
-		-- we don't know where we are, so use max zoom trick
-		zoom.oldMax = zoom.oldMax or GetMaxZoom();
-
-		-- set max zoom to the level
-		SetMaxZoom(newMax);
-
-		-- zoom out level increments + 1, guarenteeing that we're at the level after zoom
-		CameraZoomOut(newMax+1);
-
-		-- set a timer to restore max zoom and to set confidence
-		local func = function ()
-			zoom.confident = true;
-
-			-- restore old max
-			if (zoom.oldMax) then
-                SetMaxZoom(zoom.oldMax);
-                zoom.oldMax = nil;
-                zoom.timer = nil;
-            end
-
-			-- set to the proper zoom
-			if (newMax > level and not ((zoom.value == level) and zoom.confident)) then
-				CameraZoomIn(newMax - level);
-			end
-		end
-		zoom.timer = self:ScheduleTimer(func, GetEstimatedZoomTime(level+1));
+	if (GetCameraZoom() > level) then
+		CameraZoomIn(difference);
+		return true;
+	elseif (GetCameraZoom() < level) then
+		CameraZoomOut(-difference);
+		return true;
 	end
 end
 
@@ -586,15 +420,11 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
                 -- if we're not already zooming out, zoom in
                 if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time >= (GetTime() - .1))) then
                     CameraZoomIn(increments);
-
-                    zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
                 end
             elseif (command == "out") then
                 -- if we're not already zooming in, zoom out
                if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time >= (GetTime() - .1))) then
             		CameraZoomOut(increments);
-
-                	zoom.confident = false; -- TODO: find why nameplate zoom looses track of zoom level
                end
             elseif (command == "set") then
                 if (not (zoom.action and zoom.time and zoom.time >= (GetTime() - .1))) then
@@ -625,11 +455,8 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
             -- if continously checking, then set the timer for that
             if (continousTime) then
                 zoom.timer = self:ScheduleTimer("ZoomUntil", continousTime, condition, continousTime);
-            else
-                -- reestablish confidence for non-continous zoom-fit
-                -- if (not zoom.confident) then
-                --     self:SetZoom(zoom.value, .1, true); -- TODO: look at constant value here
-                -- end
+			else
+				zoom.timer = nil;
             end
 
             return;
@@ -642,40 +469,22 @@ end
 -- ZOOM CONVENIENCE --
 ----------------------
 function Camera:ZoomInTo(level, time, timeIsMax)
-	if (zoom.confident) then
-		-- we know where we are, so check zoom level and only zoom in if we need to
-		if (self:GetZoom() > level) then
-			return self:SetZoom(level, time, timeIsMax);
-		end
-	else
-		-- not confident or relative, just set to the level
+	if (GetCameraZoom() > level) then
 		return self:SetZoom(level, time, timeIsMax);
 	end
 end
 
 function Camera:ZoomOutTo(level, time, timeIsMax)
-	if (zoom.confident) then
-		-- we know where we are, so check zoom level and only zoom out if we need to
-		if (self:GetZoom() < level) then
-			return self:SetZoom(level, time, timeIsMax);
-		end
-	else
-		-- not confident or relative, just set to the level
+	if (GetCameraZoom() < level) then
 		return self:SetZoom(level, time, timeIsMax);
 	end
 end
 
 function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
-	if (zoom.confident) then
-		-- we know where we are, so check zoom level and only zoom if we need to
-		if (self:GetZoom() < minLevel) then
-			return self:SetZoom(minLevel, time, timeIsMax);
-		elseif (self:GetZoom() > maxLevel) then
-			return self:SetZoom(maxLevel, time, timeIsMax);
-		end
-	else
-		-- not confident or relative, just set to the average
-		return self:SetZoom((minLevel+maxLevel)/2, time, timeIsMax);
+	if (GetCameraZoom() < minLevel) then
+		return self:SetZoom(minLevel, time, timeIsMax);
+	elseif (GetCameraZoom() > maxLevel) then
+		return self:SetZoom(maxLevel, time, timeIsMax);
 	end
 end
 
@@ -688,10 +497,10 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
             local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
             -- we're out of the min and max
-            if (zoom.value > zoomMax) then
-                return "in", (zoom.value - zoomMax), 20;
-            elseif (zoom.value < zoomMin) then
-                return "out", (zoomMin - zoom.value), 20;
+            if (GetCameraZoom() > zoomMax) then
+                return "in", (GetCameraZoom() - zoomMax), 20;
+            elseif (GetCameraZoom() < zoomMin) then
+                return "out", (zoomMin - GetCameraZoom()), 20;
             end
 
             -- if the nameplate exists, then adjust
@@ -705,17 +514,17 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
 
                 if (difference < 40) then
                     -- we're at the top, go at top speed
-                    if ((zoom.value + (increments*4)) <= zoomMax) then
+                    if ((GetCameraZoom() + (increments*4)) <= zoomMax) then
                         return "out", increments*4, 14*speedMultiplier;
                     end
                 elseif (ratio > (isFitting and math.min(94, nameplatePosition + sensitivity/2) or math.min(94, nameplatePosition + sensitivity))) then
                     -- we're on screen, but above the target
-                    if ((zoom.value + increments) <= zoomMax) then
+                    if ((GetCameraZoom() + increments) <= zoomMax) then
                         return "out", increments, 11*speedMultiplier;
                     end
                 elseif (ratio > 50 and ratio <= (isFitting and math.max(50, nameplatePosition - sensitivity/2) or math.max(50, nameplatePosition - sensitivity))) then
                     -- we're on screen, "in front" of the player
-                    if ((zoom.value - (increments)) >= zoomMin) then
+                    if ((GetCameraZoom() - (increments)) >= zoomMin) then
                         return "in", increments, 11*speedMultiplier;
                     end
                 end
@@ -723,23 +532,13 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
                 -- namemplate doesn't exist, just wait
                 return "wait";
             end
-            
-            -- if we're not fitting then use the time to establish zoom confidence
-            -- if (not fitting and not zoom.confident) then
-            --     self:SetZoom(zoom.value, .1, true); -- TODO: look at constant value here
-            -- end
 
             return nil;
         end
 
-        -- if we're not confident, then just set to min, then ZoomUntil
-        if (not zoom.confident) then
-            parent:DebugPrint("Zoom fit with no confidence, going to min");
-            self:SetZoom(zoomMin, .5, true);
-            zoom.timer = self:ScheduleTimer("ZoomUntil", GetEstimatedZoomTime(zoomMin), condition, continously and .75 or nil);
-        else
-            return self:ZoomUntil(condition, continously and .75 or nil);
-        end
+		zoom.timer = self:ScheduleTimer("ZoomUntil", .25, condition, continously and .75 or nil);
+
+		return true;
     end
 end
 

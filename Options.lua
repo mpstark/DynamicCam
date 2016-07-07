@@ -18,9 +18,7 @@ local welcomeMessage = [[Hello and welcome to an extremely prerelease build of D
 Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and I have to restort to "tricks" to do many things, so it might break.
 
 If you find a problem, PLEASE GET IN TOUCH WITH ME! It's really important that I know about problems right now, so I can fix them. Use reddit (I'm /u/mpstark) or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
-local knownIssues = [[- Sometimes it loses track of zoom, use "/zc" to reset to a known good configuration
-    - "/zi" will print out what info that it "knows" about zoom
-- The combat UI lockdown prevents hiding/showing the actionbars/nameplates in combat
+local knownIssues = [[- The combat UI lockdown prevents hiding/showing the actionbars/nameplates in combat
 - Views in WoW are.. odd, I would recommend using them with caution
 - Fit nameplates is still a work in progress, can do a little in-and-out number
     - Framerate can really affect this at current, I'm looking at ways to avoid this
@@ -29,6 +27,15 @@ local knownIssues = [[- Sometimes it loses track of zoom, use "/zc" to reset to 
 - Boss vs. Trash combat can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
+[[Test Version 13:
+    - Default situations simplified, mounted situations now consolidated into a single situation
+    - Fixed a problem where zoom was applied twice in a row during a situation (during zoom restoration)
+    - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
+    - Reduced delay on nameplate fit to 250ms instead of 500ms]],
+[[Test Version 12:
+    - The addon is now using the new GetCameraZoom() API
+    - Fixed zoom level not restoring after a nameplate fit
+    - Nameplate fit is now delayed a tiny bit so that the camera can adjust before we try to fit]],
 [[Test Version 11 HOTFIX:
     - Changed the way that we handle lack of zoom confidence, it'll use factor instead
         - This is an imperfect solution because I can't get adjust it lower than 1, so any zoom lower than 15
@@ -84,64 +91,8 @@ local changelog = {
         - An open GUI will swap situations when the current situation swaps as well
             - Tell me if this is annoying!
     - Some code re-organization]],
-[[Test Version 8:
-    - Zoom fit now has a nameplate option, please break it in new and interesting ways
-        - Saved zoom levels will take priority for now, but will revisit that later
-        - NPC Interaction default now uses this, but also saved zoom, so it should only fit once and then remember
-    - Should now restore zoom levels in cases where zoom was interrupted
-    - Hopefully fix a rotate degrees bug where it would continously rotate
-    - '/zi' slash command should be a little better and not say things that don't matter]],
-[[Test Version 7:
-    - Added a rotate degrees option
-        - ROTATION ISN'T EXACT because of Blizzard's smoothing code, right now we're assuming linear
-        - will rotate the specified amount on activation and rotate back on exit
-    - Fixed max zoom getting stuck permentantly until reload
-    - Situations now have a transition time, this can only be configured in advanced mode
-        - Zoom speed will be changed to match the transition time
-        - Defaults to .75 seconds with an option (normally on) to not slow down the camera
-    - Removed "Responsive Zoom" option, since the transition time does everything that it used to and more
-    - Reorganized some files, and rewrote most of the camera actions
-    - GUI changed slightly to make things a little bit more obvious
-    - Default NPC interactions now has a delay of 500ms, should be better for questing
-    - Default Hearthing now zooms in slowly while rotating, using the new transition time
-    - Hiding frames will disable their "Show" method (with the exception of UIParent)
-    - Won't try to hide frames that aren't currently shown or don't exist
-    - Won't try to unhide frames that we didn't hide
-    - Added a bunch of default UI toggles for hiding in the settings GUI
-    - Zoom fit is.. sort of there, though it simply saves/restores the zoom level for the NPC id
-        - If a saved NPC id isn't there, it will zoom into min for now
-    - Default NPC interactions now uses zoom fit]],
-[[Test Version 6:
-    - Situations can now specify a delay
-        - only use if you suspect that the situation will arise within that time again
-    - The NPC Interactions default now has a delay to prevent awful in and out
-    - Zoom Range implemented; will zoom in if outside max, zoom out if inside min
-    - Default zoom values tweaked, things should be a little further out
-    - Removed Target Lock: Target in Combat since it didn't work
-    - Default NPC interaction now includes bank
-    - Groundwork set for quicker zooms values, max zoom time possible lowered to .5
-    - Config UI should now better hide things that don't need to be there]],
-[[Test Version 5:
-    - NPC Interaction default changed to only trigger if interacting with NPC while also targeting that NPC
-    - Fixed bug with swapping profiles
-    - New default situation 'Annoying Spells'
-        - it removes ActionCam settings during Bladestorm/Blade Dance]],
-[[Test Version 4:
-    - Changed default situation 'World (Combat)' to work in cities (reset profile to get new defaults)
-    - Added new default situation 'Mailbox', I find it annoying so off by default, reset profile to get it
-    - Added a vehicle situation that disables all 'ActionCam' features, since they're annoying there
-    - Added a toggle in Situation Options for hiding the UI (default situations Hearthing/Taxi use it)
-    - Added LICENSE.txt to the folder, we're MIT licenced now. My code is your code (with a notice).]],
-[[Test Version 3:
-    - Added a few new situations, a NPC interaction one and a casting Hearthstone one.
-    - Change it so that zoom is restored properly if zoomed in and going back to another zoomed in]],
-[[Test Version 2:
-    - Added default camera settings, applied when off as well as before any situations are loaded
-    - Added Reactive Zoom, should speed zoom transitions up, it's on by default.
-    - Add Debug Mode, just in case, off by default]],
-[[Test Version 1:
-    - Initial Release]],
 };
+
 local general = {
     name = "DynamicCam",
     handler = DynamicCam,
@@ -870,7 +821,7 @@ local situationOptions = {
                             S.cameraCVars["cameradynamicpitch"] = 0;
                         end
                     end,
-                    order = 41,
+                    order = 4,
                 },
 
                 targetLock = {

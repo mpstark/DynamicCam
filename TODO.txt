@@ -1,52 +1,45 @@
 - INVESTIGATE
-    - Taxi situation with the flight master's whistle
-    - RotateDegrees causing continous rotate when the rotate back is canceled
-    - Restore views might be broken with nameplate fit
-    - Save/Restore zoom level for fit isn't working properly
-    - Hidden secure frames, nameplates need to be shown/hidden during combat lockdown grace period
+    - ?
 
-- PLANNED SOON
-    - Reimplement Save/Restore zoom level
-    - Change Camera follow settings
-    - Close all panels interface action
-    - 'Camera Settings' should allow for not adjusting target lock
-    - Shoulder offset as a default cvar and taking it out of the default situations
-    - Modify CameraZoomIn/Out to take second param so that we can 'mark' automatic changes vs. manual ones
-        - Zoom to fit, allow continous to be canceled by manual zooming
-    - Zoom to fit, update when target changes, without continous
-    - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
-
-- PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
+- VERSION 13
     - Change database structure
-        - upgrade old structure
-    - There should be several sets of defaults
-        - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
+    - Move to event-based with situations specifying which events, polling as an option still though
     - Clean-up settings menu
         - localize
         - make changing a setting in the current situation instantly change the current settings
-    - Move to event-based with situations specifying which events, polling as an option still though
+    - Change ALL camera settings
+    - 'Camera Settings' should allow for not adjusting target lock
+    - Remove hide frame feature -- just make it work with hiding the entire UI, anything more is out of scope
+    - default changes:
+        - Shoulder offset as a default cvar and taking it out of the default situations
+
+- PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
+    - There should be several sets of defaults
+        - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
     - Change to stack-based system
         - enables "short-term" situations that won't exit previous situation
         - restore would be stack-based as well
-        - Zoom in/out by increments
         - How to handle stack where middle falls out
             - 1 > 2 > 3, 2 becomes not active but 3 still is
     - Implement Advanced Mode fully
         - add/delete situations
         - lua functions init, onEnter, onExit
-        - Hide arbitary frames
-    - Export/Import situations/groups of situations "WeakAura-Style"
-    - Keybinds
-        - Zoom in/out quickly (ideal bind shift-mousewheel)
-        - Zoom fit keybind
-        - etc.
-    - Slash commands for temp situations or to force an existing situation
+        - export/import situations/groups of situations "WeakAura-Style"
+    - Slash commands
+        - for temp situations/camera actions
+        - lock/unlock situations changing
 
 - PLANNED BEFORE FULL RELEASE (@LEGION FULL RELEASE)
     - Lua env for all lua code executed by condition, init, onEnter, onExit
         - use a whitelist, with constant functions so nothing "bad" can happen
+    - Keybinds
+        - Zoom in/out quickly (ideal bind shift-mousewheel)
+        - Zoom fit keybind
+        - etc.
 
 - MAYBE
+    - Close all panels interface action
+    - Save/Restore NPC/Model zoom level
     - Easing for camera actions
     - Faux camera shake should be possible
     - Find new ways to cheat zoom fit
@@ -57,6 +50,10 @@
         - how should this work with charge skills?
 
 - DOWN THE LINE
+    - Zoom-to-fit improvements
+        - should not continue to try to zoom if the nameplate isn't moving
+        - update when target changes, without continous
+        - allow continous to be canceled by manual zooming
     - lua syntax highlighter for lua code editing in-game
     - Weak Aura's support
         - be able to trigger a camera transition from a weak aura

@@ -30,13 +30,6 @@ local events = {};
 -- DB --
 --------
 local defaults = {
-    global = {
-        savedViews = {},
-        savedZooms = {
-            npcs = {
-            },
-        },
-    },
     profile = {
         enabled = true,
         advanced = false,
@@ -123,9 +116,6 @@ function DynamicCam:OnInitialize()
 
     self:RegisterChatCommand("saveview", "SaveViewCC");
     self:RegisterChatCommand("sv", "SaveViewCC");
-
-    self:RegisterChatCommand("zoomconfidence", "ZoomConfidenceCC");
-    self:RegisterChatCommand("zc", "ZoomConfidenceCC");
 
     self:RegisterChatCommand("zoominfo", "ZoomInfoCC");
     self:RegisterChatCommand("zi", "ZoomInfoCC");
@@ -292,17 +282,18 @@ end
 
 function DynamicCam:SetSituation(situation)
     local oldSituation = self.currentSituation;
+    local restoringZoom;
 
     -- if currently in a situation, leave it
     if (self.currentSituation) then
-        self:ExitSituation(self.currentSituation, situation);
+        restoringZoom = self:ExitSituation(self.currentSituation, situation);
     end
 
     -- go into the new situation
-    self:EnterSituation(situation, oldSituation);
+    self:EnterSituation(situation, oldSituation, restoringZoom);
 end
 
-function DynamicCam:EnterSituation(situation, oldSituation)
+function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
     self:DebugPrint("Entering situation", situation.name);
 
     -- set currentSituation
@@ -314,13 +305,7 @@ function DynamicCam:EnterSituation(situation, oldSituation)
             SaveView(1);
         end
 
-        -- calculate zoom difference, if we know it
-        local zoomAmount;
-        if (Camera:IsConfident() and self.db.global.savedViews[view]) then
-            zoomAmount = Camera:GetZoom() - self.db.global.savedViews[view];
-        end
-
-        Camera:GotoView(situation.view.viewNumber, situation.cameraActions.transitionTime, situation.view.instant, zoomAmount);
+        Camera:GotoView(situation.view.viewNumber, situation.cameraActions.transitionTime, situation.view.instant);
     end
 
     -- set all cvars
@@ -339,12 +324,14 @@ function DynamicCam:EnterSituation(situation, oldSituation)
     local a = situation.cameraActions;
 
     -- ZOOM --
-    if (not Camera:IsZooming()) then
-        -- save old zoom level
-        if (Camera:IsConfident()) then
-            restoration[situation].zoom = Camera:GetZoom();
-            restoration[situation].zoomSituation = oldSituation;
+    if (not restoringZoom) then
+        if (Camera:IsZooming()) then
+            Camera:StopZooming();
         end
+
+        -- save old zoom level
+        restoration[situation].zoom = GetCameraZoom();
+        restoration[situation].zoomSituation = oldSituation;
 
         -- set zoom level
         local adjustedZoom;
@@ -366,6 +353,8 @@ function DynamicCam:EnterSituation(situation, oldSituation)
             restoration[situation].zoom = nil;
             restoration[situation].zoomSituation = nil;
         end
+    else
+        self:DebugPrint("Restoring zoom level, so skipping zoom action")
     end
 
     -- ROTATE --
@@ -402,7 +391,8 @@ function DynamicCam:EnterSituation(situation, oldSituation)
 end
 
 function DynamicCam:ExitSituation(situation, newSituation)
-    self:DebugPrint("Exiting situation", situation.name);
+    local restoringZoom;
+    self:DebugPrint("Exiting situation "..situation.name);
 
     -- restore cvars to their values before the situation arose
     for cvar, value in pairs(restoration[situation].cvars) do
@@ -411,13 +401,7 @@ function DynamicCam:ExitSituation(situation, newSituation)
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
-        -- calculate zoom difference, if we know it
-        local zoomAmount;
-        if (Camera:IsConfident() and self.db.global.savedViews[1]) then
-            zoomAmount = Camera:GetZoom() - self.db.global.savedViews[1];
-        end
-
-        Camera:GotoView(1, .75, situation.view.instant, zoomAmount); -- TODO: look into constant time here
+        Camera:GotoView(1, .75, situation.view.instant); -- TODO: look into constant time here
     end
 
     local a = situation.cameraActions;
@@ -445,18 +429,10 @@ function DynamicCam:ExitSituation(situation, newSituation)
         Camera:StopZooming();
     end
 
-    -- save zoom for Zoom Fit
-    -- if (Camera:IsConfident() and a.zoomSetting == "fit" and a.zoomFitSave) then
-        -- if (UnitExists("target")) then
-            -- self:DebugPrint("Saving fit value for this target");
-            -- local npcID = string.match(UnitGUID("target"), "[^-]+-[^-]+-[^-]+-[^-]+-[^-]+-([^-]+)-[^-]+");
-            -- self.db.global.savedZooms.npcs[npcID] = Camera:GetZoom();
-        -- end
-    -- end
-
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situation, newSituation)) then
         self:DebugPrint("Restoring zoom level.");
+        restoringZoom = true;
         Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
     end
 
@@ -476,6 +452,8 @@ function DynamicCam:ExitSituation(situation, newSituation)
 
     wipe(restoration[situation]);
     self.currentSituation = nil;
+
+    return restoringZoom;
 end
 
 function DynamicCam:GetSituationList()
@@ -528,16 +506,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["002"] = newSituation;
 
-    newSituation = self:CreateSituation("City (Mounted)");
-    newSituation.priority = 101;
-    newSituation.condition = "return IsResting() and IsMounted();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING", "SPELL_UPDATE_USABLE", "UNIT_AURA"};
-    newSituation.cameraActions.zoomSetting = "out";
-    newSituation.cameraActions.zoomValue = 30;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
-    situations["003"] = newSituation;
-
     newSituation = self:CreateSituation("World");
     newSituation.priority = 0;
     newSituation.condition = "return not IsResting() and not IsInInstance();";
@@ -572,19 +540,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.targetLock.nameplateVisible = true;
     situations["006"] = newSituation;
 
-    newSituation = self:CreateSituation("World (Mounted)");
-    newSituation.priority = 100;
-    newSituation.condition = "return not IsResting() and not IsInInstance() and IsMounted();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE", "UNIT_AURA"};
-    newSituation.cameraActions.zoomSetting = "out";
-    newSituation.cameraActions.zoomValue = 30;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
-    situations["007"] = newSituation;
-
-
-
     newSituation = self:CreateSituation("Dungeon");
     newSituation.enabled = false;
     newSituation.priority = 2;
@@ -598,13 +553,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsOutdoors();";
     newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
     situations["021"] = newSituation;
-
-    newSituation = self:CreateSituation("Dungeon (Mounted)");
-    newSituation.enabled = false;
-    newSituation.priority = 102;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsMounted();";
-    newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE", "UNIT_AURA"};
-    situations["022"] = newSituation;
 
     newSituation = self:CreateSituation("Dungeon (Combat, Boss)");
     newSituation.enabled = false;
@@ -636,13 +584,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
     situations["031"] = newSituation;
 
-    newSituation = self:CreateSituation("Raid (Mounted)");
-    newSituation.enabled = false;
-    newSituation.priority = 103;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsMounted();";
-    newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE", "UNIT_AURA"};
-    situations["032"] = newSituation;
-
     newSituation = self:CreateSituation("Raid (Combat, Boss)");
     newSituation.enabled = false;
     newSituation.priority = 303;
@@ -658,8 +599,16 @@ function DynamicCam:GetDefaultSituations()
     situations["034"] = newSituation;
 
 
-
-
+    newSituation = self:CreateSituation("Mounted");
+    newSituation.priority = 100;
+    newSituation.condition = "return IsMounted();";
+    newSituation.events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"};
+    newSituation.cameraActions.zoomSetting = "out";
+    newSituation.cameraActions.zoomValue = 28.5;
+    newSituation.cameraCVars["cameradynamicpitch"] = 0;
+    newSituation.cameraCVars["cameraovershoulder"] = 0;
+    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
+    situations["100"] = newSituation;
 
     newSituation = self:CreateSituation("Taxi");
     newSituation.priority = 1000;
@@ -670,7 +619,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameraovershoulder"] = -1;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     newSituation.hideFrames["UIParent"] = true;
-    situations["100"] = newSituation;
+    situations["101"] = newSituation;
 
     newSituation = self:CreateSituation("Vehicle");
     newSituation.priority = 1000;
@@ -679,7 +628,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameraovershoulder"] = 0;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    situations["101"] = newSituation;
+    situations["102"] = newSituation;
 
     newSituation = self:CreateSituation("Hearthing");
     newSituation.priority = 20;
@@ -941,10 +890,6 @@ function DynamicCam:SaveViewCC(input)
     if (tonumber(input) and tonumber(input) <= 5 and tonumber(input) > 1) then
         SaveView(tonumber(input));
     end
-end
-
-function DynamicCam:ZoomConfidenceCC(input)
-    Camera:ResetConfidence(15);
 end
 
 function DynamicCam:ZoomInfoCC(input)
