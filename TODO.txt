@@ -13,9 +13,6 @@
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations
 
-- PLANNED SOON
-    - Close all panels interface action
-
 - PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
     - There should be several sets of defaults
         - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
