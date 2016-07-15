@@ -12,7 +12,6 @@
     - Remove hide frame feature -- just make it work with hiding the entire UI, anything more is out of scope
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations
-    - Zoom to fit nameplates should not continue to try to zoom if the nameplate isn't moving
 
 - PLANNED SOON
     - Close all panels interface action
