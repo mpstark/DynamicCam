@@ -30,7 +30,8 @@ local changelog = {
 [[Test Version 13:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling 
-        - Each event specifies events
+        - Each situation now has to specify events that it is interested in
+        - Very, very large performance gain here, while DynamicCam wasn't heavy on CPU before, it's now light
     - Default situations simplified, mounted situations now consolidated into a single situation
     - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
     - Zoom Restoration Changes:
