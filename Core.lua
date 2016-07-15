@@ -329,33 +329,32 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
             Camera:StopZooming();
         end
 
-        -- save old zoom level
-        restoration[situation].zoom = GetCameraZoom();
-        restoration[situation].zoomSituation = oldSituation;
+    -- save old zoom level
+    restoration[situation].zoom = GetCameraZoom();
+    restoration[situation].zoomSituation = oldSituation;
 
-        -- set zoom level
-        local adjustedZoom;
-        
-        if (a.zoomSetting == "in") then
-            adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-        elseif (a.zoomSetting == "out") then
-            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-        elseif (a.zoomSetting == "set") then
-            adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
-        elseif (a.zoomSetting == "range") then
-            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
-        elseif (a.zoomSetting == "fit") then
-            adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
-        end
+    -- set zoom level
+    local adjustedZoom;
+    
+    if (a.zoomSetting == "in") then
+        adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "out") then
+        adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "set") then
+        adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "range") then
+        adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
+    elseif (a.zoomSetting == "fit") then
+        adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
+    end
 
-        -- if we didn't adjust the soom, then reset oldZoom
-        if (not adjustedZoom) then
-            restoration[situation].zoom = nil;
-            restoration[situation].zoomSituation = nil;
-        end
+    -- if we didn't adjust the soom, then reset oldZoom
+    if (not adjustedZoom) then
+        restoration[situation].zoom = nil;
+        restoration[situation].zoomSituation = nil;
+    end
     else
         self:DebugPrint("Restoring zoom level, so skipping zoom action")
-    end
 
     -- ROTATE --
     if (a.rotate) then
