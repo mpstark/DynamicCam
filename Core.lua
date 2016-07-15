@@ -493,7 +493,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return IsResting();";
     newSituation.events = {"PLAYER_UPDATE_RESTING"};
     newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 8;
+    newSituation.cameraActions.zoomMin = 10;
     newSituation.cameraActions.zoomMax = 15;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["001"] = newSituation;
@@ -513,7 +513,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsResting() and not IsInInstance();";
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 8;
+    newSituation.cameraActions.zoomMin = 10;
     newSituation.cameraActions.zoomMax = 15;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["004"] = newSituation;
@@ -523,7 +523,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsResting() and not IsInInstance() and IsIndoors();";
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
     newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 10;
+    newSituation.cameraActions.zoomValue = 8;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     situations["005"] = newSituation;
@@ -534,7 +534,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "fit";
     --newSituation.cameraActions.zoomFitContinous = true;
-    newSituation.cameraActions.zoomMin = 7;
+    newSituation.cameraActions.zoomMin = 5;
     newSituation.cameraActions.zoomMax = 28.5;
     newSituation.cameraCVars["cameraovershoulder"] = 1.5;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;

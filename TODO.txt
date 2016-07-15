@@ -22,6 +22,7 @@
         - How to handle stack where middle falls out
             - 1 > 2 > 3, 2 becomes not active but 3 still is
     - Implement Advanced Mode fully
+        - if a situation has advanced options, need to notify outside of advanced mode
         - add/delete situations
         - lua functions init, onEnter, onExit
         - export/import situations/groups of situations "WeakAura-Style"
