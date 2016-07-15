@@ -433,7 +433,7 @@ function DynamicCam:ExitSituation(situation, newSituation)
 
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situation, newSituation)) then
-        self:DebugPrint("Restoring zoom level.");
+        self:DebugPrint("Restoring zoom level: ", restoration[situation].zoom);
         restoringZoom = true;
         Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
     end
@@ -781,18 +781,18 @@ function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
         return false;
     elseif (newSituation.cameraActions.zoomSetting == "range") then
         --only restore zoom if zoom will be in the range
-        if ((newSituation.cameraActions.zoomMin <= restoration[oldSituation].zoom) and
-            (newSituation.cameraActions.zoomMax >= restoration[oldSituation].zoom)) then
+        if ((newSituation.cameraActions.zoomMin <= restoration[oldSituation].zoom + .5) and
+            (newSituation.cameraActions.zoomMax >= restoration[oldSituation].zoom - .5)) then
             return true;
         end
     elseif (newSituation.cameraActions.zoomSetting == "in") then
         -- only restore if restoration zoom will still be acceptable
-        if (newSituation.cameraActions.zoomValue >= restoration[oldSituation].zoom) then
+        if (newSituation.cameraActions.zoomValue >= restoration[oldSituation].zoom - .5) then
             return true;
         end
     elseif (newSituation.cameraActions.zoomSetting == "out") then
         -- restore zoom if newSituation is zooming out and we would already be zooming out farther
-        if (newSituation.cameraActions.zoomValue <= restoration[oldSituation].zoom) then
+        if (newSituation.cameraActions.zoomValue <= restoration[oldSituation].zoom + .5) then
             return true;
         end
     end
