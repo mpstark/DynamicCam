@@ -28,6 +28,9 @@ local knownIssues = [[- The combat UI lockdown prevents hiding/showing the actio
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
 [[Test Version 13:
+    - FORCED DATABASE RESET!
+    - Event-based checking instead of polling 
+        - Each event specifies events
     - Default situations simplified, mounted situations now consolidated into a single situation
     - Fixed a problem where zoom was applied twice in a row during a situation (during zoom restoration)
     - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
