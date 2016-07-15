@@ -32,10 +32,13 @@ local changelog = {
     - Event-based checking instead of polling 
         - Each event specifies events
     - Default situations simplified, mounted situations now consolidated into a single situation
-    - Zoom restoration should now work in situations where rounding issues got in way before
-    - Fixed a problem where zoom was applied twice in a row during a situation (during zoom restoration)
     - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
-    - Reduced delay on nameplate fit to 250ms instead of 500ms]],
+    - Zoom Restoration Changes:
+        - now works in situations where rounding issues got in way before
+        - fixed being zoom restore being interrupted (or modified) when going into a situation
+    - Nameplate fit changes:
+        - Target nameplate position now is more consistant
+        - Reduced delay to 250ms instead of 500ms]],
 [[Test Version 12:
     - The addon is now using the new GetCameraZoom() API
     - Fixed zoom level not restoring after a nameplate fit

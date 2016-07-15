@@ -510,7 +510,11 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
                 local difference = screenHeight - top;
                 local ratio = (1 - difference/screenHeight) * 100;
 
-                parent:DebugPrint("Nameplate at ratio:", ratio);
+				if (isFitting) then
+                	parent:DebugPrint("Fitting", "Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity/2), math.min(94, nameplatePosition + sensitivity/2));
+				else
+					parent:DebugPrint("Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity), math.min(94, nameplatePosition + sensitivity));
+				end
 
                 if (difference < 40) then
                     -- we're at the top, go at top speed
@@ -536,7 +540,7 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
             return nil;
         end
 
-		zoom.timer = self:ScheduleTimer("ZoomUntil", .25, condition, continously and .75 or nil);
+		zoom.timer = self:ScheduleTimer("ZoomUntil", .25, condition, continously and .75 or nil, true);
 
 		return true;
     end
