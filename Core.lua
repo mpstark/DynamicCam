@@ -4,6 +4,12 @@
 local AceAddon = LibStub("AceAddon-3.0");
 
 
+---------------
+-- CONSTANTS --
+---------------
+local DATABASE_VERSION = 1;
+
+
 -------------
 -- GLOBALS --
 -------------
@@ -103,14 +109,10 @@ local defaults = {
 ----------
 function DynamicCam:OnInitialize()
     -- setup db
-    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", defaults, true);
-    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
+    self:InitDatabase();
     self:RefreshConfig();
 
-    -- setup chat command
+    -- setup chat commands
     self:RegisterChatCommand("dynamiccam", "OpenMenu");
     self:RegisterChatCommand("dc", "OpenMenu");
 
@@ -329,32 +331,33 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
             Camera:StopZooming();
         end
 
-    -- save old zoom level
-    restoration[situation].zoom = GetCameraZoom();
-    restoration[situation].zoomSituation = oldSituation;
+        -- save old zoom level
+        restoration[situation].zoom = GetCameraZoom();
+        restoration[situation].zoomSituation = oldSituation;
 
-    -- set zoom level
-    local adjustedZoom;
-    
-    if (a.zoomSetting == "in") then
-        adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "out") then
-        adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "set") then
-        adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "range") then
-        adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
-    elseif (a.zoomSetting == "fit") then
-        adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
-    end
+        -- set zoom level
+        local adjustedZoom;
+        
+        if (a.zoomSetting == "in") then
+            adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "out") then
+            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "set") then
+            adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "range") then
+            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
+        elseif (a.zoomSetting == "fit") then
+            adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
+        end
 
-    -- if we didn't adjust the soom, then reset oldZoom
-    if (not adjustedZoom) then
-        restoration[situation].zoom = nil;
-        restoration[situation].zoomSituation = nil;
-    end
+        -- if we didn't adjust the zoom, then reset oldZoom
+        if (not adjustedZoom) then
+            restoration[situation].zoom = nil;
+            restoration[situation].zoomSituation = nil;
+        end
     else
         self:DebugPrint("Restoring zoom level, so skipping zoom action")
+    end
 
     -- ROTATE --
     if (a.rotate) then
@@ -738,7 +741,6 @@ function DynamicCam:CreateSituation(name)
     return situation;
 end
 
-
 -- TODO: organization
 function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
     -- don't restore if we don't have a saved zoom value
@@ -803,6 +805,74 @@ end
 ------------
 -- EVENTS --
 ------------
+function DynamicCam:RegisterEvents()
+    for name, situation in pairs(self.db.profile.situations) do
+        if (situation.events) then
+            for i, event in pairs(situation.events) do
+                if (not events[event]) then
+                    events[event] = true;
+                    self:RegisterEvent(event, "EvaluateSituations");
+                    -- self:DebugPrint("Registered for event:", event);
+                end
+            end
+        end
+    end
+end
+
+
+-----------------
+-- TARGET LOCK --
+-----------------
+function DynamicCam:EvaluateTargetLock()
+    if (self.currentSituation) then
+        if (self.currentSituation.targetLock.enabled) and
+            (not self.currentSituation.targetLock.onlyAttackable or UnitCanAttack("player", "target")) and
+            (self.currentSituation.targetLock.dead or (not UnitIsDead("target"))) and
+            (not self.currentSituation.targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
+        then
+            if (GetCVar("cameralockedtargetfocusing") ~= "1") then
+                SetCVar ("cameralockedtargetfocusing", 1)
+            end
+        else
+            if (GetCVar("cameralockedtargetfocusing") ~= "0") then
+                 SetCVar ("cameralockedtargetfocusing", 0)
+            end
+        end
+    end
+end
+
+
+--------------
+-- DATABASE --
+--------------
+
+function DynamicCam:InitDatabase()
+    if (DynamicCamDB and DynamicCamDB.global) then
+        if (not DynamicCamDB.global.dbVersion) then
+            -- pre-version 1, clear the database and start over
+            wipe(DynamicCamDB);
+
+            -- make sure to set database version
+            DynamicCamDB.global.dbVersion = DATABASE_VERSION;
+
+            -- Tell the user
+            self:Print("Database out of data, reseting database!");
+        end
+    end
+
+    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", defaults, true);
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig");
+    self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
+    self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
+
+    self:DebugPrint("Database at level", self.db.global.dbVersion)
+
+    if (self.db.global.dbVersion == 1) then
+        -- at version 1
+    end
+end
+
 function DynamicCam:RefreshConfig()
     local restartTimer = false;
 
@@ -833,40 +903,6 @@ function DynamicCam:RefreshConfig()
     end
 end
 
-function DynamicCam:RegisterEvents()
-    for name, situation in pairs(self.db.profile.situations) do
-        if (situation.events) then
-            for i, event in pairs(situation.events) do
-                if (not events[event]) then
-                    events[event] = true;
-                    self:RegisterEvent(event, "EvaluateSituations");
-                    -- self:DebugPrint("Registered for event:", event);
-                end
-            end
-        end
-    end
-end
-
------------------
--- TARGET LOCK --
------------------
-function DynamicCam:EvaluateTargetLock()
-    if (self.currentSituation) then
-        if (self.currentSituation.targetLock.enabled) and
-            (not self.currentSituation.targetLock.onlyAttackable or UnitCanAttack("player", "target")) and
-            (self.currentSituation.targetLock.dead or (not UnitIsDead("target"))) and
-            (not self.currentSituation.targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
-        then
-            if (GetCVar("cameralockedtargetfocusing") ~= "1") then
-                SetCVar ("cameralockedtargetfocusing", 1)
-            end
-        else
-            if (GetCVar("cameralockedtargetfocusing") ~= "0") then
-                 SetCVar ("cameralockedtargetfocusing", 0)
-            end
-        end
-    end
-end
 
 
 -------------------
