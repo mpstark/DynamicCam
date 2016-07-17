@@ -32,14 +32,21 @@ local changelog = {
     - Event-based checking instead of polling 
         - Each situation now has to specify events that it is interested in
         - Very, very large performance gain here, while DynamicCam wasn't heavy on CPU before, it's now light
-    - Default situations simplified, mounted situations now consolidated into a single situation
+    - Database cleanup stuff, nothing should change user-side
     - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
+    - Removed all frame hiding functionality
+        - this kind of functionality is out-of-scope -- this is a camera addon
+        - there were all sorts of issues regarding taint that I just don't want to deal with
+        - hiding the entire UI is still supported, we can deal with just handling that correctly
+    - Default Sitation Changes:
+        - mounted situations now consolidated into a single situation
+        - Hearth/Teleport now tracks mage teleports (not portals) and Death Gate and Skyhold Jump
     - Zoom Restoration Changes:
         - now works in situations where rounding issues got in way before
         - fixed being zoom restore being interrupted (or modified) when going into a situation
     - Nameplate fit changes:
-        - Target nameplate position now is more consistant
-        - Reduced delay to 250ms instead of 500ms]],
+        - target nameplate position now is more consistant
+        - reduced delay to 250ms instead of 500ms]],
 [[Test Version 12:
     - The addon is now using the new GetCameraZoom() API
     - Fixed zoom level not restoring after a nameplate fit
@@ -875,9 +882,9 @@ local situationOptions = {
                 },
             },
         },
-        interfaceActions = {
+        extraActions = {
             type = 'group',
-            name = "Interface Actions",
+            name = "Extra Actions",
             order = 30,
             inline = true,
             hidden = function() return (not S) end,
@@ -887,134 +894,43 @@ local situationOptions = {
                     type = 'toggle',
                     name = "Hide Entire UI",
                     desc = "Hide the entire UI during this situation.",
-                    get = function() return (S.hideFrames["UIParent"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["UIParent"] = true else S.hideFrames["UIParent"] = nil end end,
+                    get = function() return S.extras.hideUI end,
+                    set = function(_, newValue) S.extras.hideUI = newValue end,
                     order = 1,
                 },
-                minimap = {
-                    type = 'toggle',
-                    name = "Hide Minimap",
-                    desc = "Hide the minimap during this situation.",
-                    get = function() return (S.hideFrames["MinimapCluster"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["MinimapCluster"] = true else S.hideFrames["MinimapCluster"] = nil end end,
-                    order = 2,
-                },
-                buffFrame = {
-                    type = 'toggle',
-                    name = "Hide Buffs",
-                    desc = "Hide the buff frame during this situation.",
-                    get = function() return (S.hideFrames["BuffFrame"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["BuffFrame"] = true else S.hideFrames["BuffFrame"] = nil end end,
-                    order = 3,
-                },
-                objectiveFrame = {
-                    type = 'toggle',
-                    name = "Hide Objectives",
-                    desc = "Hide the objective frame during this situation.",
-                    get = function() return (S.hideFrames["ObjectiveTrackerFrame"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["ObjectiveTrackerFrame"] = true else S.hideFrames["ObjectiveTrackerFrame"] = nil end end,
-                    order = 4,
-                },
-                -- playerFrame = {
-                    -- type = 'toggle',
-                    -- name = "Hide Player Frame",
-                    -- desc = "Hide the player unit frame.",
-                    -- get = function() return (S.hideFrames["PlayerFrame"]) end,
-                    -- set = function(_, newValue) if (newValue) then S.hideFrames["PlayerFrame"] = true else S.hideFrames["PlayerFrame"] = nil end end,
-                    -- order = 5,
-                -- },
-                -- targetFrame = {
-                    -- type = 'toggle',
-                    -- name = "Hide Target Frame",
-                    -- desc = "Hide the target unit frame.",
-                    -- get = function() return (S.hideFrames["TargetFrame"]) end,
-                    -- set = function(_, newValue) if (newValue) then S.hideFrames["TargetFrame"] = true else S.hideFrames["TargetFrame"] = nil end end,
-                    -- order = 6,
-                -- },
-                chatFrame = {
-                    type = 'toggle',
-                    name = "Hide Chat Frame",
-                    desc = "Hide the selected chat frame during this situation.",
-                    get = function() return (S.hideFrames["SELECTED_CHAT_FRAME"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["SELECTED_CHAT_FRAME"] = true else S.hideFrames["SELECTED_CHAT_FRAME"] = nil end end,
-                    order = 10,
-                },
-                generalDockManager = {
-                    type = 'toggle',
-                    name = "Hide Chat Dock",
-                    desc = "Hide the \"General Dock Manager\" during this situation.",
-                    get = function() return (S.hideFrames["GeneralDockManager"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["GeneralDockManager"] = true else S.hideFrames["GeneralDockManager"] = nil end end,
-                    order = 11,
-                },
-                friendsMicroButton = {
-                    type = 'toggle',
-                    name = "Hide Friends Button",
-                    desc = "Hide the \"Friends Micro Button\" during this situation.",
-                    get = function() return (S.hideFrames["FriendsMicroButton"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["FriendsMicroButton"] = true else S.hideFrames["FriendsMicroButton"] = nil end end,
-                    order = 12,
-                },
-                chatFrameMenuButton = {
-                    type = 'toggle',
-                    name = "Hide Chat Menu",
-                    desc = "Hide the Chat Frame Menu Button during this situation.",
-                    get = function() return (S.hideFrames["ChatFrameMenuButton"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["ChatFrameMenuButton"] = true else S.hideFrames["ChatFrameMenuButton"] = nil end end,
-                    order = 13,
-                },
-                mainMenuBar = {
-                    type = 'toggle',
-                    name = "Hide Main Bar",
-                    desc = "Hide the Main Bar during this situation.",
-                    get = function() return (S.hideFrames["MainMenuBar"]) end,
-                    set = function(_, newValue) if (newValue) then S.hideFrames["MainMenuBar"] = true else S.hideFrames["MainMenuBar"] = nil end end,
-                    order = 50,
-                },
-            },
-        },
-        nameplateSettings = {
-            type = 'group',
-            name = "Nameplate Settings",
-            order = 40,
-            inline = true,
-            hidden = function() return (not S) end,
-            disabled = function() return (not S.enabled) end,
-            args = {
-                adjust = {
+                nameplates = {
                     type = 'toggle',
                     name = "Adjust Nameplates",
                     desc = "If this setting should be affected",
-                    get = function() return ((S.cameraCVars["nameplateShowAll"] ~= nil) or (S.cameraCVars["nameplateShowEnemies"] ~= nil) or (S.cameraCVars["nameplateShowFriends"] ~= nil)) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["nameplateShowAll"] = 1; S.cameraCVars["nameplateShowEnemies"] = 1; S.cameraCVars["nameplateShowFriends"] = 1; else S.cameraCVars["nameplateShowAll"] = nil; S.cameraCVars["nameplateShowEnemies"] = nil; S.cameraCVars["nameplateShowFriends"] = nil; end end,
-                    order = 0,
-                },
-                all = {
-                    type = 'toggle',
-                    name = "Global",
-                    desc = "If nameplates should be shown at all",
-                    hidden = function() return (not S.cameraCVars["nameplateShowAll"]) end,
-                    get = function() return (S.cameraCVars["nameplateShowAll"] == 1) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["nameplateShowAll"] = 1 else S.cameraCVars["nameplateShowAll"] = 0 end end,
-                    order = 1,
-                },
-                friendly = {
-                    type = 'toggle',
-                    name = "Friendly",
-                    desc = "If friendly nampltes should be shown",
-                    hidden = function() return (not S.cameraCVars["nameplateShowFriends"]) end,
-                    get = function() return (S.cameraCVars["nameplateShowFriends"] == 1) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["nameplateShowFriends"] = 1 else S.cameraCVars["nameplateShowFriends"] = 0 end end,
+                    get = function() return S.extras.nameplates end,
+                    set = function(_, newValue) S.extras.nameplates = newValue end,
                     order = 2,
                 },
-                enemy = {
-                    type = 'toggle',
-                    name = "Enemy",
-                    desc = "If enemy nameplates should be shown",
-                    hidden = function() return (not S.cameraCVars["nameplateShowEnemies"]) end,
-                    get = function() return (S.cameraCVars["nameplateShowEnemies"] == 1) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["nameplateShowEnemies"] = 1 else S.cameraCVars["nameplateShowEnemies"] = 0 end end,
+                nameplatesGroup = {
+                    type = 'group',
+                    name = "Nameplates",
                     order = 3,
+                    inline = true,
+                    hidden = function() return (not S.extras.nameplates) end,
+                    disabled = function() return (not S.enabled) end,
+                    args = {
+                        friendly = {
+                            type = 'toggle',
+                            name = "Friendly",
+                            desc = "If friendly nameplates should be shown",
+                            get = function() return S.extras.friendlyNP end,
+                            set = function(_, newValue) S.extras.friendlyNP = newValue end,
+                            order = 3,
+                        },
+                        enemy = {
+                            type = 'toggle',
+                            name = "Enemy",
+                            desc = "If enemy nameplates should be shown",
+                            get = function() return S.extras.enemyNP end,
+                            set = function(_, newValue) S.extras.enemyNP = newValue end,
+                            order = 4,
+                        },
+                    },
                 },
             },
         },

@@ -2,25 +2,13 @@
     - ?
 
 - VERSION 13
-    - Change database structure
-    - Move to event-based with situations specifying which events, polling as an option still though
-    - Clean-up settings menu
-        - localize
-        - make changing a setting in the current situation instantly change the current settings
+    - make changing a setting in the current situation instantly change the current settings
     - Change ALL camera settings
     - 'Camera Settings' should allow for not adjusting target lock
-    - Remove hide frame feature -- just make it work with hiding the entire UI, anything more is out of scope
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations
 
 - PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
-    - There should be several sets of defaults
-        - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
-    - Change to stack-based system
-        - enables "short-term" situations that won't exit previous situation
-        - restore would be stack-based as well
-        - How to handle stack where middle falls out
-            - 1 > 2 > 3, 2 becomes not active but 3 still is
     - Implement Advanced Mode fully
         - if a situation has advanced options, need to notify outside of advanced mode
         - add/delete situations
@@ -31,6 +19,15 @@
         - lock/unlock situations changing
 
 - PLANNED BEFORE FULL RELEASE (@LEGION FULL RELEASE)
+    - Localize settings menu
+    - Change database structure to something.. better
+    - Change to stack-based system
+        - enables "short-term" situations that won't exit previous situation
+        - restore would be stack-based as well
+        - How to handle stack where middle falls out
+            - 1 > 2 > 3, 2 becomes not active but 3 still is
+    - There should be several sets of defaults
+        - ranged classes getting one set (and a profile) and melee classes getting another (and a profile)
     - Lua env for all lua code executed by condition, init, onEnter, onExit
         - use a whitelist, with constant functions so nothing "bad" can happen
     - Keybinds

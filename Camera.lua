@@ -12,8 +12,6 @@ local Camera = DynamicCam.Camera;
 local parent = DynamicCam;
 local _;
 
-local viewTimer;
-
 local zoom = {
 	action = nil,
 	time = nil,

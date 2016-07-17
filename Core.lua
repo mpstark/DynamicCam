@@ -96,7 +96,13 @@ local defaults = {
                     dead = false,
                     nameplateVisible = true,
                 },
-                hideFrames = {},
+                extras = {
+                    hideUI = false,
+
+                    nameplates = false,
+                    friendlyNP = true,
+                    enemyNP = true,
+                },
                 cameraCVars = {},
             },
         },
@@ -368,23 +374,39 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
         end
     end
 
-    -- hide frames
-    restoration[situation].hiddenFrames = {};
-    for frameName, value in pairs(situation.hideFrames) do
-        if (value and _G[frameName]) then
-            local frame = _G[frameName];
+    -- EXTRAS --
+    if (not InCombatLockdown()) then
+        -- hide UI
+        if (situation.extras.hideUI) then
+            UIParent:Hide();
+        end
 
-            if (frame.Show and frame:IsShown()) then
-                restoration[situation].hiddenFrames[frameName] = frame.Show;
+        -- nameplates
+        if (situation.extras.nameplates) then
+            -- save the old values to restore when ending situation
+            restoration[situation].cvars["nameplateShowAll"] = GetCVar("nameplateShowAll");
+            restoration[situation].cvars["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
+            restoration[situation].cvars["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
 
-                if (frameName ~= "UIParent") then
-                    -- prevent from being shown and hide the frame
-                    frame.Show = function() end;
-                end
+            SetCVar("nameplateShowAll", 1);
+
+            -- show or hide friendly plates
+            if (situation.extras.enemyNP) then
+                -- show
+                SetCVar("nameplateShowEnemies", 1);
+            else
+                -- hide
+                SetCVar("nameplateShowEnemies", 0);
             end
 
-            -- hide the frame
-            frame:Hide();
+            -- show or hide enemy plates
+            if (situation.extras.friendlyNP) then
+                -- show
+                SetCVar("nameplateShowFriends", 1);
+            else
+                -- hide
+                SetCVar("nameplateShowFriends", 0);
+            end
         end
     end
 
@@ -438,18 +460,9 @@ function DynamicCam:ExitSituation(situation, newSituation)
         Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
     end
 
-    -- unhide hidden frames
-    for frameName, value in pairs(restoration[situation].hiddenFrames) do
-        if (value) then
-            local frame = _G[frameName];
-            if (frameName ~= "UIParent") then
-                -- restore show function
-                frame.Show = value;
-            end
-
-            -- show the frame and fade it back in
-            _G[frameName]:Show();
-        end
+    -- unhide UI
+    if (situation.extras.hideUI and not InCombatLockdown()) then
+        UIParent:Show();
     end
 
     wipe(restoration[situation]);
@@ -620,7 +633,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomValue = 15;
     newSituation.cameraCVars["cameraovershoulder"] = -1;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
-    newSituation.hideFrames["UIParent"] = true;
+    newSituation.extras.hideUI = true;
     situations["101"] = newSituation;
 
     newSituation = self:CreateSituation("Vehicle");
@@ -632,9 +645,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
     situations["102"] = newSituation;
 
-    newSituation = self:CreateSituation("Hearthing");
+    newSituation = self:CreateSituation("Hearth/Teleport");
     newSituation.priority = 20;
-    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {8690, 222695, 171253}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
+    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
@@ -646,7 +659,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
     newSituation.cameraCVars["cameraovershoulder"] = 0;
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
-    newSituation.hideFrames["UIParent"] = true;
+    newSituation.extras.hideUI = true;
     situations["200"] = newSituation;
 
     newSituation = self:CreateSituation("Annoying Spells");
@@ -671,12 +684,12 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomFitPosition = 90;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
-    newSituation.cameraCVars["nameplateShowAll"] = 1;
-    newSituation.cameraCVars["nameplateShowEnemies"] = 1;
-    newSituation.cameraCVars["nameplateShowFriends"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.onlyAttackable = false;
     newSituation.targetLock.nameplateVisible = false;
+    newSituation.extras.nameplates = true;
+    newSituation.extras.friendlyNP = true;
+    newSituation.extras.enemyNP = true;
     situations["300"] = newSituation;
 
     newSituation = self:CreateSituation("Mailbox");
@@ -734,7 +747,13 @@ function DynamicCam:CreateSituation(name)
             dead = false,
             nameplateVisible = true,
         },
-        hideFrames = {},
+        extras = {
+            hideUI = false,
+
+            nameplates = false,
+            friendlyNameplates = true,
+            enemyNameplates = true,
+        },
         cameraCVars = {},
     };
 
