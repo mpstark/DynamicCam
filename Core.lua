@@ -98,7 +98,6 @@ local defaults = {
                 },
                 extras = {
                     hideUI = false,
-
                     nameplates = false,
                     friendlyNP = true,
                     enemyNP = true,

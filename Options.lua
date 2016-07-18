@@ -29,24 +29,18 @@ local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
 [[Test Version 13:
     - FORCED DATABASE RESET!
-    - Event-based checking instead of polling 
-        - Each situation now has to specify events that it is interested in
-        - Very, very large performance gain here, while DynamicCam wasn't heavy on CPU before, it's now light
-    - Database cleanup stuff, nothing should change user-side
-    - Fixed a problem where a situation's zoom wouldn't actually be applied if a zoom was already occuring
-    - Removed all frame hiding functionality
-        - this kind of functionality is out-of-scope -- this is a camera addon
-        - there were all sorts of issues regarding taint that I just don't want to deal with
-        - hiding the entire UI is still supported, we can deal with just handling that correctly
-    - Default Sitation Changes:
+    - Event-based checking instead of polling -- large performance gain!
+    - Removed frame hiding functionality, but hiding entire UI still supported
+        - out-of-scope -- this is a camera addon
+        - problems regarding scope
+    - nameplate fit is more consistant and reduced delay to 250ms instead of 500ms
+    - Defaults:
         - mounted situations now consolidated into a single situation
         - Hearth/Teleport now tracks mage teleports (not portals) and Death Gate and Skyhold Jump
-    - Zoom Restoration Changes:
-        - now works in situations where rounding issues got in way before
-        - fixed being zoom restore being interrupted (or modified) when going into a situation
-    - Nameplate fit changes:
-        - target nameplate position now is more consistant
-        - reduced delay to 250ms instead of 500ms]],
+    - Fixed some bugs:
+        - zoom restoration not working because of rounding issues or because of other zoom
+        - a situation's zoom wouldn't actually be applied if a zoom was already occuring
+        - nameplate settings should no longer cause taint]],
 [[Test Version 12:
     - The addon is now using the new GetCameraZoom() API
     - Fixed zoom level not restoring after a nameplate fit
@@ -438,7 +432,7 @@ local settings = {
                 },
                 cameraDistanceMaxFactor = {
                     type = 'range',
-                    name = "Camera Distance Max Factor",
+                    name = "Camera Max Distance",
                     desc = "Factor for the camera max distance, but total max won't exceed 28.5",
                     min = 1,
                     max = 1.9,
