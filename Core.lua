@@ -14,7 +14,7 @@ local DATABASE_VERSION = 1;
 -- GLOBALS --
 -------------
 DynamicCam = AceAddon:NewAddon("DynamicCam", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0");
-DynamicCam.currentSituation = nil;
+DynamicCam.currentSituationID = nil;
 
 
 ------------
@@ -49,10 +49,6 @@ local defaults = {
             ["cameralockedtargetfocusing"] = 0,
             --["cameraheadmovementrange"] = 6,
             --["cameraheadmovementsmoothrate"] = 40,
-        },
-        settings = {
-            reactiveZoom = true,
-            reactiveZoomTime = 1,
         },
         situations = {
             ["*"] = {
@@ -159,6 +155,12 @@ function DynamicCam:Startup()
 
     -- register all events for evaluating situations
     self:RegisterEvents();
+
+    -- register for dynamiccam messages
+    self:RegisterMessage("DC_SITUATION_ENABLED");
+    self:RegisterMessage("DC_SITUATION_DISABLED");
+    self:RegisterMessage("DC_SITUATION_UPDATED");
+    self:RegisterMessage("DC_BASE_CAMERA_UPDATED");
     
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
     evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
@@ -174,8 +176,8 @@ function DynamicCam:Shutdown()
     end
 
     -- exit the current situation if in one
-    if (self.currentSituation) then
-        self:ExitSituation(self.currentSituation);
+    if (self.currentSituationID) then
+        self:ExitSituation(self.currentSituationID);
     end
 
     -- reset zoom
@@ -183,6 +185,7 @@ function DynamicCam:Shutdown()
 
     events = {};
     self:UnregisterAllEvents();
+    self:UnregisterAllMessages();
 
     -- apply default settings
     for cvar, value in pairs(self.db.profile.defaultCvars) do
@@ -234,23 +237,36 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
                 end
 
                 -- evaluate the condition, if it checks out and the priority is larger then any other, set it
+                local lastCache = conditionExecutionCache[id];
                 conditionExecutionCache[id] = conditionFunctionCache[situation.condition]();
-                if (conditionExecutionCache[id] and (situation.priority > highestPriority)) then
-                    highestPriority = situation.priority;
-                    topSituation = situation;
+
+                if (conditionExecutionCache[id]) then
+                    if (not lastCache) then
+                        self:SendMessage("DC_SITUATION_ACTIVE", id);
+                    end
+
+                    if (situation.priority > highestPriority) then
+                        highestPriority = situation.priority;
+                        topSituation = id;
+                    end
+                else
+                    if (lastCache) then
+                        self:SendMessage("DC_SITUATION_INACTIVE", id);
+                    end
                 end
             end
         end
 
         if (topSituation) then
-            if (self.currentSituation) then
-                if (topSituation ~= self.currentSituation) then
+            if (self.currentSituationID) then
+                if (topSituation ~= self.currentSituationID) then
                     -- check if current situation has a delay and if it does, if it's 'cooling down'
-                    if (self.currentSituation.delay > 0) then
+                    local delay = self.db.profile.situations[self.currentSituationID].delay;
+                    if (delay > 0) then
                         if (not delayTime) then
                             -- not yet cooling down
-                            delayTime = GetTime() + self.currentSituation.delay;
-                            delayTimer = self:ScheduleTimer("EvaluateSituations", self.currentSituation.delay, "DELAY_TIMER");
+                            delayTime = GetTime() + delay;
+                            delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
                         elseif (delayTime > GetTime()) then
                             -- still cooling down, don't swap
                         else
@@ -261,11 +277,11 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
                         self:SetSituation(topSituation);
                     end
                 else
-                    -- topSituation is currentSituation, clear the delay
+                    -- topSituation is currentSituationID, clear the delay
                     delayTime = nil;
                 end
             else
-                -- no currentSituation
+                -- no currentSituationID
                 self:SetSituation(topSituation);
             end
 
@@ -273,8 +289,8 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
             self:EvaluateTargetLock();
         else
             --none of the situations are active, leave the current situation
-            if (self.currentSituation) then
-                self:ExitSituation(self.currentSituation);
+            if (self.currentSituationID) then
+                self:ExitSituation(self.currentSituationID);
             end
         end
 
@@ -288,24 +304,27 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
     end
 end
 
-function DynamicCam:SetSituation(situation)
-    local oldSituation = self.currentSituation;
+function DynamicCam:SetSituation(situationID)
+    local oldSituationID = self.currentSituationID;
     local restoringZoom;
 
     -- if currently in a situation, leave it
-    if (self.currentSituation) then
-        restoringZoom = self:ExitSituation(self.currentSituation, situation);
+    if (self.currentSituationID) then
+        restoringZoom = self:ExitSituation(self.currentSituationID, situationID);
     end
 
     -- go into the new situation
-    self:EnterSituation(situation, oldSituation, restoringZoom);
+    self:EnterSituation(situationID, oldSituationID, restoringZoom);
 end
 
-function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
+function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
+    local situation = self.db.profile.situations[situationID];
+    local oldSituation = self.db.profile.situations[oldSituationID];
+
     self:DebugPrint("Entering situation", situation.name);
 
-    -- set currentSituation
-    self.currentSituation = situation;
+    -- set currentSituationID
+    self.currentSituationID = situationID;
 
     -- set view settings
     if (situation.view.enabled) then
@@ -317,29 +336,29 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
     end
 
     -- set all cvars
-    restoration[situation] = {};
-    restoration[situation].cvars = {};
+    restoration[situationID] = {};
+    restoration[situationID].cvars = {};
     for cvar, value in pairs(situation.cameraCVars) do
-        restoration[situation].cvars[cvar] = GetCVar(cvar);
+        restoration[situationID].cvars[cvar] = GetCVar(cvar);
         SetCVar(cvar, value);
     end
 
     -- make sure to save cameralockedtargetfocusing
     if (situation.targetLock.enabled) then
-        restoration[situation].cvars["cameralockedtargetfocusing"] = GetCVar("cameralockedtargetfocusing");
+        restoration[situationID].cvars["cameralockedtargetfocusing"] = GetCVar("cameralockedtargetfocusing");
     end
 
     local a = situation.cameraActions;
 
     -- ZOOM --
-    if (not restoringZoom) then
+    if (not skipZoom) then
         if (Camera:IsZooming()) then
             Camera:StopZooming();
         end
 
         -- save old zoom level
-        restoration[situation].zoom = GetCameraZoom();
-        restoration[situation].zoomSituation = oldSituation;
+        restoration[situationID].zoom = GetCameraZoom();
+        restoration[situationID].zoomSituation = oldSituationID;
 
         -- set zoom level
         local adjustedZoom;
@@ -363,8 +382,8 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
 
         -- if we didn't adjust the zoom, then reset oldZoom
         if (not adjustedZoom) then
-            restoration[situation].zoom = nil;
-            restoration[situation].zoomSituation = nil;
+            restoration[situationID].zoom = nil;
+            restoration[situationID].zoomSituation = nil;
         end
     else
         self:DebugPrint("Restoring zoom level, so skipping zoom action")
@@ -389,9 +408,9 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
         -- nameplates
         if (situation.extras.nameplates) then
             -- save the old values to restore when ending situation
-            restoration[situation].cvars["nameplateShowAll"] = GetCVar("nameplateShowAll");
-            restoration[situation].cvars["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
-            restoration[situation].cvars["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
+            restoration[situationID].cvars["nameplateShowAll"] = GetCVar("nameplateShowAll");
+            restoration[situationID].cvars["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
+            restoration[situationID].cvars["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
 
             SetCVar("nameplateShowAll", 1);
 
@@ -415,16 +434,18 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
         end
     end
 
-    -- update the GUI
-    Options:SelectSituation();
+    self:SendMessage("DC_SITUATION_ENTERED");
 end
 
-function DynamicCam:ExitSituation(situation, newSituation)
+function DynamicCam:ExitSituation(situationID, newSituationID)
     local restoringZoom;
+    local situation = self.db.profile.situations[situationID];
+    local newSituation = self.db.profile.situations[newSituationID];
+
     self:DebugPrint("Exiting situation "..situation.name);
 
     -- restore cvars to their values before the situation arose
-    for cvar, value in pairs(restoration[situation].cvars) do
+    for cvar, value in pairs(restoration[situationID].cvars) do
         SetCVar(cvar, value);
     end
 
@@ -459,10 +480,12 @@ function DynamicCam:ExitSituation(situation, newSituation)
     end
 
     -- restore zoom level if we saved one
-    if (self:ShouldRestoreZoom(situation, newSituation)) then
-        self:DebugPrint("Restoring zoom level: ", restoration[situation].zoom);
+    if (self:ShouldRestoreZoom(situationID, newSituationID)) then
+        self:DebugPrint("Restoring zoom level: ", restoration[situationID].zoom);
         restoringZoom = true;
-        Camera:SetZoom(restoration[situation].zoom, .75, true); -- TODO: look into constant time here
+        Camera:SetZoom(restoration[situationID].zoom, .75, true); -- TODO: look into constant time here
+    else
+        self:DebugPrint("Not restoring zoom level");
     end
 
     -- unhide UI
@@ -470,8 +493,10 @@ function DynamicCam:ExitSituation(situation, newSituation)
         UIParent:Show();
     end
 
-    wipe(restoration[situation]);
-    self.currentSituation = nil;
+    wipe(restoration[situationID]);
+    self.currentSituationID = nil;
+
+    self:SendMessage("DC_SITUATION_EXITED");
 
     return restoringZoom;
 end
@@ -483,7 +508,7 @@ function DynamicCam:GetSituationList()
         local prefix = "";
         local suffix = "";
 
-        if (self.currentSituation == situation) then
+        if (self.currentSituationID == id) then
             prefix = "|cFF00FF00";
             suffix = "|r";
         elseif (not situation.enabled) then
@@ -766,10 +791,34 @@ function DynamicCam:CreateSituation(name)
     return situation;
 end
 
+function DynamicCam:UpdateSituation(situationID)
+    local situation = self.db.profile.situations[situationID];
+    if (situation and (situationID == self.currentSituationID)) then
+        -- apply cvars
+        for cvar, value in pairs(situation.cameraCVars) do
+            SetCVar(cvar, value);
+        end
+    end
+end
+
+
 -- TODO: organization
-function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
+function DynamicCam:ApplyDefaultCameraSettings()
+    local curSituation = self.db.profile.situations[self.currentSituationID];
+
+    -- apply default settings if the current situation isn't overriding them
+    for cvar, value in pairs(self.db.profile.defaultCvars) do
+        if (not curSituation or not curSituation.cameraCVars[cvar]) then
+            SetCVar(cvar, value);
+        end
+    end
+end
+
+function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
+    local newSituation = self.db.profile.situations[newSituationID];
+
     -- don't restore if we don't have a saved zoom value
-    if (not restoration[oldSituation].zoom) then
+    if (not restoration[oldSituationID].zoom) then
         return false;
     end
 
@@ -784,7 +833,7 @@ function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
     end
 
     -- only restore zoom if returning to the same situation
-    if (restoration[oldSituation].zoomSituation ~= newSituation) then
+    if (restoration[oldSituationID].zoomSituation ~= newSituationID) then
         return false;
     end
 
@@ -806,18 +855,18 @@ function DynamicCam:ShouldRestoreZoom(oldSituation, newSituation)
         return false;
     elseif (newSituation.cameraActions.zoomSetting == "range") then
         --only restore zoom if zoom will be in the range
-        if ((newSituation.cameraActions.zoomMin <= restoration[oldSituation].zoom + .5) and
-            (newSituation.cameraActions.zoomMax >= restoration[oldSituation].zoom - .5)) then
+        if ((newSituation.cameraActions.zoomMin <= restoration[oldSituationID].zoom + .5) and
+            (newSituation.cameraActions.zoomMax >= restoration[oldSituationID].zoom - .5)) then
             return true;
         end
     elseif (newSituation.cameraActions.zoomSetting == "in") then
         -- only restore if restoration zoom will still be acceptable
-        if (newSituation.cameraActions.zoomValue >= restoration[oldSituation].zoom - .5) then
+        if (newSituation.cameraActions.zoomValue >= restoration[oldSituationID].zoom - .5) then
             return true;
         end
     elseif (newSituation.cameraActions.zoomSetting == "out") then
         -- restore zoom if newSituation is zooming out and we would already be zooming out farther
-        if (newSituation.cameraActions.zoomValue <= restoration[oldSituation].zoom + .5) then
+        if (newSituation.cameraActions.zoomValue <= restoration[oldSituationID].zoom + .5) then
             return true;
         end
     end
@@ -844,16 +893,35 @@ function DynamicCam:RegisterEvents()
     end
 end
 
+function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
+    self:EvaluateSituations();
+end
+
+function DynamicCam:DC_SITUATION_DISABLED(message, situationID)
+    self:EvaluateSituations();
+end
+
+function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
+    self:UpdateSituation(situationID);
+    self:ApplyDefaultCameraSettings();
+    self:EvaluateSituations();
+end
+
+function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
+    self:ApplyDefaultCameraSettings();
+end
+
 
 -----------------
 -- TARGET LOCK --
 -----------------
 function DynamicCam:EvaluateTargetLock()
-    if (self.currentSituation) then
-        if (self.currentSituation.targetLock.enabled) and
-            (not self.currentSituation.targetLock.onlyAttackable or UnitCanAttack("player", "target")) and
-            (self.currentSituation.targetLock.dead or (not UnitIsDead("target"))) and
-            (not self.currentSituation.targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
+    if (self.currentSituationID) then
+        local targetLock = self.db.profile.situations[self.currentSituationID].targetLock;
+        if (targetLock.enabled) and
+            (not targetLock.onlyAttackable or UnitCanAttack("player", "target")) and
+            (targetLock.dead or (not UnitIsDead("target"))) and
+            (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
         then
             if (GetCVar("cameralockedtargetfocusing") ~= "1") then
                 SetCVar ("cameralockedtargetfocusing", 1)
@@ -881,7 +949,7 @@ function DynamicCam:InitDatabase()
             DynamicCamDB.global.dbVersion = DATABASE_VERSION;
 
             -- Tell the user
-            self:Print("Database out of data, reseting database!");
+            self:Print("Database out of date, reseting database!");
         end
     end
 
@@ -900,7 +968,7 @@ end
 
 function DynamicCam:RefreshConfig()
     local restartTimer = false;
-
+    
     -- shutdown the addon if it's enabled
     if (self.db.profile.enabled and started) then
         self:Shutdown();
@@ -908,12 +976,18 @@ function DynamicCam:RefreshConfig()
 
     -- situation is active, but db killed it
     -- TODO: still restore from restoration, at least, what we can
-    if (self.currentSituation) then
-        self.currentSituation = nil;
+    if (self.currentSituationID) then
+        self.currentSituationID = nil;
+    end
+
+    -- clear the options panel so that it reselects
+    if (Options) then
+        Options:ClearSelection();
     end
 
     -- load default situations
-    if (not next(self.db.profile.situations)) then
+    local id, situation = next(self.db.profile.situations);
+    if (not situation or situation.name == "") then
         self.db.profile.situations = self:GetDefaultSituations();
     end
 

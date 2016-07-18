@@ -2,7 +2,6 @@
     - ?
 
 - VERSION 13
-    - make changing a setting in the current situation instantly change the current settings
     - Change ALL camera settings
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations

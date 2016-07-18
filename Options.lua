@@ -2,7 +2,7 @@
 -- GLOBALS --
 -------------
 assert(DynamicCam);
-DynamicCam.Options = DynamicCam:NewModule("Options");
+DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0");
 
 
 ------------
@@ -11,7 +11,7 @@ DynamicCam.Options = DynamicCam:NewModule("Options");
 local Options = DynamicCam.Options;
 local parent = DynamicCam;
 local _;
-local S, Skey;
+local S, SID;
 
 local welcomeMessage = [[Hello and welcome to an extremely prerelease build of DynamicCam!
 
@@ -25,8 +25,8 @@ local knownIssues = [[- Views in WoW are.. odd, I would recommend using them wit
 - The defaults are placeholder ones, a much more robust system is planned
 - Boss vs. Trash combat can be a little wonky]];
 local changelog = {
-[[As always, you have to reset your profile to get the changes to the defaults,including changes to condition, or even new situations, if you want them.]],
-[[Test Version 13:
+[[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
+[[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
     - Removed frame hiding functionality, but hiding entire UI still supported
@@ -41,65 +41,6 @@ local changelog = {
         - zoom restoration not working because of rounding issues or because of other zoom
         - a situation's zoom wouldn't actually be applied if a zoom was already occuring
         - nameplate settings should no longer cause taint]],
-[[Test Version 12:
-    - The addon is now using the new GetCameraZoom() API
-    - Fixed zoom level not restoring after a nameplate fit
-    - Nameplate fit is now delayed a tiny bit so that the camera can adjust before we try to fit]],
-[[Test Version 11 HOTFIX:
-    - Changed the way that we handle lack of zoom confidence, it'll use factor instead
-        - This is an imperfect solution because I can't get adjust it lower than 1, so any zoom lower than 15
-            will adjust to 15 then adjust to the actual zoom that we wanted
-    - Changed defaults to factor in new max zoom
-    - Fixed default condition for a couple situations causing a memory leak
-    - I WOULD HIGHLY RECOMMEND RESETING YOUR PROFILE]],
-[[Test Version 11:
-    - Raid and dungeon default situations added
-        - These are disabled by default
-        - These don't actually do anything, enable them and customize them to your hearts content
-        - I'd love to hear if you really like particular settings here
-    - PVP situations delayed for now, the dropdown is getting cluttered and I need to find a way to organize it
-    - The select-a-situation dropdown is now color-coded
-        - Grey is for disabled situations
-        - Green is for the currently active situation
-        - Blue is for situations that the condition is active but aren't currently selected because of priority
-        - White is for everything else
-    - "Zoom Fit" now called "Zoom Fit Nameplates"
-    - Added some advanced options under "Zoom Fit Nameplates"
-    - Save/Restore zoom level has been removed, will probably be back in some form
-    - More fit nameplates tweaks
-        - Blizz changes to positioning have been adjusted for
-        - zoom confidence is restored when the zooming is done
-        - add a 100ms delay on zoom-fit between in and out
-            - it shouldn't wobble as much and is easier to track
-    - MaxZoom and ZoomSpeed should be properly restored in a couple "weird" situations
-        - hopefully this resolves ZoomSpeed getting stuck (especially when zoom is slowed)
-        - IF YOU ENCOUNTER A PROBLEM WITH MAX ZOOM OR ZOOM SPEED PLEASE TELL ME!
-    - Dynamic Pitch in options now can be set to not affect the current setting at all (grey checkbox)]],
-[[Test Version 10:
-    - Defaults changed to include zoom fit with continous on in the World Combat situations
-    - Defaults changed with more overall tweaks, again, won't touch any saved settings
-        - Biggest change is, at least for now, headMovement is disabled by default on all situations
-    - You can now toggle broad nameplate settings in a situation's settings
-        - CAREFUL WITH THIS, IT WILL NOT WORK IN COMBAT
-        - Default situation NPC Interaction automatically turns on friendly nameplates now
-    - When nameplate fit is used, it will try until it finds a nameplate for a target
-        - Useful for waiting for nameplates to turn on, after using the new nameplate toggle settings
-    - Hopefully fixed a bug that could set your max zoom to 0, sorry about that!
-    - The UI doesn't allow you to use view 1 anymore, since it's reserved for save/restore views
-    - Lots of fit nameplate tweaks, should just be overall better
-    - Fit nameplates with continous enabled will now work if you don't have a target when situation starts
-    - Fit nameplates will work more consistantly (it deals with lack of zoom confidence)]],
-[[Test Version 9:
-    - Nameplate zoom should be a little more responsive
-    - New option for Zoom Fit; Fit Continously, will keep trying to adjust zoom after initial fit
-        - only works while fitNameplate is enabled
-    - Fixed nameplate zoom-in when the camera is further out than the situation's max
-    - Fixed '/zc'; this resets zoom to a known good value
-    - Default NPC interaction now affect order hall recruiters
-    - GUI will now prefer to have the current situation open
-        - An open GUI will swap situations when the current situation swaps as well
-            - Tell me if this is annoying!
-    - Some code re-organization]],
 };
 
 local general = {
@@ -379,35 +320,6 @@ local settings = {
     handler = DynamicCam,
     type = 'group',
     args = {
-        settings = {
-            type = 'group',
-            name = "Global Addon Settings",
-            order = 1,
-            inline = true,
-            hidden = true,
-            args = {
-                reactiveZoom = {
-                    type = 'toggle',
-                    name = "Reactive Zoom Speed",
-                    desc = "If the camera should adjust its speed based on how far it needs to zoom",
-                    get = function() return DynamicCam.db.profile.settings.reactiveZoom; end,
-                    set = function(_, newValue) DynamicCam.db.profile.settings.reactiveZoom = newValue; end,
-                    order = 0,
-                },
-                reactiveZoomTime = {
-                    type = 'range',
-                    name = "Max Zoom Time",
-                    desc = "The max time that the camera can take to zoom, though lower values with high zoom amounts can be a little broken",
-                    min = .5,
-                    max = 2,
-                    step = .05,
-                    get = function() return DynamicCam.db.profile.settings.reactiveZoomTime; end,
-                    set = function(_, newValue) DynamicCam.db.profile.settings.reactiveZoomTime = newValue; end,
-                    order = 1,
-                    width = "double",
-                },
-            },
-        },
         defaultCvars = {
             type = 'group',
             name = "Default Camera Settings",
@@ -419,7 +331,7 @@ local settings = {
                     name = "Dynamic Pitch",
                     desc = "If the camera should use dynamic pitch",
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 1; else DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 0; end end,
+                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 1; else DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 0,
                 },
                 cameralockedtargetfocusing = {
@@ -427,7 +339,7 @@ local settings = {
                     name = "Target Lock/Focus",
                     desc = "If the camera should follow the target",
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end end,
+                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 0.5,
                 },
                 cameraDistanceMaxFactor = {
@@ -438,7 +350,7 @@ local settings = {
                     max = 1.9,
                     step = .01,
                     get = function() return DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] = newValue; end,
+                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 2,
                     width = "full",
                 },
@@ -450,7 +362,7 @@ local settings = {
                     max = 50,
                     step = .5,
                     get = function() return DynamicCam.db.profile.defaultCvars["cameraDistanceMoveSpeed"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMoveSpeed"] = newValue; end,
+                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMoveSpeed"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 3,
                     width = "full",
                 },
@@ -462,7 +374,7 @@ local settings = {
                     max = 5,
                     step = .1,
                     get = function() return DynamicCam.db.profile.defaultCvars["cameraovershoulder"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraovershoulder"] = newValue; end,
+                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraovershoulder"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 4,
                     width = "full",
                 },
@@ -475,7 +387,7 @@ local settings = {
                     softMax = 5,
                     step = .5,
                     get = function() return DynamicCam.db.profile.defaultCvars["cameraheadmovementstrength"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementstrength"] = newValue; end,
+                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementstrength"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 5,
                     width = "full",
                 },
@@ -492,8 +404,8 @@ local situationOptions = {
             type = 'select',
             name = "Selected Situation",
             desc = "Which situation you are editing",
-            get = function() return Skey end,
-            set = function(_, newValue) S = DynamicCam.db.profile.situations[newValue]; Skey = newValue; end,
+            get = function() return SID end,
+            set = function(_, newValue) S = DynamicCam.db.profile.situations[newValue]; SID = newValue; end,
             values = "GetSituationList",
             width = "full",
             order = 1,
@@ -504,7 +416,7 @@ local situationOptions = {
             desc = "If this situation should be checked and activated",
             hidden = function() return (not S) end,
             get = function() return S.enabled end,
-            set = function(_, newValue) S.enabled = newValue end,
+            set = function(_, newValue) S.enabled = newValue if (newValue) then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
             width = "half",
             order = 2,
         },
@@ -776,7 +688,7 @@ local situationOptions = {
                     name = "Adjust Shoulder Offset",
                     desc = "If this setting should be affected",
                     get = function() return (S.cameraCVars["cameraovershoulder"] ~= nil) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["cameraovershoulder"] = 0 else S.cameraCVars["cameraovershoulder"] = nil end end,
+                    set = function(_, newValue) if (newValue) then S.cameraCVars["cameraovershoulder"] = 0 else S.cameraCVars["cameraovershoulder"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     order = 0,
                 },
                 overShoulder = {
@@ -790,7 +702,7 @@ local situationOptions = {
                     softMax = 5,
                     step = .1,
                     get = function() return S.cameraCVars["cameraovershoulder"] end,
-                    set = function(_, newValue) S.cameraCVars["cameraovershoulder"] = newValue end,
+                    set = function(_, newValue) S.cameraCVars["cameraovershoulder"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     order = 10,
                     width = "full",
                 },
@@ -799,7 +711,7 @@ local situationOptions = {
                     name = "Adjust Head Tracking",
                     desc = "If this setting should be affected",
                     get = function() return (S.cameraCVars["cameraheadmovementstrength"] ~= nil) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["cameraheadmovementstrength"] = 0 else S.cameraCVars["cameraheadmovementstrength"] = nil end end,
+                    set = function(_, newValue) if (newValue) then S.cameraCVars["cameraheadmovementstrength"] = 0 else S.cameraCVars["cameraheadmovementstrength"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     order = 3,
                 },
                 headTracking = {
@@ -812,7 +724,7 @@ local situationOptions = {
                     softMax = 5,
                     step = .1,
                     get = function() return S.cameraCVars["cameraheadmovementstrength"] end,
-                    set = function(_, newValue) S.cameraCVars["cameraheadmovementstrength"] = newValue end,
+                    set = function(_, newValue) S.cameraCVars["cameraheadmovementstrength"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     width = "full",
                     order = 12,
                 },
@@ -830,6 +742,7 @@ local situationOptions = {
                         elseif (S.cameraCVars["cameradynamicpitch"] == 0) then
                             return false;
                         end
+                        Options:SendMessage("DC_SITUATION_UPDATED", SID);
                     end,
                     set = function(_, newValue)
                         if (newValue == nil) then
@@ -839,6 +752,7 @@ local situationOptions = {
                         elseif (newValue == false) then
                             S.cameraCVars["cameradynamicpitch"] = 0;
                         end
+                        Options:SendMessage("DC_SITUATION_UPDATED", SID);
                     end,
                     order = 4,
                 },
@@ -848,7 +762,7 @@ local situationOptions = {
                     name = "Target Lock/Focus",
                     desc = "Let the camera try to capture the target in view",
                     get = function() return S.targetLock.enabled end,
-                    set = function(_, newValue) S.targetLock.enabled = newValue end,
+                    set = function(_, newValue) S.targetLock.enabled = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                     order = 40,
                 },
                 targetLockSettings = {
@@ -863,7 +777,7 @@ local situationOptions = {
                             name = "Only Attackable",
                             desc = "Only target lock/focus attackable targets",
                             get = function() return S.targetLock.onlyAttackable end,
-                            set = function(_, newValue) S.targetLock.onlyAttackable = newValue end,
+                            set = function(_, newValue) S.targetLock.onlyAttackable = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                             order = 1,
                         },
                         dead = {
@@ -871,7 +785,7 @@ local situationOptions = {
                             name = "Ignore Dead",
                             desc = "Don't target lock/focus dead targets",
                             get = function() return (not S.targetLock.dead) end,
-                            set = function(_, newValue) S.targetLock.dead = not newValue end,
+                            set = function(_, newValue) S.targetLock.dead = not newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                             order = 2,
                         },
                         nameplateVisible = {
@@ -879,7 +793,7 @@ local situationOptions = {
                             name = "Nameplate Visible",
                             desc = "Only target lock/focus units that have a visible nameplate",
                             get = function() return S.targetLock.nameplateVisible end,
-                            set = function(_, newValue) S.targetLock.nameplateVisible = newValue end,
+                            set = function(_, newValue) S.targetLock.nameplateVisible = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                             order = 4,
                         },
                     },
@@ -991,25 +905,38 @@ function Options:OnInitialize()
 end
 
 function Options:OnEnable()
+    -- register for dynamiccam messages
+    self:RegisterMessage("DC_SITUATION_ACTIVE", "SelectSituation");
+    self:RegisterMessage("DC_SITUATION_INACTIVE", "SelectSituation");
+    self:RegisterMessage("DC_SITUATION_ENTERED", "SelectSituation");
+    self:RegisterMessage("DC_SITUATION_EXITED", "SelectSituation");
 end
 
 function Options:OnDisable()
+    self:UnregisterAllMessages();
 end
 
 
 ---------
 -- GUI --
 ---------
+function Options:ClearSelection()
+    SID = nil;
+    S = nil;
+end
+
 function Options:SelectSituation()
-    if (parent.currentSituation) then
-        for key, situation in pairs(parent.db.profile.situations) do
-            if (situation == parent.currentSituation) then
-                Skey = key;
-                S = parent.currentSituation;
+    if (parent.currentSituationID) then
+        for id, situation in pairs(parent.db.profile.situations) do
+            if (id == parent.currentSituationID) then
+                S = situation;
+                SID = id;
             end
         end
     else
-        Skey, S = next(parent.db.profile.situations);
+        if (not SID or not S) then
+            SID, S = next(parent.db.profile.situations);
+        end
     end
 
     LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam Situations");
