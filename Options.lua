@@ -32,7 +32,9 @@ local changelog = {
     - Removed frame hiding functionality, but hiding entire UI still supported
         - out-of-scope -- this is a camera addon
         - problems regarding UI taint didn't help
-    - Nameplate Fit has a new option; Entry Zoom as Min, which will basically make fit not zoom in
+    - Changes to the current situation (right now only camera settings) will be applied instantly
+    - Changes to the camera settings will be applied instantly
+    - Nameplate fit has a new option; Entry Zoom as Min, which will basically make fit not zoom in
     - Nameplate fit is more consistant and has a reduced delay (from 250ms instead of 500ms)
     - Defaults:
         - mounted situations now consolidated into a single situation
