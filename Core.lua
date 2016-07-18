@@ -83,6 +83,7 @@ local defaults = {
                     zoomFitPosition = 84,
                     zoomFitSensitivity = 5,
                     zoomFitIncrements = .25,
+                    zoomFitUseCurAsMin = false,
                 },
                 view = {
                     enabled = false,
@@ -352,7 +353,12 @@ function DynamicCam:EnterSituation(situation, oldSituation, restoringZoom)
         elseif (a.zoomSetting == "range") then
             adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
         elseif (a.zoomSetting == "fit") then
-            adjustedZoom = Camera:FitNameplate(a.zoomMin, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
+            local min = a.zoomMin;
+            if (a.zoomFitUseCurAsMin) then
+                min = GetCameraZoom();
+                min = math.min(min, a.zoomMax);
+            end
+            adjustedZoom = Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
@@ -733,6 +739,7 @@ function DynamicCam:CreateSituation(name)
             zoomFitPosition = 84,
             zoomFitSensitivity = 5,
             zoomFitIncrements = .25,
+            zoomFitUseCurAsMin = false,
         },
         view = {
             enabled = false,

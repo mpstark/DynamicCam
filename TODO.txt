@@ -4,11 +4,10 @@
 - VERSION 13
     - make changing a setting in the current situation instantly change the current settings
     - Change ALL camera settings
-    - 'Camera Settings' should allow for not adjusting target lock
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations
 
-- PLANNED BEFORE BETA (@PRE-PATCH CURSE RELEASE)
+- PLANNED BEFORE FULL RELEASE (@LEGION FULL RELEASE)
     - Implement Advanced Mode fully
         - if a situation has advanced options, need to notify outside of advanced mode
         - add/delete situations
@@ -17,8 +16,6 @@
     - Slash commands
         - for temp situations/camera actions
         - lock/unlock situations changing
-
-- PLANNED BEFORE FULL RELEASE (@LEGION FULL RELEASE)
     - Localize settings menu
     - Change database structure to something.. better
     - Change to stack-based system
@@ -36,6 +33,7 @@
         - etc.
 
 - MAYBE
+    - 'Camera Settings' should allow for not adjusting target lock
     - Close all panels interface action
     - Save/Restore NPC/Model zoom level
     - Easing for camera actions

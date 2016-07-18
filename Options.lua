@@ -18,11 +18,10 @@ local welcomeMessage = [[Hello and welcome to an extremely prerelease build of D
 Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and I have to restort to "tricks" to do many things, so it might break.
 
 If you find a problem, PLEASE GET IN TOUCH WITH ME! It's really important that I know about problems right now, so I can fix them. Use reddit (I'm /u/mpstark) or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
-local knownIssues = [[- The combat UI lockdown prevents hiding/showing the actionbars/nameplates in combat
-- Views in WoW are.. odd, I would recommend using them with caution
+local knownIssues = [[- Views in WoW are.. odd, I would recommend using them with caution
 - Fit nameplates is still a work in progress, can do a little in-and-out number
-    - Framerate can really affect this at current, I'm looking at ways to avoid this
 - Not all planned situations are in, notably PvP ones are missing
+- Missing a lot of the advanced options such as add/remove situation, import/export, etc.
 - The defaults are placeholder ones, a much more robust system is planned
 - Boss vs. Trash combat can be a little wonky]];
 local changelog = {
@@ -32,8 +31,9 @@ local changelog = {
     - Event-based checking instead of polling -- large performance gain!
     - Removed frame hiding functionality, but hiding entire UI still supported
         - out-of-scope -- this is a camera addon
-        - problems regarding scope
-    - nameplate fit is more consistant and reduced delay to 250ms instead of 500ms
+        - problems regarding UI taint didn't help
+    - Nameplate Fit has a new option; Entry Zoom as Min, which will basically make fit not zoom in
+    - Nameplate fit is more consistant and has a reduced delay (from 250ms instead of 500ms)
     - Defaults:
         - mounted situations now consolidated into a single situation
         - Hearth/Teleport now tracks mage teleports (not portals) and Death Gate and Skyhold Jump
@@ -632,6 +632,16 @@ local situationOptions = {
                             set = function(_, newValue) S.cameraActions.zoomFitContinous = newValue end,
                             order = 6,
                         },
+                        curZoomAsMin = {
+                            type = 'toggle',
+                            name = "Entry Zoom As Min",
+                            desc = "Use the current zoom (going into the situation) as the minimum value instead. Will not exceed max.",
+                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
+                            get = function() return S.cameraActions.zoomFitUseCurAsMin end,
+                            set = function(_, newValue) S.cameraActions.zoomFitUseCurAsMin = newValue end,
+                            width = "double",
+                            order = 7,
+                        },
                         fitPosition = {
                             type = 'select',
                             name = "Closeness (Advanced)",
@@ -640,7 +650,7 @@ local situationOptions = {
                             get = function() return S.cameraActions.zoomFitPosition end,
                             set = function(_, newValue) S.cameraActions.zoomFitPosition = newValue; end,
                             values = {[60] = "Extremely Far", [70] = "Very Far", [75] = "Far", [80] = "Normal", [84] = "Close", [90] = "Very Close"},
-                            order = 7,
+                            order = 10,
                         },
                         fitSpeed = {
                             type = 'select',
@@ -651,7 +661,7 @@ local situationOptions = {
                             set = function(_, newValue) S.cameraActions.zoomFitSpeedMultiplier = newValue; end,
                             values = {[1.5] = "Normal", [2] = "Quick", [3] = "V.Quick"},
                             width = "half",
-                            order = 8,
+                            order = 11,
                         },
                         fitIncrements = {
                             type = 'select',
@@ -662,7 +672,7 @@ local situationOptions = {
                             set = function(_, newValue) S.cameraActions.zoomFitIncrements = newValue; end,
                             values = {[.25] = "Fine", [.5] = "Normal", [.75] = "Course"},
                             width = "half",
-                            order = 9,
+                            order = 12,
                         },
                     },
                 },
