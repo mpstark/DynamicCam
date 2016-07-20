@@ -677,7 +677,7 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Hearth/Teleport");
     newSituation.priority = 20;
-    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
+    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
