@@ -1,7 +1,11 @@
 - INVESTIGATE
-    - ?
+    - zoom continues after hearth interrupted
+    - teleport options for shaman
+    - travel forms
 
-- VERSION 13
+- Beta 2:
+    - pvp situations
+    - smoothly transition on shoulder offset
     - Change ALL camera settings
     - default changes:
         - Shoulder offset as a default cvar and taking it out of the default situations
