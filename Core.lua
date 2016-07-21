@@ -886,6 +886,15 @@ end
 -- EVENTS --
 ------------
 function DynamicCam:RegisterEvents()
+    events["NAME_PLATE_UNIT_ADDED"] = true;
+    self:RegisterEvent("NAME_PLATE_UNIT_ADDED", "EvaluateSituations");
+
+    events["NAME_PLATE_UNIT_ADDED"] = true;
+    self:RegisterEvent("NAME_PLATE_UNIT_REMOVED", "EvaluateSituations");
+
+    events["PLAYER_TARGET_CHANGED"] = true;
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", "EvaluateSituations");
+
     for name, situation in pairs(self.db.profile.situations) do
         if (situation.events) then
             for i, event in pairs(situation.events) do
