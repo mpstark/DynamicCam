@@ -26,6 +26,10 @@ local knownIssues = [[- Views in WoW are.. odd, I would recommend using them wit
 - Boss vs. Trash combat can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
+[[Beta 2:
+    - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter
+    - The Raw CVar menu has been removed
+        - all unconfigurable options moved to Settings/Situations under Advanced Mode]],
 [[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
@@ -133,7 +137,7 @@ local general = {
             type = 'group',
             order = 2,
             inline = true,
-            hidden = function() return (not DynamicCam.db.profile.advanced) end,
+            hidden = true,
             args = {
                 reset = {
                     type = 'execute',
@@ -392,6 +396,89 @@ local settings = {
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementstrength"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 5,
                     width = "full",
+                },
+                dynamicPitchAdvanced = {
+                    type = 'group',
+                    name = "Dynamic Pitch Settings (Advanced)",
+                    order = 102,
+                    inline = true,
+                    hidden = function() return not DynamicCam.db.profile.advanced end,
+                    args = {
+                        basefovpad = {
+                            type = 'range',
+                            name = "Base FOV Pad",
+                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.",
+                            min = .01,
+                            max = 1,
+                            step = .01,
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameradynamicpitchbasefovpad"] end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameradynamicpitchbasefovpad"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 1,
+                        },
+                        basefovpadflying = {
+                            type = 'range',
+                            name = "Base FOV Pad (Flying)",
+                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.\n\nThis is presumbly for when you are flying.",
+                            min = .01,
+                            max = 1,
+                            step = .01,
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameradynamicpitchbasefovpadflying"] end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameradynamicpitchbasefovpadflying"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 2,
+                        },
+                        smartpivotcutoffdist = {
+                            type = 'range',
+                            name = "Smart Pivot Cutoff Distance",
+                            desc = "No idea what this actually does",
+                            min = 0,
+                            max = 100,
+                            softMin = 0,
+                            softMax = 28.5,
+                            step = .5,
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameradynamicpitchsmartpivotcutoffdist"] end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameradynamicpitchsmartpivotcutoffdist"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 3,
+                        },
+                    },
+                },
+                headTrackingAdvanced = {
+                    type = 'group',
+                    name = "Head Tracking Settings (Advanced)",
+                    order = 101,
+                    hidden = function() return not DynamicCam.db.profile.advanced end,
+                    inline = true,
+                    args = {
+                        movementRange = {
+                            type = 'range',
+                            name = "Movement Range",
+                            desc = "Seems to be how far the camera is allowed to move, larger is more",
+                            min = 0,
+                            max = 50,
+                            step = .5,
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameraheadmovementrange"] end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementrange"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 3,
+                        },
+                        smoothRate = {
+                            type = 'range',
+                            name = "Smooth Rate",
+                            desc = "How much smoothing should be applied to the head tracking, larger is faster",
+                            min = .5,
+                            max = 50,
+                            step = .5,
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameraheadmovementsmoothrate"] end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementsmoothrate"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 4,
+                        },
+                        whileStanding = {
+                            type = 'toggle',
+                            name = "Adjust While Standing",
+                            desc = "If the camera should track the head when the player is not moving",
+                            get = function() return DynamicCam.db.profile.defaultCvars["cameraheadmovementwhilestanding"] == 1 end,
+                            set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraheadmovementwhilestanding"] = (newValue and 1 or 0); Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                            order = 2,
+                        },
+                    },
                 },
             },
         },
@@ -730,7 +817,6 @@ local situationOptions = {
                     width = "full",
                     order = 12,
                 },
-
                 dynamicPitch = {
                     type = 'toggle',
                     tristate = true,
@@ -749,6 +835,9 @@ local situationOptions = {
                     set = function(_, newValue)
                         if (newValue == nil) then
                             S.cameraCVars["cameradynamicpitch"] = nil;
+                            S.cameraCVars["cameradynamicpitchbasefovpad"] = nil;
+                            S.cameraCVars["cameradynamicpitchbasefovpadflying"] = nil;
+                            S.cameraCVars["cameradynamicpitchsmartpivotcutoffdist"] = nil;
                         elseif (newValue == true) then
                             S.cameraCVars["cameradynamicpitch"] = 1;
                         elseif (newValue == false) then
@@ -758,7 +847,6 @@ local situationOptions = {
                     end,
                     order = 4,
                 },
-
                 targetLock = {
                     type = 'toggle',
                     name = "Target Lock/Focus",
@@ -797,6 +885,101 @@ local situationOptions = {
                             get = function() return S.targetLock.nameplateVisible end,
                             set = function(_, newValue) S.targetLock.nameplateVisible = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                             order = 4,
+                        },
+                    },
+                },
+                advancedDivider = {
+                    type = 'header',
+                    name = "Advanced",
+                    order = 100,
+                    hidden = function() return (not DynamicCam.db.profile.advanced) or (((not S.cameraCVars["cameradynamicpitch"]) or (S.cameraCVars["cameradynamicpitch"] == 0)) and ((not S.cameraCVars["cameraheadmovementstrength"]) or (S.cameraCVars["cameraheadmovementstrength"] == 0))) end,
+                },
+                dynamicPitchAdvanced = {
+                    type = 'group',
+                    name = "Dynamic Pitch Settings (Advanced)",
+                    order = 102,
+                    inline = true,
+                    hidden = function() return ((not S.cameraCVars["cameradynamicpitch"]) or (S.cameraCVars["cameradynamicpitch"] == 0) or (not DynamicCam.db.profile.advanced)) end,
+                    args = {
+                        basefovpad = {
+                            type = 'range',
+                            name = "Base FOV Pad",
+                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.",
+                            min = .01,
+                            max = 1,
+                            step = .01,
+                            get = function() return (S.cameraCVars["cameradynamicpitchbasefovpad"] or tonumber(GetCVarDefault("cameradynamicpitchbasefovpad"))) end,
+                            set = function(_, newValue) S.cameraCVars["cameradynamicpitchbasefovpad"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 1,
+                        },
+                        basefovpadflying = {
+                            type = 'range',
+                            name = "Base FOV Pad (Flying)",
+                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.\n\nThis is presumbly for when you are flying.",
+                            min = .01,
+                            max = 1,
+                            step = .01,
+                            get = function() return (S.cameraCVars["cameradynamicpitchbasefovpadflying"] or tonumber(GetCVarDefault("cameradynamicpitchbasefovpadflying"))) end,
+                            set = function(_, newValue) S.cameraCVars["cameradynamicpitchbasefovpadflying"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 2,
+                        },
+                        smartpivotcutoffdist = {
+                            type = 'range',
+                            name = "Smart Pivot Cutoff Distance",
+                            desc = "No idea what this actually does",
+                            min = 0,
+                            max = 100,
+                            softMin = 0,
+                            softMax = 28.5,
+                            step = .5,
+                            get = function() return (S.cameraCVars["cameradynamicpitchsmartpivotcutoffdist"] or tonumber(GetCVarDefault("cameradynamicpitchsmartpivotcutoffdist"))) end,
+                            set = function(_, newValue) S.cameraCVars["cameradynamicpitchsmartpivotcutoffdist"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 3,
+                        },
+                    },
+                },
+                headTrackingAdvanced = {
+                    type = 'group',
+                    name = "Head Tracking Settings (Advanced)",
+                    order = 101,
+                    hidden = function() return ((not S.cameraCVars["cameraheadmovementstrength"]) or (S.cameraCVars["cameraheadmovementstrength"] == 0) or (not DynamicCam.db.profile.advanced)) end,
+                    inline = true,
+                    args = {
+                        movementRange = {
+                            type = 'range',
+                            name = "Movement Range",
+                            desc = "Seems to be how far the camera is allowed to move, larger is more",
+                            min = 0,
+                            max = 50,
+                            step = .5,
+                            get = function() return (S.cameraCVars["cameraheadmovementrange"] or tonumber(GetCVarDefault("cameraheadmovementrange"))) end,
+                            set = function(_, newValue) S.cameraCVars["cameraheadmovementrange"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 3,
+                        },
+                        smoothRate = {
+                            type = 'range',
+                            name = "Smooth Rate",
+                            desc = "How much smoothing should be applied to the head tracking, larger is faster",
+                            min = .5,
+                            max = 50,
+                            step = .5,
+                            get = function() return (S.cameraCVars["cameraheadmovementsmoothrate"] or tonumber(GetCVarDefault("cameraheadmovementsmoothrate"))) end,
+                            set = function(_, newValue) S.cameraCVars["cameraheadmovementsmoothrate"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 4,
+                        },
+                        whileStanding = {
+                            type = 'toggle',
+                            name = "Adjust While Standing",
+                            desc = "If the camera should track the head when the player is not moving",
+                            get = function() 
+                                if (S.cameraCVars["cameraheadmovementwhilestanding"] ~= nil) then
+                                    return S.cameraCVars["cameraheadmovementwhilestanding"];
+                                else
+                                    return true;
+                                end
+                            end,
+                            set = function(_, newValue) S.cameraCVars["cameraheadmovementwhilestanding"] = (newValue and 1 or 0); Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            order = 2,
                         },
                     },
                 },

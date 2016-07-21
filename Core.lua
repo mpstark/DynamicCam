@@ -44,11 +44,17 @@ local defaults = {
             ["cameraDistanceMaxFactor"] = 1.9,
             ["cameraDistanceMoveSpeed"] = 8.33,
             ["cameraovershoulder"] = 0,
-            ["cameraheadmovementstrength"] = 0,
-            ["cameradynamicpitch"] = 0,
             ["cameralockedtargetfocusing"] = 0,
-            --["cameraheadmovementrange"] = 6,
-            --["cameraheadmovementsmoothrate"] = 40,
+
+            ["cameraheadmovementstrength"] = 0,
+            ["cameraheadmovementrange"] = 6,
+            ["cameraheadmovementsmoothrate"] = 40,
+            ["cameraheadmovementwhilestanding"] = 1,
+
+            ["cameradynamicpitch"] = 0,
+            ["cameradynamicpitchbasefovpad"] = .4,
+            ["cameradynamicpitchbasefovpadflying"] = .75,
+            ["cameradynamicpitchsmartpivotcutoffdist"] = 10,
         },
         situations = {
             ["*"] = {
