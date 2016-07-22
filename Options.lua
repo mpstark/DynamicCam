@@ -13,23 +13,25 @@ local parent = DynamicCam;
 local _;
 local S, SID;
 
-local welcomeMessage = [[Hello and welcome to an extremely prerelease build of DynamicCam!
+local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
-Things will be a broken, unstable, horrible mess -- but you signed up for that right? Keep in mind that the "ActionCam" is extremely new and could be removed or changed in any new build that Blizzard deploys. Also keep in mind that the WoW Camera API is extremely limited and I have to restort to "tricks" to do many things, so it might break.
+If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord and speak with me there.
 
-If you find a problem, PLEASE GET IN TOUCH WITH ME! It's really important that I know about problems right now, so I can fix them. Use reddit (I'm /u/mpstark) or the Discord (you should have gotten an invite link!) to get in touch with me for now.]];
+Some handy slash commands:
+    `/dc` will open this menu
+    `/zi` will print out the current zoom
+    `/sv #` will save to the specified view slot (where # is a number between 2 and 5)]];
 local knownIssues = [[- Views in WoW are.. odd, I would recommend using them with caution
 - Fit nameplates is still a work in progress, can do a little in-and-out number
 - Not all planned situations are in, notably PvP ones are missing
 - Missing a lot of the advanced options such as add/remove situation, import/export, etc.
 - The defaults are placeholder ones, a much more robust system is planned
-- Boss vs. Trash combat can be a little wonky]];
+- Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
-[[Beta 2:
+[[Beta 2 (In progress):
     - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter
-    - The Raw CVar menu has been removed
-        - all unconfigurable options moved to Settings/Situations under Advanced Mode]],
+    - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode]],
 [[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
