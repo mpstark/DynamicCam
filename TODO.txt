@@ -2,6 +2,7 @@
     - zoom continues after hearth interrupted
     - teleport options for shaman
     - travel forms
+    - taxi situation on bombing runs
 
 - Beta 2:
     - pvp situations

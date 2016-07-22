@@ -31,7 +31,8 @@ local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
 [[Beta 2 (In progress):
     - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter
-    - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode]],
+    - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode
+    - Several tweaks to the options panel]],
 [[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
@@ -557,7 +558,7 @@ local situationOptions = {
                             min = .1,
                             max = 10,
                             softMax = 5,
-                            step = .1,
+                            step = .05,
                             get = function() return S.cameraActions.transitionTime end,
                             set = function(_, newValue) S.cameraActions.transitionTime = newValue; end,
                             width = "double",
@@ -1053,7 +1054,8 @@ local situationOptions = {
                     desc = "When this situation should be activated.",
                     get = function() return S.condition end,
                     set = function(_, newValue) S.condition = newValue end,
-                    width = "double",
+                    multiline = 4,
+                    width = "full",
                     order = 1,
                 },
                 priority = {
