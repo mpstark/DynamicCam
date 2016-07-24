@@ -487,61 +487,59 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 end
 
 function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, sensitivity, speedMultiplier, continously)
-    if (UnitExists("target")) then
-        parent:DebugPrint("Fitting Nameplate for target");
+	parent:DebugPrint("Fitting Nameplate for target");
 
-        -- create a function that returns the zoom direction or nil for stop zooming
-        local condition = function(isFitting)
-            local nameplate = C_NamePlate.GetNamePlateForUnit("target");
+	-- create a function that returns the zoom direction or nil for stop zooming
+	local condition = function(isFitting)
+		local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
-            -- we're out of the min and max
-            if (GetCameraZoom() > zoomMax) then
-                return "in", (GetCameraZoom() - zoomMax), 20;
-            elseif (GetCameraZoom() < zoomMin) then
-                return "out", (zoomMin - GetCameraZoom()), 20;
-            end
+		-- we're out of the min and max
+		if (GetCameraZoom() > zoomMax) then
+			return "in", (GetCameraZoom() - zoomMax), 20;
+		elseif (GetCameraZoom() < zoomMin) then
+			return "out", (zoomMin - GetCameraZoom()), 20;
+		end
 
-            -- if the nameplate exists, then adjust
-            if (nameplate) then
-                local top = nameplate:GetTop();
-                local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-                local difference = screenHeight - top;
-                local ratio = (1 - difference/screenHeight) * 100;
+		-- if the nameplate exists, then adjust
+		if (nameplate) then
+			local top = nameplate:GetTop();
+			local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+			local difference = screenHeight - top;
+			local ratio = (1 - difference/screenHeight) * 100;
 
-				if (isFitting) then
-                	parent:DebugPrint("Fitting", "Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity/2), math.min(94, nameplatePosition + sensitivity/2));
-				else
-					parent:DebugPrint("Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity), math.min(94, nameplatePosition + sensitivity));
+			if (isFitting) then
+				parent:DebugPrint("Fitting", "Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity/2), math.min(94, nameplatePosition + sensitivity/2));
+			else
+				parent:DebugPrint("Ratio:", ratio, "Bounds:", math.max(50, nameplatePosition - sensitivity), math.min(94, nameplatePosition + sensitivity));
+			end
+
+			if (difference < 40) then
+				-- we're at the top, go at top speed
+				if ((GetCameraZoom() + (increments*4)) <= zoomMax) then
+					return "out", increments*4, 14*speedMultiplier;
 				end
+			elseif (ratio > (isFitting and math.min(94, nameplatePosition + sensitivity/2) or math.min(94, nameplatePosition + sensitivity))) then
+				-- we're on screen, but above the target
+				if ((GetCameraZoom() + increments) <= zoomMax) then
+					return "out", increments, 11*speedMultiplier;
+				end
+			elseif (ratio > 50 and ratio <= (isFitting and math.max(50, nameplatePosition - sensitivity/2) or math.max(50, nameplatePosition - sensitivity))) then
+				-- we're on screen, "in front" of the player
+				if ((GetCameraZoom() - (increments)) >= zoomMin) then
+					return "in", increments, 11*speedMultiplier;
+				end
+			end
+		else
+			-- namemplate doesn't exist, just wait
+			return "wait";
+		end
 
-                if (difference < 40) then
-                    -- we're at the top, go at top speed
-                    if ((GetCameraZoom() + (increments*4)) <= zoomMax) then
-                        return "out", increments*4, 14*speedMultiplier;
-                    end
-                elseif (ratio > (isFitting and math.min(94, nameplatePosition + sensitivity/2) or math.min(94, nameplatePosition + sensitivity))) then
-                    -- we're on screen, but above the target
-                    if ((GetCameraZoom() + increments) <= zoomMax) then
-                        return "out", increments, 11*speedMultiplier;
-                    end
-                elseif (ratio > 50 and ratio <= (isFitting and math.max(50, nameplatePosition - sensitivity/2) or math.max(50, nameplatePosition - sensitivity))) then
-                    -- we're on screen, "in front" of the player
-                    if ((GetCameraZoom() - (increments)) >= zoomMin) then
-                        return "in", increments, 11*speedMultiplier;
-                    end
-                end
-            else
-                -- namemplate doesn't exist, just wait
-                return "wait";
-            end
+		return nil;
+	end
 
-            return nil;
-        end
+	zoom.timer = self:ScheduleTimer("ZoomUntil", .25, condition, continously and .75 or nil, true);
 
-		zoom.timer = self:ScheduleTimer("ZoomUntil", .25, condition, continously and .75 or nil, true);
-
-		return true;
-    end
+	return true;
 end
 
 
