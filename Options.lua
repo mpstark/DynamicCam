@@ -629,7 +629,7 @@ local situationOptions = {
                         },
                         fitContinously = {
                             type = 'toggle',
-                            name = "Continously Adjust",
+                            name = "Continuously Adjust",
                             desc = "Keep trying to fit after initial fit. This will prevent you from adjusting zoom.",
                             hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
                             get = function() return S.cameraActions.zoomFitContinous end,
