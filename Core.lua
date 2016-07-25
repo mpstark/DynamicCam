@@ -93,6 +93,7 @@ local defaults = {
                     rotateSetting = "continous",
                     rotateSpeed = .1,
                     rotateDegrees = 0,
+                    rotateBack = false,
 
                     zoomSetting = "off",
                     zoomValue = 10,
@@ -490,14 +491,20 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         if (a.rotateSetting == "continous") then
             local degrees = Camera:StopRotating();
             self:DebugPrint("Ended rotate, degrees rotated:", degrees);
-            --Camera:RotateDegrees(-degrees, .5); -- TODO: this is a good idea until it's a bad idea
+            if (a.rotateBack) then
+                Camera:RotateDegrees(-degrees, .5); -- TODO: this is a good idea until it's a bad idea
+            end
         elseif (a.rotateSetting == "degrees") then
             if (Camera:IsRotating()) then
                 -- interrupted rotation
-                local degrees = Camera:StopRotating();
-                Camera:RotateDegrees(-degrees, .75); -- TODO: look into constant time here
+                local degrees = (Camera:StopRotating())%360;
+                if (a.rotateBack) then
+                    Camera:RotateDegrees(-degrees, .5); -- TODO: look into constant time here
+                end
             else
-                Camera:RotateDegrees(-a.rotateDegrees, .75); -- TODO: look into constant time here
+                if (a.rotateBack) then
+                    Camera:RotateDegrees(-a.rotateDegrees, .5); -- TODO: look into constant time here
+                end
             end
         end
     end

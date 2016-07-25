@@ -548,6 +548,14 @@ local situationOptions = {
                             order = 2,
                             width = "double",
                         },
+                        rotateBack = {
+                            type = 'toggle',
+                            name = "Rotate Back",
+                            desc = "When the situation ends, try to rotate back to the original position.",
+                            get = function() return S.cameraActions.rotateBack end,
+                            set = function(_, newValue) S.cameraActions.rotateBack = newValue end,
+                            order = 3,
+                        },
                     },
                 },
                 viewSettings = {
