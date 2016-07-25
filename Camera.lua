@@ -358,6 +358,7 @@ function Camera:StopZooming()
 		--CameraZoomOut(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
 	elseif (zoom.action == "out" and zoom.time and zoom.time > GetTime()) then
 		--CameraZoomIn(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
+		CameraZoomIn(0);
 	elseif (zoom.action == "continousIn") then
 		MoveViewInStop();
 	elseif (zoom.action == "continousOut") then
