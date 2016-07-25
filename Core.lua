@@ -130,6 +130,8 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zoominfo", "ZoomInfoCC");
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
+    self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
+
     -- disable if the setting is enabled
     if (not self.db.profile.enabled) then
         self:Disable();
@@ -1022,6 +1024,20 @@ end
 -------------------
 -- CHAT COMMANDS --
 -------------------
+StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
+    text = "DynamicCam Discord Link:",
+    button1 = "Got it!",
+    timeout = 0,
+    hasEditBox = true,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnShow = function (self, data)
+        self.editBox:SetText("https://discordapp.com/invite/0kIVitHDdHYYitiO")
+        self.editBox:HighlightText();
+    end,
+}
+
 function DynamicCam:OpenMenu(input)
     if (not Options or not Camera) then
         Camera = self.Camera;
@@ -1043,6 +1059,10 @@ end
 
 function DynamicCam:ZoomInfoCC(input)
     Camera:PrintCameraVars();
+end
+
+function DynamicCam:PopupDiscordLink()
+    StaticPopup_Show("DYNAMICCAM_DISCORD");
 end
 
 
