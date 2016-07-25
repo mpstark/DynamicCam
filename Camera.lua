@@ -354,11 +354,12 @@ function Camera:StopZooming()
         zoom.timer = nil;
 	end
 
-	if (zoom.action == "in" and zoom.time and zoom.time > GetTime()) then
-		--CameraZoomOut(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
-	elseif (zoom.action == "out" and zoom.time and zoom.time > GetTime()) then
-		--CameraZoomIn(0); -- TODO: there is something wrong with the timing here and I don't think that need to do this
+	if ((zoom.action == "in" or zoom.action == "in") and zoom.time and (zoom.time > (GetTime() + .25))) then
+		-- we're obviously still zooming in from an incremental zoom, cancel it
+		CameraZoomOut(0);
 		CameraZoomIn(0);
+		zoom.action = nil;
+		zoom.time = nil;
 	elseif (zoom.action == "continousIn") then
 		MoveViewInStop();
 	elseif (zoom.action == "continousOut") then
