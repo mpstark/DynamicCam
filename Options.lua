@@ -406,7 +406,6 @@ local situationOptions = {
                         zoomSetting = {
                             type = 'select',
                             name = "Zoom Setting",
-                            desc = "How the camera should react to this situation with regards to zoom",
                             desc = "How the camera should react to this situation with regards to zoom. Choose between: \n\nZoom Fit Nameplate: Zoom in/out to match the target's nameplate position (which is on top of the target's model). This will do nothing if you do not have a target or the nameplate isn't shown.\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
                             get = function() return S.cameraActions.zoomSetting end,
                             set = function(_, newValue) S.cameraActions.zoomSetting = newValue; end,
