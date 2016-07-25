@@ -406,7 +406,7 @@ local situationOptions = {
                         zoomSetting = {
                             type = 'select',
                             name = "Zoom Setting",
-                            desc = "How the camera should react to this situation with regards to zoom. Choose between: \n\nZoom Fit Nameplate: Zoom in/out to match the target's nameplate position (which is on top of the target's model). This will do nothing if you do not have a target or the nameplate isn't shown.\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
+                            desc = "How the camera should react to this situation with regards to zoom. Choose between:\n\nZoom Fit Nameplate: Zoom in/out to match the target's nameplate position (which is on top of the target's model). This will do nothing if you do not have a target or the nameplate isn't shown.\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
                             get = function() return S.cameraActions.zoomSetting end,
                             set = function(_, newValue) S.cameraActions.zoomSetting = newValue; end,
                             values = {["fit"] = "Zoom Fit Nameplate", ["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
@@ -870,14 +870,21 @@ local situationOptions = {
             hidden = function() return (not S) or (not DynamicCam.db.profile.advanced) end,
             disabled = function() return (not S.enabled) end,
             args = {
-                condition = {
+                events = {
                     type = 'input',
-                    name = "Condition",
-                    desc = "When this situation should be activated.",
-                    get = function() return S.condition end,
-                    set = function(_, newValue) S.condition = newValue end,
-                    multiline = 4,
-                    width = "full",
+                    name = "Events",
+                    desc = "",
+                    get = function() return table.concat(S.events, ", ") end,
+                    set = function(_, newValue)
+                        if (newValue == "") then
+                            S.events = {};
+                        else
+                            newValue = string.gsub(newValue, "%s+", "");
+                            S.events = {strsplit(",", newValue)};
+                        end
+                        Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                    end,
+                    width = "double",
                     order = 1,
                 },
                 priority = {
@@ -885,7 +892,7 @@ local situationOptions = {
                     name = "Priority",
                     desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
                     get = function() return ""..S.priority end,
-                    set = function(_, newValue) if (tonumber(newValue)) then S.priority = tonumber(newValue) end end,
+                    set = function(_, newValue) if (tonumber(newValue)) then S.priority = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     width = "half",
                     order = 1,
                 },
@@ -894,9 +901,49 @@ local situationOptions = {
                     name = "Delay",
                     desc = "How long to delay exiting this situation",
                     get = function() return ""..S.delay end,
-                    set = function(_, newValue) if (tonumber(newValue)) then S.delay = tonumber(newValue) end end,
+                    set = function(_, newValue) if (tonumber(newValue)) then S.delay = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     width = "half",
                     order = 2,
+                },
+                condition = {
+                    type = 'input',
+                    name = "Condition",
+                    desc = "When this situation should be activated.",
+                    get = function() return S.condition end,
+                    set = function(_, newValue) S.condition = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    multiline = 4,
+                    width = "full",
+                    order = 5,
+                },
+                init = {
+                    type = 'input',
+                    name = "Initialization Script",
+                    desc = "Called when the situation is loaded and when it is modified.",
+                    get = function() return S.executeOnInit end,
+                    set = function(_, newValue) S.executeOnInit = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    multiline = 4,
+                    width = "full",
+                    order = 10,
+                },
+                onEnter = {
+                    type = 'input',
+                    name = "On Enter Script",
+                    desc = "Called when the situation is selected as the active situation (before any thing else).",
+                    get = function() return S.executeOnEnter end,
+                    set = function(_, newValue) S.executeOnEnter = newValue end,
+                    multiline = 4,
+                    width = "full",
+                    order = 20,
+                },
+                OnExit = {
+                    type = 'input',
+                    name = "On Exit Script",
+                    desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
+                    get = function() return S.executeOnExit end,
+                    set = function(_, newValue) S.executeOnExit = newValue end,
+                    multiline = 4,
+                    width = "full",
+                    order = 30,
                 },
             },
         },

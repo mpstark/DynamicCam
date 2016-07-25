@@ -24,12 +24,31 @@ local _;
 local started;
 local Camera;
 local Options;
-local conditionFunctionCache = {};
+local functionCache = {};
 local conditionExecutionCache = {};
 local evaluateTimer;
 local restoration = {};
 local delayTime;
 local events = {};
+
+local function DC_RunScript(script, table)
+    if (not script or script == "") then
+        return;
+    end
+
+    -- default to using the functionCache for table
+    if (not table) then
+        table = functionCache;
+    end
+
+    -- make sure that we're not creating tables willy nilly
+    if (not table[script]) then
+        table[script] = assert(loadstring(script));
+    end
+
+    -- return the result
+    return table[script]();
+end
 
 
 --------
@@ -240,13 +259,9 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
         -- go through all situations pick the best one
         for id, situation in pairs(self.db.profile.situations) do
             if (situation.enabled) then
-                if (not conditionFunctionCache[situation.condition]) then
-                    conditionFunctionCache[situation.condition] = assert(loadstring(situation.condition));
-                end
-
                 -- evaluate the condition, if it checks out and the priority is larger then any other, set it
                 local lastCache = conditionExecutionCache[id];
-                conditionExecutionCache[id] = conditionFunctionCache[situation.condition]();
+                conditionExecutionCache[id] = DC_RunScript(situation.condition);
 
                 if (conditionExecutionCache[id]) then
                     if (not lastCache) then
@@ -330,6 +345,9 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     local oldSituation = self.db.profile.situations[oldSituationID];
 
     self:DebugPrint("Entering situation", situation.name);
+
+    -- load and run advanced script onEnter
+    DC_RunScript(situation.executeOnEnter);
 
     -- set currentSituationID
     self.currentSituationID = situationID;
@@ -451,6 +469,9 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     local newSituation = self.db.profile.situations[newSituationID];
 
     self:DebugPrint("Exiting situation "..situation.name);
+
+    -- load and run advanced script onExit
+    DC_RunScript(situation.executeOnExit);
 
     -- restore cvars to their values before the situation arose
     for cvar, value in pairs(restoration[situationID].cvars) do
@@ -807,6 +828,8 @@ function DynamicCam:UpdateSituation(situationID)
             SetCVar(cvar, value);
         end
     end
+    DC_RunScript(situation.executeOnInit);
+    self:EvaluateSituations();
 end
 
 
@@ -1016,6 +1039,11 @@ function DynamicCam:RefreshConfig()
     -- start the addon back up
     if (self.db.profile.enabled and not started) then
         self:Startup();
+    end
+
+    -- run all situations's advanced init script
+    for id, situation in pairs(self.db.profile.situations) do
+        DC_RunScript(situation.executeOnInit);
     end
 end
 
