@@ -25,29 +25,45 @@ local started;
 local Camera;
 local Options;
 local functionCache = {};
+local situationEnvironments = {}
 local conditionExecutionCache = {};
 local evaluateTimer;
 local restoration = {};
 local delayTime;
 local events = {};
 
-local function DC_RunScript(script, table)
+local function DC_RunScript(script, situationID)
     if (not script or script == "") then
         return;
     end
 
-    -- default to using the functionCache for table
-    if (not table) then
-        table = functionCache;
+    -- make sure that we're not creating tables willy nilly
+    if (not functionCache[script]) then
+        functionCache[script] = assert(loadstring(script));
     end
 
-    -- make sure that we're not creating tables willy nilly
-    if (not table[script]) then
-        table[script] = assert(loadstring(script));
+    -- if env, set the environment to that
+    if (situationID) then
+        if (not situationEnvironments[situationID]) then
+            situationEnvironments[situationID] = setmetatable({}, { __index =
+                function(t, k)
+                    if (k == "_G") then
+                        return t;
+                    elseif (k == "this") then
+                        return situationEnvironments[situationID].this;
+                    else
+                        return _G[k];
+                    end
+                end
+            });
+            situationEnvironments[situationID].this = {};
+        end
+
+        setfenv(functionCache[script], situationEnvironments[situationID]);
     end
 
     -- return the result
-    return table[script]();
+    return functionCache[script]();
 end
 
 
@@ -262,7 +278,7 @@ function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
             if (situation.enabled) then
                 -- evaluate the condition, if it checks out and the priority is larger then any other, set it
                 local lastCache = conditionExecutionCache[id];
-                conditionExecutionCache[id] = DC_RunScript(situation.condition);
+                conditionExecutionCache[id] = DC_RunScript(situation.condition, id);
 
                 if (conditionExecutionCache[id]) then
                     if (not lastCache) then
@@ -344,11 +360,12 @@ end
 function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     local situation = self.db.profile.situations[situationID];
     local oldSituation = self.db.profile.situations[oldSituationID];
+    local this = situationEnvironments[situationID].this;
 
     self:DebugPrint("Entering situation", situation.name);
 
     -- load and run advanced script onEnter
-    DC_RunScript(situation.executeOnEnter);
+    DC_RunScript(situation.executeOnEnter, situationID);
 
     -- set currentSituationID
     self.currentSituationID = situationID;
@@ -376,6 +393,11 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     end
 
     local a = situation.cameraActions;
+    local transitionTime = a.transitionTime;
+
+    if (this.transitionTime) then
+        transitionTime = this.transitionTime;
+    end
 
     -- ZOOM --
     if (not skipZoom) then
@@ -391,13 +413,13 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         local adjustedZoom;
         
         if (a.zoomSetting == "in") then
-            adjustedZoom = Camera:ZoomInTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+            adjustedZoom = Camera:ZoomInTo(a.zoomValue, transitionTime, a.timeIsMax);
         elseif (a.zoomSetting == "out") then
-            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, a.transitionTime, a.timeIsMax);
+            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, transitionTime, a.timeIsMax);
         elseif (a.zoomSetting == "set") then
-            adjustedZoom = Camera:SetZoom(a.zoomValue, a.transitionTime, a.timeIsMax);
+            adjustedZoom = Camera:SetZoom(a.zoomValue, transitionTime, a.timeIsMax);
         elseif (a.zoomSetting == "range") then
-            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, a.transitionTime, a.timeIsMax);
+            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, transitionTime, a.timeIsMax);
         elseif (a.zoomSetting == "fit") then
             local min = a.zoomMin;
             if (a.zoomFitUseCurAsMin) then
@@ -421,7 +443,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         if (a.rotateSetting == "continous") then
             Camera:StartContinousRotate(a.rotateSpeed);
         elseif (a.rotateSetting == "degrees") then
-            Camera:RotateDegrees(a.rotateDegrees, a.transitionTime);
+            Camera:RotateDegrees(a.rotateDegrees, transitionTime);
         end
     end
 
@@ -472,7 +494,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     self:DebugPrint("Exiting situation "..situation.name);
 
     -- load and run advanced script onExit
-    DC_RunScript(situation.executeOnExit);
+    DC_RunScript(situation.executeOnExit, id);
 
     -- restore cvars to their values before the situation arose
     for cvar, value in pairs(restoration[situationID].cvars) do
@@ -835,7 +857,7 @@ function DynamicCam:UpdateSituation(situationID)
             SetCVar(cvar, value);
         end
     end
-    DC_RunScript(situation.executeOnInit);
+    DC_RunScript(situation.executeOnInit, situationID);
     self:EvaluateSituations();
 end
 
@@ -1050,7 +1072,7 @@ function DynamicCam:RefreshConfig()
 
     -- run all situations's advanced init script
     for id, situation in pairs(self.db.profile.situations) do
-        DC_RunScript(situation.executeOnInit);
+        DC_RunScript(situation.executeOnInit, id);
     end
 end
 
