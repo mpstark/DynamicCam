@@ -9,6 +9,7 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0");
 -- LOCALS --
 ------------
 local Options = DynamicCam.Options;
+local Camera = DynamicCam.Camera;
 local parent = DynamicCam;
 local _;
 local S, SID;
@@ -20,7 +21,8 @@ If you find an problem or want to make a suggestion, please, please leave a note
 Some handy slash commands:
     `/dc` will open this menu
     `/zi` will print out the current zoom
-    `/sv #` will save to the specified view slot (where # is a number between 2 and 5)]];
+    `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
+    `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
 local knownIssues = [[- Views in WoW are.. odd, I would recommend using them with caution
 - Fit nameplates is still a work in progress, can do a little in-and-out number
 - Not all planned situations are in, notably PvP ones are missing
@@ -30,7 +32,7 @@ local knownIssues = [[- Views in WoW are.. odd, I would recommend using them wit
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
 [[Beta 2 (In progress):
-    - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter
+    - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass, etc.
     - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode
     - Several tweaks to the options panel]],
 [[Beta 1:
@@ -75,7 +77,7 @@ local general = {
                 advanced = {
                     type = 'toggle',
                     name = "Advanced Options",
-                    desc = "If you would like to see advanced options",
+                    desc = "If you would like to see advanced options, like editing the Lua conditions of situations.",
                     get = function() return DynamicCam.db.profile.advanced; end,
                     set = function(_, newValue) DynamicCam.db.profile.advanced = newValue; end,
                     order = 2,
@@ -83,7 +85,7 @@ local general = {
                 debugMode = {
                     type = 'toggle',
                     name = "Debug Mode",
-                    desc = "Print out annoying debug messages, don't do this unless you need to.",
+                    desc = "Print out debug messages to the chat window.",
                     get = function() return DynamicCam.db.profile.debugMode; end,
                     set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
                     order = 3,
@@ -135,193 +137,6 @@ local general = {
                 },
             }
         },
-        cvarOptions = {
-            name = "Raw CVars",
-            type = 'group',
-            order = 2,
-            inline = true,
-            hidden = true,
-            args = {
-                reset = {
-                    type = 'execute',
-                    name = "Reset All",
-                    desc = "Reset all CVars to default values",
-                    confirm = true,
-                    func = "ResetCVars",
-                    width = "full",
-                    order = 0,
-                },
-                settings = {
-                    type = 'group',
-                    name = "Settings (Raw CVar)",
-                    order = 2,
-                    inline = true,
-                    args = {
-                        focusTarget = {
-                            type = 'toggle',
-                            name = "Target Focus",
-                            desc = "If the camera should try to move to capture the target in frame",
-                            get = function() return (GetCVar("cameralockedtargetfocusing") == "1") end,
-                            set = function(_, newValue) SetCVar("cameralockedtargetfocusing", (newValue and 1 or 0)) end,
-                            order = 1,
-                        },
-                        overShoulder = {
-                            type = 'range',
-                            name = "Shoulder Offset",
-                            desc = "Positive is over right shoulder, negative is over left shoulder",
-                            min = -10,
-                            max = 10,
-                            softMin = -5,
-                            softMax = 5,
-                            step = .1,
-                            get = function() return tonumber(GetCVar("cameraovershoulder")) end,
-                            set = function(_, newValue) SetCVar("cameraovershoulder", newValue) end,
-                            order = 2,
-                        },
-                        distance = {
-                            type = 'range',
-                            name = "Max Camera Distance Factor",
-                            desc = "How far away the camera can get away from your character",
-                            min = 0,
-                            max = 1.9,
-                            step = .1,
-                            get = function() return tonumber(GetCVar("cameradistancemaxfactor")) end,
-                            set = function(_, newValue) SetCVar("cameradistancemaxfactor", newValue) end,
-                            order = 2.5,
-                        },
-                        cameraDistanceMoveSpeed = {
-                            type = 'range',
-                            name = "Camera Zoom Speed",
-                            desc = "How fast the camera moves",
-                            min = 1,
-                            max = 50,
-                            step = .1,
-                            get = function() return tonumber(GetCVar("cameraDistanceMoveSpeed")) end,
-                            set = function(_, newValue) SetCVar("cameraDistanceMoveSpeed", newValue) end,
-                            order = 2.6,
-                        },
-                        dynamicPitchToggle = {
-                            type = 'toggle',
-                            name = "Dynamic Pitch",
-                            desc = "Seems to adjust pitch on zoom",
-                            get = function() return (GetCVar("cameradynamicpitch") == "1") end,
-                            set = function(_, newValue) SetCVar("cameradynamicpitch", (newValue and 1 or 0)) end,
-                            width = "full",
-                            order = 3,
-                        },
-                        dynamicPitch = {
-                            type = 'group',
-                            name = "Dynamic Pitch Options",
-                            order = 4,
-                            inline = true,
-                            disabled = function() return (GetCVar("cameradynamicpitch") == "0") end,
-                            args = {
-                                basefovpad = {
-                                    type = 'range',
-                                    name = "Base FOV Pad",
-                                    desc = "No idea what this actually does",
-                                    min = 0,
-                                    max = 1,
-                                    step = .01,
-                                    get = function() return tonumber(GetCVar("cameradynamicpitchbasefovpad")) end,
-                                    set = function(_, newValue) SetCVar("cameradynamicpitchbasefovpad", newValue) end,
-                                    order = 2,
-                                },
-                                basefovpadflying = {
-                                    type = 'range',
-                                    name = "Base FOV Pad (Flying)",
-                                    desc = "No idea what this actually does",
-                                    min = 0,
-                                    max = 1,
-                                    step = .01,
-                                    get = function() return tonumber(GetCVar("cameradynamicpitchbasefovpadflying")) end,
-                                    set = function(_, newValue) SetCVar("cameradynamicpitchbasefovpadflying", newValue) end,
-                                    order = 3,
-                                },
-                                smartpivotcutoffdist = {
-                                    type = 'range',
-                                    name = "Smart Pivot Cutoff Distance",
-                                    desc = "No idea what this actually does",
-                                    min = 0,
-                                    max = 100,
-                                    softMin = 0,
-                                    softMax = 50,
-                                    step = .5,
-                                    get = function() return tonumber(GetCVar("cameradynamicpitchsmartpivotcutoffdist")) end,
-                                    set = function(_, newValue) SetCVar("cameradynamicpitchsmartpivotcutoffdist", newValue) end,
-                                    order = 4,
-                                },
-                            },
-                        },
-                        headMovementToggle = {
-                            type = 'toggle',
-                            name = "Track Head Movement",
-                            desc = "If the camera should follow the player's head movement",
-                            get = function() return (tonumber(GetCVar("cameraheadmovementstrength")) > 0) end,
-                            set = function(_, newValue) if (tonumber(GetCVar("cameraheadmovementstrength")) == 0) then SetCVar("cameraheadmovementstrength", 1) else SetCVar("cameraheadmovementstrength", 0) end end,
-                            width = "full",
-                            order = 5,
-                        },
-                        headMovement = {
-                            type = 'group',
-                            name = "Head Tracking Options",
-                            order = 6,
-                            inline = true,
-                            args = {
-                                strength = {
-                                    type = 'range',
-                                    name = "Strength",
-                                    desc = "How much head movement affects the camera, 0 is off, 2 is \"Heavy\"",
-                                    disabled = function() return (GetCVar("cameraheadmovementstrength") == "0") end,
-                                    min = 0,
-                                    max = 100,
-                                    softMin = .1,
-                                    softMax = 5,
-                                    step = .1,
-                                    get = function() return tonumber(GetCVar("cameraheadmovementstrength")) end,
-                                    set = function(_, newValue) SetCVar("cameraheadmovementstrength", newValue) end,
-                                    width = "double",
-                                    order = 1,
-                                },
-                                movementRange = {
-                                    type = 'range',
-                                    name = "Movement Range",
-                                    desc = "Seems to be how far the camera is allowed to move, larger is more",
-                                    disabled = function() return (GetCVar("cameraheadmovementstrength") == "0") end,
-                                    min = 0,
-                                    max = 50,
-                                    step = .5,
-                                    get = function() return tonumber(GetCVar("cameraheadmovementrange")) end,
-                                    set = function(_, newValue) SetCVar("cameraheadmovementrange", newValue) end,
-                                    order = 3,
-                                },
-                                smoothRate = {
-                                    type = 'range',
-                                    name = "Smooth Rate",
-                                    desc = "Seems to be how fast that the camera is allowed to move, larger is faster",
-                                    disabled = function() return (GetCVar("cameraheadmovementstrength") == "0") end,
-                                    min = .5,
-                                    max = 50,
-                                    step = .5,
-                                    get = function() return tonumber(GetCVar("cameraheadmovementsmoothrate")) end,
-                                    set = function(_, newValue) SetCVar("cameraheadmovementsmoothrate", newValue) end,
-                                    order = 4,
-                                },
-                                whileStanding = {
-                                    type = 'toggle',
-                                    name = "Adjust While Standing",
-                                    desc = "If the camera should track the head when the player is not moving",
-                                    disabled = function() return (GetCVar("cameraheadmovementstrength") == "0") end,
-                                    get = function() return (GetCVar("cameraheadmovementwhilestanding") == "1") end,
-                                    set = function(_, newValue) SetCVar("cameraheadmovementwhilestanding", (newValue and 1 or 0)) end,
-                                    order = 2,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
     },
 };
 local settings = {
@@ -335,18 +150,25 @@ local settings = {
             order = 2,
             inline = true,
             args = {
+                description = {
+                    type = 'description',
+                    name = "Settings here are only applied if the currently active situation doesn't modify the settings. Think of these settings as the \"fallback\".\n",
+                    --fontSize = "small",
+                    width = "full",
+                    order = 0,
+                },
                 cameradynamicpitch = {
                     type = 'toggle',
                     name = "Dynamic Pitch",
-                    desc = "If the camera should use dynamic pitch",
+                    desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.",
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 1; else DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
-                    order = 0,
+                    order = .25,
                 },
                 cameralockedtargetfocusing = {
                     type = 'toggle',
                     name = "Target Lock/Focus",
-                    desc = "If the camera should follow the target",
+                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 0.5,
@@ -354,19 +176,19 @@ local settings = {
                 cameraDistanceMaxFactor = {
                     type = 'range',
                     name = "Camera Max Distance",
-                    desc = "Factor for the camera max distance, but total max won't exceed 28.5",
-                    min = 1,
-                    max = 1.9,
-                    step = .01,
-                    get = function() return DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] end,
-                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                    desc = "How far away from your character the camera can get.",
+                    min = 15,
+                    max = 28.5,
+                    step = .5,
+                    get = function() return (15*DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"]) end,
+                    set = function(_, newValue) DynamicCam.db.profile.defaultCvars["cameraDistanceMaxFactor"] = newValue/15; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 2,
                     width = "full",
                 },
                 cameraDistanceMoveSpeed = {
                     type = 'range',
                     name = "Camera Move Speed",
-                    desc = "How fast the camera zooms in",
+                    desc = "How fast the camera can zoom in/out.",
                     min = 1,
                     max = 50,
                     step = .5,
@@ -378,7 +200,7 @@ local settings = {
                 cameraovershoulder = {
                     type = 'range',
                     name = "Camera Shoulder Offset",
-                    desc = "The offset from the shoulder, negative values are to the left, postive to the right",
+                    desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
                     min = -5,
                     max = 5,
                     step = .1,
@@ -390,7 +212,7 @@ local settings = {
                 cameraheadmovementstrength = {
                     type = 'range',
                     name = "Head Movement Strength",
-                    desc = "How much the camera should track the character's head movements, 0 is off",
+                    desc = "If above 0, the camera will move to follow your character's head movements, tracking it forward, back, left and right. The strength controls how much it follows the head.\n\nThis can cause some nausea if you are prone to motion sickness.",
                     min = 0,
                     max = 100,
                     softMax = 5,
@@ -504,12 +326,11 @@ local situationOptions = {
         },
         enabled = {
             type = 'toggle',
-            name = "Enabled",
+            name = "Enable Situation",
             desc = "If this situation should be checked and activated",
             hidden = function() return (not S) end,
             get = function() return S.enabled end,
             set = function(_, newValue) S.enabled = newValue if (newValue) then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
-            width = "half",
             order = 2,
         },
         cameraActions = {
@@ -533,13 +354,14 @@ local situationOptions = {
                     name = "Rotate",
                     desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
                     get = function() return S.cameraActions.rotate end,
-                    set = function(_, newValue) S.cameraActions.rotate = newValue end,
+                    set = function(_, newValue) S.cameraActions.rotate = newValue; Camera:StopRotating(); end,
                     order = 2,
                 },
                 view = {
                     type = 'toggle',
-                    name = "Set View",
+                    name = "Set View (Advanced)",
                     desc = "When this situation is activated (and only then), the selected view will be set",
+                    hidden = function() return (not S) or (not DynamicCam.db.profile.advanced and not S.view.enabled) end,
                     get = function() return S.view.enabled end,
                     set = function(_, newValue) S.view.enabled = newValue end,
                     order = 3,
@@ -585,6 +407,7 @@ local situationOptions = {
                             type = 'select',
                             name = "Zoom Setting",
                             desc = "How the camera should react to this situation with regards to zoom",
+                            desc = "How the camera should react to this situation with regards to zoom. Choose between: \n\nZoom Fit Nameplate: Zoom in/out to match the target's nameplate position (which is on top of the target's model). This will do nothing if you do not have a target or the nameplate isn't shown.\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
                             get = function() return S.cameraActions.zoomSetting end,
                             set = function(_, newValue) S.cameraActions.zoomSetting = newValue; end,
                             values = {["fit"] = "Zoom Fit Nameplate", ["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
@@ -809,7 +632,7 @@ local situationOptions = {
                 headTracking = {
                     type = 'range',
                     name = "Head Tracking Strength",
-                    desc = "How much head movement affects the camera, 0 is off, 2 is \"Heavy\"",
+                    desc = "The camera will move to follow your character's head movements, tracking it forward, back, left and right. The strength controls how much it follows the head.\n\nThis can cause some nausea if you are prone to motion sickness.",
                     hidden = function() return (S.cameraCVars["cameraheadmovementstrength"] == nil) end,
                     min = 0,
                     max = 100,
@@ -824,7 +647,7 @@ local situationOptions = {
                     type = 'toggle',
                     tristate = true,
                     name = "Dynamic Pitch",
-                    desc = "Adjusts pitch based on zoom level, grey checkmark means that this situation won't change the current setting",
+                    desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.\n\nA gray checkbox means that the default will be used instead.",
                     get = function()
                         if (S.cameraCVars["cameradynamicpitch"] == nil) then
                             return nil;
@@ -853,7 +676,7 @@ local situationOptions = {
                 targetLock = {
                     type = 'toggle',
                     name = "Target Lock/Focus",
-                    desc = "Let the camera try to capture the target in view",
+                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
                     get = function() return S.targetLock.enabled end,
                     set = function(_, newValue) S.targetLock.enabled = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
                     order = 40,
@@ -1006,8 +829,8 @@ local situationOptions = {
                 },
                 nameplates = {
                     type = 'toggle',
-                    name = "Adjust Nameplates",
-                    desc = "If this setting should be affected",
+                    name = "Show/Hide Nameplates",
+                    desc = "Shows or hides nameplates when this situation is activated, previous setting will be restored when situation is restored.\n\nDoes nothing if situation is entered in combat, as this would cause taint.",
                     get = function() return S.extras.nameplates end,
                     set = function(_, newValue) S.extras.nameplates = newValue end,
                     order = 2,
@@ -1023,7 +846,7 @@ local situationOptions = {
                         friendly = {
                             type = 'toggle',
                             name = "Friendly",
-                            desc = "If friendly nameplates should be shown",
+                            desc = "If friendly nameplates should be shown/hidden",
                             get = function() return S.extras.friendlyNP end,
                             set = function(_, newValue) S.extras.friendlyNP = newValue end,
                             order = 3,
@@ -1031,7 +854,7 @@ local situationOptions = {
                         enemy = {
                             type = 'toggle',
                             name = "Enemy",
-                            desc = "If enemy nameplates should be shown",
+                            desc = "If enemy nameplates should be shown/hidden",
                             get = function() return S.extras.enemyNP end,
                             set = function(_, newValue) S.extras.enemyNP = newValue end,
                             order = 4,
@@ -1065,7 +888,7 @@ local situationOptions = {
                     get = function() return ""..S.priority end,
                     set = function(_, newValue) if (tonumber(newValue)) then S.priority = tonumber(newValue) end end,
                     width = "half",
-                    order = 2,
+                    order = 1,
                 },
                 delay = {
                     type = 'input',
@@ -1074,7 +897,7 @@ local situationOptions = {
                     get = function() return ""..S.delay end,
                     set = function(_, newValue) if (tonumber(newValue)) then S.delay = tonumber(newValue) end end,
                     width = "half",
-                    order = 3,
+                    order = 2,
                 },
             },
         },
