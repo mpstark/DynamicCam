@@ -735,7 +735,13 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Hearth/Teleport");
     newSituation.priority = 20;
-    newSituation.condition = "if (not DC_HEARTH_SPELLS) then DC_HEARTH_SPELLS = {189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016}; end for k,v in pairs(DC_HEARTH_SPELLS) do if (UnitCastingInfo(\"player\") == GetSpellInfo(v)) then return true; end end return false;";
+    newSituation.executeOnInit = "this.spells = {189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};";
+    newSituation.condition = [[for k,v in pairs(this.spells) do 
+    if (UnitCastingInfo("player") == GetSpellInfo(v)) then 
+        return true;
+    end
+end
+return false;]];
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
@@ -752,7 +758,13 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Annoying Spells");
     newSituation.priority = 1000;
-    newSituation.condition = "if (not DC_ANNOYING_SPELLS) then DC_ANNOYING_SPELLS = {46924, 51690, 188499, 210152}; end for k,v in pairs(DC_ANNOYING_SPELLS) do if (UnitBuff(\"player\", GetSpellInfo(v))) then return true; end end return false;";
+    newSituation.executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};";
+    newSituation.condition = [[for k,v in pairs(this.buffs) do 
+    if (UnitBuff("player", GetSpellInfo(v))) then
+        return true;
+    end
+end
+return false;]];
     newSituation.events = {"UNIT_AURA"};
     newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
@@ -762,8 +774,15 @@ function DynamicCam:GetDefaultSituations()
     newSituation = self:CreateSituation("NPC Interaction");
     newSituation.priority = 20;
     newSituation.delay = .5;
-    newSituation.condition = "return (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")) and ((GarrisonCapacitiveDisplayFrame and GarrisonCapacitiveDisplayFrame:IsShown()) or (BankFrame and BankFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown()) or (GossipFrame and GossipFrame:IsShown()) or (ClassTrainerFrame and ClassTrainerFrame:IsShown()) or (QuestFrame and QuestFrame:IsShown()))";
-    newSituation.events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"};
+    newSituation.executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\",}";
+    newSituation.condition = [[local shown = false;
+for k,v in pairs(this.frames) do
+    if (_G[v] and _G[v]:IsShown()) then
+        shown = true;
+    end
+end
+return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
+    newSituation.events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"};
     newSituation.cameraActions.zoomSetting = "fit";
     newSituation.cameraActions.zoomMin = 3;
     newSituation.cameraActions.zoomMax = 28.5;
@@ -1127,17 +1146,9 @@ end
 -- CVARS --
 -----------
 function DynamicCam:ResetCVars()
-    SetCVar("cameraovershoulder", GetCVarDefault("cameraovershoulder"));
-    SetCVar("cameralockedtargetfocusing", GetCVarDefault("cameralockedtargetfocusing"));
-    SetCVar("cameradistancemovespeed", GetCVarDefault("cameradistancemovespeed"));
-    SetCVar("cameradynamicpitch", GetCVarDefault("cameradynamicpitch"));
-    SetCVar("cameradynamicpitchbasefovpad", GetCVarDefault("cameradynamicpitchbasefovpad"));
-    SetCVar("cameradynamicpitchbasefovpadflying", GetCVarDefault("cameradynamicpitchbasefovpadflying"));
-    SetCVar("cameradynamicpitchsmartpivotcutoffdist", GetCVarDefault("cameradynamicpitchsmartpivotcutoffdist"));
-    SetCVar("cameraheadmovementstrength", GetCVarDefault("cameraheadmovementstrength"));
-    SetCVar("cameraheadmovementrange", GetCVarDefault("cameraheadmovementrange"));
-    SetCVar("cameraheadmovementsmoothrate", GetCVarDefault("cameraheadmovementsmoothrate"));
-    SetCVar("cameraheadmovementwhilestanding", GetCVarDefault("cameraheadmovementwhilestanding"));
+    for cvar, value in pairs(self.db.profile.defaultCvars) do
+        SetCVar(cvar, GetCVarDefault(cvar));
+    end
 
     ResetView(1);
     ResetView(2);
