@@ -34,7 +34,14 @@ local changelog = {
 [[Beta 2 (In progress):
     - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass, etc.
     - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode
-    - Several tweaks to the options panel]],
+    - A whole slew of advanced options has been added
+        - Can now execute custom scripts on situation Enter/Exit and Initialization
+            - Some of the defaults now use these and many of them have been cleaned up for readiblity
+        - You can now change the events that trigger a check of situations
+    - Several tweaks to the options panel
+        - Set View is an advanced mode option, as it's, well, for people that know what they're doing
+        - Many advanced options are now applied when the settings are applied
+        - Many tooltips have been changed to better reflect what things do]],
 [[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
@@ -76,10 +83,11 @@ local general = {
                 },
                 advanced = {
                     type = 'toggle',
-                    name = "Advanced Options",
+                    name = "Adv. Mode",
                     desc = "If you would like to see advanced options, like editing the Lua conditions of situations.",
                     get = function() return DynamicCam.db.profile.advanced; end,
                     set = function(_, newValue) DynamicCam.db.profile.advanced = newValue; end,
+                    width = "half",
                     order = 2,
                 },
                 debugMode = {
@@ -88,7 +96,17 @@ local general = {
                     desc = "Print out debug messages to the chat window.",
                     get = function() return DynamicCam.db.profile.debugMode; end,
                     set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
+                    width = "half",
                     order = 3,
+                },
+                reset = {
+                    type = 'execute',
+                    name = "Apply Default CVars (Uninstall)",
+                    desc = "Reset all CVars to the WoW default values",
+                    disabled = "IsEnabled",
+                    confirm = true,
+                    func = "ResetCVars",
+                    order = 10,
                 },
             },
         },
