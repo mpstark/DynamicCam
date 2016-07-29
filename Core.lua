@@ -254,92 +254,94 @@ local lastEvaluate;
 local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
-    if (event and possibleUnit and type(possibleUnit) == 'string' and string.lower(possibleUnit) ~= "player") then
-        -- ignore events not pertaining to player state
-        -- self:DebugPrint("EvaluateSituations", "IGNORING EVENT", event, possibleUnit, ...);
-        return;
-    end
-
-    -- we don't want to evaluate too often, some of the events can be *very* spammy
-    if (not lastEvaluate or (lastEvaluate and (lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime())) then
-        local highestPriority = -100;
-        local topSituation;
-
-        -- self:DebugPrint("EvaluateSituations", event, possibleUnit, ..., lastEvaluate and (GetTime() - lastEvaluate));
-
-        lastEvaluate = GetTime();
-        if (evaluateTimer) then
-            self:CancelTimer(evaluateTimer);
-            evaluateTimer = nil;
+    if (self.db.profile.enabled) then
+        if (event and possibleUnit and type(possibleUnit) == 'string' and string.lower(possibleUnit) ~= "player") then
+            -- ignore events not pertaining to player state
+            -- self:DebugPrint("EvaluateSituations", "IGNORING EVENT", event, possibleUnit, ...);
+            return;
         end
 
-        -- go through all situations pick the best one
-        for id, situation in pairs(self.db.profile.situations) do
-            if (situation.enabled) then
-                -- evaluate the condition, if it checks out and the priority is larger then any other, set it
-                local lastCache = conditionExecutionCache[id];
-                conditionExecutionCache[id] = DC_RunScript(situation.condition, id);
+        -- we don't want to evaluate too often, some of the events can be *very* spammy
+        if (not lastEvaluate or (lastEvaluate and (lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime())) then
+            local highestPriority = -100;
+            local topSituation;
 
-                if (conditionExecutionCache[id]) then
-                    if (not lastCache) then
-                        self:SendMessage("DC_SITUATION_ACTIVE", id);
-                    end
+            -- self:DebugPrint("EvaluateSituations", event, possibleUnit, ..., lastEvaluate and (GetTime() - lastEvaluate));
 
-                    if (situation.priority > highestPriority) then
-                        highestPriority = situation.priority;
-                        topSituation = id;
-                    end
-                else
-                    if (lastCache) then
-                        self:SendMessage("DC_SITUATION_INACTIVE", id);
+            lastEvaluate = GetTime();
+            if (evaluateTimer) then
+                self:CancelTimer(evaluateTimer);
+                evaluateTimer = nil;
+            end
+
+            -- go through all situations pick the best one
+            for id, situation in pairs(self.db.profile.situations) do
+                if (situation.enabled) then
+                    -- evaluate the condition, if it checks out and the priority is larger then any other, set it
+                    local lastCache = conditionExecutionCache[id];
+                    conditionExecutionCache[id] = DC_RunScript(situation.condition, id);
+
+                    if (conditionExecutionCache[id]) then
+                        if (not lastCache) then
+                            self:SendMessage("DC_SITUATION_ACTIVE", id);
+                        end
+
+                        if (situation.priority > highestPriority) then
+                            highestPriority = situation.priority;
+                            topSituation = id;
+                        end
+                    else
+                        if (lastCache) then
+                            self:SendMessage("DC_SITUATION_INACTIVE", id);
+                        end
                     end
                 end
             end
-        end
 
-        if (topSituation) then
-            if (self.currentSituationID) then
-                if (topSituation ~= self.currentSituationID) then
-                    -- check if current situation has a delay and if it does, if it's 'cooling down'
-                    local delay = self.db.profile.situations[self.currentSituationID].delay;
-                    if (delay > 0) then
-                        if (not delayTime) then
-                            -- not yet cooling down
-                            delayTime = GetTime() + delay;
-                            delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
-                        elseif (delayTime > GetTime()) then
-                            -- still cooling down, don't swap
+            if (topSituation) then
+                if (self.currentSituationID) then
+                    if (topSituation ~= self.currentSituationID) then
+                        -- check if current situation has a delay and if it does, if it's 'cooling down'
+                        local delay = self.db.profile.situations[self.currentSituationID].delay;
+                        if (delay > 0) then
+                            if (not delayTime) then
+                                -- not yet cooling down
+                                delayTime = GetTime() + delay;
+                                delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
+                            elseif (delayTime > GetTime()) then
+                                -- still cooling down, don't swap
+                            else
+                                delayTime = nil;
+                                self:SetSituation(topSituation);
+                            end
                         else
-                            delayTime = nil;
                             self:SetSituation(topSituation);
                         end
                     else
-                        self:SetSituation(topSituation);
+                        -- topSituation is currentSituationID, clear the delay
+                        delayTime = nil;
                     end
                 else
-                    -- topSituation is currentSituationID, clear the delay
-                    delayTime = nil;
+                    -- no currentSituationID
+                    self:SetSituation(topSituation);
                 end
+
+                -- do target lock evaluation anyways
+                self:EvaluateTargetLock();
             else
-                -- no currentSituationID
-                self:SetSituation(topSituation);
+                --none of the situations are active, leave the current situation
+                if (self.currentSituationID) then
+                    self:ExitSituation(self.currentSituationID);
+                end
             end
 
-            -- do target lock evaluation anyways
-            self:EvaluateTargetLock();
+            if (event and event ~= "EVENT_DOUBLER" and event ~= "DELAY_TIMER") then
+                evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME, "EVENT_DOUBLER");
+            end
         else
-            --none of the situations are active, leave the current situation
-            if (self.currentSituationID) then
-                self:ExitSituation(self.currentSituationID);
+            if (not evaluateTimer) then
+                evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE, "EVALUATE_TIMER");
             end
-        end
-
-        if (event and event ~= "EVENT_DOUBLER" and event ~= "DELAY_TIMER") then
-            evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME, "EVENT_DOUBLER");
-        end
-    else
-        if (not evaluateTimer) then
-            evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE, "EVALUATE_TIMER");
         end
     end
 end
