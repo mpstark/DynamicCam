@@ -137,8 +137,6 @@ local function SetViewTime(value)
     SetViewMaxTime(value);
 end
 
--- TODO: cameradistancesmoothspeed? camerafovsmoothspeed?
-
 
 ---------------------
 -- LOCAL FUNCTIONS --
@@ -443,7 +441,7 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
             elseif (command == "set") then
                 if (not (zoom.action and zoom.time and zoom.time >= (GetTime() - .1))) then
                     parent:DebugPrint("Nameplate setting zoom!", increments);
-                    self:SetZoom(increments, .5, true); -- TODO: look at constant value here
+                    self:SetZoom(increments, .5, true); -- constant value here
                 end
             end
 

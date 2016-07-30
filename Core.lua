@@ -485,7 +485,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
-        Camera:GotoView(1, .75, situation.view.instant); -- TODO: look into constant time here
+        Camera:GotoView(1, .75, situation.view.instant);
     end
 
     local a = situation.cameraActions;
@@ -496,18 +496,18 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
             local degrees = Camera:StopRotating();
             self:DebugPrint("Ended rotate, degrees rotated:", degrees);
             if (a.rotateBack) then
-                Camera:RotateDegrees(-degrees, .5); -- TODO: this is a good idea until it's a bad idea
+                Camera:RotateDegrees(-degrees, .5);
             end
         elseif (a.rotateSetting == "degrees") then
             if (Camera:IsRotating()) then
                 -- interrupted rotation
                 local degrees = (Camera:StopRotating())%360;
                 if (a.rotateBack) then
-                    Camera:RotateDegrees(-degrees, .5); -- TODO: look into constant time here
+                    Camera:RotateDegrees(-degrees, .5); -- constant time here
                 end
             else
                 if (a.rotateBack) then
-                    Camera:RotateDegrees(-a.rotateDegrees, .5); -- TODO: look into constant time here
+                    Camera:RotateDegrees(-a.rotateDegrees, .5); -- constant time here
                 end
             end
         end
@@ -523,7 +523,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     if (self:ShouldRestoreZoom(situationID, newSituationID)) then
         self:DebugPrint("Restoring zoom level: ", restoration[situationID].zoom);
         restoringZoom = true;
-        Camera:SetZoom(restoration[situationID].zoom, .75, true); -- TODO: look into constant time here
+        Camera:SetZoom(restoration[situationID].zoom, .75, true); -- constant time here
     else
         self:DebugPrint("Not restoring zoom level");
     end
@@ -902,7 +902,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
         return false;
     end
 
-    -- TODO: check up on
     -- restore zoom based on newSituation zoomSetting
     if (newSituation.cameraActions.zoomSetting == "off") then
         -- restore zoom if the new situation doesn't zoom at all
