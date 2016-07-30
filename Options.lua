@@ -173,6 +173,7 @@ local settings = {
                 description = {
                     type = 'description',
                     name = "Settings here are only applied if the currently active situation doesn't modify the settings. Think of these settings as the \"fallback\".\n",
+                    hidden = function() return (not ACTION_CAM_FLAG) end,
                     --fontSize = "small",
                     width = "full",
                     order = 0,

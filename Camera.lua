@@ -176,7 +176,7 @@ end
 -----------
 -- HOOKS --
 -----------
-function Camera:CameraZoomIn(inc)
+function Camera:CameraZoomIn(inc, automated)
 	local zoomMax = GetMaxZoom();
 	local increments = inc or 1;
 
@@ -212,10 +212,10 @@ function Camera:CameraZoomIn(inc)
 
 	-- TODO: set timer for this
 
-	parent:DebugPrint("Zoom in:", "inc", inc, "increments:", increments, "time:", timeToZoom);
+	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom in:", "inc", inc, "increments:", increments, "time:", timeToZoom);
 end
 
-function Camera:CameraZoomOut(inc)
+function Camera:CameraZoomOut(inc, automated)
 	local zoomMax = GetMaxZoom();
 	local increments = inc or 1;
 
@@ -251,7 +251,7 @@ function Camera:CameraZoomOut(inc)
 
 	-- TODO: set timer for this
 
-	parent:DebugPrint("Zoom out:", "inc", inc, "increments:", increments, "time:", timeToZoom);
+	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom out:", "inc", inc, "increments:", increments, "time:", timeToZoom);
 end
 
 function Camera:MoveViewInStart(speed)
@@ -370,8 +370,8 @@ function Camera:StopZooming()
 
 	if ((zoom.action == "in" or zoom.action == "in") and zoom.time and (zoom.time > (GetTime() + .25))) then
 		-- we're obviously still zooming in from an incremental zoom, cancel it
-		CameraZoomOut(0);
-		CameraZoomIn(0);
+		CameraZoomOut(0, true);
+		CameraZoomIn(0, true);
 		zoom.action = nil;
 		zoom.time = nil;
 	elseif (zoom.action == "continousIn") then
@@ -408,10 +408,10 @@ function Camera:SetZoom(level, time, timeIsMax)
 	end
 
 	if (GetCameraZoom() > level) then
-		CameraZoomIn(difference);
+		CameraZoomIn(difference, true);
 		return true;
 	elseif (GetCameraZoom() < level) then
-		CameraZoomOut(-difference);
+		CameraZoomOut(-difference, true);
 		return true;
 	end
 end
@@ -433,12 +433,12 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
             if (command == "in") then
                 -- if we're not already zooming out, zoom in
                 if (not (zoom.action and zoom.action == "out" and zoom.time and zoom.time >= (GetTime() - .1))) then
-                    CameraZoomIn(increments);
+                    CameraZoomIn(increments, true);
                 end
             elseif (command == "out") then
                 -- if we're not already zooming in, zoom out
                if (not (zoom.action and zoom.action == "in" and zoom.time and zoom.time >= (GetTime() - .1))) then
-            		CameraZoomOut(increments);
+            		CameraZoomOut(increments, true);
                end
             elseif (command == "set") then
                 if (not (zoom.action and zoom.time and zoom.time >= (GetTime() - .1))) then

@@ -19,7 +19,7 @@ ACTION_CAM_CVARS = {
     ["cameradynamicpitchbasefovpad"] = true,
     ["cameradynamicpitchbasefovpadflying"] = true,
     ["cameradynamicpitchsmartpivotcutoffdist"] = true,
-}
+};
 ACTION_CAM_FLAG = true;
 
 
