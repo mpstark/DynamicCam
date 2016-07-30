@@ -122,6 +122,7 @@ local defaults = {
                     zoomFitSensitivity = 5,
                     zoomFitIncrements = .25,
                     zoomFitUseCurAsMin = false,
+                    zoomFitToggleNameplate = false,
                 },
                 view = {
                     enabled = false,
@@ -137,9 +138,6 @@ local defaults = {
                 },
                 extras = {
                     hideUI = false,
-                    nameplates = false,
-                    friendlyNP = true,
-                    enemyNP = true,
                 },
                 cameraCVars = {},
             },
@@ -415,7 +413,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
                 min = GetCameraZoom();
                 min = math.min(min, a.zoomMax);
             end
-            adjustedZoom = Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous);
+            adjustedZoom = Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous, a.zoomFitToggleNameplate);
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
@@ -441,34 +439,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         -- hide UI
         if (situation.extras.hideUI) then
             UIParent:Hide();
-        end
-
-        -- nameplates
-        if (situation.extras.nameplates) then
-            -- save the old values to restore when ending situation
-            restoration[situationID].cvars["nameplateShowAll"] = GetCVar("nameplateShowAll");
-            restoration[situationID].cvars["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
-            restoration[situationID].cvars["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
-
-            SetCVar("nameplateShowAll", 1);
-
-            -- show or hide friendly plates
-            if (situation.extras.enemyNP) then
-                -- show
-                SetCVar("nameplateShowEnemies", 1);
-            else
-                -- hide
-                SetCVar("nameplateShowEnemies", 0);
-            end
-
-            -- show or hide enemy plates
-            if (situation.extras.friendlyNP) then
-                -- show
-                SetCVar("nameplateShowFriends", 1);
-            else
-                -- hide
-                SetCVar("nameplateShowFriends", 0);
-            end
         end
     end
 
@@ -778,14 +748,12 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraActions.zoomFitIncrements = .5;
     newSituation.cameraActions.zoomFitPosition = 90;
+    newSituation.cameraActions.zoomFitToggleNameplate = true;
     newSituation.cameraCVars["cameradynamicpitch"] = 1;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.onlyAttackable = false;
     newSituation.targetLock.nameplateVisible = false;
-    newSituation.extras.nameplates = true;
-    newSituation.extras.friendlyNP = true;
-    newSituation.extras.enemyNP = true;
     situations["300"] = newSituation;
 
     newSituation = self:CreateSituation("Mailbox");
@@ -831,6 +799,7 @@ function DynamicCam:CreateSituation(name)
             zoomFitSensitivity = 5,
             zoomFitIncrements = .25,
             zoomFitUseCurAsMin = false,
+            zoomFitToggleNameplate = true,
         },
         view = {
             enabled = false,

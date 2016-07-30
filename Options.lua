@@ -34,6 +34,8 @@ local changelog = {
 [[Beta 2 (In progress):
     - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass, etc.
     - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode
+    - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
+        - This should show the nameplate only when it is being used
     - A whole slew of advanced options has been added
         - Can now execute custom scripts on situation Enter/Exit and Initialization
             - Some of the defaults now use these and many of them have been cleaned up for readiblity
@@ -483,8 +485,16 @@ local situationOptions = {
                             hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
                             get = function() return S.cameraActions.zoomFitUseCurAsMin end,
                             set = function(_, newValue) S.cameraActions.zoomFitUseCurAsMin = newValue end,
-                            width = "double",
                             order = 7,
+                        },
+                        showNameplate = {
+                            type = 'toggle',
+                            name = "Toggle Nameplates",
+                            desc = "Try to toggle nameplates on and turn them off after fit is complete",
+                            hidden = function() return not (S.cameraActions.zoomSetting == "fit") end,
+                            get = function() return S.cameraActions.zoomFitToggleNameplate end,
+                            set = function(_, newValue) S.cameraActions.zoomFitToggleNameplate = newValue end,
+                            order = 8,
                         },
                         fitPosition = {
                             type = 'select',
@@ -851,40 +861,6 @@ local situationOptions = {
                     get = function() return S.extras.hideUI end,
                     set = function(_, newValue) S.extras.hideUI = newValue end,
                     order = 1,
-                },
-                nameplates = {
-                    type = 'toggle',
-                    name = "Show/Hide Nameplates",
-                    desc = "Shows or hides nameplates when this situation is activated, previous setting will be restored when situation is restored.\n\nDoes nothing if situation is entered in combat, as this would cause taint.",
-                    get = function() return S.extras.nameplates end,
-                    set = function(_, newValue) S.extras.nameplates = newValue end,
-                    order = 2,
-                },
-                nameplatesGroup = {
-                    type = 'group',
-                    name = "Nameplates",
-                    order = 3,
-                    inline = true,
-                    hidden = function() return (not S.extras.nameplates) end,
-                    disabled = function() return (not S.enabled) end,
-                    args = {
-                        friendly = {
-                            type = 'toggle',
-                            name = "Friendly",
-                            desc = "If friendly nameplates should be shown/hidden",
-                            get = function() return S.extras.friendlyNP end,
-                            set = function(_, newValue) S.extras.friendlyNP = newValue end,
-                            order = 3,
-                        },
-                        enemy = {
-                            type = 'toggle',
-                            name = "Enemy",
-                            desc = "If enemy nameplates should be shown/hidden",
-                            get = function() return S.extras.enemyNP end,
-                            set = function(_, newValue) S.extras.enemyNP = newValue end,
-                            order = 4,
-                        },
-                    },
                 },
             },
         },

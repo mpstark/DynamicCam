@@ -28,6 +28,17 @@ local rotation = {
 	timer = nil,
 };
 
+local nameplateRestore = {};
+local function RestoreNameplates()
+	-- restore nameplates if they need to be restored
+	if (not InCombatLockdown()) then
+		for k,v in pairs(nameplateRestore) do
+			SetCVar(k, v);
+		end
+		nameplateRestore = {};
+	end
+end
+
 
 ----------
 -- CORE --
@@ -354,6 +365,9 @@ function Camera:StopZooming()
         zoom.timer = nil;
 	end
 
+	-- restore nameplates if need to
+	RestoreNameplates();
+
 	if ((zoom.action == "in" or zoom.action == "in") and zoom.time and (zoom.time > (GetTime() + .25))) then
 		-- we're obviously still zooming in from an incremental zoom, cancel it
 		CameraZoomOut(0);
@@ -457,6 +471,9 @@ function Camera:ZoomUntil(condition, continousTime, isFitting)
                 zoom.timer = self:ScheduleTimer("ZoomUntil", continousTime, condition, continousTime);
 			else
 				zoom.timer = nil;
+
+				-- restore nameplates if they need to be restored
+				RestoreNameplates();
             end
 
             return;
@@ -488,7 +505,7 @@ function Camera:ZoomToRange(minLevel, maxLevel, time, timeIsMax)
 	end
 end
 
-function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, sensitivity, speedMultiplier, continously)
+function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, sensitivity, speedMultiplier, continously, toggleNameplate)
 	parent:DebugPrint("Fitting Nameplate for target");
 
 	-- create a function that returns the zoom direction or nil for stop zooming
@@ -532,6 +549,26 @@ function Camera:FitNameplate(zoomMin, zoomMax, increments, nameplatePosition, se
 				end
 			end
 		else
+			-- nameplate doesn't exist, toggle it on
+			if (toggleNameplate and not InCombatLockdown() and not nameplateRestore["nameplateShowAll"]) then
+				nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll");
+				nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
+				nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
+
+				-- show nameplates
+				SetCVar("nameplateShowAll", 1);
+				if (UnitExists("target")) then
+					if (UnitIsFriend("player", "target")) then
+						SetCVar("nameplateShowFriends", 1);
+					else
+						SetCVar("nameplateShowEnemies", 1);
+					end
+				else
+					SetCVar("nameplateShowFriends", 1);
+					SetCVar("nameplateShowEnemies", 1);
+				end
+			end
+
 			-- namemplate doesn't exist, just wait
 			return "wait";
 		end
