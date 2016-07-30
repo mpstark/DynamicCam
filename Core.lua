@@ -8,6 +8,19 @@ local AceAddon = LibStub("AceAddon-3.0");
 -- CONSTANTS --
 ---------------
 local DATABASE_VERSION = 1;
+ACTION_CAM_CVARS = {
+    ["cameraovershoulder"] = true,
+    ["cameralockedtargetfocusing"] = true,
+    ["cameraheadmovementstrength"] = true,
+    ["cameraheadmovementrange"] = true,
+    ["cameraheadmovementsmoothrate"] = true,
+    ["cameraheadmovementwhilestanding"] = true,
+    ["cameradynamicpitch"] = true,
+    ["cameradynamicpitchbasefovpad"] = true,
+    ["cameradynamicpitchbasefovpadflying"] = true,
+    ["cameradynamicpitchsmartpivotcutoffdist"] = true,
+}
+ACTION_CAM_FLAG = true;
 
 
 -------------
@@ -66,6 +79,15 @@ local function DC_RunScript(script, situationID)
     return functionCache[script]();
 end
 
+local function DC_SetCVar(cvar, setting)
+    -- if actioncam flag is off and if cvar is an ActionCam setting, don't set it
+    if (not ACTION_CAM_FLAG and ACTION_CAM_CVARS[cvar]) then
+        return;
+    end
+
+    SetCVar(cvar, setting);
+end
+
 
 --------
 -- DB --
@@ -78,6 +100,7 @@ local defaults = {
         defaultCvars = {
             ["cameraDistanceMaxFactor"] = 1.9,
             ["cameraDistanceMoveSpeed"] = 8.33,
+
             ["cameraovershoulder"] = 0,
             ["cameralockedtargetfocusing"] = 0,
 
@@ -192,7 +215,7 @@ function DynamicCam:Startup()
 
     -- apply default settings
     for cvar, value in pairs(self.db.profile.defaultCvars) do
-        SetCVar(cvar, value);
+        DC_SetCVar(cvar, value);
     end
 
     -- register all events for evaluating situations
@@ -231,7 +254,7 @@ function DynamicCam:Shutdown()
 
     -- apply default settings
     for cvar, value in pairs(self.db.profile.defaultCvars) do
-        SetCVar(cvar, value);
+        DC_SetCVar(cvar, value);
     end
 
     started = false;
@@ -371,7 +394,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     restoration[situationID].cvars = {};
     for cvar, value in pairs(situation.cameraCVars) do
         restoration[situationID].cvars[cvar] = GetCVar(cvar);
-        SetCVar(cvar, value);
+        DC_SetCVar(cvar, value);
     end
 
     -- make sure to save cameralockedtargetfocusing
@@ -457,7 +480,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
     -- restore cvars to their values before the situation arose
     for cvar, value in pairs(restoration[situationID].cvars) do
-        SetCVar(cvar, value);
+        DC_SetCVar(cvar, value);
     end
 
     -- restore view that is enabled
@@ -831,7 +854,7 @@ function DynamicCam:UpdateSituation(situationID)
     if (situation and (situationID == self.currentSituationID)) then
         -- apply cvars
         for cvar, value in pairs(situation.cameraCVars) do
-            SetCVar(cvar, value);
+            DC_SetCVar(cvar, value);
         end
     end
     DC_RunScript(situation.executeOnInit, situationID);
@@ -846,7 +869,7 @@ function DynamicCam:ApplyDefaultCameraSettings()
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
-            SetCVar(cvar, value);
+            DC_SetCVar(cvar, value);
         end
     end
 end
@@ -992,11 +1015,11 @@ function DynamicCam:EvaluateTargetLock()
             (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
         then
             if (GetCVar("cameralockedtargetfocusing") ~= "1") then
-                SetCVar ("cameralockedtargetfocusing", 1)
+                DC_SetCVar ("cameralockedtargetfocusing", 1)
             end
         else
             if (GetCVar("cameralockedtargetfocusing") ~= "0") then
-                 SetCVar ("cameralockedtargetfocusing", 0)
+                 DC_SetCVar ("cameralockedtargetfocusing", 0)
             end
         end
     end
@@ -1127,7 +1150,7 @@ end
 -----------
 function DynamicCam:ResetCVars()
     for cvar, value in pairs(self.db.profile.defaultCvars) do
-        SetCVar(cvar, GetCVarDefault(cvar));
+        DC_SetCVar(cvar, GetCVarDefault(cvar));
     end
 
     ResetView(1);
