@@ -40,26 +40,26 @@ local function DC_RunScript(script, situationID)
     -- make sure that we're not creating tables willy nilly
     if (not functionCache[script]) then
         functionCache[script] = assert(loadstring(script));
-    end
 
-    -- if env, set the environment to that
-    if (situationID) then
-        if (not situationEnvironments[situationID]) then
-            situationEnvironments[situationID] = setmetatable({}, { __index =
-                function(t, k)
-                    if (k == "_G") then
-                        return t;
-                    elseif (k == "this") then
-                        return situationEnvironments[situationID].this;
-                    else
-                        return _G[k];
+        -- if env, set the environment to that
+        if (situationID) then
+            if (not situationEnvironments[situationID]) then
+                situationEnvironments[situationID] = setmetatable({}, { __index =
+                    function(t, k)
+                        if (k == "_G") then
+                            return t;
+                        elseif (k == "this") then
+                            return situationEnvironments[situationID].this;
+                        else
+                            return _G[k];
+                        end
                     end
-                end
-            });
-            situationEnvironments[situationID].this = {};
-        end
+                });
+                situationEnvironments[situationID].this = {};
+            end
 
-        setfenv(functionCache[script], situationEnvironments[situationID]);
+            setfenv(functionCache[script], situationEnvironments[situationID]);
+        end
     end
 
     -- return the result
@@ -250,97 +250,84 @@ end
 -- SITUATIONS --
 ----------------
 local delayTimer;
-local lastEvaluate;
-local TIME_BEFORE_NEXT_EVALUATE = .1;
-local EVENT_DOUBLE_TIME = .2;
-function DynamicCam:EvaluateSituations(event, possibleUnit, ...)
+
+function DynamicCam:EvaluateSituations()
+    -- if we currently have timer running, kill it
+    if (evaluateTimer) then
+        self:CancelTimer(evaluateTimer);
+        evaluateTimer = nil;
+    end
+
     if (self.db.profile.enabled) then
-        if (event and possibleUnit and type(possibleUnit) == 'string' and string.lower(possibleUnit) ~= "player") then
-            -- ignore events not pertaining to player state
-            -- self:DebugPrint("EvaluateSituations", "IGNORING EVENT", event, possibleUnit, ...);
-            return;
-        end
+        local highestPriority = -100;
+        local topSituation;
 
-        -- we don't want to evaluate too often, some of the events can be *very* spammy
-        if (not lastEvaluate or (lastEvaluate and (lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime())) then
-            local highestPriority = -100;
-            local topSituation;
+        -- go through all situations pick the best one
+        for id, situation in pairs(self.db.profile.situations) do
+            if (situation.enabled) then
+                -- evaluate the condition, if it checks out and the priority is larger then any other, set it
+                local lastEvaluate = conditionExecutionCache[id];
+                local thisEvaluate = DC_RunScript(situation.condition, id);
+                conditionExecutionCache[id] = thisEvaluate;
 
-            -- self:DebugPrint("EvaluateSituations", event, possibleUnit, ..., lastEvaluate and (GetTime() - lastEvaluate));
+                if (thisEvaluate) then
+                    -- the condition is true
+                    if (not lastEvaluate) then
+                        -- last evaluate wasn't true, so this we "flipped"
+                        self:SendMessage("DC_SITUATION_ACTIVE", id);
+                    end
 
-            lastEvaluate = GetTime();
-            if (evaluateTimer) then
-                self:CancelTimer(evaluateTimer);
-                evaluateTimer = nil;
-            end
-
-            -- go through all situations pick the best one
-            for id, situation in pairs(self.db.profile.situations) do
-                if (situation.enabled) then
-                    -- evaluate the condition, if it checks out and the priority is larger then any other, set it
-                    local lastCache = conditionExecutionCache[id];
-                    conditionExecutionCache[id] = DC_RunScript(situation.condition, id);
-
-                    if (conditionExecutionCache[id]) then
-                        if (not lastCache) then
-                            self:SendMessage("DC_SITUATION_ACTIVE", id);
-                        end
-
-                        if (situation.priority > highestPriority) then
-                            highestPriority = situation.priority;
-                            topSituation = id;
-                        end
-                    else
-                        if (lastCache) then
-                            self:SendMessage("DC_SITUATION_INACTIVE", id);
-                        end
+                    -- check to see if we've already found something with higher priority
+                    if (situation.priority > highestPriority) then
+                        highestPriority = situation.priority;
+                        topSituation = id;
+                    end
+                else
+                    -- the condition is false
+                    if (lastEvaluate) then
+                        -- last evaluate was true, so we "flipped"
+                        self:SendMessage("DC_SITUATION_INACTIVE", id);
                     end
                 end
             end
+        end
 
-            if (topSituation) then
-                if (self.currentSituationID) then
-                    if (topSituation ~= self.currentSituationID) then
-                        -- check if current situation has a delay and if it does, if it's 'cooling down'
-                        local delay = self.db.profile.situations[self.currentSituationID].delay;
-                        if (delay > 0) then
-                            if (not delayTime) then
-                                -- not yet cooling down
-                                delayTime = GetTime() + delay;
-                                delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
-                            elseif (delayTime > GetTime()) then
-                                -- still cooling down, don't swap
-                            else
-                                delayTime = nil;
-                                self:SetSituation(topSituation);
-                            end
+        if (topSituation) then
+            if (self.currentSituationID) then
+                if (topSituation ~= self.currentSituationID) then
+                    -- check if current situation has a delay and if it does, if it's 'cooling down'
+                    local delay = self.db.profile.situations[self.currentSituationID].delay;
+                    if (delay > 0) then
+                        if (not delayTime) then
+                            -- not yet cooling down, make sure to guarentee an evaluate
+                            delayTime = GetTime() + delay;
+                            delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
+                        elseif (delayTime > GetTime()) then
+                            -- still cooling down, don't swap
                         else
+                            -- we cooled down and still want to change, so change
+                            delayTime = nil;
                             self:SetSituation(topSituation);
                         end
                     else
-                        -- topSituation is currentSituationID, clear the delay
-                        delayTime = nil;
+                        -- there isn't a delay, just change over to the new situation
+                        self:SetSituation(topSituation);
                     end
                 else
-                    -- no currentSituationID
-                    self:SetSituation(topSituation);
+                    -- topSituation is currentSituationID, clear the delay
+                    delayTime = nil;
                 end
-
-                -- do target lock evaluation anyways
-                self:EvaluateTargetLock();
             else
-                --none of the situations are active, leave the current situation
-                if (self.currentSituationID) then
-                    self:ExitSituation(self.currentSituationID);
-                end
+                -- no currentSituationID
+                self:SetSituation(topSituation);
             end
 
-            if (event and event ~= "EVENT_DOUBLER" and event ~= "DELAY_TIMER") then
-                evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME, "EVENT_DOUBLER");
-            end
+            -- do target lock evaluation anyways
+            self:EvaluateTargetLock();
         else
-            if (not evaluateTimer) then
-                evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE, "EVALUATE_TIMER");
+            --none of the situations are active, leave the current situation
+            if (self.currentSituationID) then
+                self:ExitSituation(self.currentSituationID);
             end
         end
     end
@@ -960,22 +947,44 @@ end
 ------------
 -- EVENTS --
 ------------
+local lastEvaluate;
+local TIME_BEFORE_NEXT_EVALUATE = .1;
+local EVENT_DOUBLE_TIME = .2;
+
+function DynamicCam:EventHandler(event, possibleUnit, ...)
+    -- we don't want to evaluate too often, some of the events can be *very* spammy
+    if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
+        lastEvaluate = GetTime();
+
+        -- call the evaluate
+        self:EvaluateSituations();
+
+        -- double the event, since a lot of events happen before the condition turns out to be true
+        evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME);
+    else
+        -- we're delaying the call of evaluate situations until next evaluate
+        if (not evaluateTimer) then
+            evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE);
+        end
+    end
+end
+
 function DynamicCam:RegisterEvents()
     events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_ADDED", "EvaluateSituations");
+    self:RegisterEvent("NAME_PLATE_UNIT_ADDED", "EventHandler");
 
     events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_REMOVED", "EvaluateSituations");
+    self:RegisterEvent("NAME_PLATE_UNIT_REMOVED", "EventHandler");
 
     events["PLAYER_TARGET_CHANGED"] = true;
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", "EvaluateSituations");
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", "EventHandler");
 
     for name, situation in pairs(self.db.profile.situations) do
         if (situation.events) then
             for i, event in pairs(situation.events) do
                 if (not events[event]) then
                     events[event] = true;
-                    self:RegisterEvent(event, "EvaluateSituations");
+                    self:RegisterEvent(event, "EventHandler");
                     -- self:DebugPrint("Registered for event:", event);
                 end
             end
