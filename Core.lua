@@ -778,7 +778,7 @@ function DynamicCam:GetDefaultSituations()
 
     newSituation = self:CreateSituation("Hearth/Teleport");
     newSituation.priority = 20;
-    newSituation.executeOnInit = "this.spells = {189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};";
+    newSituation.executeOnInit = "this.spells = {136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};";
     newSituation.condition = [[for k,v in pairs(this.spells) do 
     if (UnitCastingInfo("player") == GetSpellInfo(v)) then 
         return true;
