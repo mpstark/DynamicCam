@@ -8,6 +8,7 @@ local AceAddon = LibStub("AceAddon-3.0");
 -- CONSTANTS --
 ---------------
 local DATABASE_VERSION = 1;
+local DEFAULT_VERSION = 1;
 ACTION_CAM_CVARS = {
     ["cameraovershoulder"] = true,
     ["cameralockedtargetfocusing"] = true,
@@ -20,7 +21,7 @@ ACTION_CAM_CVARS = {
     ["cameradynamicpitchbasefovpadflying"] = true,
     ["cameradynamicpitchsmartpivotcutoffdist"] = true,
 };
-ACTION_CAM_FLAG = true;
+ACTION_CAM_FLAG = false;
 
 
 -------------
@@ -188,6 +189,28 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
     self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
+    self:RegisterChatCommand("zoom", "ZoomSlash");
+
+    -- show defaults are out of date dialog
+    if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
+        StaticPopupDialogs["DYNAMICCAM_NEW_DEFAULTS"] = {
+            text = "DynamicCam has a new set of default situations. Would you like to reset your profile?",
+            button1 = "Upgrade Me!",
+            button2 = "No, thanks",
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+            OnAccept = function()
+                DynamicCam.db:ResetProfile();
+            end,
+            OnCancel = function(_, reason)
+                DynamicCam.db.profile.defaultVersion = DEFAULT_VERSION;
+            end,
+        }
+
+        StaticPopup_Show("DYNAMICCAM_NEW_DEFAULTS");
+    end
 
     -- disable if the setting is enabled
     if (not self.db.profile.enabled) then
@@ -458,10 +481,12 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     end
 
     -- EXTRAS --
-    if (not InCombatLockdown()) then
-        -- hide UI
-        if (situation.extras.hideUI) then
+    if (situation.extras.hideUI) then
+        if (not InCombatLockdown()) then
+            -- hide UI
             UIParent:Hide();
+        else
+            self:Print("Couldn't hide UI because of UI Combat Lockdown!'")
         end
     end
 
@@ -529,8 +554,12 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     end
 
     -- unhide UI
-    if (situation.extras.hideUI and not InCombatLockdown()) then
-        UIParent:Show();
+    if (situation.extras.hideUI) then
+        if (not InCombatLockdown()) then
+            UIParent:Show();
+        else
+            self:Print("Couldn't show UI because of UI Combat Lockdown!'")
+        end
     end
 
     wipe(restoration[situationID]);
@@ -617,6 +646,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "fit";
     --newSituation.cameraActions.zoomFitContinous = true;
+    newSituation.cameraActions.zoomFitUseCurAsMin = true;
     newSituation.cameraActions.zoomMin = 5;
     newSituation.cameraActions.zoomMax = 28.5;
     newSituation.cameraCVars["cameraovershoulder"] = 1.5;
@@ -684,6 +714,37 @@ function DynamicCam:GetDefaultSituations()
     situations["034"] = newSituation;
 
 
+
+    newSituation = self:CreateSituation("Arena");
+    newSituation.enabled = false;
+    newSituation.priority = 3;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\");";
+    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
+    situations["050"] = newSituation;
+
+    newSituation = self:CreateSituation("Arena (Combat)");
+    newSituation.enabled = false;
+    newSituation.priority = 203;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\") and UnitAffectingCombat(\"player\");";
+    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
+    situations["051"] = newSituation;
+
+
+    newSituation = self:CreateSituation("Battleground");
+    newSituation.enabled = false;
+    newSituation.priority = 3;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\");";
+    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
+    situations["060"] = newSituation;
+
+    newSituation = self:CreateSituation("Battleground (Combat)");
+    newSituation.enabled = false;
+    newSituation.priority = 203;
+    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\") and UnitAffectingCombat(\"player\");";
+    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
+    situations["061"] = newSituation;
+
+
     newSituation = self:CreateSituation("Mounted");
     newSituation.priority = 100;
     newSituation.condition = "return IsMounted();";
@@ -724,12 +785,13 @@ function DynamicCam:GetDefaultSituations()
     end
 end
 return false;]];
+    newSituation.executeOnEnter = "local _, _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;";
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraActions.rotate = true;
-    newSituation.cameraActions.rotateSpeed = .2;
-    newSituation.cameraActions.rotateSetting = "continous";
+    newSituation.cameraActions.rotateDegrees = 360;
+    newSituation.cameraActions.rotateSetting = "degrees";
     newSituation.cameraActions.transitionTime = 10;
     newSituation.cameraActions.timeIsMax = false;
     newSituation.cameraCVars["cameradynamicpitch"] = 0;
@@ -754,6 +816,7 @@ return false;]];
     situations["201"] = newSituation;
 
     newSituation = self:CreateSituation("NPC Interaction");
+    newSituation.enabled = false;
     newSituation.priority = 20;
     newSituation.delay = .5;
     newSituation.executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\",}";
@@ -788,6 +851,15 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraCVars["cameraovershoulder"] = 1;
     situations["301"] = newSituation;
+
+    newSituation = self:CreateSituation("Fishing");
+    newSituation.priority = 20;
+    newSituation.condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))";
+    newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
+    newSituation.delay = 2;
+    newSituation.cameraActions.zoomSetting = "set";
+    newSituation.cameraActions.zoomValue = 10;
+    situations["302"] = newSituation;
 
     return situations;
 end
@@ -1079,6 +1151,7 @@ function DynamicCam:RefreshConfig()
     local id, situation = next(self.db.profile.situations);
     if (not situation or situation.name == "") then
         self.db.profile.situations = self:GetDefaultSituations();
+        self.db.profile.defaultVersion = DEFAULT_VERSION;
     end
 
     -- make sure that options panel selects a situation
@@ -1125,8 +1198,8 @@ function DynamicCam:OpenMenu(input)
     Options:SelectSituation();
 
     -- just open to the frame, double call because blizz bug
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
+    InterfaceOptionsFrame_OpenToCategory("DynamicCam Lite");
+    InterfaceOptionsFrame_OpenToCategory("DynamicCam Lite");
 end
 
 function DynamicCam:SaveViewCC(input)
@@ -1137,6 +1210,12 @@ end
 
 function DynamicCam:ZoomInfoCC(input)
     Camera:PrintCameraVars();
+end
+
+function DynamicCam:ZoomSlash(input)
+    if (tonumber(input) and tonumber(input) <= 28.5 and tonumber(input) >= 0) then
+        Camera:SetZoom(tonumber(input), .5, true);
+    end
 end
 
 function DynamicCam:PopupDiscordLink()

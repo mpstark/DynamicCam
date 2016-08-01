@@ -1,9 +1,9 @@
 ## Interface: 70000
 ## Version: 1.0.70000
-## Title: DynamicCam
+## Title: DynamicCam Lite
 ## Author: mpstark
 ## SavedVariables: DynamicCamDB
-## Notes: A more dynamic camera using Legion's new camera features.
+## Notes: A more dynamic camera.
 
 embeds.xml
 

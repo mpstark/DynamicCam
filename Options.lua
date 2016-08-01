@@ -21,19 +21,19 @@ If you find an problem or want to make a suggestion, please, please leave a note
 Some handy slash commands:
     `/dc` will open this menu
     `/zi` will print out the current zoom
+    `/zoom #` will zoom to that zoom level
     `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
     `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
-local knownIssues = [[- Views in WoW are.. odd, I would recommend using them with caution
+local knownIssues = [[- Features that relied on ActionCam have been hidden until it makes a return
 - Fit nameplates is still a work in progress, can do a little in-and-out number
-- Not all planned situations are in, notably PvP ones are missing
 - Missing a lot of the advanced options such as add/remove situation, import/export, etc.
-- The defaults are placeholder ones, a much more robust system is planned
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
-[[Beta 2 (In progress):
-    - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass, etc.
-    - The Raw CVar menu has been removed and all 'missing' options moved to Settings/Situations under Advanced Mode
+[[Beta 2 (Lite):
+    - Obviously, ActionCam has been temp removed, so for the time being, all of the ActionCam settings have been hidden
+        - ACTION_CAM_FLAG at the top of Core.lua in the DynamicCam folder controls if these settings are hidden
+    - New `/zoom #` slash command that will set the zoom level to that value
     - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
         - This should show the nameplate only when it is being used
     - A whole slew of advanced options has been added
@@ -43,7 +43,14 @@ local changelog = {
     - Several tweaks to the options panel
         - Set View is an advanced mode option, as it's, well, for people that know what they're doing
         - Many advanced options are now applied when the settings are applied
-        - Many tooltips have been changed to better reflect what things do]],
+        - Many tooltips have been changed to better reflect what things do
+    - Defaults:
+        - Added a updated defaults dialog that pops up on load if the defaults have been updated
+        - Added Fishing, Arena, and Battleground default situations
+        - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass
+        - Hearth/Teleport situation now uses the cast time of the spell as the transitionTime
+            - this is just the start of what can be done with the advanced scripts
+    - Lots of little bugs squashed]],
 [[Beta 1:
     - FORCED DATABASE RESET!
     - Event-based checking instead of polling -- large performance gain!
@@ -64,7 +71,7 @@ local changelog = {
 };
 
 local general = {
-    name = "DynamicCam",
+    name = "DynamicCam Lite",
     handler = DynamicCam,
     type = 'group',
     args = {
@@ -106,6 +113,7 @@ local general = {
                     name = "Apply Default CVars (Uninstall)",
                     desc = "Reset all CVars to the WoW default values",
                     disabled = "IsEnabled",
+                    hidden = function() return (not ACTION_CAM_FLAG) end,
                     confirm = true,
                     func = "ResetCVars",
                     order = 10,
@@ -1010,7 +1018,7 @@ end
 function Options:RegisterMenus()
     -- setup menu
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", general);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam Lite");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Settings", settings);
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");
