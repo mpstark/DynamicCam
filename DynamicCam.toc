@@ -1,6 +1,6 @@
 ## Interface: 70000
 ## Version: 1.0.70000
-## Title: DynamicCam Lite
+## Title: DynamicCam
 ## Author: mpstark
 ## SavedVariables: DynamicCamDB
 ## Notes: A more dynamic camera.

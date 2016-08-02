@@ -30,9 +30,9 @@ local knownIssues = [[- Features that relied on ActionCam have been hidden until
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
-[[Beta 2 (Lite):
+[[Beta 2:
     - Obviously, ActionCam has been temp removed, so for the time being, all of the ActionCam settings have been hidden
-        - ACTION_CAM_FLAG at the top of Core.lua in the DynamicCam folder controls if these settings are hidden
+        - DynamicCam.db.profile.actionCam at the top of Core.lua in the DynamicCam folder controls if these settings are hidden
     - New `/zoom #` slash command that will set the zoom level to that value
     - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
         - This should show the nameplate only when it is being used
@@ -71,7 +71,7 @@ local changelog = {
 };
 
 local general = {
-    name = "DynamicCam Lite",
+    name = "DynamicCam",
     handler = DynamicCam,
     type = 'group',
     args = {
@@ -108,12 +108,22 @@ local general = {
                     --width = "half",
                     order = 3,
                 },
+                actionCam = {
+                    type = 'toggle',
+                    name = "ActionCam",
+                    desc = "Enables ActionCam features in DynamicCam. ActionCam is a unsupported feature that might disappear at any moment.\n\nIF YOU GET ANY ERRORS THAT SAY ANYTHING ABOUT CVARS, DISABLE THIS.\n\nI take no resposibility for these features until we know ActionCam is staying.",
+                    hidden = function() return not DynamicCam.db.profile.advanced; end,
+                    get = function() return DynamicCam.db.profile.actionCam; end,
+                    set = function(_, newValue) DynamicCam.db.profile.actionCam = newValue; end,
+                    width = "half",
+                    order = 4,
+                },
                 reset = {
                     type = 'execute',
                     name = "Apply Default CVars (Uninstall)",
                     desc = "Reset all CVars to the WoW default values",
                     disabled = "IsEnabled",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     confirm = true,
                     func = "ResetCVars",
                     width = "full",
@@ -182,7 +192,7 @@ local settings = {
                 description = {
                     type = 'description',
                     name = "Settings here are only applied if the currently active situation doesn't modify the settings. Think of these settings as the \"fallback\".\n",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     --fontSize = "small",
                     width = "full",
                     order = 0,
@@ -191,7 +201,7 @@ local settings = {
                     type = 'toggle',
                     name = "Dynamic Pitch",
                     desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 1; else DynamicCam.db.profile.defaultCvars["cameradynamicpitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = .25,
@@ -200,7 +210,7 @@ local settings = {
                     type = 'toggle',
                     name = "Target Lock/Focus",
                     desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     get = function() return (DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 1; else DynamicCam.db.profile.defaultCvars["cameralockedtargetfocusing"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 0.5,
@@ -233,7 +243,7 @@ local settings = {
                     type = 'range',
                     name = "Camera Shoulder Offset",
                     desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     min = -5,
                     max = 5,
                     step = .1,
@@ -246,7 +256,7 @@ local settings = {
                     type = 'range',
                     name = "Head Movement Strength",
                     desc = "If above 0, the camera will move to follow your character's head movements, tracking it forward, back, left and right. The strength controls how much it follows the head.\n\nThis can cause some nausea if you are prone to motion sickness.",
-                    hidden = function() return (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     min = 0,
                     max = 100,
                     softMax = 5,
@@ -261,7 +271,7 @@ local settings = {
                     name = "Dynamic Pitch Settings (Advanced)",
                     order = 102,
                     inline = true,
-                    hidden = function() return (not DynamicCam.db.profile.advanced) or (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.advanced) or (not DynamicCam.db.profile.actionCam) end,
                     args = {
                         basefovpad = {
                             type = 'range',
@@ -304,7 +314,7 @@ local settings = {
                     type = 'group',
                     name = "Head Tracking Settings (Advanced)",
                     order = 101,
-                    hidden = function() return (not DynamicCam.db.profile.advanced) or (not ACTION_CAM_FLAG) end,
+                    hidden = function() return (not DynamicCam.db.profile.advanced) or (not DynamicCam.db.profile.actionCam) end,
                     inline = true,
                     args = {
                         movementRange = {
@@ -644,7 +654,7 @@ local situationOptions = {
             name = "Camera Settings",
             order = 20,
             inline = true,
-            hidden = function() return (not S) or (not ACTION_CAM_FLAG) end,
+            hidden = function() return (not S) or (not DynamicCam.db.profile.actionCam) end,
             disabled = function() return (not S.enabled) end,
             args = {
                 overShoulderToggle = {

@@ -9,7 +9,7 @@ local AceAddon = LibStub("AceAddon-3.0");
 ---------------
 local DATABASE_VERSION = 1;
 local DEFAULT_VERSION = 1;
-ACTION_CAM_CVARS = {
+local ACTION_CAM_CVARS = {
     ["cameraovershoulder"] = true,
     ["cameralockedtargetfocusing"] = true,
     ["cameraheadmovementstrength"] = true,
@@ -21,7 +21,6 @@ ACTION_CAM_CVARS = {
     ["cameradynamicpitchbasefovpadflying"] = true,
     ["cameradynamicpitchsmartpivotcutoffdist"] = true,
 };
-ACTION_CAM_FLAG = false;
 
 
 -------------
@@ -82,7 +81,7 @@ end
 
 local function DC_SetCVar(cvar, setting)
     -- if actioncam flag is off and if cvar is an ActionCam setting, don't set it
-    if (not ACTION_CAM_FLAG and ACTION_CAM_CVARS[cvar]) then
+    if (not DynamicCam.db.profile.actionCam and ACTION_CAM_CVARS[cvar]) then
         return;
     end
 
@@ -98,6 +97,7 @@ local defaults = {
         enabled = true,
         advanced = false,
         debugMode = false,
+        actionCam = false,
         defaultCvars = {
             ["cameraDistanceMaxFactor"] = 1.9,
             ["cameraDistanceMoveSpeed"] = 8.33,
