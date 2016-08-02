@@ -92,11 +92,11 @@ local general = {
                 },
                 advanced = {
                     type = 'toggle',
-                    name = "Adv. Mode",
+                    name = "Advanced Mode",
                     desc = "If you would like to see advanced options, like editing the Lua conditions of situations.",
                     get = function() return DynamicCam.db.profile.advanced; end,
                     set = function(_, newValue) DynamicCam.db.profile.advanced = newValue; end,
-                    width = "half",
+                    --width = "half",
                     order = 2,
                 },
                 debugMode = {
@@ -105,7 +105,7 @@ local general = {
                     desc = "Print out debug messages to the chat window.",
                     get = function() return DynamicCam.db.profile.debugMode; end,
                     set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
-                    width = "half",
+                    --width = "half",
                     order = 3,
                 },
                 reset = {
@@ -116,6 +116,7 @@ local general = {
                     hidden = function() return (not ACTION_CAM_FLAG) end,
                     confirm = true,
                     func = "ResetCVars",
+                    width = "full",
                     order = 10,
                 },
             },
@@ -1018,7 +1019,7 @@ end
 function Options:RegisterMenus()
     -- setup menu
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", general);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam Lite");
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Settings", settings);
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");

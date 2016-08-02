@@ -1198,8 +1198,8 @@ function DynamicCam:OpenMenu(input)
     Options:SelectSituation();
 
     -- just open to the frame, double call because blizz bug
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam Lite");
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam Lite");
+    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
+    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
 end
 
 function DynamicCam:SaveViewCC(input)
