@@ -88,8 +88,8 @@ local function SetMaxZoom(value)
     if (value) then
         parent:DebugPrint("SetMaxZoom:", value);
         -- SetCVar("cameradistancemax", value);
-		SetMaxZoomFactor(math.max(1, math.min(1.9, value/15)));
-		parent:DebugPrint("FACTOR TO:", GetMaxZoomFactor(), value/15, math.max(0, math.min(1.9, value/15)));
+		SetMaxZoomFactor(math.max(1, math.min(2.6, value/15)));
+		parent:DebugPrint("FACTOR TO:", GetMaxZoomFactor(), value/15, math.max(0, math.min(2.6, value/15)));
     else
         parent:DebugPrint("SERIOUS FUCKING ERROR");
     end
@@ -178,8 +178,8 @@ function Camera:CameraZoomIn(inc, automated)
 	local zoomMax = GetMaxZoom();
 	local increments = inc or 1;
 
-	-- maximum maxzoom is 28.5
-	zoomMax = math.min(28.5, zoomMax);
+	-- maximum maxzoom is 39
+	zoomMax = math.min(39, zoomMax);
 
 	-- maximum increments is zoommax
 	increments = math.min(increments, zoomMax);
@@ -217,8 +217,8 @@ function Camera:CameraZoomOut(inc, automated)
 	local zoomMax = GetMaxZoom();
 	local increments = inc or 1;
 
-	-- maximum maxzoom is 28.5
-	zoomMax = math.min(28.5, zoomMax);
+	-- maximum maxzoom is 39
+	zoomMax = math.min(39, zoomMax);
 
 	-- maximum increments is zoommax
 	increments = math.min(increments, zoomMax);

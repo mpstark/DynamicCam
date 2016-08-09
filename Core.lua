@@ -85,6 +85,8 @@ local function DC_SetCVar(cvar, setting)
         return;
     end
 
+    DynamicCam:DebugPrint(cvar, setting);
+
     SetCVar(cvar, setting);
 end
 
@@ -93,13 +95,16 @@ end
 -- DB --
 --------
 local defaults = {
+    global = {
+        dbVersion = 0,
+    };
     profile = {
         enabled = true,
         advanced = false,
         debugMode = false,
         actionCam = false,
         defaultCvars = {
-            ["cameraDistanceMaxFactor"] = 1.9,
+            ["cameraDistanceMaxFactor"] = 2.6,
             ["cameraDistanceMoveSpeed"] = 8.33,
 
             ["cameraovershoulder"] = 0,
@@ -236,14 +241,6 @@ function DynamicCam:Startup()
         Options = self.Options;
     end
 
-    -- apply default settings
-    for cvar, value in pairs(self.db.profile.defaultCvars) do
-        DC_SetCVar(cvar, value);
-    end
-
-    -- register all events for evaluating situations
-    self:RegisterEvents();
-
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
     self:RegisterMessage("DC_SITUATION_DISABLED");
@@ -251,8 +248,10 @@ function DynamicCam:Startup()
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED");
     
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
+    self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5);
     evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
-
+    self:ScheduleTimer("RegisterEvents", 3);
+    
     started = true;
 end
 
@@ -276,9 +275,7 @@ function DynamicCam:Shutdown()
     self:UnregisterAllMessages();
 
     -- apply default settings
-    for cvar, value in pairs(self.db.profile.defaultCvars) do
-        DC_SetCVar(cvar, value);
-    end
+    self:ApplyDefaultCameraSettings();
 
     started = false;
 end
@@ -414,15 +411,8 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
     -- set all cvars
     restoration[situationID] = {};
-    restoration[situationID].cvars = {};
     for cvar, value in pairs(situation.cameraCVars) do
-        restoration[situationID].cvars[cvar] = GetCVar(cvar);
         DC_SetCVar(cvar, value);
-    end
-
-    -- make sure to save cameralockedtargetfocusing
-    if (situation.targetLock.enabled) then
-        restoration[situationID].cvars["cameralockedtargetfocusing"] = GetCVar("cameralockedtargetfocusing");
     end
 
     local a = situation.cameraActions;
@@ -497,16 +487,15 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     local restoringZoom;
     local situation = self.db.profile.situations[situationID];
     local newSituation = self.db.profile.situations[newSituationID];
+    self.currentSituationID = nil;
 
     self:DebugPrint("Exiting situation "..situation.name);
 
     -- load and run advanced script onExit
     DC_RunScript(situation.executeOnExit, id);
 
-    -- restore cvars to their values before the situation arose
-    for cvar, value in pairs(restoration[situationID].cvars) do
-        DC_SetCVar(cvar, value);
-    end
+    -- restore cvars to their default values
+    self:ApplyDefaultCameraSettings();
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
@@ -563,8 +552,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     end
 
     wipe(restoration[situationID]);
-    self.currentSituationID = nil;
-
+    
     self:SendMessage("DC_SITUATION_EXITED");
 
     return restoringZoom;
@@ -1102,30 +1090,22 @@ end
 --------------
 
 function DynamicCam:InitDatabase()
-    if (DynamicCamDB and DynamicCamDB.global) then
-        if (not DynamicCamDB.global.dbVersion) then
-            -- pre-version 1, clear the database and start over
-            wipe(DynamicCamDB);
-
-            -- make sure to set database version
-            DynamicCamDB.global.dbVersion = DATABASE_VERSION;
-
-            -- Tell the user
-            self:Print("Database out of date, reseting database!");
-        end
-    end
-
     self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", defaults, true);
     self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
     self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig");
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
 
-    self:DebugPrint("Database at level", self.db.global.dbVersion)
+    if (self.db.global.dbVersion == 0) then
+        self:DebugPrint("Upgrading database to level 1");
+        self.db.global.dbVersion = 1;
+    end
 
     if (self.db.global.dbVersion == 1) then
         -- at version 1
     end
+
+    self:DebugPrint("Database at level", self.db.global.dbVersion);
 end
 
 function DynamicCam:RefreshConfig()
@@ -1213,7 +1193,7 @@ function DynamicCam:ZoomInfoCC(input)
 end
 
 function DynamicCam:ZoomSlash(input)
-    if (tonumber(input) and tonumber(input) <= 28.5 and tonumber(input) >= 0) then
+    if (tonumber(input) and tonumber(input) <= 39 and tonumber(input) >= 0) then
         Camera:SetZoom(tonumber(input), .5, true);
     end
 end
