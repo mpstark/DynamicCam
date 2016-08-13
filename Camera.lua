@@ -13,11 +13,14 @@ local parent = DynamicCam;
 local _;
 
 local zoom = {
+	set = nil,
+
 	action = nil,
 	time = nil,
 	continousSpeed = 1,
 
 	timer = nil,
+	incTimer = nil,
 	oldSpeed = nil,
 }
 
@@ -52,19 +55,6 @@ function Camera:OnInitialize()
 	self:Hook("MoveViewInStop", true);
 	self:Hook("MoveViewOutStart", true);
 	self:Hook("MoveViewOutStop", true);
-
-	self:Hook("SetView", "SetView", true);
-	self:Hook("ResetView", "ResetView", true);
-	self:Hook("SaveView", "SaveView", true);
-
-	self:Hook("PrevView", "ResetZoomVars", true)
-	self:Hook("NextView", "ResetZoomVars", true)
-end
-
-function Camera:OnEnable()
-end
-
-function Camera:OnDisable()
 end
 
 
@@ -76,22 +66,20 @@ local function GetMaxZoomFactor()
 end
 
 local function SetMaxZoomFactor(value)
-	SetCVar("cameradistancemaxfactor", value);
+	if (value) then
+		parent:DebugPrint("SetMaxZoomFactor:", value);
+		SetCVar("cameradistancemaxfactor", value);
+	end
 end
 
 local function GetMaxZoom()
 	return 15*GetMaxZoomFactor();
-	--return tonumber(GetCVar("cameradistancemax"));
 end
 
 local function SetMaxZoom(value)
     if (value) then
         parent:DebugPrint("SetMaxZoom:", value);
-        -- SetCVar("cameradistancemax", value);
 		SetMaxZoomFactor(math.max(1, math.min(2.6, value/15)));
-		parent:DebugPrint("FACTOR TO:", GetMaxZoomFactor(), value/15, math.max(0, math.min(2.6, value/15)));
-    else
-        parent:DebugPrint("SERIOUS FUCKING ERROR");
     end
 end
 
@@ -100,41 +88,14 @@ local function GetZoomSpeed()
 end
 
 local function SetZoomSpeed(value)
-    parent:DebugPrint("SetZoomSpeed:", value);
-	SetCVar("cameradistancemovespeed", math.min(50,value));
+	if (value) then
+		parent:DebugPrint("SetZoomSpeed:", value);
+		SetCVar("cameradistancemovespeed", math.min(50,value));
+	end
 end
 
 local function GetYawSpeed()
 	return tonumber(GetCVar("cameraYawMoveSpeed"));
-end
-
-local function GetZoomSmoothSpeed()
-    return tonumber(GetCVar("cameraDistanceSmoothSpeed"));
-end
-
-local function SetZoomSmoothSpeed(value)
-    return SetCVar("cameraDistanceSmoothSpeed", value);
-end
-
-local function GetViewMinTime()
-    return tonumber(GetCVar("cameraSmoothTimeMin"));
-end
-
-local function GetViewMaxTime()
-     return tonumber(GetCVar("cameraSmoothTimeMax"));
-end
-
-local function SetViewMinTime(value)
-    SetCVar("cameraSmoothTimeMin", value);
-end
-
-local function SetViewMaxTime(value)
-    SetCVar("cameraSmoothTimeMax", value);
-end
-
-local function SetViewTime(value)
-    SetViewMinTime(value);
-    SetViewMaxTime(value);
 end
 
 
@@ -174,60 +135,31 @@ end
 -----------
 -- HOOKS --
 -----------
-function Camera:CameraZoomIn(inc, automated)
-	local zoomMax = GetMaxZoom();
-	local increments = inc or 1;
+local function CameraZoomFinished(restore)
+	parent:DebugPrint("Finished zooming");
 
-	-- maximum maxzoom is 39
-	zoomMax = math.min(39, zoomMax);
+	-- restore oldSpeed if it exists
+    if (restore and zoom.oldSpeed) then
+        SetZoomSpeed(zoom.oldSpeed);
+        zoom.oldSpeed = nil;
+    end
 
-	-- maximum increments is zoommax
-	increments = math.min(increments, zoomMax);
-
-	-- can't zoom in past 0
-	if ((GetCameraZoom() - increments) <= 0) then
-		increments = GetCameraZoom();
-	end
-
-	-- check if we were continously zooming before and stop tracking it if we were
-	if (zoom.action == "continousIn") then
-		self:MoveViewInStop();
-	elseif (zoom.action == "continousOut") then
-		self:MoveViewOutStop();
-	end
-
-	-- set zoom done time
-	-- (yard) / (yards/second) = seconds
-	local timeToZoom = GetEstimatedZoomTime(increments);
-	if (increments > 0) then
-		zoom.action = "in";
-		if (zoom.time and zoom.time > GetTime()) then
-			zoom.time = zoom.time + timeToZoom;
-		else
-			zoom.time = GetTime() + timeToZoom;
-		end
-	end
-
-	-- TODO: set timer for this
-
-	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom in:", "inc", inc, "increments:", increments, "time:", timeToZoom);
+	zoom.action = nil;
+	zoom.time = nil;
+	zoom.set = nil;
 end
 
-function Camera:CameraZoomOut(inc, automated)
+function Camera:CameraZoomIn(...)
+	self:CameraZoom("in", ...);
+end
+
+function Camera:CameraZoomOut(...)
+	self:CameraZoom("out", ...);
+end
+
+function Camera:CameraZoom(direction, increments, automated)
 	local zoomMax = GetMaxZoom();
-	local increments = inc or 1;
-
-	-- maximum maxzoom is 39
-	zoomMax = math.min(39, zoomMax);
-
-	-- maximum increments is zoommax
-	increments = math.min(increments, zoomMax);
-
-	-- can't zoom out past zoomMax
-	if ((GetCameraZoom() + increments) >= zoomMax) then
-		increments = (zoomMax - GetCameraZoom() > .001) and (zoomMax - GetCameraZoom()) or 0;
-	end
-
+	
 	-- check if we were continously zooming before and stop tracking it if we were
 	if (zoom.action == "continousIn") then
 		self:MoveViewInStop();
@@ -235,21 +167,85 @@ function Camera:CameraZoomOut(inc, automated)
 		self:MoveViewOutStop();
 	end
 
-	-- set zoom done time
-	-- (yard) / (yards/second) = seconds
-	local timeToZoom = GetEstimatedZoomTime(increments);
-	if (increments > 0) then
-		zoom.action = "out";
-		if (zoom.time and zoom.time > GetTime()) then
-			zoom.time = zoom.time + timeToZoom;
-		else
-			zoom.time = GetTime() + timeToZoom;
-		end
+	-- check if we were going in the opposite direction
+	if (zoom.action and zoom.action ~= direction) then
+		-- remove set point, since it doesn't matter anymore, since we canceled
+		CameraZoomFinished(true);
 	end
 
-	-- TODO: set timer for this
+	-- set zoom.set
+	local setZoom;
+	if (zoom.action and zoom.action == direction and zoom.set) then
+		setZoom = zoom.set;
+	else
+		setZoom = GetCameraZoom();
+	end
+	
+	if (direction == "in") then
+		-- zooming in
+		zoom.set = math.max(0, setZoom - increments);
+	elseif (direction == "out") then
+		-- zooming out
+		zoom.set = math.min(zoomMax, setZoom + increments);
+	end
 
-	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom out:", "inc", inc, "increments:", increments, "time:", timeToZoom);
+	-- set zoom done time
+	-- (yard) / (yards/second) = seconds
+	local difference = math.abs(GetCameraZoom() - zoom.set);
+	local timeToZoom = GetEstimatedZoomTime(difference);
+	local reactiveZoom = parent.db.profile.reactiveZoom;
+	if (difference > 0) then
+		zoom.action = direction;
+		
+		if (parent.db.profile.enabled and reactiveZoom.enabled and not automated) then
+			-- add increments always
+			if (reactiveZoom.addIncrementsAlways > 0) then
+				if (direction == "in") then
+					CameraZoomIn(reactiveZoom.addIncrementsAlways, true);
+				elseif (direction == "out") then
+					CameraZoomOut(reactiveZoom.addIncrementsAlways, true);
+				end
+			end
+
+			-- if manual zoom, then do additional increments
+			if (reactiveZoom.addIncrements > 0) then
+				if (difference > reactiveZoom.incAddDifference) then
+					if (direction == "in") then
+						CameraZoomIn(reactiveZoom.addIncrements, true);
+					elseif (direction == "out") then
+						CameraZoomOut(reactiveZoom.addIncrements, true);
+					end
+				end
+			end
+
+			-- have to recalculate, since we're zooming more
+			difference = math.abs(GetCameraZoom() - zoom.set);
+			timeToZoom = GetEstimatedZoomTime(difference);
+
+			-- if we're going to take longer than time, speed it up
+			if (timeToZoom > reactiveZoom.maxZoomTime) then
+				local speed = GetEstimatedZoomSpeed(difference, reactiveZoom.maxZoomTime);
+				
+				if (speed > GetZoomSpeed()) then
+					zoom.oldSpeed = zoom.oldSpeed or GetZoomSpeed();
+					SetZoomSpeed(speed);
+				end
+
+				timeToZoom = GetEstimatedZoomTime(difference);
+			end
+		end
+
+		-- set a timer for when it finishes
+		if (incTimer) then
+			self:CancelTimer(incTimer);
+			incTimer = nil;
+		end
+
+		zoom.time = GetTime() + timeToZoom;
+		incTimer = self:ScheduleTimer(CameraZoomFinished, timeToZoom, not automated);
+	end
+
+	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom", direction, "increments:", increments, "diff:", difference, "new zoom level:", zoom.set, "time:", timeToZoom);
 end
 
 function Camera:MoveViewInStart(speed)
@@ -286,18 +282,6 @@ function Camera:MoveViewOutStop()
 		zoom.action = nil;
 		zoom.time = nil;
 	end
-end
-
-function Camera:SetView(view)
-end
-
-function Camera:ResetView(view)
-end
-
-function Camera:SaveView(view)
-end
-
-function Camera:ResetZoomVars()
 end
 
 

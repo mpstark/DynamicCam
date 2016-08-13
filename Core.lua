@@ -103,6 +103,13 @@ local defaults = {
         advanced = false,
         debugMode = false,
         actionCam = false,
+        reactiveZoom = {
+            enabled = false,
+            addIncrementsAlways = 0,
+            addIncrements = .5,
+            maxZoomTime = .5,
+            incAddDifference = 3,
+        },
         defaultCvars = {
             ["cameraDistanceMaxFactor"] = 2.6,
             ["cameraDistanceMoveSpeed"] = 8.33,
@@ -266,9 +273,6 @@ function DynamicCam:Shutdown()
     if (self.currentSituationID) then
         self:ExitSituation(self.currentSituationID);
     end
-
-    -- reset zoom
-    Camera:ResetZoomVars();
 
     events = {};
     self:UnregisterAllEvents();

@@ -30,9 +30,16 @@ local knownIssues = [[- Features that relied on ActionCam have been hidden until
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
+[[Beta 3 (Ongoing):
+    - Added "Reactive Zoom" option, which should make manually zooming with the scrollwheel more pleasant
+        - There are several advanced options, toggle Advanced Mode to see them
+        - This option is off by default, since it is is EXPERIMENTAL
+    - Code cleanup 
+]],
 [[Beta 2:
     - Obviously, ActionCam has been temp removed, so for the time being, all of the ActionCam settings have been hidden
-        - DynamicCam.db.profile.actionCam at the top of Core.lua in the DynamicCam folder controls if these settings are hidden
+        - There is a hidden option under 'Advanced Options' in order to TRY to use ActionCam cvars.
+        - Blizzard soft disabled ActionCam in August 2016, but it "will be back"
     - New `/zoom #` slash command that will set the zoom level to that value
     - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
         - This should show the nameplate only when it is being used
@@ -183,6 +190,76 @@ local settings = {
     handler = DynamicCam,
     type = 'group',
     args = {
+        reactiveZoom = {
+            type = 'group',
+            name = "Reactive Zoom",
+            order = 1,
+            inline = true,
+            args = {
+                reactiveZoomEnabled = {
+                    type = 'toggle',
+                    name = "Enabled",
+                    desc = "Speed up zoom when manually zooming in quickly.",
+                    get = function() return (DynamicCam.db.profile.reactiveZoom.enabled) end,
+                    set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.enabled = newValue; end,
+                    order = 1,
+                },
+                reactiveZoomAdvanced = {
+                    type = 'group',
+                    name = "Reactive Zoom Options (Advanced)",
+                    hidden = function() return (not DynamicCam.db.profile.advanced) or (not DynamicCam.db.profile.reactiveZoom.enabled) end,
+                    order = 1,
+                    inline = true,
+                    args = {
+                        maxZoomTime = {
+                            type = 'range',
+                            name = "Max Manual Zoom Time",
+                            desc = "The most time that the camera will take to adjust to a manually set zoom.",
+                            min = .1,
+                            max = 2,
+                            step = .05,
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.maxZoomTime) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.maxZoomTime = newValue; end,
+                            order = 2,
+                            width = "full",
+                        },
+                        addIncrementsAlways = {
+                            type = 'range',
+                            name = "Zoom Increments",
+                            desc = "The amount of distance that the camera should travel for each \'tick\' of the mousewheel.",
+                            min = 1,
+                            max = 5,
+                            step = .25,
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.addIncrementsAlways + 1) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.addIncrementsAlways = newValue - 1; end,
+                            order = 3,
+                        },
+                        addIncrements = {
+                            type = 'range',
+                            name = "Additional Increments",
+                            desc = "When manually zooming quickly, add this amount of additional increments per \'tick\' of the mousewheel.",
+                            min = 0,
+                            max = 5,
+                            step = .25,
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.addIncrements) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.addIncrements = newValue; end,
+                            order = 4,
+                        },
+                        incAddDifference = {
+                            type = 'range',
+                            name = "Zooming Quickly (Difference)",
+                            desc = "The amount of ground that the camera needs to make up before it is considered to be moving quickly. Higher is harder to achieve.",
+                            min = 2,
+                            max = 5,
+                            step = .5,
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.incAddDifference) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.incAddDifference = newValue; end,
+                            order = 5,
+                        },
+                    },
+                },
+            },
+        },
         defaultCvars = {
             type = 'group',
             name = "Default Camera Settings",
