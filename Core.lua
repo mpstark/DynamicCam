@@ -10,16 +10,24 @@ local AceAddon = LibStub("AceAddon-3.0");
 local DATABASE_VERSION = 1;
 local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
-    ["cameraovershoulder"] = true,
-    ["cameralockedtargetfocusing"] = true,
-    ["cameraheadmovementstrength"] = true,
-    ["cameraheadmovementrange"] = true,
-    ["cameraheadmovementsmoothrate"] = true,
-    ["cameraheadmovementwhilestanding"] = true,
-    ["cameradynamicpitch"] = true,
-    ["cameradynamicpitchbasefovpad"] = true,
-    ["cameradynamicpitchbasefovpadflying"] = true,
-    ["cameradynamicpitchsmartpivotcutoffdist"] = true,
+    ["test_cameraOverShoulder"] = true,
+
+    ["test_cameraLockedTargetFocusing"] = true,
+    
+    ["test_cameraHeadMovementStrength"] = true,
+    ["test_cameraHeadMovementRangeScale"] = true,
+    ["test_cameraHeadMovementMovingStrength"] = true,
+    ["test_cameraHeadMovementStandingStrength"] = true,
+    ["test_cameraHeadMovementMovingDampRate"] = true,
+    ["test_cameraHeadMovementStandingDampRate"] = true,
+    ["test_cameraHeadMovementFirstPersonDampRate"] = true,
+    ["test_cameraHeadMovementDeadZone"] = true,
+
+    ["test_cameraDynamicPitch"] = true,
+    ["test_cameraDynamicPitchBaseFovPad"] = true,
+    ["test_cameraDynamicPitchBaseFovPadFlying"] = true,
+    ["test_cameraDynamicPitchBaseFovPadDownScale"] = true,
+    ["test_cameraDynamicPitchSmartPivotCutoffDist"] = true,
 };
 
 
@@ -111,21 +119,27 @@ local defaults = {
             incAddDifference = 3,
         },
         defaultCvars = {
-            ["cameraDistanceMaxFactor"] = 2.6,
-            ["cameraDistanceMoveSpeed"] = 8.33,
+            ["cameraZoomSpeed"] = 20,
+            ["cameraDistanceMaxZoomFactor"] = 2.6,
+            
+            ["test_cameraOverShoulder"] = 0,
 
-            ["cameraovershoulder"] = 0,
-            ["cameralockedtargetfocusing"] = 0,
-
-            ["cameraheadmovementstrength"] = 0,
-            ["cameraheadmovementrange"] = 6,
-            ["cameraheadmovementsmoothrate"] = 40,
-            ["cameraheadmovementwhilestanding"] = 1,
-
-            ["cameradynamicpitch"] = 0,
-            ["cameradynamicpitchbasefovpad"] = .4,
-            ["cameradynamicpitchbasefovpadflying"] = .75,
-            ["cameradynamicpitchsmartpivotcutoffdist"] = 10,
+            ["test_cameraLockedTargetFocusing"] = 0,
+            
+            ["test_cameraHeadMovementStrength"] = 0,
+            ["test_cameraHeadMovementRangeScale"] = 5,
+            ["test_cameraHeadMovementMovingStrength"] = 0.5,
+            ["test_cameraHeadMovementStandingStrength"] = 0.3,
+            ["test_cameraHeadMovementMovingDampRate"] = 10,
+            ["test_cameraHeadMovementStandingDampRate"] = 10,
+            ["test_cameraHeadMovementFirstPersonDampRate"] = 20,
+            ["test_cameraHeadMovementDeadZone"] = 0.015,
+            
+            ["test_cameraDynamicPitch"] = 0,
+            ["test_cameraDynamicPitchBaseFovPad"] = .35,
+            ["test_cameraDynamicPitchBaseFovPadFlying"] = .75,
+            ["test_cameraDynamicPitchBaseFovPadDownScale"] = .25,
+            ["test_cameraDynamicPitchSmartPivotCutoffDist"] = 10,
         },
         situations = {
             ["*"] = {
@@ -202,6 +216,11 @@ function DynamicCam:OnInitialize()
 
     self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
     self:RegisterChatCommand("zoom", "ZoomSlash");
+    
+    -- make sure to disable the message if ActionCam setting is on
+    if (self.db.profile.actionCam) then
+        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+    end
 
     -- show defaults are out of date dialog
     if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
@@ -599,7 +618,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomSetting = "range";
     newSituation.cameraActions.zoomMin = 10;
     newSituation.cameraActions.zoomMax = 15;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["001"] = newSituation;
 
     newSituation = self:CreateSituation("City (Indoors)");
@@ -608,8 +627,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 8;
-    newSituation.cameraCVars["cameradynamicpitch"] = 1;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["002"] = newSituation;
 
     newSituation = self:CreateSituation("World");
@@ -619,7 +638,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomSetting = "range";
     newSituation.cameraActions.zoomMin = 10;
     newSituation.cameraActions.zoomMax = 15;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["004"] = newSituation;
 
     newSituation = self:CreateSituation("World (Indoors)");
@@ -628,8 +647,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 8;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
-    newSituation.cameraCVars["cameradynamicpitch"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
     situations["005"] = newSituation;
 
     newSituation = self:CreateSituation("World (Combat)");
@@ -641,8 +660,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.cameraActions.zoomFitUseCurAsMin = true;
     newSituation.cameraActions.zoomMin = 5;
     newSituation.cameraActions.zoomMax = 28.5;
-    newSituation.cameraCVars["cameraovershoulder"] = 1.5;
-    newSituation.cameraCVars["cameradynamicpitch"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1.5;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.nameplateVisible = true;
     situations["006"] = newSituation;
@@ -743,9 +762,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"};
     newSituation.cameraActions.zoomSetting = "out";
     newSituation.cameraActions.zoomValue = 28.5;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
+    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
     situations["100"] = newSituation;
 
     newSituation = self:CreateSituation("Taxi");
@@ -754,8 +773,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"};
     newSituation.cameraActions.zoomSetting = "set";
     newSituation.cameraActions.zoomValue = 15;
-    newSituation.cameraCVars["cameraovershoulder"] = -1;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = -1;
+    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
     newSituation.extras.hideUI = true;
     situations["101"] = newSituation;
 
@@ -763,9 +782,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.priority = 1000;
     newSituation.condition = "return UnitUsingVehicle(\"player\");";
     newSituation.events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"};
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
+    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
     situations["102"] = newSituation;
 
     newSituation = self:CreateSituation("Hearth/Teleport");
@@ -786,9 +805,9 @@ return false;]];
     newSituation.cameraActions.rotateSetting = "degrees";
     newSituation.cameraActions.transitionTime = 10;
     newSituation.cameraActions.timeIsMax = false;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
+    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
     newSituation.extras.hideUI = true;
     situations["200"] = newSituation;
 
@@ -802,9 +821,9 @@ return false;]];
 end
 return false;]];
     newSituation.events = {"UNIT_AURA"};
-    newSituation.cameraCVars["cameraheadmovementstrength"] = 0;
-    newSituation.cameraCVars["cameradynamicpitch"] = 0;
-    newSituation.cameraCVars["cameraovershoulder"] = 0;
+    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
     situations["201"] = newSituation;
 
     newSituation = self:CreateSituation("NPC Interaction");
@@ -827,8 +846,8 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.cameraActions.zoomFitIncrements = .5;
     newSituation.cameraActions.zoomFitPosition = 90;
     newSituation.cameraActions.zoomFitToggleNameplate = true;
-    newSituation.cameraCVars["cameradynamicpitch"] = 1;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.onlyAttackable = false;
     newSituation.targetLock.nameplateVisible = false;
@@ -841,7 +860,7 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
-    newSituation.cameraCVars["cameraovershoulder"] = 1;
+    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["301"] = newSituation;
 
     newSituation = self:CreateSituation("Fishing");
@@ -930,6 +949,16 @@ end
 function DynamicCam:ApplyDefaultCameraSettings()
     local curSituation = self.db.profile.situations[self.currentSituationID];
 
+    -- apply ActionCam setting
+    if (self.db.profile.actionCam) then
+        -- if it's on, unregister the event, so that we don't get popup
+        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+    else
+        -- if it's off, make sure to reset all ActionCam settings, then reenable popup
+        ResetTestCvars();
+        UIParent:RegisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+    end
+    
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
@@ -1077,12 +1106,12 @@ function DynamicCam:EvaluateTargetLock()
             (targetLock.dead or (not UnitIsDead("target"))) and
             (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
         then
-            if (GetCVar("cameralockedtargetfocusing") ~= "1") then
-                DC_SetCVar ("cameralockedtargetfocusing", 1)
+            if (GetCVar("test_cameraLockedTargetFocusing") ~= "1") then
+                DC_SetCVar ("test_cameraLockedTargetFocusing", 1)
             end
         else
-            if (GetCVar("cameralockedtargetfocusing") ~= "0") then
-                 DC_SetCVar ("cameralockedtargetfocusing", 0)
+            if (GetCVar("test_cameraLockedTargetFocusing") ~= "0") then
+                 DC_SetCVar ("test_cameraLockedTargetFocusing", 0)
             end
         end
     end
