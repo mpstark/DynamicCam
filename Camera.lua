@@ -159,6 +159,7 @@ end
 
 function Camera:CameraZoom(direction, increments, automated)
 	local zoomMax = GetMaxZoom();
+	increments = increments or 1;
 	
 	-- check if we were continously zooming before and stop tracking it if we were
 	if (zoom.action == "continousIn") then
