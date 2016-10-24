@@ -72,11 +72,11 @@ end
 -- CVARS --
 -----------
 local function GetMaxZoomFactor()
-	return tonumber(GetCVar("cameradistancemaxfactor"));
+	return tonumber(GetCVar("cameraDistanceMaxZoomFactor"));
 end
 
 local function SetMaxZoomFactor(value)
-	SetCVar("cameradistancemaxfactor", value);
+	SetCVar("cameraDistanceMaxZoomFactor", value);
 end
 
 local function GetMaxZoom()
@@ -96,12 +96,12 @@ local function SetMaxZoom(value)
 end
 
 local function GetZoomSpeed()
-	return tonumber(GetCVar("cameradistancemovespeed"));
+	return tonumber(GetCVar("cameraZoomSpeed"));
 end
 
 local function SetZoomSpeed(value)
     parent:DebugPrint("SetZoomSpeed:", value);
-	SetCVar("cameradistancemovespeed", math.min(50,value));
+	SetCVar("cameraZoomSpeed", math.min(50,value));
 end
 
 local function GetYawSpeed()
