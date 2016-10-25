@@ -1,0 +1,12 @@
+## Interface: 71000
+## Version: 1.0.71000
+## Title: DynamicCam
+## Author: mpstark
+## SavedVariables: DynamicCamDB
+## Notes: A more dynamic camera.
+
+embeds.xml
+
+Core.lua
+Camera.lua
+Options.lua
