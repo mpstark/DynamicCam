@@ -113,10 +113,10 @@ local defaults = {
         actionCam = false,
         reactiveZoom = {
             enabled = false,
-            addIncrementsAlways = 0,
+            addIncrementsAlways = .5,
             addIncrements = .5,
-            maxZoomTime = .5,
-            incAddDifference = 3,
+            maxZoomTime = .3,
+            incAddDifference = 2,
         },
         defaultCvars = {
             ["cameraZoomSpeed"] = 20,
@@ -617,8 +617,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING"};
     newSituation.cameraActions.zoomSetting = "range";
     newSituation.cameraActions.zoomMin = 10;
-    newSituation.cameraActions.zoomMax = 15;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
+    newSituation.cameraActions.zoomMax = 20;
     situations["001"] = newSituation;
 
     newSituation = self:CreateSituation("City (Indoors)");
@@ -627,8 +626,6 @@ function DynamicCam:GetDefaultSituations()
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 8;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["002"] = newSituation;
 
     newSituation = self:CreateSituation("World");
@@ -636,9 +633,8 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsResting() and not IsInInstance();";
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 10;
-    newSituation.cameraActions.zoomMax = 15;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
+    newSituation.cameraActions.zoomMin = 15;
+    newSituation.cameraActions.zoomMax = 20;
     situations["004"] = newSituation;
 
     newSituation = self:CreateSituation("World (Indoors)");
@@ -646,9 +642,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsResting() and not IsInInstance() and IsIndoors();";
     newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
     newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 8;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
+    newSituation.cameraActions.zoomValue = 10;
     situations["005"] = newSituation;
 
     newSituation = self:CreateSituation("World (Combat)");
@@ -656,12 +650,9 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");";
     newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
     newSituation.cameraActions.zoomSetting = "fit";
-    --newSituation.cameraActions.zoomFitContinous = true;
     newSituation.cameraActions.zoomFitUseCurAsMin = true;
     newSituation.cameraActions.zoomMin = 5;
-    newSituation.cameraActions.zoomMax = 28.5;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1.5;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
+    newSituation.cameraActions.zoomMax = 35;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.nameplateVisible = true;
     situations["006"] = newSituation;
@@ -761,7 +752,7 @@ function DynamicCam:GetDefaultSituations()
     newSituation.condition = "return IsMounted();";
     newSituation.events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"};
     newSituation.cameraActions.zoomSetting = "out";
-    newSituation.cameraActions.zoomValue = 28.5;
+    newSituation.cameraActions.zoomValue = 30;
     newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
     newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
     newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
@@ -841,13 +832,12 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"};
     newSituation.cameraActions.zoomSetting = "fit";
     newSituation.cameraActions.zoomMin = 3;
-    newSituation.cameraActions.zoomMax = 28.5;
+    newSituation.cameraActions.zoomMax = 30;
     newSituation.cameraActions.zoomValue = 4;
     newSituation.cameraActions.zoomFitIncrements = .5;
     newSituation.cameraActions.zoomFitPosition = 90;
     newSituation.cameraActions.zoomFitToggleNameplate = true;
     newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     newSituation.targetLock.enabled = true;
     newSituation.targetLock.onlyAttackable = false;
     newSituation.targetLock.nameplateVisible = false;
@@ -860,7 +850,6 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"};
     newSituation.cameraActions.zoomSetting = "in";
     newSituation.cameraActions.zoomValue = 4;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 1;
     situations["301"] = newSituation;
 
     newSituation = self:CreateSituation("Fishing");
@@ -869,7 +858,8 @@ return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
     newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
     newSituation.delay = 2;
     newSituation.cameraActions.zoomSetting = "set";
-    newSituation.cameraActions.zoomValue = 10;
+    newSituation.cameraActions.zoomValue = 7;
+    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
     situations["302"] = newSituation;
 
     return situations;
@@ -1129,13 +1119,10 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
 
-    if (self.db.global.dbVersion == 0) then
-        self:DebugPrint("Upgrading database to level 1");
-        self.db.global.dbVersion = 1;
-    end
-
-    if (self.db.global.dbVersion == 1) then
-        -- at version 1
+    if (not self.db.global.dbVersion or self.db.global.dbVersion <= 1) then
+        self:Print("Upgrading to 7.1 compatablity, this will reset all of your settings. Sorry about that!");
+        self.db:ResetDB();
+        self.db.global.dbVersion = 2;
     end
 
     self:DebugPrint("Database at level", self.db.global.dbVersion);

@@ -18,28 +18,32 @@ local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad t
 
 If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord (get a link by doing /dcdiscord) and speak with me there.
 
+I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there. 
+
 Some handy slash commands:
     `/dc` will open this menu
     `/zi` will print out the current zoom
     `/zoom #` will zoom to that zoom level
     `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
     `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
-local knownIssues = [[- Features that relied on ActionCam have been hidden until it makes a return
-- Fit nameplates is still a work in progress, can do a little in-and-out number
+local knownIssues = [[- Fit nameplates is still a work in progress, can do a little in-and-out number
 - Missing a lot of the advanced options such as add/remove situation, import/export, etc.
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
-[[Beta 3 (Ongoing):
-    - Added "Reactive Zoom" option, which should make manually zooming with the scrollwheel more pleasant
+[[Beta 3:
+    - Forced database reset, there was just too much change on Blizzard's end.
+    - Update to 7.1 changes to CVars and the return of ActionCam!
+        - ActionCam features are DISABLED by default. Enable them in the options.
+    - Defaults have been updated a bit.
+    - Added "Reactive Zoom" option, which speeds up manual zooming when going quickly
+        - Keep in mind that Blizzard adjusted the default zoom speed to 20 for everyone
         - There are several advanced options, toggle Advanced Mode to see them
-        - This option is off by default, since it is is EXPERIMENTAL
-    - Code cleanup 
+        - This option is off by default
+    - Some code cleanup
+    - Stay tuned for further updates!
 ]],
 [[Beta 2:
-    - Obviously, ActionCam has been temp removed, so for the time being, all of the ActionCam settings have been hidden
-        - There is a hidden option under 'Advanced Options' in order to TRY to use ActionCam cvars.
-        - Blizzard soft disabled ActionCam in August 2016, but it "will be back"
     - New `/zoom #` slash command that will set the zoom level to that value
     - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
         - This should show the nameplate only when it is being used
@@ -324,7 +328,7 @@ local settings = {
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     min = 0,
                     max = 100,
-                    softMax = 5,
+                    softMax = 2,
                     step = .5,
                     get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] end,
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
@@ -363,7 +367,7 @@ local settings = {
                         baseFovPadDownScale = {
                             type = 'range',
                             name = "Base FOV Pad Downscale",
-                            desc = "No idea",
+                            desc = "Likely a multiplier for how much pitch is applied. Higher values allow the character to be 'further' down the screen.",
                             min = .0,
                             max = 1,
                             step = .01,
@@ -431,7 +435,7 @@ local settings = {
                         movingDampRate = {
                             type = 'range',
                             name = "Moving Damp Rate",
-                            desc = "No description written.\n\nHard min at ~0.01, adjust using editbox.",
+                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
                             min = 0.01,
                             softMin = 1,
                             max = 50,
@@ -443,7 +447,7 @@ local settings = {
                         standingDampRate = {
                             type = 'range',
                             name = "Standing Damp Rate",
-                            desc = "No description written.\n\nHard min at ~0.01, adjust using editbox.",
+                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
                             min = 0.01,
                             softMin = 1,
                             max = 50,
@@ -455,7 +459,7 @@ local settings = {
                         firstPersonDampRate = {
                             type = 'range',
                             name = "1st Person Damp Rate",
-                            desc = "No description written.\n\nHard min at ~0.01, adjust using editbox.",
+                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
                             min = 0.01,
                             softMin = 1,
                             max = 50,
@@ -467,7 +471,7 @@ local settings = {
                         deadZone = {
                             type = 'range',
                             name = "Dead Zone",
-                            desc = "No description written.\n\nHard max at 50, adjust using editbox.",
+                            desc = "No concrete description yet.\n\nHard max at 50, use editbox to change.",
                             min = 0,
                             softMax = 1,
                             max = 50,
@@ -825,7 +829,7 @@ local situationOptions = {
                     hidden = function() return (S.cameraCVars["test_cameraHeadMovementStrength"] == nil) end,
                     min = 0,
                     max = 100,
-                    softMax = 5,
+                    softMax = 2,
                     step = .1,
                     get = function() return S.cameraCVars["test_cameraHeadMovementStrength"] end,
                     set = function(_, newValue) S.cameraCVars["test_cameraHeadMovementStrength"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
@@ -942,7 +946,7 @@ local situationOptions = {
                         baseFovPadDownScale = {
                             type = 'range',
                             name = "Base FOV Pad Downscale",
-                            desc = "No idea",
+                            desc = "Likely a multiplier for how much pitch is applied. Higher values allow the character to be 'further' down the screen.",
                             min = .0,
                             max = 1,
                             step = .01,
@@ -965,51 +969,6 @@ local situationOptions = {
                         },
                     },
                 },
-                -- headTrackingAdvanced = {
-                --     type = 'group',
-                --     name = "Head Tracking Settings (Advanced)",
-                --     order = 101,
-                --     hidden = function() return ((not S.cameraCVars["test_cameraHeadMovementStrength"]) or (S.cameraCVars["test_cameraHeadMovementStrength"] == 0) or (not DynamicCam.db.profile.advanced)) end,
-                --     inline = true,
-                --     args = {
-                --         movementRange = {
-                --             type = 'range',
-                --             name = "Movement Range",
-                --             desc = "Seems to be how far the camera is allowed to move, larger is more",
-                --             min = 0,
-                --             max = 50,
-                --             step = .5,
-                --             get = function() return (S.cameraCVars["cameraheadmovementrange"] or tonumber(GetCVarDefault("cameraheadmovementrange"))) end,
-                --             set = function(_, newValue) S.cameraCVars["cameraheadmovementrange"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                --             order = 3,
-                --         },
-                --         smoothRate = {
-                --             type = 'range',
-                --             name = "Smooth Rate",
-                --             desc = "How much smoothing should be applied to the head tracking, larger is faster",
-                --             min = .5,
-                --             max = 50,
-                --             step = .5,
-                --             get = function() return (S.cameraCVars["cameraheadmovementsmoothrate"] or tonumber(GetCVarDefault("cameraheadmovementsmoothrate"))) end,
-                --             set = function(_, newValue) S.cameraCVars["cameraheadmovementsmoothrate"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                --             order = 4,
-                --         },
-                --         whileStanding = {
-                --             type = 'toggle',
-                --             name = "Adjust While Standing",
-                --             desc = "If the camera should track the head when the player is not moving",
-                --             get = function() 
-                --                 if (S.cameraCVars["cameraheadmovementwhilestanding"] ~= nil) then
-                --                     return S.cameraCVars["cameraheadmovementwhilestanding"];
-                --                 else
-                --                     return true;
-                --                 end
-                --             end,
-                --             set = function(_, newValue) S.cameraCVars["cameraheadmovementwhilestanding"] = (newValue and 1 or 0); Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                --             order = 2,
-                --         },
-                --     },
-                -- },
             },
         },
         extraActions = {
