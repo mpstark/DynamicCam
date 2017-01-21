@@ -241,7 +241,9 @@ function Camera:CameraZoom(direction, increments, automated)
 		incTimer = self:ScheduleTimer(CameraZoomFinished, timeToZoom, not automated);
 	end
 
-	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom", direction, "increments:", increments, "diff:", difference, "new zoom level:", zoom.set, "time:", timeToZoom);
+	if (increments ~= 0) then
+		parent:DebugPrint(automated and "Automated" or "Manual", "Zoom", direction, "increments:", increments, "diff:", difference, "new zoom level:", zoom.set, "time:", timeToZoom);
+	end
 end
 
 function Camera:MoveViewInStart(speed)
