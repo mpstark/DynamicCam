@@ -13,6 +13,8 @@ local Camera = DynamicCam.Camera;
 local parent = DynamicCam;
 local _;
 local S, SID;
+local copiedSituationID;
+local exportName, exportAuthor;
 
 local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
@@ -31,6 +33,27 @@ local knownIssues = [[- Fit nameplates is still a work in progress, can do a lit
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
+[[Beta 4:
+    - Rotation actions can now also pitch the camera up and down
+    - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
+        - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
+        - Uses industry standard easing formulas -- LibEasing-1.0 is my port of a Lua implementation
+        - No manipulation of CVars needed to 'trick' WoW's camera engine
+        - Accuracy of Yaw and Pitch actions far improved from previous implementation
+        - CVars can be eased as well, right now, just eases Shoulder Offset
+    - Settings sharing using clipboard-friendly strings
+        - Export/Import a single situation or your entire profile
+    - Copy/paste settings from one situation to another
+    - (Advanced) Create new custom situations
+        - Some (in-game) Lua scripting needed
+        - Fully sharable using the new settings sharing system
+    - Minor Changes/Fixes:
+        - The ActionCam setting now defaults to on
+        - Some database optimizations, lowered memory overhead a bit
+        - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
+        - Don't redundantly call SetCVar a lot
+        - TOC File changed (finally!) to have the correct value
+]],
 [[Beta 3:
     - Forced database reset, there was just too much change on Blizzard's end.
     - Update to 7.1 changes to CVars and the return of ActionCam!
@@ -502,6 +525,15 @@ local situationOptions = {
             width = "full",
             order = 1,
         },
+        newSituation = {
+            type = 'execute',
+            name = "New Custom Situation (Advanced)",
+            desc = "Create a new custom situation.",
+            hidden = function() return (not DynamicCam.db.profile.advanced) end,
+            func = function() DynamicCam:PopupCreateCustomProfile() end,
+            order = 1.5,
+            width = "full",
+        },
         enabled = {
             type = 'toggle',
             name = "Enable Situation",
@@ -510,6 +542,43 @@ local situationOptions = {
             get = function() return S.enabled end,
             set = function(_, newValue) S.enabled = newValue if (newValue) then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
             order = 2,
+        },
+        copy = {
+            type = 'execute',
+            name = "Copy",
+            desc = "Copy this situations settings so that you can paste it into another situation.\n\nDoesn't copy the condition or the advanced mode Lua scripts.",
+            hidden = function() return (not S) end,
+            func = function() copiedSituationID = SID; end,
+            order = 5,
+            width = "half",
+        },
+        paste = {
+            type = 'execute',
+            name = "Paste",
+            desc = "Paste the settings from that last copied situation.",
+            hidden = function() return (not S) end,
+            disabled = function() return (not copiedSituationID) end,
+            func = function() parent:CopySituationInto(copiedSituationID, SID); copiedSituationID = nil; end,
+            order = 6,
+            width = "half",
+        },
+        export = {
+            type = 'execute',
+            name = "Export",
+            desc = "Export this entire situation to a string",
+            hidden = function() return (not S) or (not DynamicCam.db.profile.advanced) end,
+            func = function() parent:PopupExport(parent:ExportSituation(SID)); end,
+            order = 7,
+            width = "half",
+        },
+        deleteCustom = {
+            type = 'execute',
+            name = "Delete",
+            desc = "Delete this custom situation",
+            hidden = function() return (not S) or (not string.find(SID, "custom")); end,
+            func = function() DynamicCam:DeleteCustomSituation(SID); end,
+            order = 8,
+            width = "half",
         },
         cameraActions = {
             type = 'group',
@@ -719,20 +788,31 @@ local situationOptions = {
                             order = 2,
                             width = "double",
                         },
-                        rotateDegrees = {
+                        yawDegrees = {
                             type = 'range',
-                            name = "Degrees",
-                            desc = "Number of degrees to rotate",
+                            name = "Yaw (Left/Right)",
+                            desc = "Number of degrees to yaw (left and right)",
                             min = -1400,
                             max = 1440,
                             softMin = -360,
                             softMax = 360,
                             hidden = function() return (S.cameraActions.rotateSetting == "continous") end,
                             step = 5,
-                            get = function() return S.cameraActions.rotateDegrees end,
-                            set = function(_, newValue) S.cameraActions.rotateDegrees = newValue; end,
+                            get = function() return S.cameraActions.yawDegrees end,
+                            set = function(_, newValue) S.cameraActions.yawDegrees = newValue; end,
                             order = 2,
-                            width = "double",
+                        },
+                        pitchDegrees = {
+                            type = 'range',
+                            name = "Pitch (Up/Down)",
+                            desc = "Number of degrees to pitch (up and down)",
+                            min = -90,
+                            max = 90,
+                            hidden = function() return (S.cameraActions.rotateSetting == "continous") end,
+                            step = 5,
+                            get = function() return S.cameraActions.pitchDegrees end,
+                            set = function(_, newValue) S.cameraActions.pitchDegrees = newValue; end,
+                            order = 3,
                         },
                         rotateBack = {
                             type = 'toggle',
@@ -740,7 +820,7 @@ local situationOptions = {
                             desc = "When the situation ends, try to rotate back to the original position.",
                             get = function() return S.cameraActions.rotateBack end,
                             set = function(_, newValue) S.cameraActions.rotateBack = newValue end,
-                            order = 3,
+                            order = 4,
                         },
                     },
                 },
@@ -1076,6 +1156,58 @@ local situationOptions = {
         },
     },
 };
+local sharing = {
+    name = "Import/Export",
+    handler = DynamicCam,
+    type = 'group',
+    args = {
+        exportGroup = {
+            handler = DynamicCam,
+            name = "Export My Profile",
+            type = 'group',
+            inline = true,
+            order = 1,
+            args = {
+                name = {
+                    type = 'input',
+                    name = "Profile Name (Required!)",
+                    desc = "The name that other people will see when importing this profile.",
+                    get = function() return exportName; end,
+                    set = function(_, newValue) exportName = newValue; end,
+                    --width = "double",
+                    order = 1,
+                },
+                author = {
+                    type = 'input',
+                    name = "Author (Optional)",
+                    desc = "A name that will be attached to the export so that other people know whom it's from.",
+                    get = function() return exportAuthor; end,
+                    set = function(_, newValue) exportAuthor = newValue; end,
+                    order = 2,
+                },
+                export = {
+                    type = 'execute',
+                    name = "Export!",
+                    desc = "Export the entire current profile to a string.",
+                    disabled = function() return not (exportName and exportName ~= ""); end,
+                    func = function() parent:PopupExport(parent:ExportProfile(exportName, exportAuthor)); end,
+                    order = 50,
+                    --width = "full",
+                },
+            },
+        },
+        import = {
+            type = 'input',
+            name = "Paste and Hit Accept to Import!",
+            desc = "Paste DynamicCam import string for profiles or a situation.",
+            get = function() return ""; end,
+            set = function(_, newValue) DynamicCam:Import(newValue); end,
+            multiline = 25,
+            width = "full",
+            order = 20,
+        },
+    },
+};
 
 
 ----------
@@ -1091,10 +1223,10 @@ end
 
 function Options:OnEnable()
     -- register for dynamiccam messages
-    self:RegisterMessage("DC_SITUATION_ACTIVE", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_INACTIVE", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_ENTERED", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_EXITED", "SelectSituation");
+    self:RegisterMessage("DC_SITUATION_ACTIVE", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_INACTIVE", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_ENTERED", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_EXITED", "ReselectSituation");
 end
 
 function Options:OnDisable()
@@ -1110,17 +1242,22 @@ function Options:ClearSelection()
     S = nil;
 end
 
-function Options:SelectSituation()
-    if (parent.currentSituationID) then
-        for id, situation in pairs(parent.db.profile.situations) do
-            if (id == parent.currentSituationID) then
-                S = situation;
-                SID = id;
-            end
-        end
+function Options:ReselectSituation()
+    self:SelectSituation();
+end
+
+function Options:SelectSituation(selectMe)
+    if (selectMe and parent.db.profile.situations[selectMe]) then
+        S = parent.db.profile.situations[selectMe];
+        SID = selectMe;
     else
-        if (not SID or not S) then
-            SID, S = next(parent.db.profile.situations);
+        if (parent.currentSituationID) then
+            S = parent.db.profile.situations[parent.currentSituationID];
+            SID = parent.currentSituationID;
+        else
+            if (not SID or not S) then
+                SID, S = next(parent.db.profile.situations);
+            end
         end
     end
 
@@ -1137,6 +1274,9 @@ function Options:RegisterMenus()
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Situations", situationOptions);
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam");
+
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Sharing", sharing);
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Sharing", "Import/Export", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Profiles", LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db));
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");

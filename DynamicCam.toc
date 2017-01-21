@@ -8,5 +8,8 @@
 embeds.xml
 
 Core.lua
+Defaults.lua
+Sharing.lua
+
 Camera.lua
 Options.lua

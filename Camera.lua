@@ -659,19 +659,3 @@ function Camera:RotateDegrees(degrees, transitionTime)
 		rotation.timer = self:ScheduleTimer("StopRotating", transitionTime);
 	end
 end
-
-
-------------------
--- VIEW ACTIONS --
-------------------
-function Camera:GotoView(view, time, instant, zoomAmount)
-    if (not instant) then
-        -- TODO: use time and zoomAmount to change view speed
-
-        -- Actually set the view
-        SetView(view);
-    else
-        SetView(view);
-        SetView(view);
-    end
-end
