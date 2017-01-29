@@ -159,6 +159,20 @@ local function minimizeTable(tbl, base)
 	return minimized;
 end
 
+local function copyTable(src, dest)
+	if type(dest) ~= "table" then dest = {} end
+	if type(src) == "table" then
+		for k,v in pairs(src) do
+			if type(v) == "table" then
+				-- try to index the key first so that the metatable creates the defaults, if set, and use that table
+				v = copyTable(v, dest[k])
+			end
+			dest[k] = v
+		end
+	end
+	return dest
+end
+
 
 -------------------
 -- IMPORT/EXPORT --
@@ -244,13 +258,35 @@ function DynamicCam:Import(importString)
     elseif (imported.type == "DC_PROFILE") then
         local name = imported.name or "Imported";
         -- this in an imported profile
-        -- TODO: use table metadata to set profile name
-        -- TODO: don't swap to the imported profile at all
         if (DynamicCamDB.profiles[name] == nil) then
             DynamicCamDB.profiles[name] = imported.profile;
             self:Print("Successfully imported profile:", name);
         else
             self:Print("Already have a profile of name:", name);
+            self:Print("If you'd like to still import, delete the existing profile and then reimport.");
         end
+    end
+end
+
+function DynamicCam:ImportIntoCurrentProfile(importString)
+    -- convert the import string into a table
+    local imported = stringToTable(importString);
+    if (not imported) then
+        self:Print("Something went wrong with loading the default!");
+        return;
+    end
+
+    -- load the imported string into the current profile
+    if (imported.type == "DC_PROFILE") then
+        --local name = self.db:GetCurrentProfile();
+
+        self:Shutdown();
+
+        self.db:ResetProfile(nil, true);
+        copyTable(imported.profile, self.db.profile);
+
+        self:Startup();
+
+        self:Print("Successfully imported into current profile");
     end
 end

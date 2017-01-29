@@ -151,6 +151,16 @@ local general = {
                     width = "half",
                     order = 4,
                 },
+                loadPreset = {
+                    type = 'select',
+                    name = "Load Preset",
+                    desc = "This will load the selected preset into the current profile.",
+                    get = function() return ""; end,
+                    set = function(_, newValue) DynamicCam:LoadDefault(newValue); end,
+                    values = "GetDefaultSituations",
+                    width = "full",
+                    order = 5,
+                },
             },
         },
         messageGroup = {
