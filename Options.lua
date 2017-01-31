@@ -151,16 +151,7 @@ local general = {
                     width = "half",
                     order = 4,
                 },
-                loadPreset = {
-                    type = 'select',
-                    name = "Load Preset",
-                    desc = "This will load the selected preset into the current profile.",
-                    get = function() return ""; end,
-                    set = function(_, newValue) DynamicCam:LoadDefault(newValue); end,
-                    values = "GetDefaultSituations",
-                    width = "full",
-                    order = 5,
-                },
+                
             },
         },
         messageGroup = {
@@ -1166,13 +1157,51 @@ local situationOptions = {
         },
     },
 };
+local presets = {
+    name = "Presets",
+    handler = DynamicCam,
+    type = 'group',
+    args = {
+        description = {
+            type = 'description',
+            name = "Presets are full configurations of DynamicCam that you can load into your current profile.",
+            fontSize = "small",
+            width = "full",
+            order = 1,
+        },
+        loadPreset = {
+            type = 'select',
+            name = "Load Preset",
+            desc = "This will load the selected preset into the current profile.\n\nYOUR CURRENT PROFILE WILL BE COMPLETELY OVERRIDDEN!",
+            get = function() return ""; end,
+            set = function(_, newValue) DynamicCam:LoadPreset(newValue); end,
+            values = "GetPresets",
+            width = "full",
+            order = 2,
+        },
+        presetDescriptions = {
+            name = "Descriptions",
+            type = 'group',
+            inline = true,
+            order = 3,
+            args = {
+                description = {
+                    type = 'description',
+                    name = function() return DynamicCam:GetPresetDescriptions(); end,
+                    fontSize = "small",
+                    width = "full",
+                    order = 1,
+                },
+            },
+        },
+    },
+};
 local sharing = {
     name = "Import/Export",
     handler = DynamicCam,
     type = 'group',
     args = {
         exportGroup = {
-            handler = DynamicCam,
             name = "Export My Profile",
             type = 'group',
             inline = true,
@@ -1287,6 +1316,9 @@ function Options:RegisterMenus()
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Sharing", sharing);
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Sharing", "Import/Export", "DynamicCam");
+
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Presets", presets);
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Presets", "Presets", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Profiles", LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db));
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");

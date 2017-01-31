@@ -1,5 +1,5 @@
 ## Interface: 70100
-## Version: Beta 3
+## Version: Beta 4
 ## Title: DynamicCam
 ## Author: mpstark
 ## SavedVariables: DynamicCamDB
@@ -8,8 +8,8 @@
 embeds.xml
 
 Core.lua
-Defaults.lua
 Sharing.lua
+Presets.lua
 
 Camera.lua
 Options.lua
