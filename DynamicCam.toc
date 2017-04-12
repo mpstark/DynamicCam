@@ -1,4 +1,4 @@
-## Interface: 70100
+## Interface: 70200
 ## Version: Beta 4
 ## Title: DynamicCam
 ## Author: mpstark
