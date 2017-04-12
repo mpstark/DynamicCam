@@ -1068,6 +1068,14 @@ local situationOptions = {
                     set = function(_, newValue) S.extras.hideUI = newValue end,
                     order = 1,
                 },
+                cinemaMode = {
+                    type = 'toggle',
+                    name = "Cinema Mode",
+                    desc = "Resizes the world frame to simulate letterboxing.",
+                    get = function() return S.extras.cinemaMode end,
+                    set = function(_, newValue) S.extras.cinemaMode = newValue end,
+                    order = 2,
+                },
             },
         },
         advanced = {

@@ -14,7 +14,13 @@ local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
     ["test_cameraOverShoulder"] = true,
 
-    ["test_cameraLockedTargetFocusing"] = true,
+    ["test_cameraTargetFocusEnemyEnable"] = true,
+    ["test_cameraTargetFocusEnemyStrengthPitch"] = true,
+    ["test_cameraTargetFocusEnemyStrengthYaw"] = true,
+
+    ["test_cameraTargetFocusInteractEnable"] = true,
+    ["test_cameraTargetFocusInteractStrengthPitch"] = true,
+    ["test_cameraTargetFocusInteractStrengthYaw"] = true,
     
     ["test_cameraHeadMovementStrength"] = true,
     ["test_cameraHeadMovementRangeScale"] = true,
@@ -152,8 +158,9 @@ DynamicCam.defaults = {
             
             ["test_cameraOverShoulder"] = 0,
 
-            ["test_cameraLockedTargetFocusing"] = 0,
-            
+            ["test_cameraTargetFocusEnemyEnable"] = 0,
+            ["test_cameraTargetFocusInteractEnable"] = 0,
+
             ["test_cameraHeadMovementStrength"] = 0,
             ["test_cameraHeadMovementRangeScale"] = 5,
             ["test_cameraHeadMovementMovingStrength"] = 0.5,
@@ -218,6 +225,7 @@ DynamicCam.defaults = {
                 },
                 extras = {
                     hideUI = false,
+                    cinemaMode = false,
                 },
                 cameraCVars = {},
             },
@@ -423,7 +431,10 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
     self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
+
     self:RegisterChatCommand("zoom", "ZoomSlash");
+    self:RegisterChatCommand("pitch", "PitchSlash");
+    self:RegisterChatCommand("yaw", "YawSlash");
     
     self:RegisterChatCommand("dcexport", "PopupExportProfile");
     self:RegisterChatCommand("dcimport", "PopupImportProfile");
@@ -739,12 +750,21 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
     -- EXTRAS --
     if (situation.extras.hideUI) then
-        if (not InCombatLockdown()) then
-            -- hide UI
-            UIParent:Hide();
-        else
-            self:Print("Couldn't hide UI because of UI Combat Lockdown!")
-        end
+        -- if (not InCombatLockdown()) then
+        --     -- hide UI
+        --     UIParent:Hide();
+        -- else
+        --     self:Print("Couldn't hide UI because of UI Combat Lockdown!")
+        -- end
+        LibCamera:FadeUI(1, 0, .5);
+    end
+
+    -- undo worldframe transformation
+    if (situation.extras.cinemaMode) then
+        local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+
+        local x = screenHeight * 0.1;
+        LibCamera:CinemaMode(0, x, transitionTime);
     end
 
     self:SendMessage("DC_SITUATION_ENTERED");
@@ -820,11 +840,20 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
     -- unhide UI
     if (situation.extras.hideUI) then
-        if (not InCombatLockdown()) then
-            UIParent:Show();
-        else
-            self:Print("Couldn't show UI because of UI Combat Lockdown!'")
-        end
+        -- if (not InCombatLockdown()) then
+        --     UIParent:Show();
+        -- else
+        --     self:Print("Couldn't show UI because of UI Combat Lockdown!'")
+        -- end
+        LibCamera:FadeUI(0, 1, .5);
+    end
+
+    -- undo worldframe transformation
+    if (situation.extras.cinemaMode) then
+        local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+        local x = screenHeight * 0.1;
+        
+        LibCamera:CinemaMode(x, 0, .5);
     end
 
     wipe(restoration[situationID]);
@@ -1151,12 +1180,20 @@ function DynamicCam:EvaluateTargetLock()
             (targetLock.dead or (not UnitIsDead("target"))) and
             (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
         then
-            if (GetCVar("test_cameraLockedTargetFocusing") ~= "1") then
-                DC_SetCVar ("test_cameraLockedTargetFocusing", 1)
+            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 1);
+            end
+            
+            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 1);
             end
         else
-            if (GetCVar("test_cameraLockedTargetFocusing") ~= "0") then
-                 DC_SetCVar ("test_cameraLockedTargetFocusing", 0)
+            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 0);
+            end
+            
+            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 0);
             end
         end
     end
@@ -1220,6 +1257,12 @@ function DynamicCam:InitDatabase()
         end
 
         self.db.global.dbVersion = 4;
+    end
+
+    for profileName, profile in pairs(DynamicCamDB.profiles) do
+        if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
+            profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
+        end
     end
 
     self:DebugPrint("Database at level", self.db.global.dbVersion);
@@ -1373,6 +1416,18 @@ function DynamicCam:ZoomSlash(input)
     if (tonumber(input) and tonumber(input) <= 39 and tonumber(input) >= 0) then
         local defaultTime = math.abs(tonumber(input) - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
         LibCamera:SetZoom(tonumber(input), math.min(defaultTime, .75));
+    end
+end
+
+function DynamicCam:PitchSlash(input)
+    if (tonumber(input) and (tonumber(input) <= 90 or tonumber(input) >= -90)) then
+        LibCamera:Pitch(tonumber(input), .75);
+    end
+end
+
+function DynamicCam:YawSlash(input)
+    if (tonumber(input) and (tonumber(input) <= 360 or tonumber(input) >= -360)) then
+        LibCamera:Yaw(tonumber(input), .75);
     end
 end
 

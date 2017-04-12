@@ -1,0 +1,7 @@
+## Interface: 70100
+## Version: 1.0.70100
+## Title: LibEasing
+## Author: mpstark
+## Notes: A set of easing functions.
+
+LibEasing.lua
