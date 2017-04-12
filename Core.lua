@@ -12,7 +12,14 @@ local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
     ["test_cameraOverShoulder"] = true,
 
-    ["test_cameraLockedTargetFocusing"] = true,
+    
+    ["test_cameraTargetFocusEnemyEnable"] = true,
+    ["test_cameraTargetFocusEnemyStrengthPitch"] = true,
+    ["test_cameraTargetFocusEnemyStrengthYaw"] = true,
+
+    ["test_cameraTargetFocusInteractEnable"] = true,
+    ["test_cameraTargetFocusInteractStrengthPitch"] = true,
+    ["test_cameraTargetFocusInteractStrengthYaw"] = true,
     
     ["test_cameraHeadMovementStrength"] = true,
     ["test_cameraHeadMovementRangeScale"] = true,
@@ -124,7 +131,8 @@ local defaults = {
             
             ["test_cameraOverShoulder"] = 0,
 
-            ["test_cameraLockedTargetFocusing"] = 0,
+            ["test_cameraTargetFocusEnemyEnable"] = 0,
+            ["test_cameraTargetFocusInteractEnable"] = 0,
             
             ["test_cameraHeadMovementStrength"] = 0,
             ["test_cameraHeadMovementRangeScale"] = 5,
@@ -1096,12 +1104,20 @@ function DynamicCam:EvaluateTargetLock()
             (targetLock.dead or (not UnitIsDead("target"))) and
             (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
         then
-            if (GetCVar("test_cameraLockedTargetFocusing") ~= "1") then
-                DC_SetCVar ("test_cameraLockedTargetFocusing", 1)
+            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 1);
+            end
+            
+            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 1);
             end
         else
-            if (GetCVar("test_cameraLockedTargetFocusing") ~= "0") then
-                 DC_SetCVar ("test_cameraLockedTargetFocusing", 0)
+            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 0);
+            end
+            
+            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
+                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 0);
             end
         end
     end
@@ -1123,6 +1139,13 @@ function DynamicCam:InitDatabase()
         self:Print("Upgrading to 7.1 compatablity, this will reset all of your settings. Sorry about that!");
         self.db:ResetDB();
         self.db.global.dbVersion = 2;
+    end
+    
+    -- remove all references to test_cameraLockedTargetFocusing
+    for profileName, profile in pairs(DynamicCamDB.profiles) do
+        if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
+            profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
+        end
     end
 
     self:DebugPrint("Database at level", self.db.global.dbVersion);

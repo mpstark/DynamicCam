@@ -31,6 +31,9 @@ local knownIssues = [[- Fit nameplates is still a work in progress, can do a lit
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
+[[Beta 3b:
+    - Update to 7.2 changes to ActionCam
+]],
 [[Beta 3:
     - Forced database reset, there was just too much change on Blizzard's end.
     - Update to 7.1 changes to CVars and the return of ActionCam!

@@ -1,5 +1,5 @@
-## Interface: 70100
-## Version: Beta 3
+## Interface: 70200
+## Version: Beta 3b
 ## Title: DynamicCam
 ## Author: mpstark
 ## SavedVariables: DynamicCamDB
