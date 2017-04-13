@@ -283,8 +283,21 @@ local settings = {
                     name = "Target Lock/Focus",
                     desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                    get = function()
+                            return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1
+                                and DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1)
+                        end,
+                    set = function(_, newValue) 
+                        if (newValue) then
+                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1;
+                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1;
+                        else 
+                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0;
+                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0;
+                        end
+                        
+                        Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                    end,
                     order = 0.5,
                 },
                 cameraDistanceMaxFactor = {
@@ -316,8 +329,8 @@ local settings = {
                     name = "Camera Shoulder Offset",
                     desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    min = -5,
-                    max = 5,
+                    softMin = -5,
+                    softMax = 5,
                     step = .1,
                     get = function() return DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] end,
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
@@ -807,8 +820,6 @@ local situationOptions = {
                     name = "Shoulder Offset Value",
                     desc = "Positive is over right shoulder, negative is over left shoulder",
                     hidden = function() return (S.cameraCVars["test_cameraOverShoulder"] == nil) end,
-                    min = -10,
-                    max = 10,
                     softMin = -5,
                     softMax = 5,
                     step = .1,
