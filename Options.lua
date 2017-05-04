@@ -20,7 +20,7 @@ local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad t
 
 If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord (get a link by doing /dcdiscord) and speak with me there.
 
-I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there. 
+I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there.
 
 Some handy slash commands:
     `/dc` will open this menu
@@ -151,7 +151,7 @@ local general = {
                     width = "half",
                     order = 4,
                 },
-                
+
             },
         },
         messageGroup = {

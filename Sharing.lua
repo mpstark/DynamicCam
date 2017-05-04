@@ -37,7 +37,7 @@ local function encodeB64(str)
     local encoded_size = 0;
     local l=#str
     local code
-    
+
     for i=1,l do
         code = string.byte(str, i);
         remainder = remainder + bit.lshift(code, remainder_length);
@@ -49,12 +49,12 @@ local function encodeB64(str)
             remainder_length = remainder_length - 6;
         end
     end
-    
+
     if remainder_length > 0 then
         encoded_size = encoded_size + 1;
         B64[encoded_size] = bytetoB64[remainder];
     end
-    
+
     return table.concat(B64, "", 1, encoded_size)
 end
 
@@ -67,7 +67,7 @@ local function decodeB64(str)
     local bitfield_len = 0;
     local bitfield = 0;
     local l = #str;
-    
+
     while true do
         if bitfield_len >= 8 then
             decoded_size = decoded_size + 1;
@@ -83,17 +83,17 @@ local function decodeB64(str)
         end
         i = i + 1;
     end
-    
+
     return table.concat(bit8, "", 1, decoded_size)
 end
 
 local function tableToString(tbl)
     -- serialize
     local serialized = Serializer:Serialize(tbl);
-    
+
     -- compress
     local compressed = Compresser:CompressHuffman(serialized);
-    
+
     -- encode and return
     return encodeB64(compressed);
 end
@@ -106,19 +106,19 @@ local function stringToTable(str)
 
     -- decode
     local decoded = decodeB64(str);
-    
+
     -- decompress
     local decompressed, errorMsg = Compresser:Decompress(decoded);
     if (not decompressed) then
         return;
     end
-    
+
     -- deserialize
     local success, deserialized = Serializer:Deserialize(decompressed);
     if (not success) then
         return;
     end
-    
+
     return deserialized;
 end
 
@@ -140,7 +140,7 @@ end
 
 local function minimizeTable(tbl, base)
     local minimized = {}
-    
+
     -- go through all entries, only keep unique entries
 	for key, value in pairs(tbl) do
 		if ((type(value) == "table") and base[key] and (type(base[key]) == "table")) then
@@ -193,15 +193,15 @@ function DynamicCam:ExportProfile(name, author)
 
     -- TODO: some type of versioning
     --exportTable.version = version;
-    
+
     -- minimize the table, removing all default entries
     exportTable.profile = minimizeTable(self.db.profile, self.defaults.profile);
-    
+
     -- minimize the situations further, by removing their prototype defaults
     for situationID, situation in pairs(exportTable.profile.situations) do
         exportTable.profile.situations[situationID] = minimizeTable(situation, self.defaults.profile.situations["**"]);
     end
-    
+
     return tableToString(exportTable);
 end
 
@@ -212,10 +212,10 @@ function DynamicCam:ExportSituation(situationID)
     --exportTable.version = version;
     exportTable.situationID = situationID;
     exportTable.type = "DC_SITUATION";
-    
+
     -- minimize the table, removing all default entries
     exportTable.situation = minimizeTable(self.db.profile.situations[situationID], self.defaults.profile.situations["**"]);
-    
+
     return tableToString(exportTable);
 end
 
@@ -226,7 +226,7 @@ function DynamicCam:Import(importString)
         self:Print("Something went wrong with the import!");
         return;
     end
-    
+
     if (imported.type == "DC_SITUATION") then
         -- this is an imported situation
         if (string.find(imported.situationID, "custom")) then
@@ -254,7 +254,7 @@ function DynamicCam:Import(importString)
 
             -- self.db.profile.situations[situationID] = imported;
             -- self:SendMessage("DC_SITUATION_UPDATED", situationID);
-        end        
+        end
     elseif (imported.type == "DC_PROFILE") then
         local name = imported.name or "Imported";
         -- this in an imported profile

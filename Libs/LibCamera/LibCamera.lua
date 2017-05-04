@@ -156,7 +156,7 @@ local function rebaseEaseTime(easingFunc, precision, x, t, b, c, d, ...)
             -- behind time
             tPrime = tPrime - change;
             --print("  -", change)
-            
+
             lastWasForward = false;
         end
 
@@ -187,16 +187,16 @@ function LibCamera:EaseCVar(cvar, endValue, duration, easingFunc, callback)
     if (not easingFunc) then
         easingFunc = easeInOutQuad;
     end
-    
+
     local beginValue = tonumber(GetCVar(cvar));
     local change = endValue - beginValue;
     local beginTime = GetTime();
-    
+
     -- create a closure, for OnUpdate
     local func = function()
         local currentTime = GetTime();
         local currentValue = tonumber(GetCVar(cvar));
-        
+
         if (beginTime + duration > currentTime) then
             SetCVar(cvar, easingFunc(currentTime - beginTime, beginValue, change, duration));
             return true;
@@ -211,7 +211,7 @@ function LibCamera:EaseCVar(cvar, endValue, duration, easingFunc, callback)
             return nil;
         end
     end
-    
+
     -- register OnUpdate, to call every frame until done
     RegisterOnUpdateFunc(func);
     easingCVars[cvar] = func;
@@ -268,13 +268,13 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
 
         local currentTime = GetTime();
         local currentValue = GetCameraZoom();
-        
+
         local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue))
 
         if ((beginTime + duration > currentTime) and not beyondPosition) then
             -- still in time
             local interval = 1.0/60.0;
-            
+
             local t = currentTime - beginTime;
             local expectedValue = easingFunc(t, beginValue, change, duration);
             local posError = currentValue - expectedValue;
@@ -292,7 +292,7 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                         beginTime = beginTime - tDiff;
                         t = currentTime - beginTime;
                         expectedValue = easingFunc(t, beginValue, change, duration);
-                        
+
                         --print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
                         posError = currentValue - expectedValue;
                     else
@@ -302,7 +302,7 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
             end
 
             local speed;
-            
+
             if (duration - t > 2*interval) then
                 speed = getEaseVelocity(easingFunc, interval, t, beginValue, change, duration);
             else

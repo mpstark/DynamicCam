@@ -2,14 +2,12 @@
 -- LIBRARIES --
 ---------------
 local AceAddon = LibStub("AceAddon-3.0");
-local LibEasing = LibStub("LibEasing-1.0");
 local LibCamera = LibStub("LibCamera-1.0");
 
 
 ---------------
 -- CONSTANTS --
 ---------------
-local DATABASE_VERSION = 3;
 local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
     ["test_cameraOverShoulder"] = true,
@@ -21,7 +19,7 @@ local ACTION_CAM_CVARS = {
     ["test_cameraTargetFocusInteractEnable"] = true,
     ["test_cameraTargetFocusInteractStrengthPitch"] = true,
     ["test_cameraTargetFocusInteractStrengthYaw"] = true,
-    
+
     ["test_cameraHeadMovementStrength"] = true,
     ["test_cameraHeadMovementRangeScale"] = true,
     ["test_cameraHeadMovementMovingStrength"] = true,
@@ -155,7 +153,7 @@ DynamicCam.defaults = {
         defaultCvars = {
             ["cameraZoomSpeed"] = 20,
             ["cameraDistanceMaxZoomFactor"] = 2.6,
-            
+
             ["test_cameraOverShoulder"] = 0,
 
             ["test_cameraTargetFocusEnemyEnable"] = 0,
@@ -169,7 +167,7 @@ DynamicCam.defaults = {
             ["test_cameraHeadMovementStandingDampRate"] = 10,
             ["test_cameraHeadMovementFirstPersonDampRate"] = 20,
             ["test_cameraHeadMovementDeadZone"] = 0.015,
-            
+
             ["test_cameraDynamicPitch"] = 0,
             ["test_cameraDynamicPitchBaseFovPad"] = .35,
             ["test_cameraDynamicPitchBaseFovPadFlying"] = .75,
@@ -340,7 +338,7 @@ DynamicCam.defaults = {
             ["100"] = {
                 name = "Mounted",
                 priority = 100,
-                condition = "return IsMounted();",
+                condition = "return IsMounted() and not UnitOnTaxi(\"player\");",
                 events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
             },
             ["101"] = {
@@ -358,8 +356,8 @@ DynamicCam.defaults = {
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
-                condition = [[for k,v in pairs(this.spells) do 
-    if (UnitCastingInfo("player") == GetSpellInfo(v)) then 
+                condition = [[for k,v in pairs(this.spells) do
+    if (UnitCastingInfo("player") == GetSpellInfo(v)) then
         return true;
     end
 end
@@ -371,7 +369,7 @@ return false;]],
             ["201"] = {
                 name = "Annoying Spells",
                 priority = 1000,
-                condition = [[for k,v in pairs(this.buffs) do 
+                condition = [[for k,v in pairs(this.buffs) do
     if (UnitBuff("player", GetSpellInfo(v))) then
         return true;
     end
@@ -435,10 +433,10 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zoom", "ZoomSlash");
     self:RegisterChatCommand("pitch", "PitchSlash");
     self:RegisterChatCommand("yaw", "YawSlash");
-    
+
     self:RegisterChatCommand("dcexport", "PopupExportProfile");
     self:RegisterChatCommand("dcimport", "PopupImportProfile");
-    
+
     -- make sure to disable the message if ActionCam setting is on
     if (self.db.profile.actionCam) then
         UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
@@ -494,12 +492,12 @@ function DynamicCam:Startup()
     self:RegisterMessage("DC_SITUATION_DISABLED");
     self:RegisterMessage("DC_SITUATION_UPDATED");
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED");
-    
+
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
     self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5);
     evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
     self:ScheduleTimer("RegisterEvents", 3);
-    
+
     started = true;
 end
 
@@ -672,7 +670,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
         -- set zoom level
         local newZoomLevel;
-        
+
         if (a.zoomSetting == "in" and cameraZoom > a.zoomValue) then
             newZoomLevel = a.zoomValue;
         elseif (a.zoomSetting == "out" and cameraZoom < a.zoomValue) then
@@ -699,7 +697,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             local difference = math.abs(newZoomLevel - cameraZoom)
             local linearSpeed = difference / transitionTime;
             local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"));
-        
+
             -- if zoom speed is lower than current speed, then calculate a new transitionTime
             if (a.timeIsMax and linearSpeed < currentSpeed) then
                 -- min time 10 frames
@@ -832,7 +830,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
         local t = math.max(10.0/60.0, math.min(defaultTime, .75));
         LibCamera:SetZoom(restoration[situationID].zoom, t);
-        
+
         self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
     else
         self:DebugPrint("Not restoring zoom level");
@@ -852,12 +850,12 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     if (situation.extras.cinemaMode) then
         local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
         local x = screenHeight * 0.1;
-        
+
         LibCamera:CinemaMode(x, 0, .5);
     end
 
     wipe(restoration[situationID]);
-    
+
     self:SendMessage("DC_SITUATION_EXITED");
 
     return restoringZoom;
@@ -946,12 +944,12 @@ end
 function DynamicCam:CreateCustomSituation(name)
     -- search for a clear id
     local highest = 0;
-    
+
     -- go through each and every situation, look for the custom ones, and find the
     -- highest custom id
     for id, situation in pairs(self.db.profile.situations) do
         local i, j = string.find(id, "custom");
-        
+
         if (i and j) then
             local num = tonumber(string.sub(id, j+1));
 
@@ -1022,7 +1020,7 @@ function DynamicCam:ApplyDefaultCameraSettings()
         ResetTestCvars();
         UIParent:RegisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
     end
-    
+
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
@@ -1183,7 +1181,7 @@ function DynamicCam:EvaluateTargetLock()
             if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
                 DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 1);
             end
-            
+
             if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
                 DC_SetCVar ("test_cameraTargetFocusInteractEnable", 1);
             end
@@ -1191,7 +1189,7 @@ function DynamicCam:EvaluateTargetLock()
             if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
                 DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 0);
             end
-            
+
             if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
                 DC_SetCVar ("test_cameraTargetFocusInteractEnable", 0);
             end
@@ -1216,7 +1214,7 @@ function DynamicCam:InitDatabase()
         self.db:ResetDB();
         self.db.global.dbVersion = 2;
     end
-    
+
     if (self.db.global.dbVersion == 2) then
         -- remove removed nameplate keys
         for profileName, profile in pairs(DynamicCamDB.profiles) do
@@ -1226,11 +1224,11 @@ function DynamicCam:InitDatabase()
                         if (situation.extras["nameplates"] ~= nil) then
                             situation.extras["nameplates"] = nil;
                         end
-                        
+
                         if (situation.extras["enemyNameplates"] ~= nil) then
                             situation.extras["enemyNameplates"] = nil;
                         end
-                        
+
                         if (situation.extras["friendlyNameplates"] ~= nil) then
                             situation.extras["friendlyNameplates"] = nil;
                         end
@@ -1270,7 +1268,7 @@ end
 
 function DynamicCam:RefreshConfig()
     local restartTimer = false;
-    
+
     -- shutdown the addon if it's enabled
     if (self.db.profile.enabled and started) then
         self:Shutdown();

@@ -11,7 +11,7 @@ end
 
 --
 -- Original Lua implementations
--- from 'EmmanuelOga' 
+-- from 'EmmanuelOga'
 -- https://github.com/EmmanuelOga/easing/
 --
 -- Adapted from
