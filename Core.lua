@@ -631,7 +631,6 @@ end
 
 function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     local situation = self.db.profile.situations[situationID];
-    local oldSituation = self.db.profile.situations[oldSituationID];
     local this = situationEnvironments[situationID].this;
 
     self:DebugPrint("Entering situation", situation.name);
@@ -771,7 +770,6 @@ end
 function DynamicCam:ExitSituation(situationID, newSituationID)
     local restoringZoom;
     local situation = self.db.profile.situations[situationID];
-    local newSituation = self.db.profile.situations[newSituationID];
     self.currentSituationID = nil;
 
     self:DebugPrint("Exiting situation "..situation.name);
@@ -1267,8 +1265,6 @@ function DynamicCam:InitDatabase()
 end
 
 function DynamicCam:RefreshConfig()
-    local restartTimer = false;
-
     -- shutdown the addon if it's enabled
     if (self.db.profile.enabled and started) then
         self:Shutdown();
