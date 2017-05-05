@@ -168,8 +168,8 @@ DynamicCam.defaults = {
             ["test_cameraTargetFocusEnemyStrengthPitch"] = 0.4,
             ["test_cameraTargetFocusEnemyStrengthYaw"] = 0.5,
             ["test_cameraTargetFocusInteractEnable"] = 0,
-            ["test_cameraTargetFocusInteractStrengthPitch"] = 0.4,
-            ["test_cameraTargetFocusInteractStrengthYaw"] = 0.5,
+            ["test_cameraTargetFocusInteractStrengthPitch"] = 0.75,
+            ["test_cameraTargetFocusInteractStrengthYaw"] = 1.0,
 
             ["test_cameraHeadMovementStrength"] = 0,
             ["test_cameraHeadMovementRangeScale"] = 5,
