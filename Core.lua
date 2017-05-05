@@ -1394,7 +1394,7 @@ function DynamicCam:PitchSlash(input)
 end
 
 function DynamicCam:YawSlash(input)
-    if (tonumber(input) and (tonumber(input) <= 360 or tonumber(input) >= -360)) then
+    if (tonumber(input)) then
         LibCamera:Yaw(tonumber(input), .75);
     end
 end
