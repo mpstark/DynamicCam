@@ -130,6 +130,14 @@ local function gotoView(view, instant)
     SetView(view);
 end
 
+local function tokenize(str, delimitor)
+    local tokens = {};
+    for token in str:gmatch(delimitor or "%S+") do
+        table.insert(tokens, token);
+    end
+    return tokens;
+end
+
 
 --------
 -- DB --
@@ -1381,21 +1389,36 @@ function DynamicCam:ZoomInfoCC(input)
 end
 
 function DynamicCam:ZoomSlash(input)
-    if (tonumber(input) and tonumber(input) <= 39 and tonumber(input) >= 0) then
-        local defaultTime = math.abs(tonumber(input) - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
-        LibCamera:SetZoom(tonumber(input), math.min(defaultTime, .75));
+    local tokens = tokenize(input);
+
+    local zoom = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+
+    if (zoom and (zoom <= 39 or zoom >= 0)) then
+        local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
+        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75));
     end
 end
 
 function DynamicCam:PitchSlash(input)
-    if (tonumber(input) and (tonumber(input) <= 90 or tonumber(input) >= -90)) then
-        LibCamera:Pitch(tonumber(input), .75);
+    local tokens = tokenize(input);
+
+    local pitch = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+
+    if (pitch and (pitch <= 90 or pitch >= -90)) then
+        LibCamera:Pitch(pitch, time or 0.75);
     end
 end
 
 function DynamicCam:YawSlash(input)
-    if (tonumber(input)) then
-        LibCamera:Yaw(tonumber(input), .75);
+    local tokens = tokenize(input);
+
+    local yaw = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+
+    if (yaw) then
+        LibCamera:Yaw(yaw, time or 0.75);
     end
 end
 
