@@ -37,7 +37,7 @@ local changelog = {
     - Rotation actions can now also pitch the camera up and down
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
         - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
-        - Uses industry standard easing formulas -- LibEasing-1.0 is my port of a Lua implementation
+        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua implementation
         - No manipulation of CVars needed to 'trick' WoW's camera engine
         - Accuracy of Yaw and Pitch actions far improved from previous implementation
         - CVars can be eased as well, right now, just eases Shoulder Offset
@@ -48,7 +48,6 @@ local changelog = {
         - Some (in-game) Lua scripting needed
         - Fully sharable using the new settings sharing system
     - Minor Changes/Fixes:
-        - The ActionCam setting now defaults to on
         - Some database optimizations, lowered memory overhead a bit
         - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
         - Don't redundantly call SetCVar a lot
@@ -299,15 +298,6 @@ local settings = {
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = .25,
                 },
-                cameraLockedTargetFocusing = {
-                    type = 'toggle',
-                    name = "Target Lock/Focus",
-                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
-                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraLockedTargetFocusing"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
-                    order = 0.5,
-                },
                 cameraDistanceMaxFactor = {
                     type = 'range',
                     name = "Camera Max Distance",
@@ -358,6 +348,141 @@ local settings = {
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 5,
                     width = "full",
+                },
+                targetLockGroup = {
+                    type = 'group',
+                    name = "Target Lock/Focus",
+                    order = 50,
+                    inline = true,
+                    args = {
+                        targetLockEnemies = {
+                            type = 'toggle',
+                            name = "Focus Enemies",
+                            desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue) then
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1;
+                                else
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            order = 1,
+                        },
+                        targetLockEnemiesPitch = {
+                            type = 'range',
+                            name = "Focus Enemy Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 2,
+                        },
+                        targetLockEnemiesYaw = {
+                            type = 'range',
+                            name = "Focus Enemy Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 3,
+                        },
+                        targetLockInteractables = {
+                            type = 'toggle',
+                            tristate = true,
+                            name = "Focus On Interact",
+                            desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue) then
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1;
+                                else
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            order = 11,
+                        },
+                        targetLockInteractPitch = {
+                            type = 'range',
+                            name = "Focus Interact Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 12,
+                        },
+                        targetLockInteractYaw = {
+                            type = 'range',
+                            name = "Focus Interact Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 13,
+                        },
+                    },
                 },
                 dynamicPitchAdvanced = {
                     type = 'group',
@@ -948,44 +1073,153 @@ local situationOptions = {
                     end,
                     order = 4,
                 },
-                targetLock = {
-                    type = 'toggle',
-                    name = "Target Lock/Focus",
-                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
-                    get = function() return S.targetLock.enabled end,
-                    set = function(_, newValue) S.targetLock.enabled = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                    order = 40,
-                },
-                targetLockSettings = {
+                targetLockGroup = {
                     type = 'group',
-                    name = "Target Lock/Focus Settings",
+                    name = "Target Lock/Focus",
                     order = 50,
                     inline = true,
-                    hidden = function() return (not S.targetLock.enabled) end,
                     args = {
-                        onlyAttackable = {
+                        targetLockEnemies = {
                             type = 'toggle',
-                            name = "Only Attackable",
-                            desc = "Only target lock/focus attackable targets",
-                            get = function() return S.targetLock.onlyAttackable end,
-                            set = function(_, newValue) S.targetLock.onlyAttackable = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            tristate = true,
+                            name = "Focus Enemies",
+                            desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                if (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == nil) then
+                                    return nil;
+                                end
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue == nil) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"] = nil;
+                                elseif (newValue == true) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                                elseif (newValue == false) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
                             order = 1,
                         },
-                        dead = {
-                            type = 'toggle',
-                            name = "Ignore Dead",
-                            desc = "Don't target lock/focus dead targets",
-                            get = function() return (not S.targetLock.dead) end,
-                            set = function(_, newValue) S.targetLock.dead = not newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                        targetLockEnemiesPitch = {
+                            type = 'range',
+                            name = "Focus Enemy Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusEnemyEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
                             order = 2,
                         },
-                        nameplateVisible = {
+                        targetLockEnemiesYaw = {
+                            type = 'range',
+                            name = "Focus Enemy Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusEnemyEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 3,
+                        },
+                        targetLockInteractables = {
                             type = 'toggle',
-                            name = "Nameplate Visible",
-                            desc = "Only target lock/focus units that have a visible nameplate",
-                            get = function() return S.targetLock.nameplateVisible end,
-                            set = function(_, newValue) S.targetLock.nameplateVisible = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                            order = 4,
+                            tristate = true,
+                            name = "Focus On Interact",
+                            desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                if (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == nil) then
+                                    return nil;
+                                end
+                                return (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue == nil) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"] = nil;
+                                elseif (newValue == true) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1;
+                                elseif (newValue == false) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            order = 11,
+                        },
+                        targetLockInteractPitch = {
+                            type = 'range',
+                            name = "Focus Interact Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusInteractEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 12,
+                        },
+                        targetLockInteractYaw = {
+                            type = 'range',
+                            name = "Focus Interact Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusInteractEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 13,
                         },
                     },
                 },
