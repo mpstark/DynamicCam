@@ -1123,15 +1123,6 @@ function DynamicCam:EventHandler(event, possibleUnit, ...)
 end
 
 function DynamicCam:RegisterEvents()
-    events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_ADDED", "EventHandler");
-
-    events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_REMOVED", "EventHandler");
-
-    events["PLAYER_TARGET_CHANGED"] = true;
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", "EventHandler");
-
     for situationID, situation in pairs(self.db.profile.situations) do
         self:RegisterSituationEvents(situationID);
     end
