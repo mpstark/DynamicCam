@@ -433,9 +433,6 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("pitch", "PitchSlash");
     self:RegisterChatCommand("yaw", "YawSlash");
 
-    self:RegisterChatCommand("dcexport", "PopupExportProfile");
-    self:RegisterChatCommand("dcimport", "PopupImportProfile");
-
     -- make sure to disable the message if ActionCam setting is on
     if (self.db.profile.actionCam) then
         UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
@@ -1258,13 +1255,7 @@ function DynamicCam:RefreshConfig()
         Options:ClearSelection();
     end
 
-    -- load default situations
     -- TODO: present a menu that loads a set of defaults
-    -- local id, situation = next(self.db.profile.situations);
-    -- if (not situation or situation.name == "") then
-    --     self.db.profile.situations = self:GetDefaultSituations();
-    --     self.db.profile.defaultVersion = DEFAULT_VERSION;
-    -- end
 
     -- make sure that options panel selects a situation
     if (Options) then
@@ -1286,8 +1277,6 @@ end
 -------------------
 -- CHAT COMMANDS --
 -------------------
-local exportString = "";
-
 StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
     text = "DynamicCam Discord Link:",
     button1 = "Got it!",
@@ -1300,43 +1289,6 @@ StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
         self.editBox:SetText("https://discordapp.com/invite/0kIVitHDdHYYitiO")
         self.editBox:HighlightText();
     end,
-}
-
-StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
-    text = "DynamicCam Export:",
-    button1 = "Done!",
-    timeout = 0,
-    hasEditBox = true,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    OnShow = function (self, data)
-        self.editBox:SetText(exportString);
-        self.editBox:HighlightText();
-    end,
-    EditBoxOnEnterPressed = function(self)
-		self:GetParent():Hide();
-	end,
-}
-
-StaticPopupDialogs["DYNAMICCAM_IMPORT"] = {
-    text = "DynamicCam Import:",
-    button1 = "Import!",
-    timeout = 0,
-    hasEditBox = true,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    OnShow = function (self, data)
-        self.editBox:SetFocus();
-    end,
-    OnAccept = function (self, data)
-        DynamicCam:Import(self.editBox:GetText());
-    end,
-    EditBoxOnEnterPressed = function(self)
-        DynamicCam:Import(self:GetParent().editBox:GetText());
-		self:GetParent():Hide();
-	end,
 }
 
 StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
@@ -1374,8 +1326,14 @@ function DynamicCam:OpenMenu(input)
 end
 
 function DynamicCam:SaveViewCC(input)
-    if (tonumber(input) and tonumber(input) <= 5 and tonumber(input) > 1) then
-        SaveView(tonumber(input));
+    local tokens = tokenize(input);
+
+    local viewNum = tonumber(tokens[1]);
+
+    if (viewNum and viewNum <= 5 and viewNum > 1) then
+        SaveView(viewNum);
+    else
+        self:Print("Improper view number provided.")
     end
 end
 
@@ -1419,19 +1377,6 @@ end
 
 function DynamicCam:PopupDiscordLink()
     StaticPopup_Show("DYNAMICCAM_DISCORD");
-end
-
-function DynamicCam:PopupExport(str)
-    exportString = str;
-    StaticPopup_Show("DYNAMICCAM_EXPORT");
-end
-
-function DynamicCam:PopupExportProfile()
-    self:PopupExport(self:ExportProfile())
-end
-
-function DynamicCam:PopupImportProfile()
-    StaticPopup_Show("DYNAMICCAM_IMPORT");
 end
 
 function DynamicCam:PopupCreateCustomProfile()

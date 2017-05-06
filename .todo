@@ -1,0 +1,26 @@
+LibCamera:
+    ☐ Add CVar-based zoom?
+    ☐ Fix camera zoom sometimes missing during load/after taxis or default to CVar-based zoom
+    ☐ Remove cinema mode because it lags the game too much in 7.2.5
+    ☐ Add canceling based on esc key or manual camera manipulation
+    ☐ Add nameplate adjusting zoom
+    ☐ Add continuous zoom / ramp up zoom
+
+    Integration:
+        ☐ Remove old camera code
+        ☐ Nameplate-zoom code really needs refactoring
+
+Presets:
+    ☐ Add first run popup to select preset
+    ☐ Create and add several presets
+        ☐ Bellular
+        ☐ Vanilla-like
+        ☐ Full ActionCam Experience
+
+Import/Export:
+    ☐ Add versioning information
+
+Misc:
+    ☐ Clean up modernization of DB code
+    ☐ Localize menu
+    ☐ Optimize EvaluateSituations to only update situations based on the events that they are registered to
