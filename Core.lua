@@ -387,15 +387,8 @@ return false;]],
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                condition = [[local shown = false;
-for k,v in pairs(this.frames) do
-    if (_G[v] and _G[v]:IsShown()) then
-        shown = true;
-    end
-end
-return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]],
+                condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
                 events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
-                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\",}",
                 delay = .5,
             },
             ["301"] = {
