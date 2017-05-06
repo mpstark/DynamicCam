@@ -227,12 +227,6 @@ DynamicCam.defaults = {
                     restoreView = false,
                     instant = false,
                 },
-                targetLock = {
-                    enabled = false,
-                    onlyAttackable = true,
-                    dead = false,
-                    nameplateVisible = true,
-                },
                 extras = {
                     hideUI = false,
                     cinemaMode = false,
@@ -1238,10 +1232,27 @@ function DynamicCam:InitDatabase()
         if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
             profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
         end
-    end
 
-    -- TODO: remove/convert old targetlock features
-    -- TODO: remove self.db.global.dbVersion?
+        -- convert old targetlock features into cvars
+        if (profile.situations) then
+            for situationID, situation in pairs(profile.situations) do
+                if (situation.targetLock and situation.targetLock.enabled) then
+                    if (not situation.cameraCVars) then
+                        situation.cameraCVars = {};
+                    end
+
+                    if (situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false) then
+                        situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                        situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
+                    else
+                        situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                    end
+                end
+
+                situation.targetLock = nil;
+            end
+        end
+    end
 
     self:DebugPrint("Database at level", self.db.global.dbVersion);
 end
