@@ -229,7 +229,6 @@ DynamicCam.defaults = {
                 },
                 extras = {
                     hideUI = false,
-                    cinemaMode = false,
                 },
                 cameraCVars = {},
             },
@@ -749,14 +748,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         LibCamera:FadeUI(1, 0, .5);
     end
 
-    -- undo worldframe transformation
-    if (situation.extras.cinemaMode) then
-        local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-
-        local x = screenHeight * 0.1;
-        LibCamera:CinemaMode(0, x, transitionTime);
-    end
-
     self:SendMessage("DC_SITUATION_ENTERED");
 end
 
@@ -835,14 +826,6 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         --     self:Print("Couldn't show UI because of UI Combat Lockdown!'")
         -- end
         LibCamera:FadeUI(0, 1, .5);
-    end
-
-    -- undo worldframe transformation
-    if (situation.extras.cinemaMode) then
-        local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-        local x = screenHeight * 0.1;
-
-        LibCamera:CinemaMode(x, 0, .5);
     end
 
     wipe(restoration[situationID]);

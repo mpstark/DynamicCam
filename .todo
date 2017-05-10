@@ -1,7 +1,7 @@
 LibCamera:
-    ☐ Add CVar-based zoom?
+    ✔ Add CVar-based zoom? @done (5/9/2017, 11:11:08 PM)
     ☐ Fix camera zoom sometimes missing during load/after taxis or default to CVar-based zoom
-    ☐ Remove cinema mode because it lags the game too much in 7.2.5
+    ✔ Remove cinema mode because it lags the game too much in 7.2.5 @done (5/9/2017, 11:12:38 PM)
     ☐ Add canceling based on esc key or manual camera manipulation
     ☐ Add nameplate adjusting zoom
     ☐ Add continuous zoom / ramp up zoom
