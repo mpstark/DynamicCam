@@ -200,6 +200,7 @@ function LibCamera:EaseCVar(cvar, endValue, duration, easingFunc, callback)
             -- call the callback if provided
             if (callback) then callback() end;
 
+            easingCVars[cvar] = nil;
             return nil;
         end
     end
@@ -421,6 +422,7 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
             -- call the callback if provided
             if (callback) then callback() end;
 
+            cvarZoom = nil;
             return nil;
         end
     end
@@ -653,6 +655,7 @@ function LibCamera:FadeUI(beginValue, endValue, duration, easingFunc, callback)
             UIParent:SetAlpha(endValue);
 
             fadeUILastValue = nil;
+            fadeUI = nil;
 
             -- call the callback if provided
             if (callback) then callback() end;
