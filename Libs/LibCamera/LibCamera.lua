@@ -86,20 +86,6 @@ local function getPitchSpeed()
     return tonumber(GetCVar("cameraPitchMoveSpeed"));
 end
 
-local function parseSpeed(speed)
-    local zoomSpeed = getZoomSpeed();
-    local tempSpeed = zoomSpeed;
-
-    if (speed and (type(speed) == "number")) then
-        tempSpeed = speed;
-    elseif (speed and (type(speed) == "function")) then
-        tempSpeed = speed();
-    end
-
-    --return math.min(50/zoomSpeed, math.max(0, tempSpeed/zoomSpeed));
-    return math.max(0, tempSpeed/zoomSpeed);
-end
-
 local function easeInOutQuad(t, b, c, d)
     t = t / d * 2;
     if t < 1 then
@@ -195,7 +181,6 @@ function LibCamera:EaseCVar(cvar, endValue, duration, easingFunc, callback)
     -- create a closure, for OnUpdate
     local func = function()
         local currentTime = GetTime();
-        local currentValue = tonumber(GetCVar(cvar));
 
         if (beginTime + duration > currentTime) then
             SetCVar(cvar, easingFunc(currentTime - beginTime, beginValue, change, duration));
@@ -254,7 +239,6 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
 
     local beginValue = GetCameraZoom();
     local change = endValue - beginValue;
-    local trueBeginTime = GetTime();
 
     -- we want to start the counter on the frame the the zoom started
     local beginTime;
@@ -291,12 +275,10 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                     if (tPrime > 0 and tPrime < duration) then
                         beginTime = beginTime - tDiff;
                         t = currentTime - beginTime;
-                        expectedValue = easingFunc(t, beginValue, change, duration);
+                        --expectedValue = easingFunc(t, beginValue, change, duration);
 
                         --print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
-                        posError = currentValue - expectedValue;
-                    else
-                        --print(string.format("  tPrime invalid: %.2f", tPrime));
+                        --posError = currentValue - expectedValue;
                     end
                 end
             end
@@ -332,18 +314,9 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
             MoveViewInStop();
             MoveViewOutStop();
 
-            if (beyondPosition) then
-                --print("ended because we went beyond position");
-            end
-
             stopFlag = true;
             return true;
         else
-            local diff = endValue - GetCameraZoom();
-            local diffMult = (change > 0) and -1 or 1;
-
-            --print(string.format("SetZoom ended. deltaX: %.2f, deltaT: %.2f", diff*diffMult, duration - (currentTime - trueBeginTime)));
-
             -- call the callback if provided
             if (callback) then callback() end;
 
@@ -357,11 +330,115 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     easingZoom = func;
 end
 
+local cvarZoom;
+local oldSpeed;
+local CVAR_ZOOM_NUM_FRAMES_STATIC = 5;
+function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
+    -- start every zoom by making sure that we stop zooming
+    self:StopZooming();
+
+    local beginValue = GetCameraZoom();
+    local beginTime = GetTime();
+    local change = endValue - beginValue;
+    local speed = math.abs(math.min(50, math.abs((change/duration))));
+
+    if (speed == 50) then
+        -- we're going at the "speed limit", extend duration
+        duration = change / speed;
+    end
+
+    oldSpeed = getZoomSpeed();
+
+    -- set the zoom cvar to what will get us to the endValue in the duration
+    SetCVar("cameraZoomSpeed", speed);
+    print("Setting cameraZoomSpeed to", speed);
+
+    local triggeredZoom = false;
+
+    local numFramesStatic = 0;
+    local lastValue = GetCameraZoom();
+    local func = function()
+        -- trigger zoom only once but ON THE NEXT FRAME
+        -- this is because you can only do one CameraZoom___ function once a frame
+        if (not triggeredZoom) then
+            -- actually trigger the zoom
+            -- second parameter is just to let other addons know that this is zoom triggered by an addon
+            if (change > 0) then
+                CameraZoomOut(change, true);
+                print("Zoom out", change);
+            elseif (change < 0) then
+                CameraZoomIn(-change, true);
+                print("Zoom in", -change);
+            end
+
+            triggeredZoom = true;
+        end
+
+        local currentTime = GetTime();
+        local currentValue = GetCameraZoom();
+
+        -- check if we've got beyond the position that we were aiming for
+        local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue));
+
+        if (beyondPosition) then
+            print("BEYOND POSITION")
+        end
+
+        -- count the number of frames that we stayed static
+        if (lastValue == currentValue and lastValue ~= beginValue) then
+            numFramesStatic = numFramesStatic + 1;
+            print("Static frame!")
+        else
+            -- reset counter if zoom resumes
+            numFramesStatic = 0;
+        end
+
+        local goingWrongWay = (change > 0 and lastValue > currentValue) or (change < 0 and lastValue < currentValue);
+
+        lastValue = currentValue;
+
+        -- and (beginTime + duration > currentTime)
+        if ((numFramesStatic < CVAR_ZOOM_NUM_FRAMES_STATIC) and not beyondPosition and not goingWrongWay) then
+            -- we're still zooming or we should be
+            return true;
+        else
+            -- we should have stopped zooming or the camera stood still for a bit
+
+            -- set the zoom cvar to what it was before this happened
+            print("Ending, setting cameraZoomSpeed back to", oldSpeed);
+            if (oldSpeed) then
+                SetCVar("cameraZoomSpeed", oldSpeed);
+                oldSpeed = nil;
+            end
+
+            -- call the callback if provided
+            if (callback) then callback() end;
+
+            return nil;
+        end
+    end
+
+    -- register OnUpdate, to call every frame until done
+    RegisterOnUpdateFunc(func);
+    cvarZoom = func;
+end
+
 function LibCamera:StopZooming()
     -- if we currently have something running, make sure to cancel it!
     if (easingZoom) then
         CancelOnUpdateFunc(easingZoom);
         easingZoom = nil;
+    end
+
+    if (cvarZoom) then
+        CancelOnUpdateFunc(cvarZoom);
+        cvarZoom = nil;
+
+        -- restore old speed if we had one
+        if (oldSpeed) then
+            SetCVar("cameraZoomSpeed", oldSpeed);
+            oldSpeed = nil;
+        end
     end
 
     -- this might be overkill, but we really want to make sure that the camera isn't moving!

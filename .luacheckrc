@@ -12,7 +12,7 @@ ignore = {
 	"212", -- Unused argument
 	"213", -- Unused loop variable
 	"231", -- Set but never accessed
-	"311", -- Value assigned to a local variable is unused
+	-- "311", -- Value assigned to a local variable is unused
 	"314", -- Value of a field in a table literal is unused
 	-- "42.", -- Shadowing a local variable, an argument, a loop variable.
 	-- "43.", -- Shadowing an upvalue, an upvalue argument, an upvalue loop variable.
