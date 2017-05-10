@@ -114,6 +114,13 @@ local function getEaseVelocity(easingFunc, increment, t, b, c, d, ...)
 end
 
 local function rebaseEaseTime(easingFunc, precision, x, t, b, c, d, ...)
+    -- basically, what this tries to do, is to move the t (time) around
+    -- so that it matches the provided x (position) within the given easing function
+
+    -- in other words:
+    -- we have some amount of error between where we actually are, and where we were supposed to be
+    -- so we jump forward/backwards on the time line to compensate
+
     local currentValue = easingFunc(t, b, c, d, ...);
     local tPrime = t;
     local difference = x - currentValue;

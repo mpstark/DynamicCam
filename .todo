@@ -5,6 +5,7 @@ LibCamera:
     ☐ Add canceling based on esc key or manual camera manipulation
     ☐ Add nameplate adjusting zoom
     ☐ Add continuous zoom / ramp up zoom
+    ☐ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques
 
     Integration:
         ☐ Remove old camera code
