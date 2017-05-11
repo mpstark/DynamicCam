@@ -34,16 +34,18 @@ local knownIssues = [[- Fit nameplates is still a work in progress, can do a lit
 local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
 [[Beta 4:
-    - Rotation actions can now also pitch the camera up and down
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
         - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
-        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua implementation
+        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua/LibStub implementation
         - No manipulation of CVars needed to 'trick' WoW's camera engine
         - Accuracy of Yaw and Pitch actions far improved from previous implementation
-        - CVars can be eased as well, right now, just eases Shoulder Offset
+    - Rotation actions can now also pitch the camera up and down
     - Settings sharing using clipboard-friendly strings
         - Export/Import a single situation or your entire profile
     - Copy/paste settings from one situation to another
+    - Fade the UI instead of hiding it
+        - Fading can occur in combat, and looks nicer
+        - Hitting escape will show the UI if it is hidden in this manner
     - (Advanced) Create new custom situations
         - Some (in-game) Lua scripting needed
         - Fully sharable using the new settings sharing system
@@ -1296,8 +1298,8 @@ local situationOptions = {
             args = {
                 entireUI = {
                     type = 'toggle',
-                    name = "Hide Entire UI",
-                    desc = "Hide the entire UI during this situation.",
+                    name = "Fade UI",
+                    desc = "Fades the UI to transparent during this situation.\n\nPressing escape will cancel the fade.",
                     get = function() return S.extras.hideUI end,
                     set = function(_, newValue) S.extras.hideUI = newValue end,
                     order = 1,

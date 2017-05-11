@@ -34,6 +34,8 @@ globals = {
 
 	-- global objects
 	"Minimap",
+	"GameMenuFrame",
+	"UISpecialFrames",
 
 	-- misc custom
 	"CUSTOM_CLASS_COLORS",

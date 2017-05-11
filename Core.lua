@@ -161,6 +161,7 @@ local function easeShoulderOffset(endValue, duration, easingFunc)
 end
 
 local hidMinimap;
+local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
 local function setUIAlpha(newAlpha)
     if (newAlpha and type(newAlpha) == 'number') then
         UIParent:SetAlpha(newAlpha);
@@ -176,12 +177,26 @@ local function setUIAlpha(newAlpha)
                 hidMinimap = nil;
             end
         end
+
+        -- show unfadeUIFrame if we're faded
+        if (newAlpha < 1 and not unfadeUIFrame:IsShown()) then
+            unfadeUIFrame:Show();
+        elseif (newAlpha == 1) then
+            -- UI is no longer faded, remove the esc handler
+            if (unfadeUIFrame:IsShown()) then
+                -- want to hide the frame without calling it's onhide handler
+                local onHide = unfadeUIFrame:GetScript("OnHide");
+                unfadeUIFrame:SetScript("OnHide", nil);
+                unfadeUIFrame:Hide();
+                unfadeUIFrame:SetScript("OnHide", onHide);
+            end
+        end
     end
 end
 
 local easeUIAlphaHandle;
-local function easeUIAlpha(endValue, duration, easingFunc)
-    -- we are currently easing the UI out, make sure to stop that
+local function stopEasingUIAlpha()
+    -- if we are currently easing the UI out, make sure to stop that
     if (easeUIAlphaHandle) then
         LibEasing:StopEasing(easeUIAlphaHandle);
         easeUIAlphaHandle = nil;
@@ -192,9 +207,23 @@ local function easeUIAlpha(endValue, duration, easingFunc)
             hidMinimap = nil;
         end
     end
-
-    easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc);
 end
+
+local function easeUIAlpha(endValue, duration, easingFunc)
+    stopEasingUIAlpha();
+
+    if (UIParent:GetAlpha() ~= endValue) then
+        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc);
+    end
+end
+
+-- need to be able to clear the faded UI, use dummy frame that Show() on fade, which will cause esc to
+-- hide it, make OnHide
+unfadeUIFrame:SetScript("OnHide", function(self)
+    stopEasingUIAlpha();
+    UIParent:SetAlpha(1);
+end);
+tinsert(UISpecialFrames, unfadeUIFrame:GetName());
 
 
 --------
