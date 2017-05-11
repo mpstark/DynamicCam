@@ -6,6 +6,8 @@ LibCamera:
     ☐ Add nameplate adjusting zoom
     ☐ Add continuous zoom / ramp up zoom
     ☐ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques
+    ☐ Return ground traveled by pitch and yaw if they are canceled 
+        ☐ use to go back if needed
 
     Integration:
         ☐ Remove old camera code

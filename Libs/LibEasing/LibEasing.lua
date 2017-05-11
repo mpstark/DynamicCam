@@ -9,6 +9,8 @@ if (not LibEasing) then
     return;
 end
 
+LibEasing.frame = LibEasing.frame or CreateFrame("Frame");
+
 --
 -- Original Lua implementations
 -- from 'EmmanuelOga'
@@ -447,3 +449,106 @@ LibEasing.InBounce = inBounce;
 LibEasing.OutBounce = outBounce;
 LibEasing.InOutBounce = inOutBounce;
 LibEasing.OutInBounce = outInBounce;
+
+
+--------------
+-- ONUPDATE --
+--------------
+local onUpdateFunc = {};
+local lastUpdate;
+local MAX_UPDATE_TIME = 1.0/120.0;
+local function FrameOnUpdate(self, time)
+    if (not lastUpdate or (lastUpdate + MAX_UPDATE_TIME) < GetTime()) then
+        for k,func in pairs(onUpdateFunc) do
+            -- run the function, if it returns nil, remove it
+            if (func() == nil) then
+                onUpdateFunc[k] = nil;
+            end
+        end
+
+        lastUpdate = GetTime();
+    end
+
+    -- remove onupdate if there isn't anything to check
+    if (next(onUpdateFunc) == nil) then
+        LibEasing.frame:SetScript("OnUpdate", nil);
+    end
+end
+
+local function SetupOnUpdate()
+    -- if we have checks to do and there isn't an OnUpdate on the frame, set it up
+    if (next(onUpdateFunc) ~= nil and LibEasing.frame:GetScript("OnUpdate") == nil) then
+        LibEasing.frame:SetScript("OnUpdate", FrameOnUpdate);
+
+        -- force the next update to happen on the NEXT frame
+        lastUpdate = GetTime();
+    end
+end
+
+local function RegisterOnUpdateFunc(func)
+    -- add to the list
+    onUpdateFunc[func] = func;
+
+    -- make sure that an OnUpdate script is on our frame
+    SetupOnUpdate();
+end
+
+local function CancelOnUpdateFunc(func)
+    if (onUpdateFunc[func]) then
+        -- remove from the list
+        onUpdateFunc[func] = nil;
+    end
+end
+
+
+------------------------
+-- EASING CONVIENENCE --
+------------------------
+local handleCounter = 1;
+local currentlyEasing = {};
+function LibEasing:Ease(func, beginValue, endValue, duration, easingFunc, callback)
+    -- assume inOutQuad if not provided
+    if (not easingFunc) then
+        easingFunc = inOutQuad;
+    end
+
+    -- get a handle
+    local handle = handleCounter;
+    handleCounter = handleCounter + 1;
+
+    local change = endValue - beginValue;
+    local beginTime = GetTime();
+
+    local closure = function()
+        local currentTime = GetTime();
+
+        if (beginTime + duration > currentTime) then
+            func(easingFunc(currentTime - beginTime, beginValue, change, duration));
+            return true;
+        else
+            func(endValue);
+            currentlyEasing[handle] = nil;
+
+            -- call the callback if provided
+            if (callback) then callback() end;
+
+            return nil;
+        end
+    end
+
+    -- register OnUpdate, to call every frame until done
+    RegisterOnUpdateFunc(closure);
+    currentlyEasing[handle] = closure;
+    return handle;
+end
+
+function LibEasing:StopEasing(handle)
+    -- need to cancel easing this particular handle
+    if (handle and currentlyEasing[handle]) then
+        CancelOnUpdateFunc(currentlyEasing[handle]);
+        currentlyEasing[handle] = nil;
+        return true;
+    end
+
+    return false;
+end

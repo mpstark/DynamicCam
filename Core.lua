@@ -3,6 +3,7 @@
 ---------------
 local AceAddon = LibStub("AceAddon-3.0");
 local LibCamera = LibStub("LibCamera-1.0");
+local LibEasing = LibStub("LibEasing-1.0");
 
 
 ---------------
@@ -136,6 +137,63 @@ local function tokenize(str, delimitor)
         table.insert(tokens, token);
     end
     return tokens;
+end
+
+
+---------------------
+-- LIBEASING SETUP --
+---------------------
+local function setShoulderOffset(offset)
+    if (offset and type(offset) == 'number') then
+        SetCVar("test_cameraOverShoulder", offset)
+    end
+end
+
+local easeShoulderOffsetHandle;
+local function easeShoulderOffset(endValue, duration, easingFunc)
+    -- we are currently easing the shoulder offset, make sure to stop that
+    if (easeShoulderOffsetHandle) then
+        LibEasing:StopEasing(easeShoulderOffsetHandle);
+        easeShoulderOffsetHandle = nil;
+    end
+
+    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, tonumber(GetCVar("test_cameraOverShoulder")), endValue, duration, easingFunc);
+end
+
+local hidMinimap;
+local function setUIAlpha(newAlpha)
+    if (newAlpha and type(newAlpha) == 'number') then
+        UIParent:SetAlpha(newAlpha);
+
+        -- hide the minimap since the icons don't show fade out
+        -- only if we're at 0 alpha
+        if (newAlpha == 0 and Minimap:IsShown()) then
+            Minimap:Hide();
+            hidMinimap = true;
+        else
+            if (hidMinimap and not Minimap:IsShown()) then
+                Minimap:Show();
+                hidMinimap = nil;
+            end
+        end
+    end
+end
+
+local easeUIAlphaHandle;
+local function easeUIAlpha(endValue, duration, easingFunc)
+    -- we are currently easing the UI out, make sure to stop that
+    if (easeUIAlphaHandle) then
+        LibEasing:StopEasing(easeUIAlphaHandle);
+        easeUIAlphaHandle = nil;
+
+        -- show the minimap if we hid it and it's still hidden
+        if (hidMinimap and not Minimap:IsShown()) then
+            Minimap:Show();
+            hidMinimap = nil;
+        end
+    end
+
+    easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc);
 end
 
 
@@ -714,7 +772,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         if (cvar == "test_cameraOverShoulder") then
             -- ease shoulder offset over
             if (GetCVar("test_cameraOverShoulder") ~= tostring(value)) then
-                LibCamera:EaseCVar("test_cameraOverShoulder", value, transitionTime);
+                easeShoulderOffset(value, transitionTime);
             end
         else
             DC_SetCVar(cvar, value);
@@ -739,13 +797,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
     -- EXTRAS --
     if (situation.extras.hideUI) then
-        -- if (not InCombatLockdown()) then
-        --     -- hide UI
-        --     UIParent:Hide();
-        -- else
-        --     self:Print("Couldn't hide UI because of UI Combat Lockdown!")
-        -- end
-        LibCamera:FadeUI(1, 0, .5);
+        easeUIAlpha(0, math.min(0.5, transitionTime));
     end
 
     self:SendMessage("DC_SITUATION_ENTERED");
@@ -820,12 +872,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
     -- unhide UI
     if (situation.extras.hideUI) then
-        -- if (not InCombatLockdown()) then
-        --     UIParent:Show();
-        -- else
-        --     self:Print("Couldn't show UI because of UI Combat Lockdown!'")
-        -- end
-        LibCamera:FadeUI(0, 1, .5);
+        easeUIAlpha(1, .5);
     end
 
     wipe(restoration[situationID]);
@@ -1000,7 +1047,7 @@ function DynamicCam:ApplyDefaultCameraSettings()
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
             if (cvar == "test_cameraOverShoulder") then
                 if (not (GetCVar("test_cameraOverShoulder") == tostring(value))) then
-                    LibCamera:EaseCVar("test_cameraOverShoulder", value, .75);
+                    easeShoulderOffset(value, 0.75);
                 end
             else
                 DC_SetCVar(cvar, value);
