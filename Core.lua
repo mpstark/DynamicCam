@@ -812,7 +812,8 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     if (a.rotate) then
         if (a.rotateSetting == "continous") then
             -- TODO: Change me
-            Camera:StartContinousRotate(a.rotateSpeed);
+            --Camera:StartContinousRotate(a.rotateSpeed);
+            LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime);
         elseif (a.rotateSetting == "degrees") then
             if (a.yawDegrees ~= 0) then
                 LibCamera:Yaw(a.yawDegrees, transitionTime);
@@ -855,25 +856,46 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     -- stop rotating if we started to
     if (a.rotate) then
         if (a.rotateSetting == "continous") then
-            LibCamera:StopRotating();
+            local yaw = LibCamera:StopYawing();
 
-            -- local degrees = Camera:StopRotating();
-            -- self:DebugPrint("Ended rotate, degrees rotated:", degrees);
-            -- if (a.rotateBack) then
-            --     Camera:RotateDegrees(-degrees, .5);
-            -- end
+            -- rotate back if we want to
+            if (a.rotateBack) then
+                self:DebugPrint("Ended rotate, degrees rotated, yaw:", yaw);
+                if (yaw) then
+                    local yawBack = yaw % 360;
+
+                    -- we're beyond 180 degrees, go the other way
+                    if (yawBack > 180) then
+                        yawBack = yawBack - 360;
+                    end
+
+                    LibCamera:Yaw(-yawBack, 0.75);
+                end
+            end
         elseif (a.rotateSetting == "degrees") then
             if (LibCamera:IsRotating()) then
                 -- interrupted rotation
-                LibCamera:StopRotating();
+                local yaw, pitch = LibCamera:StopRotating();
+
+                -- rotate back if we want to
+                if (a.rotateBack) then
+                    self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch);
+                    if (yaw) then
+                        LibCamera:Yaw(-yaw, 0.75);
+                    end
+
+                    if (pitch) then
+                        LibCamera:Pitch(-pitch, 0.75);
+                    end
+                end
             else
                 if (a.rotateBack) then
                     if (a.yawDegrees ~= 0) then
-                        LibCamera:Yaw(-a.yawDegrees, .75);
+                        LibCamera:Yaw(-a.yawDegrees, 0.75);
                     end
 
                     if (a.pitchDegrees ~= 0) then
-                        LibCamera:Pitch(-a.pitchDegrees, .75);
+                        LibCamera:Pitch(-a.pitchDegrees, 0.75);
                     end
                 end
             end
@@ -1267,16 +1289,19 @@ function DynamicCam:InitDatabase()
         self.db.global.dbVersion = 4;
     end
 
-    -- remove old cvar from profile
     for profileName, profile in pairs(DynamicCamDB.profiles) do
         if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
             profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
         end
 
-        -- convert old targetlock features into cvars
         if (profile.situations) then
             for situationID, situation in pairs(profile.situations) do
                 if (situation.targetLock and situation.targetLock.enabled) then
+                    -- TODO: CONVERT TO DEGREES/SECOND ON ROTATE SPEED
+                    -- if (situation.cameraActions.rotateSpeed) then
+                    --     situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"));
+                    -- end
+
                     if (not situation.cameraCVars) then
                         situation.cameraCVars = {};
                     end

@@ -35,11 +35,11 @@ local changelog = {
 [[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
 [[Beta 4:
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
+        - Rotation actions can now also pitch the camera up and down
         - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
         - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua/LibStub implementation
         - No manipulation of CVars needed to 'trick' WoW's camera engine
-        - Accuracy of Yaw and Pitch actions far improved from previous implementation
-    - Rotation actions can now also pitch the camera up and down
+        - Accuracy of rotation actions far improved from previous implementation
     - Settings sharing using clipboard-friendly strings
         - Export/Import a single situation or your entire profile
     - Copy/paste settings from one situation to another
@@ -50,6 +50,7 @@ local changelog = {
         - Some (in-game) Lua scripting needed
         - Fully sharable using the new settings sharing system
     - Minor Changes/Fixes:
+        - Rotation actions that rotate back are far improved
         - Some database optimizations, lowered memory overhead a bit
         - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
         - Don't redundantly call SetCVar a lot
@@ -904,13 +905,13 @@ local situationOptions = {
                         rotateSpeed = {
                             type = 'range',
                             name = "Speed",
-                            desc = "Speed at which to rotate",
-                            min = -5,
-                            max = 5,
-                            softMin = -.5,
-                            softMax = .5,
+                            desc = "Speed at which to rotate, in degrees/second",
+                            min = -900,
+                            max = 900,
+                            softMin = -90,
+                            softMax = 90,
                             hidden = function() return (S.cameraActions.rotateSetting ~= "continous") end,
-                            step = .01,
+                            step = 5,
                             get = function() return S.cameraActions.rotateSpeed end,
                             set = function(_, newValue) S.cameraActions.rotateSpeed = newValue; end,
                             order = 2,

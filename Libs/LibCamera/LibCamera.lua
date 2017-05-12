@@ -312,7 +312,7 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
 
     -- set the zoom cvar to what will get us to the endValue in the duration
     SetCVar("cameraZoomSpeed", speed);
-    print("Setting cameraZoomSpeed to", speed);
+    --print("Setting cameraZoomSpeed to", speed);
 
     local triggeredZoom = false;
 
@@ -326,10 +326,10 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
             -- second parameter is just to let other addons know that this is zoom triggered by an addon
             if (change > 0) then
                 CameraZoomOut(change, true);
-                print("Zoom out", change);
+                --print("Zoom out", change);
             elseif (change < 0) then
                 CameraZoomIn(-change, true);
-                print("Zoom in", -change);
+                --print("Zoom in", -change);
             end
 
             triggeredZoom = true;
@@ -341,14 +341,14 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
         -- check if we've got beyond the position that we were aiming for
         local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue));
 
-        if (beyondPosition) then
-            print("BEYOND POSITION")
-        end
+        -- if (beyondPosition) then
+        --     print("BEYOND POSITION")
+        -- end
 
         -- count the number of frames that we stayed static
         if (lastValue == currentValue and lastValue ~= beginValue) then
             numFramesStatic = numFramesStatic + 1;
-            print("Static frame!")
+            -- print("Static frame!")
         else
             -- reset counter if zoom resumes
             numFramesStatic = 0;
@@ -366,7 +366,7 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
             -- we should have stopped zooming or the camera stood still for a bit
 
             -- set the zoom cvar to what it was before this happened
-            print("Ending, setting cameraZoomSpeed back to", oldSpeed);
+            -- print("Ending, setting cameraZoomSpeed back to", oldSpeed);
             if (oldSpeed) then
                 SetCVar("cameraZoomSpeed", oldSpeed);
                 oldSpeed = nil;
@@ -425,6 +425,7 @@ end
 -- ROTATION --
 --------------
 local easingYaw;
+local lastYaw;
 function LibCamera:Yaw(endValue, duration, easingFunc, callback)
     --print("Yaw", endValue, duration);
     -- start every yaw
@@ -448,6 +449,9 @@ function LibCamera:Yaw(endValue, duration, easingFunc, callback)
             -- still in time
             local speed = getEaseVelocity(easingFunc, 1.0/60.0, currentTime - beginTime, beginValue, change, duration);
 
+            -- this is the elasped yaw, used if we canceled ahead of time
+            lastYaw = easingFunc(currentTime - beginTime, beginValue, change, duration);
+
             if (speed > 0) then
                 MoveViewRightStart(speed/getYawSpeed());
             elseif (speed < 0) then
@@ -457,6 +461,7 @@ function LibCamera:Yaw(endValue, duration, easingFunc, callback)
             return true;
         else
             -- stop the camera, we're there
+            lastYaw = nil;
             self:StopYawing();
 
             --print("Stopped yawing");
@@ -473,19 +478,100 @@ function LibCamera:Yaw(endValue, duration, easingFunc, callback)
     easingYaw = func;
 end
 
+local continousYaw;
+local elaspedYaw;
+function LibCamera:BeginContinuousYaw(endSpeed, duration)
+    self:StopYawing();
+
+    local beginTime;
+    local lastSpeed, lastTime;
+    local isCoasting = false;
+
+    -- print("begin rotating", endSpeed, duration)
+
+    elaspedYaw = 0;
+
+    local func = function()
+        local speed = endSpeed;
+        local currentTime = GetTime();
+        beginTime = beginTime or GetTime();
+
+        -- accumulate the yaw into elapsed yaw, so that we can return it when we stop
+        if (lastSpeed and lastTime) then
+            elaspedYaw = elaspedYaw + (lastSpeed * (currentTime - lastTime))
+        end
+        lastTime = GetTime();
+
+        if (beginTime + duration > currentTime) then
+            -- linear increase of velocity
+            speed = endSpeed * (currentTime - beginTime) / duration;
+
+            -- print("Ramping up, now speed", speed)
+            if (speed > 0) then
+                MoveViewRightStart(speed/getYawSpeed());
+            elseif (speed < 0) then
+                MoveViewLeftStart(-speed/getYawSpeed());
+            end
+
+            lastSpeed = speed;
+
+            return true;
+        else
+            -- start yawing at the endSpeed if we haven't already
+            if (not isCoasting) then
+                if (speed > 0) then
+                    MoveViewRightStart(speed/getYawSpeed());
+                elseif (speed < 0) then
+                    MoveViewLeftStart(-speed/getYawSpeed());
+                end
+
+                lastSpeed = speed;
+                isCoasting = true;
+            end
+            return true;
+        end
+    end
+
+    RegisterOnUpdateFunc(func);
+    continousYaw = func;
+end
+
 function LibCamera:StopYawing()
+    local yawAmount;
+
     -- if we currently have something running, make sure to cancel it!
     if (easingYaw) then
         CancelOnUpdateFunc(easingYaw);
         easingYaw = nil;
+
+        -- if we had a last yaw, make sure to save it, to return
+        if (lastYaw) then
+            yawAmount = lastYaw;
+            lastYaw = nil;
+        end
+    end
+
+    -- if we are continually yawing, then stop that
+    if (continousYaw) then
+        CancelOnUpdateFunc(continousYaw);
+        continousYaw = nil;
+
+        -- return elapsed yaw
+        if (elaspedYaw) then
+            yawAmount = elaspedYaw;
+            elaspedYaw = nil;
+        end
     end
 
     -- this might be overkill, but we really want to make sure that the camera isn't moving!
     MoveViewLeftStop();
     MoveViewRightStop();
+
+    return yawAmount;
 end
 
 local easingPitch;
+local lastPitch;
 function LibCamera:Pitch(endValue, duration, easingFunc, callback)
     --print("Pitch", endValue, duration);
     -- start every pitch
@@ -509,6 +595,9 @@ function LibCamera:Pitch(endValue, duration, easingFunc, callback)
             -- still in time
             local speed = getEaseVelocity(easingFunc, 1.0/60.0, currentTime - beginTime, beginValue, change, duration);
 
+            -- this is the elasped pitch, used if we canceled ahead of time
+            lastPitch = easingFunc(currentTime - beginTime, beginValue, change, duration);
+
             if (speed > 0) then
                 MoveViewUpStart(speed/getPitchSpeed());
             elseif (speed < 0) then
@@ -517,6 +606,8 @@ function LibCamera:Pitch(endValue, duration, easingFunc, callback)
 
             return true;
         else
+            lastPitch = nil;
+
             -- stop the camera, we're there
             self:StopPitching();
 
@@ -535,22 +626,31 @@ function LibCamera:Pitch(endValue, duration, easingFunc, callback)
 end
 
 function LibCamera:StopPitching()
+    local pitchAmount;
+
     -- if we currently have something running, make sure to cancel it!
     if (easingPitch) then
         CancelOnUpdateFunc(easingPitch);
         easingPitch = nil;
+
+        -- if we had a last pitch, make sure to save it, to return
+        if (lastPitch) then
+            pitchAmount = lastPitch;
+            lastPitch = nil;
+        end
     end
 
     -- this might be overkill, but we really want to make sure that the camera isn't moving!
     MoveViewUpStop();
     MoveViewDownStop();
+
+    return pitchAmount;
 end
 
 function LibCamera:IsRotating()
-    return (easingYaw ~= nil) or (easingPitch ~= nil);
+    return (easingYaw ~= nil) or (continousYaw ~= nil) or (easingPitch ~= nil);
 end
 
 function LibCamera:StopRotating()
-    self:StopPitching();
-    self:StopYawing();
+    return self:StopYawing(), self:StopPitching();
 end
