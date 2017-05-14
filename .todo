@@ -1,17 +1,14 @@
 LibCamera:
     ✔ Add CVar-based zoom? @done (5/9/2017, 11:11:08 PM)
-    ☐ Fix camera zoom sometimes missing during load/after taxis or default to CVar-based zoom
+    ✔ Fix camera zoom sometimes missing during load/after taxis or default to CVar-based zoom @done (5/13/2017, 10:57:54 PM)
     ✔ Remove cinema mode because it lags the game too much in 7.2.5 @done (5/9/2017, 11:12:38 PM)
-    ☐ Add canceling based on esc key or manual camera manipulation
-    ☐ Add nameplate adjusting zoom
-    ☐ Add continuous zoom / ramp up zoom
-    ☐ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques
+    ✔ Add continuous zoom / ramp up zoom @done (5/12/2017, 8:09:05 PM)
     ✔ Return ground traveled by pitch and yaw if they are canceled @done (5/11/2017, 7:28:48 PM)
         ✔ use to go back if needed @done (5/11/2017, 7:28:49 PM)
-
-    Integration:
-        ☐ Remove old camera code
-        ☐ Nameplate-zoom code really needs refactoring
+    ☐ Remove old camera code
+    ☐ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques
+    ☐ Add canceling based on esc key or manual camera manipulation
+    ☐ Add nameplate adjusting zoom
 
 Presets:
     ☐ Add first run popup to select preset
@@ -27,3 +24,5 @@ Misc:
     ☐ Clean up modernization of DB code
     ☐ Localize menu
     ☐ Optimize EvaluateSituations to only update situations based on the events that they are registered to
+    ☐ Be able to use LibEasing to choose an easing formula for profile
+

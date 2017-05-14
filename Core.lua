@@ -59,6 +59,7 @@ local evaluateTimer;
 local restoration = {};
 local delayTime;
 local events = {};
+local useLegacyZoom = true;
 
 local function DC_RunScript(script, situationID)
     if (not script or script == "") then
@@ -569,6 +570,10 @@ function DynamicCam:Startup()
         Options = self.Options;
     end
 
+    -- register for player entering and leaving world to enable legacy zoom
+    self:RegisterEvent("PLAYER_ENTERING_WORLD");
+    self:RegisterEvent("PLAYER_LEAVING_WORLD");
+
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
     self:RegisterMessage("DC_SITUATION_DISABLED");
@@ -775,15 +780,23 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             local difference = math.abs(newZoomLevel - cameraZoom)
             local linearSpeed = difference / transitionTime;
             local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"));
+            local duration = transitionTime;
 
             -- if zoom speed is lower than current speed, then calculate a new transitionTime
             if (a.timeIsMax and linearSpeed < currentSpeed) then
                 -- min time 10 frames
-                LibCamera:SetZoom(newZoomLevel, math.max(10.0/60.0, difference / currentSpeed));
-                self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, math.max(10.0/60.0, difference / currentSpeed));
+                duration = math.max(10.0/60.0, difference / currentSpeed)
+            end
+
+            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration);
+
+            if (useLegacyZoom) then
+                -- legacy zoom is for situations that just don't work with new zoom technique
+                -- anything that involves a loading screen or transitions
+                LibCamera:SetZoomUsingCVar(newZoomLevel, duration);
+                self:DebugPrint("Using legacy zoom");
             else
-                LibCamera:SetZoom(newZoomLevel, transitionTime);
-                self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, transitionTime);
+                LibCamera:SetZoom(newZoomLevel, duration);
             end
         end
 
@@ -811,8 +824,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     -- ROTATE --
     if (a.rotate) then
         if (a.rotateSetting == "continous") then
-            -- TODO: Change me
-            --Camera:StartContinousRotate(a.rotateSpeed);
             LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime);
         elseif (a.rotateSetting == "degrees") then
             if (a.yawDegrees ~= 0) then
@@ -902,21 +913,24 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         end
     end
 
-    -- stop zooming if we're still zooming
-    -- if (a.zoomSetting ~= "off" and Camera:IsZooming()) then
-    --     self:DebugPrint("Still zooming for situation, stop zooming.")
-    --     Camera:StopZooming();
-    -- end
-
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situationID, newSituationID)) then
         restoringZoom = true;
 
         local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
         local t = math.max(10.0/60.0, math.min(defaultTime, .75));
-        LibCamera:SetZoom(restoration[situationID].zoom, t);
+        local zoomLevel = restoration[situationID].zoom;
 
         self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
+
+        if (useLegacyZoom) then
+            -- legacy zoom is for situations that just don't work with new zoom technique
+            -- anything that involves a loading screen or transitions
+            LibCamera:SetZoomUsingCVar(zoomLevel, t);
+            self:DebugPrint("Using legacy zoom");
+        else
+            LibCamera:SetZoom(zoomLevel, t);
+        end
     else
         self:DebugPrint("Not restoring zoom level");
     end
@@ -1115,11 +1129,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
         return false;
     end
 
-    -- don't restore view if we're still zooming
-    -- if (Camera:IsZooming()) then
-    --     return false;
-    -- end
-
     -- restore if we're just exiting a situation, but not going into a new one
     if (not newSituation) then
         return true;
@@ -1176,6 +1185,17 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
+    if (event == "PLAYER_CONTROL_GAINED") then
+        -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
+        self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
+        useLegacyZoom = true;
+
+        C_Timer.After(5, function()
+            useLegacyZoom = false;
+            self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
+        end);
+    end
+
     -- we don't want to evaluate too often, some of the events can be *very* spammy
     if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
         lastEvaluate = GetTime();
@@ -1194,6 +1214,8 @@ function DynamicCam:EventHandler(event, possibleUnit, ...)
 end
 
 function DynamicCam:RegisterEvents()
+    self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
+
     for situationID, situation in pairs(self.db.profile.situations) do
         self:RegisterSituationEvents(situationID);
     end
@@ -1210,6 +1232,18 @@ function DynamicCam:RegisterSituationEvents(situationID)
             end
         end
     end
+end
+
+function DynamicCam:PLAYER_ENTERING_WORLD()
+    C_Timer.After(60, function()
+        useLegacyZoom = false;
+        self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
+    end);
+end
+
+function DynamicCam:PLAYER_LEAVING_WORLD()
+    self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
+    useLegacyZoom = true;
 end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
@@ -1422,7 +1456,7 @@ function DynamicCam:SaveViewCC(input)
 end
 
 function DynamicCam:ZoomInfoCC(input)
-    Camera:PrintCameraVars();
+    self:Print("Zoom level:", GetCameraZoom());
 end
 
 function DynamicCam:ZoomSlash(input)

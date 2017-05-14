@@ -21,22 +21,25 @@ local onUpdateFunc = {};
 -- ONUPDATE --
 --------------
 local lastUpdate;
+local pauseOnUpdate = false;
 local MAX_UPDATE_TIME = 1.0/120.0;
 local function FrameOnUpdate(self, time)
-    if (not lastUpdate or (lastUpdate + MAX_UPDATE_TIME) < GetTime()) then
-        for k,func in pairs(onUpdateFunc) do
-            -- run the function, if it returns nil, remove it
-            if (func() == nil) then
-                onUpdateFunc[k] = nil;
+    if (not pauseOnUpdate) then
+        if (not lastUpdate or (lastUpdate + MAX_UPDATE_TIME) < GetTime()) then
+            for k,func in pairs(onUpdateFunc) do
+                -- run the function, if it returns nil, remove it
+                if (func() == nil) then
+                    onUpdateFunc[k] = nil;
+                end
             end
+
+            lastUpdate = GetTime();
         end
 
-        lastUpdate = GetTime();
-    end
-
-    -- remove onupdate if there isn't anything to check
-    if (next(onUpdateFunc) == nil) then
-        LibCamera.frame:SetScript("OnUpdate", nil);
+        -- remove onupdate if there isn't anything to check
+        if (next(onUpdateFunc) == nil) then
+            LibCamera.frame:SetScript("OnUpdate", nil);
+        end
     end
 end
 
@@ -69,6 +72,32 @@ end
 -----------
 -- HOOKS --
 -----------
+
+
+------------
+-- EVENTS --
+------------
+-- LibCamera.frame:RegisterEvent("PLAYER_ENTERING_WORLD");
+-- LibCamera.frame:RegisterEvent("PLAYER_LEAVING_WORLD");
+
+-- -- Script to fire blizzard events into the event listeners
+-- LibCamera.frame:SetScript("OnEvent", function(this, event, ...)
+--     if (LibCamera[event]) then
+--         LibCamera[event](...);
+--     end
+-- end);
+
+-- function LibCamera:PLAYER_ENTERING_WORLD()
+--     -- exiting a loading screen
+--     print("PLAYER_ENTERING_WORLD")
+--     pauseOnUpdate = false;
+-- end
+
+-- function LibCamera:PLAYER_LEAVING_WORLD()
+--     -- going into a loading screen
+--     print("PLAYER_LEAVING_WORLD")
+--     pauseOnUpdate = true;
+-- end
 
 
 -------------
@@ -187,34 +216,57 @@ function LibCamera:UnlockZoom()
     CameraZoomOut = realCameraZoomOut;
 end
 
+local function reallyStopZooming()
+    -- this might be overkill, but we really want to make sure that the camera isn't moving!
+    CameraZoomIn(0, true);
+    CameraZoomOut(0, true);
+    MoveViewOutStart(0);
+    MoveViewInStart(0);
+    MoveViewOutStart(0);
+    MoveViewInStart(0);
+    MoveViewOutStart(0);
+    MoveViewInStart(0);
+    MoveViewInStop();
+    MoveViewOutStop();
+    MoveViewInStop();
+    MoveViewOutStop();
+    MoveViewInStop();
+    MoveViewOutStop();
+end
+
 local easingZoom;
 function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     -- start every zoom by making sure that we stop zooming
     self:StopZooming();
-    --print("SetZoom", endValue, duration);
+    print("SetZoom", endValue, duration, "Current zoom", GetCameraZoom());
 
     -- assume easeInOutQuad if not provided
     if (not easingFunc) then
         easingFunc = easeInOutQuad;
     end
 
-    local beginValue = GetCameraZoom();
-    local change = endValue - beginValue;
-
     -- we want to start the counter on the frame the the zoom started
     local beginTime;
-
+    local beginValue;
+    local change;
     local frameCount = 0;
     local stopFlag = false;
+    local lastFrameTime;
 
     -- create a closure, for OnUpdate
     local func = function()
-        beginTime = beginTime or GetTime();
-
         local currentTime = GetTime();
         local currentValue = GetCameraZoom();
+        local deltaTime = currentTime - (lastFrameTime or currentTime);
 
-        local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue))
+        beginTime = beginTime or GetTime();
+        beginValue = beginValue or GetCameraZoom();
+        change = change or (endValue - beginValue);
+
+        local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue));
+
+        frameCount = frameCount + 1;
+        lastFrameTime = GetTime();
 
         if ((beginTime + duration > currentTime) and not beyondPosition) then
             -- still in time
@@ -223,8 +275,6 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
             local t = currentTime - beginTime;
             local expectedValue = easingFunc(t, beginValue, change, duration);
             local posError = currentValue - expectedValue;
-
-            frameCount = frameCount + 1;
 
             if (frameCount > 1) then
                 -- we're off the mark, try to rebase our time so that we're in the right time for our current position
@@ -267,13 +317,14 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                 MoveViewInStart(-speed/getZoomSpeed());
             end
 
-            --print(string.format("frame: %d, position: %.2f, expect: %.2f, speed: %.2f, posError: %.4f", frameCount, currentValue, expectedValue, speed, posError));
+            print(string.format("frame: %d, position: %.2f, expect: %.2f, speed: %.2f, posError: %.4f, deltaTime: %0.4f", frameCount, currentValue, expectedValue, speed, posError, deltaTime));
 
             return true;
         elseif (not stopFlag) then
             -- we're out of time
-            MoveViewInStop();
-            MoveViewOutStop();
+            reallyStopZooming();
+
+            print("stopping on frame", frameCount, "deltaTime", deltaTime, 1/deltaTime, "Current zoom", GetCameraZoom());
 
             stopFlag = true;
             return true;
@@ -299,14 +350,8 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
     self:StopZooming();
 
     local beginValue = GetCameraZoom();
-    local beginTime = GetTime();
     local change = endValue - beginValue;
     local speed = math.abs(math.min(50, math.abs((change/duration))));
-
-    if (speed == 50) then
-        -- we're going at the "speed limit", extend duration
-        duration = change / speed;
-    end
 
     oldSpeed = getZoomSpeed();
 
@@ -335,15 +380,10 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
             triggeredZoom = true;
         end
 
-        local currentTime = GetTime();
         local currentValue = GetCameraZoom();
 
         -- check if we've got beyond the position that we were aiming for
         local beyondPosition = ((change > 0 and currentValue >= endValue) or (change < 0 and currentValue <= endValue));
-
-        -- if (beyondPosition) then
-        --     print("BEYOND POSITION")
-        -- end
 
         -- count the number of frames that we stayed static
         if (lastValue == currentValue and lastValue ~= beginValue) then
@@ -358,7 +398,6 @@ function LibCamera:SetZoomUsingCVar(endValue, duration, callback)
 
         lastValue = currentValue;
 
-        -- and (beginTime + duration > currentTime)
         if ((numFramesStatic < CVAR_ZOOM_NUM_FRAMES_STATIC) and not beyondPosition and not goingWrongWay) then
             -- we're still zooming or we should be
             return true;
@@ -403,21 +442,7 @@ function LibCamera:StopZooming()
         end
     end
 
-    -- this might be overkill, but we really want to make sure that the camera isn't moving!
-    --CameraZoomIn(0, true);
-    --CameraZoomOut(0, true);
-    MoveViewOutStart(0);
-    MoveViewInStart(0);
-    MoveViewOutStart(0);
-    MoveViewInStart(0);
-    MoveViewOutStart(0);
-    MoveViewInStart(0);
-    MoveViewInStop();
-    MoveViewOutStop();
-    MoveViewInStop();
-    MoveViewOutStop();
-    MoveViewInStop();
-    MoveViewOutStop();
+    reallyStopZooming();
 end
 
 
