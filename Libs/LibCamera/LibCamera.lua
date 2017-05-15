@@ -239,7 +239,7 @@ local MAX_POS_ERROR = 0.5;
 function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     -- start every zoom by making sure that we stop zooming
     self:StopZooming();
-    print("SetZoom", endValue, duration, "Current zoom", GetCameraZoom());
+    -- print("SetZoom", endValue, duration, "Current zoom", GetCameraZoom());
 
     -- assume easeInOutQuad if not provided
     if (not easingFunc) then
@@ -257,7 +257,7 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     local func = function()
         local currentTime = GetTime();
         local currentValue = GetCameraZoom();
-        local deltaTime = currentTime - (lastFrameTime or currentTime);
+        -- local deltaTime = currentTime - (lastFrameTime or currentTime);
 
         beginTime = beginTime or GetTime();
         beginValue = beginValue or GetCameraZoom();
@@ -286,10 +286,10 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                     if (tPrime > 0 and tPrime < duration) then
                         beginTime = beginTime - tDiff;
                         t = currentTime - beginTime;
-                        --expectedValue = easingFunc(t, beginValue, change, duration);
+                        -- expectedValue = easingFunc(t, beginValue, change, duration);
 
-                        print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
-                        --posError = currentValue - expectedValue;
+                        -- print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
+                        -- posError = currentValue - expectedValue;
                     end
                 end
             end

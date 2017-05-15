@@ -246,6 +246,7 @@ DynamicCam.defaults = {
             addIncrements = .5,
             maxZoomTime = .3,
             incAddDifference = 2,
+            easingFunc = "OutQuad",
         },
         defaultCvars = {
             ["cameraZoomSpeed"] = 20,
@@ -586,6 +587,11 @@ function DynamicCam:Startup()
     evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
     self:ScheduleTimer("RegisterEvents", 3);
 
+    -- turn on reactive zoom if it's enabled
+    if (self.db.profile.reactiveZoom.enabled) then
+        self:ReactiveZoomOn();
+    end
+
     started = true;
 end
 
@@ -607,6 +613,9 @@ function DynamicCam:Shutdown()
 
     -- apply default settings
     self:ApplyDefaultCameraSettings();
+
+    -- turn off reactiveZoom
+    self:ReactiveZoomOff();
 
     started = false;
 end
@@ -1175,6 +1184,113 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
     -- if nothing else, don't restore
     return false;
+end
+
+
+-------------------
+-- REACTIVE ZOOM --
+-------------------
+local targetZoom;
+local oldCameraZoomIn = CameraZoomIn;
+local oldCameraZoomOut = CameraZoomOut;
+
+local function round(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0);
+    return math.floor(num * mult + 0.5) / mult;
+end
+
+local function clearTargetZoom()
+    -- print("clearTargetZoom");
+    targetZoom = nil;
+end
+
+local function ReactiveZoom(zoomIn, increments, automated)
+    if (not automated) then
+        local currentZoom = GetCameraZoom();
+        local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways;
+        local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements;
+        local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime;
+        local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference;
+        local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc;
+
+        increments = increments or 1;
+
+        -- if we've change directions, make sure to reset
+        if (zoomIn) then
+            if (targetZoom and targetZoom > currentZoom) then
+                targetZoom = nil;
+            end
+        else
+            if (targetZoom and targetZoom < currentZoom) then
+                targetZoom = nil;
+            end
+        end
+
+        -- scale increments up
+        if (increments == 1) then
+            if (targetZoom) then
+                local diff = math.abs(targetZoom - currentZoom);
+
+                if (diff > incAddDifference) then
+                    increments = increments + addIncrementsAlways + addIncrements;
+                else
+                    increments = increments + addIncrementsAlways;
+                end
+            else
+                increments = increments + addIncrementsAlways;
+            end
+        end
+
+        -- if there is already a target zoom, base off that one, or just use the current zoom
+        targetZoom = targetZoom or currentZoom;
+
+        if (zoomIn) then
+            targetZoom = math.max(0, targetZoom - increments);
+        else
+            targetZoom = math.min(39, targetZoom + increments);
+        end
+
+        -- if we don't need to zoom because we're at the max limits, then don't
+        if ((targetZoom == 39 and currentZoom == 39)
+            or (targetZoom == 0 and currentZoom == 0)) then
+            return;
+        end
+
+        -- round target zoom off to the nearest decimal
+        targetZoom = round(targetZoom, 1);
+
+        -- print("ReactiveZoom", targetZoom);
+
+        -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
+        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
+        local easing = LibEasing[easingFunc] or LibEasing.OutQuad;
+
+        LibCamera:SetZoom(targetZoom, zoomTime, easing, clearTargetZoom);
+    else
+        if (zoomIn) then
+            oldCameraZoomIn(increments, automated);
+        else
+            oldCameraZoomOut(increments, automated);
+        end
+    end
+end
+
+local function ReactiveZoomIn(increments, automated)
+    ReactiveZoom(true, increments, automated);
+end
+
+local function ReactiveZoomOut(increments, automated)
+    ReactiveZoom(false, increments, automated);
+end
+
+function DynamicCam:ReactiveZoomOn()
+    CameraZoomIn = ReactiveZoomIn;
+    CameraZoomOut = ReactiveZoomOut;
+end
+
+function DynamicCam:ReactiveZoomOff()
+    CameraZoomIn = oldCameraZoomIn;
+    CameraZoomOut = oldCameraZoomOut;
 end
 
 

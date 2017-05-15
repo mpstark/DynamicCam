@@ -23,33 +23,46 @@ If you find an problem or want to make a suggestion, please, please leave a note
 I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there.
 
 Some handy slash commands:
-    `/dc` will open this menu
-    `/zi` will print out the current zoom
-    `/zoom #` will zoom to that zoom level
-    `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
-    `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
+    `/dynamiccam` or `/dc` will open this menu
+    `/zoominfo` or `/zi` will print out the current zoom
+    `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
+    `/dcdiscord` will allow you to copy a Discord invite so that you can join
+
+    The following slash commands will also accept a time and an easing function:
+        `/zoom #` will zoom to that zoom level
+        `/yaw #` will yaw the camera left/right by that number of degrees
+        `/pitch #` will pitch the camera up/down by that number of degrees
+
+        Example:
+            `/zoom 5 5 InOutQuint` will zoom to 5 over 5 seconds using InOutQuint as the easing function.
+    ]];
 local knownIssues = [[- The new LibCamera zoom can sometimes zoom you all the way in, report if you find a repeatable spot
     - Places that I think I've fixed: after loading screens/after taxi's
-- Fit nameplates is still a work in progress, can do a little in-and-out number
+- Fit nameplates and Reactive Zoom are both using the old camera code
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[Beta 4:
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
         - Rotation actions can now also pitch the camera up and down
         - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
-        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua/LibStub implementation
+        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua implementation
         - No manipulation of CVars needed to 'trick' WoW's camera engine
         - Accuracy of rotation actions far improved from previous implementation
+
     - Settings sharing using clipboard-friendly strings
+        - Very much like WeakAura's export string option
         - Export/Import a single situation or your entire profile
-    - Copy/paste settings from one situation to another
+
+    - Create new custom situations (Advanced)
+        - Some (in-game) Lua scripting needed
+        - Fully sharable using the new settings sharing system
+
     - Fade the UI instead of hiding it
         - Fading can occur in combat, and looks nicer
         - Hitting escape will show the UI if it is hidden in this manner
-    - (Advanced) Create new custom situations
-        - Some (in-game) Lua scripting needed
-        - Fully sharable using the new settings sharing system
+
     - Minor Changes/Fixes:
+        - Easily copy/paste settings from one situation to another
         - Changes to the default conditions and new situations will now be automatically applied to profiles
         - Rotation actions that rotate back are far improved
         - Some database optimizations, lowered memory overhead a bit
@@ -106,6 +119,38 @@ local changelog = {
         - a situation's zoom wouldn't actually be applied if a zoom was already occuring
         - nameplate settings should no longer cause taint]],
 };
+
+local easing = {
+    Linear = "Linear",
+    InQuad = "In Quadratic",
+    OutQuad = "Out Quadratic",
+    InOutQuad = "In/Out Quadratic",
+    OutInQuad = "Out/In Quadratic",
+    InCubic = "In Cubic",
+    OutCubic = "Out Cubic",
+    InOutCubic = "In/Out Cubic",
+    OutInCubic = "Out/In Cubic",
+    InQuart = "In Quartic",
+    OutQuart = "Out Quartic",
+    InOutQuart = "In/Out Quartic",
+    OutInQuart = "Out/In Quartic",
+    InQuint = "In Quintic",
+    OutQuint = "Out Quintic",
+    InOutQuint = "In/Out Quintic",
+    OutInQuint = "Out/In Quintic",
+    InSine = "In Sine",
+    OutSine = "Out Sine",
+    InOutSine = "In/Out Sine",
+    OutInSine = "Out/In Sine",
+    InExpo = "In Exponent",
+    OutExpo = "Out Exponent",
+    InOutExpo = "In/Out Exponent",
+    OutInExpo = "Out/In Exponent",
+    InCirc = "In Circular",
+    OutCirc = "Out Circular",
+    InOutCirc = "In/Out Circular",
+    OutInCirc = "Out/In Circular",
+}
 
 local general = {
     name = "DynamicCam",
@@ -220,7 +265,16 @@ local settings = {
                     name = "Enabled",
                     desc = "Speed up zoom when manually zooming in quickly.",
                     get = function() return (DynamicCam.db.profile.reactiveZoom.enabled) end,
-                    set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.enabled = newValue; end,
+                    set = function(_, newValue)
+                        DynamicCam.db.profile.reactiveZoom.enabled = newValue;
+
+                        -- actually turn it on
+                        if (newValue) then
+                            DynamicCam:ReactiveZoomOn();
+                        else
+                            DynamicCam:ReactiveZoomOff();
+                        end
+                    end,
                     order = 1,
                 },
                 reactiveZoomAdvanced = {
@@ -274,6 +328,16 @@ local settings = {
                             get = function() return (DynamicCam.db.profile.reactiveZoom.incAddDifference) end,
                             set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.incAddDifference = newValue; end,
                             order = 5,
+                        },
+                        easingFunc = {
+                            type = 'select',
+                            name = "Easing Function",
+                            desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.easingFunc) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
+                            values = easing,
+                            width = "full",
+                            order = 6,
                         },
                     },
                 },
