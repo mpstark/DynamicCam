@@ -1473,10 +1473,24 @@ function DynamicCam:ZoomSlash(input)
 
     local zoom = tonumber(tokens[1]);
     local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
 
     if (zoom and (zoom <= 39 or zoom >= 0)) then
         local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
-        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75));
+        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc);
     end
 end
 
@@ -1485,9 +1499,23 @@ function DynamicCam:PitchSlash(input)
 
     local pitch = tonumber(tokens[1]);
     local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
 
     if (pitch and (pitch <= 90 or pitch >= -90)) then
-        LibCamera:Pitch(pitch, time or 0.75);
+        LibCamera:Pitch(pitch, time or 0.75, easingFunc);
     end
 end
 
@@ -1496,9 +1524,23 @@ function DynamicCam:YawSlash(input)
 
     local yaw = tonumber(tokens[1]);
     local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
 
     if (yaw) then
-        LibCamera:Yaw(yaw, time or 0.75);
+        LibCamera:Yaw(yaw, time or 0.75, easingFunc);
     end
 end
 
