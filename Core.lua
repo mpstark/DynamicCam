@@ -102,38 +102,6 @@ local function DC_SetCVar(cvar, setting)
     end
 end
 
-local function copyTable(originalTable)
-    local origType = type(originalTable);
-    local copy;
-    if (origType == 'table') then
-        -- this child is a table, copy the table recursively
-        copy = {};
-        for orig_key, orig_value in next, originalTable, nil do
-            copy[copyTable(orig_key)] = copyTable(orig_value);
-        end
-    else
-        -- this child is a value, copy it cover
-        copy = originalTable;
-    end
-    return copy;
-end
-
-local function gotoView(view, instant)
-    -- if you call SetView twice, then it's instant
-    if (instant) then
-        SetView(view);
-    end
-    SetView(view);
-end
-
-local function tokenize(str, delimitor)
-    local tokens = {};
-    for token in str:gmatch(delimitor or "%S+") do
-        table.insert(tokens, token);
-    end
-    return tokens;
-end
-
 
 ---------------------------
 -- LIBEASING CONVENIENCE --
@@ -632,6 +600,30 @@ local delayTimer;
 local restoration = {};
 local useLegacyZoom = true;
 local legacyZoomTimer;
+
+local function gotoView(view, instant)
+    -- if you call SetView twice, then it's instant
+    if (instant) then
+        SetView(view);
+    end
+    SetView(view);
+end
+
+local function copyTable(originalTable)
+    local origType = type(originalTable);
+    local copy;
+    if (origType == 'table') then
+        -- this child is a table, copy the table recursively
+        copy = {};
+        for orig_key, orig_value in next, originalTable, nil do
+            copy[copyTable(orig_key)] = copyTable(orig_value);
+        end
+    else
+        -- this child is a value, copy it cover
+        copy = originalTable;
+    end
+    return copy;
+end
 
 function DynamicCam:EvaluateSituations()
     -- if we currently have timer running, kill it
@@ -1520,6 +1512,14 @@ end
 -------------------
 -- CHAT COMMANDS --
 -------------------
+local function tokenize(str, delimitor)
+    local tokens = {};
+    for token in str:gmatch(delimitor or "%S+") do
+        table.insert(tokens, token);
+    end
+    return tokens;
+end
+
 StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
     text = "DynamicCam Discord Link:",
     button1 = "Got it!",
