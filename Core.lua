@@ -49,18 +49,11 @@ DynamicCam.currentSituationID = nil;
 -- LOCALS --
 ------------
 local _;
-local started;
 local Camera;
 local Options;
 local functionCache = {};
 local situationEnvironments = {}
 local conditionExecutionCache = {};
-local evaluateTimer;
-local restoration = {};
-local delayTime;
-local events = {};
-local useLegacyZoom = true;
-local legacyZoomTimer;
 
 local function DC_RunScript(script, situationID)
     if (not script or script == "") then
@@ -142,9 +135,9 @@ local function tokenize(str, delimitor)
 end
 
 
----------------------
--- LIBEASING SETUP --
----------------------
+---------------------------
+-- LIBEASING CONVENIENCE --
+---------------------------
 local function setShoulderOffset(offset)
     if (offset and type(offset) == 'number') then
         SetCVar("test_cameraOverShoulder", offset)
@@ -501,6 +494,10 @@ return false;]],
 ----------
 -- CORE --
 ----------
+local started;
+local events = {};
+local evaluateTimer;
+
 function DynamicCam:OnInitialize()
     -- setup db
     self:InitDatabase();
@@ -630,7 +627,11 @@ end
 ----------------
 -- SITUATIONS --
 ----------------
+local delayTime;
 local delayTimer;
+local restoration = {};
+local useLegacyZoom = true;
+local legacyZoomTimer;
 
 function DynamicCam:EvaluateSituations()
     -- if we currently have timer running, kill it
@@ -1392,7 +1393,6 @@ end
 --------------
 -- DATABASE --
 --------------
-
 function DynamicCam:InitDatabase()
     self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true);
     self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");

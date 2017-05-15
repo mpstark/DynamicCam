@@ -5,9 +5,9 @@ LibCamera:
     ✔ Add continuous zoom / ramp up zoom @done (5/12/2017, 8:09:05 PM)
     ✔ Return ground traveled by pitch and yaw if they are canceled @done (5/11/2017, 7:28:48 PM)
         ✔ use to go back if needed @done (5/11/2017, 7:28:49 PM)
-    ☐ Remove old camera code
-    ☐ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques
+    ✔ Change "Reactive Zoom" to a new implementation that uses LibCamera or continuous zoom techniques @done (5/15/2017, 5:11:15 PM)
     ☐ Add canceling based on esc key or manual camera manipulation
+    ☐ Remove old camera code
     ☐ Add nameplate adjusting zoom
 
 Presets:

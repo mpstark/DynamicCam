@@ -9,7 +9,6 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0");
 -- LOCALS --
 ------------
 local Options = DynamicCam.Options;
-local Camera = DynamicCam.Camera;
 local parent = DynamicCam;
 local _;
 local S, SID;
@@ -795,7 +794,7 @@ local situationOptions = {
                     name = "Rotate",
                     desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
                     get = function() return S.cameraActions.rotate end,
-                    set = function(_, newValue) S.cameraActions.rotate = newValue; Camera:StopRotating(); end,
+                    set = function(_, newValue) S.cameraActions.rotate = newValue; LibCamera:StopRotating(); end,
                     order = 2,
                 },
                 view = {
