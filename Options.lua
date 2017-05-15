@@ -119,7 +119,7 @@ local changelog = {
         - nameplate settings should no longer cause taint]],
 };
 
-local easing = {
+local easingValues = {
     Linear = "Linear",
     InQuad = "In Quadratic",
     OutQuad = "Out Quadratic",
@@ -149,7 +149,7 @@ local easing = {
     OutCirc = "Out Circular",
     InOutCirc = "In/Out Circular",
     OutInCirc = "Out/In Circular",
-}
+};
 
 local general = {
     name = "DynamicCam",
@@ -334,7 +334,7 @@ local settings = {
                             desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
                             get = function() return (DynamicCam.db.profile.reactiveZoom.easingFunc) end,
                             set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
-                            values = easing,
+                            values = easingValues,
                             width = "full",
                             order = 6,
                         },
@@ -342,10 +342,45 @@ local settings = {
                 },
             },
         },
+        defaultEasing = {
+            type = 'group',
+            name = "Default Easing Functions (Advanced)",
+            order = 2,
+            inline = true,
+            args = {
+                easingZoom = {
+                    type = 'select',
+                    name = "Zoom Easing",
+                    desc = "Which easing function to use for zoom.",
+                    get = function() return (DynamicCam.db.profile.easingZoom) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
+                    values = easingValues,
+                    order = 1,
+                },
+                easingYaw = {
+                    type = 'select',
+                    name = "Yaw Easing",
+                    desc = "Which easing function to use for yaw.",
+                    get = function() return (DynamicCam.db.profile.easingYaw) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingYaw = newValue; end,
+                    values = easingValues,
+                    order = 2,
+                },
+                easingPitch = {
+                    type = 'select',
+                    name = "Pitch Easing",
+                    desc = "Which easing function to use for pitch.",
+                    get = function() return (DynamicCam.db.profile.easingPitch) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingPitch = newValue; end,
+                    values = easingValues,
+                    order = 3,
+                },
+            },
+        },
         defaultCvars = {
             type = 'group',
             name = "Default Camera Settings",
-            order = 2,
+            order = 3,
             inline = true,
             args = {
                 description = {

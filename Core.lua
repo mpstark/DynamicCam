@@ -201,6 +201,9 @@ DynamicCam.defaults = {
         advanced = false,
         debugMode = false,
         actionCam = true,
+        easingZoom = "InOutQuad",
+        easingYaw = "InOutQuad",
+        easingPitch = "InOutQuad",
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = .5,
@@ -799,7 +802,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
                 LibCamera:SetZoomUsingCVar(newZoomLevel, duration);
                 self:DebugPrint("Using legacy zoom");
             else
-                LibCamera:SetZoom(newZoomLevel, duration);
+                LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
             end
         end
 
@@ -830,11 +833,11 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime);
         elseif (a.rotateSetting == "degrees") then
             if (a.yawDegrees ~= 0) then
-                LibCamera:Yaw(a.yawDegrees, transitionTime);
+                LibCamera:Yaw(a.yawDegrees, transitionTime, LibEasing[self.db.profile.easingYaw]);
             end
 
             if (a.pitchDegrees ~= 0) then
-                LibCamera:Pitch(a.pitchDegrees, transitionTime);
+                LibCamera:Pitch(a.pitchDegrees, transitionTime, LibEasing[self.db.profile.easingPitch]);
             end
         end
     end
@@ -883,7 +886,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
                         yawBack = yawBack - 360;
                     end
 
-                    LibCamera:Yaw(-yawBack, 0.75);
+                    LibCamera:Yaw(-yawBack, 0.75, LibEasing[self.db.profile.easingYaw]);
                 end
             end
         elseif (a.rotateSetting == "degrees") then
@@ -895,21 +898,21 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
                 if (a.rotateBack) then
                     self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch);
                     if (yaw) then
-                        LibCamera:Yaw(-yaw, 0.75);
+                        LibCamera:Yaw(-yaw, 0.75, LibEasing[self.db.profile.easingYaw]);
                     end
 
                     if (pitch) then
-                        LibCamera:Pitch(-pitch, 0.75);
+                        LibCamera:Pitch(-pitch, 0.75, LibEasing[self.db.profile.easingPitch]);
                     end
                 end
             else
                 if (a.rotateBack) then
                     if (a.yawDegrees ~= 0) then
-                        LibCamera:Yaw(-a.yawDegrees, 0.75);
+                        LibCamera:Yaw(-a.yawDegrees, 0.75, LibEasing[self.db.profile.easingYaw]);
                     end
 
                     if (a.pitchDegrees ~= 0) then
-                        LibCamera:Pitch(-a.pitchDegrees, 0.75);
+                        LibCamera:Pitch(-a.pitchDegrees, 0.75, LibEasing[self.db.profile.easingPitch]);
                     end
                 end
             end
@@ -932,7 +935,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
             LibCamera:SetZoomUsingCVar(zoomLevel, t);
             self:DebugPrint("Using legacy zoom");
         else
-            LibCamera:SetZoom(zoomLevel, t);
+            LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
         end
     else
         self:DebugPrint("Not restoring zoom level");
@@ -1256,9 +1259,8 @@ local function ReactiveZoom(zoomIn, increments, automated)
 
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
         local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
-        local easing = LibEasing[easingFunc] or LibEasing.OutQuad;
 
-        LibCamera:SetZoom(targetZoom, zoomTime, easing, clearTargetZoom);
+        LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
     else
         if (zoomIn) then
             oldCameraZoomIn(increments, automated);
