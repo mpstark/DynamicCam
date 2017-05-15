@@ -235,6 +235,7 @@ local function reallyStopZooming()
 end
 
 local easingZoom;
+local MAX_POS_ERROR = 0.5;
 function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     -- start every zoom by making sure that we stop zooming
     self:StopZooming();
@@ -250,7 +251,6 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
     local beginValue;
     local change;
     local frameCount = 0;
-    local stopFlag = false;
     local lastFrameTime;
 
     -- create a closure, for OnUpdate
@@ -279,7 +279,7 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
             if (frameCount > 1) then
                 -- we're off the mark, try to rebase our time so that we're in the right time for our current position
                 -- don't try to do this on the first frame
-                if (math.abs(posError) > 0.05) then
+                if (math.abs(posError) > MAX_POS_ERROR) then
                     local tPrime = rebaseEaseTime(easingFunc, 0.005, currentValue, t, beginValue, change, duration);
                     local tDiff = tPrime - t;
 
@@ -288,7 +288,7 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                         t = currentTime - beginTime;
                         --expectedValue = easingFunc(t, beginValue, change, duration);
 
-                        --print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
+                        print(string.format("  frame %d: rebasing by %.4f, new expect: %.2f, caused by posError: %.4f", frameCount, tDiff, expectedValue, posError));
                         --posError = currentValue - expectedValue;
                     end
                 end
@@ -317,18 +317,13 @@ function LibCamera:SetZoom(endValue, duration, easingFunc, callback)
                 MoveViewInStart(-speed/getZoomSpeed());
             end
 
-            print(string.format("frame: %d, position: %.2f, expect: %.2f, speed: %.2f, posError: %.4f, deltaTime: %0.4f", frameCount, currentValue, expectedValue, speed, posError, deltaTime));
+            -- print(string.format("frame: %d, position: %.2f, expect: %.2f, speed: %.2f, posError: %.4f, deltaTime: %0.4f", frameCount, currentValue, expectedValue, speed, posError, deltaTime));
 
-            return true;
-        elseif (not stopFlag) then
-            -- we're out of time
-            reallyStopZooming();
-
-            print("stopping on frame", frameCount, "deltaTime", deltaTime, 1/deltaTime, "Current zoom", GetCameraZoom());
-
-            stopFlag = true;
             return true;
         else
+            -- we're done, either out of time, or beyond position
+            reallyStopZooming();
+
             -- call the callback if provided
             if (callback) then callback() end;
 

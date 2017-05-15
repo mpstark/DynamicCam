@@ -131,7 +131,7 @@ end
 -- HOOKS --
 -----------
 local function CameraZoomFinished(restore)
-	parent:DebugPrint("Finished zooming");
+	--parent:DebugPrint("Finished zooming");
 
 	-- restore oldSpeed if it exists
     if (restore and zoom.oldSpeed) then
@@ -241,9 +241,9 @@ function Camera:CameraZoom(direction, increments, automated)
 		zoom.incTimer = self:ScheduleTimer(CameraZoomFinished, timeToZoom, not automated);
 	end
 
-	if (increments ~= 0) then
-		parent:DebugPrint(automated and "Automated" or "Manual", "Zoom", direction, "increments:", increments, "diff:", difference, "new zoom level:", zoom.set, "time:", timeToZoom);
-	end
+	-- if (increments ~= 0) then
+	-- 	parent:DebugPrint(automated and "Automated" or "Manual", "Zoom", direction, "increments:", increments, "diff:", difference, "new zoom level:", zoom.set, "time:", timeToZoom);
+	-- end
 end
 
 function Camera:MoveViewInStart(speed)

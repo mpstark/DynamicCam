@@ -28,11 +28,11 @@ Some handy slash commands:
     `/zoom #` will zoom to that zoom level
     `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
     `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
-local knownIssues = [[- Fit nameplates is still a work in progress, can do a little in-and-out number
-- Missing a lot of the advanced options such as add/remove situation, import/export, etc.
+local knownIssues = [[- The new LibCamera zoom can sometimes zoom you all the way in, report if you find a repeatable spot
+    - Places that I think I've fixed: after loading screens/after taxi's
+- Fit nameplates is still a work in progress, can do a little in-and-out number
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
-[[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
 [[Beta 4:
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
         - Rotation actions can now also pitch the camera up and down
@@ -50,6 +50,7 @@ local changelog = {
         - Some (in-game) Lua scripting needed
         - Fully sharable using the new settings sharing system
     - Minor Changes/Fixes:
+        - Changes to the default conditions and new situations will now be automatically applied to profiles
         - Rotation actions that rotate back are far improved
         - Some database optimizations, lowered memory overhead a bit
         - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)

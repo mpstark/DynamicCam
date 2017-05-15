@@ -22,6 +22,7 @@ Import/Export:
 
 Misc:
     ☐ Clean up modernization of DB code
+        ☐ Make continuous rotate code degrees/second
     ☐ Localize menu
     ☐ Optimize EvaluateSituations to only update situations based on the events that they are registered to
     ☐ Be able to use LibEasing to choose an easing formula for profile

@@ -60,6 +60,7 @@ local restoration = {};
 local delayTime;
 local events = {};
 local useLegacyZoom = true;
+local legacyZoomTimer;
 
 local function DC_RunScript(script, situationID)
     if (not script or script == "") then
@@ -1185,15 +1186,16 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
-    if (event == "PLAYER_CONTROL_GAINED") then
+    if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
         -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
         self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
         useLegacyZoom = true;
 
-        C_Timer.After(5, function()
+        legacyZoomTimer = DynamicCam:ScheduleTimer(function()
             useLegacyZoom = false;
             self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
-        end);
+            legacyZoomTimer = nil;
+        end, 5);
     end
 
     -- we don't want to evaluate too often, some of the events can be *very* spammy
@@ -1235,10 +1237,17 @@ function DynamicCam:RegisterSituationEvents(situationID)
 end
 
 function DynamicCam:PLAYER_ENTERING_WORLD()
-    C_Timer.After(60, function()
+    -- cancel the timer if it exists
+    if (legacyZoomTimer) then
+        self:CancelTimer(legacyZoomTimer);
+        legacyZoomTimer = nil;
+    end
+
+    legacyZoomTimer = DynamicCam:ScheduleTimer(function()
         useLegacyZoom = false;
         self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
-    end);
+        legacyZoomTimer = nil;
+    end, 60);
 end
 
 function DynamicCam:PLAYER_LEAVING_WORLD()
@@ -1456,7 +1465,7 @@ function DynamicCam:SaveViewCC(input)
 end
 
 function DynamicCam:ZoomInfoCC(input)
-    self:Print("Zoom level:", GetCameraZoom());
+    self:Print(string.format("Zoom level: %0.2f", GetCameraZoom()));
 end
 
 function DynamicCam:ZoomSlash(input)
