@@ -11,7 +11,7 @@ LibCamera:
     ☐ Add nameplate adjusting zoom
 
 Presets:
-    ☐ Add first run popup to select preset
+    ✔ Add first run popup to select preset @done (5/19/2017, 11:20:29 AM)
     ☐ Create and add several presets
         ☐ Bellular
         ☐ Vanilla-like
@@ -21,7 +21,7 @@ Import/Export:
     ✔ Add versioning information @done (5/19/2017, 4:53:25 AM)
 
 Misc:
-    ☐ Test upgrading from beta 3
+    ✔ Test upgrading from beta 3 @done (5/19/2017, 11:20:20 AM)
     ✔ Clean up modernization of DB code @done (5/19/2017, 4:43:45 AM)
         ✔ Make continuous rotate code degrees/second @done (5/19/2017, 4:35:11 AM)
     ☐ Localize menu

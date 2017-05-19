@@ -1385,7 +1385,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
 }
 
 StaticPopupDialogs["DYNAMICCAM_UPDATED"] = {
-    text = "DynamicCam has updated, would you like to open the main menu? There's a changelog right there! (You may need to scroll down)",
+    text = "DynamicCam has updated, would you like to open the main menu?\n\nThere's a changelog right in there! (You may need to scroll down)",
     button1 = "Open Menu",
     button2 = "Close",
     timeout = 0,
