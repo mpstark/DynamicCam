@@ -1643,20 +1643,20 @@ end
 function Options:RegisterMenus()
     -- setup menu
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", general);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
+    self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Settings", settings);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");
+    self.settings = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Situations", situationOptions);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam");
+    self.situtations = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Sharing", sharing);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Sharing", "Import/Export", "DynamicCam");
+    self.sharing = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Sharing", "Import/Export", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Presets", presets);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Presets", "Presets", "DynamicCam");
+    self.presets = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Presets", "Presets", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Profiles", LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db));
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");
+    self.profiles = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");
 end

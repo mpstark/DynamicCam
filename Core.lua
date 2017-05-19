@@ -195,6 +195,7 @@ DynamicCam.defaults = {
     profile = {
         enabled = true,
         version = 0,
+        firstRun = true,
 
         advanced = false,
         debugMode = false,
@@ -494,29 +495,6 @@ function DynamicCam:OnInitialize()
     if (self.db.profile.actionCam) then
         UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
     end
-
-    -- TODO: show a popup for picking a preset
-
-    -- show defaults are out of date dialog
-    -- if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
-    --     StaticPopupDialogs["DYNAMICCAM_NEW_DEFAULTS"] = {
-    --         text = "DynamicCam has a new set of default situations. Would you like to reset your profile?",
-    --         button1 = "Upgrade Me!",
-    --         button2 = "No, thanks",
-    --         timeout = 0,
-    --         whileDead = true,
-    --         hideOnEscape = true,
-    --         preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    --         OnAccept = function()
-    --             DynamicCam.db:ResetProfile();
-    --         end,
-    --         OnCancel = function(_, reason)
-    --             DynamicCam.db.profile.defaultVersion = DEFAULT_VERSION;
-    --         end,
-    --     }
-
-    --     StaticPopup_Show("DYNAMICCAM_NEW_DEFAULTS");
-    -- end
 
     -- disable if the setting is enabled
     if (not self.db.profile.enabled) then
@@ -1389,6 +1367,37 @@ end
 --------------
 -- DATABASE --
 --------------
+local upgradingFromOldVersion = false;
+StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
+    text = "The current DynamicCam profile is fresh and probably empty.\n\nWould you like to see available DynamicCam presets?",
+    button1 = "Open Presets",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+    end,
+    OnCancel = function(_, reason)
+    end,
+}
+
+StaticPopupDialogs["DYNAMICCAM_UPDATED"] = {
+    text = "DynamicCam has updated, would you like to open the main menu? There's a changelog right there! (You may need to scroll down)",
+    button1 = "Open Menu",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.menu);
+        InterfaceOptionsFrame_OpenToCategory(Options.menu);
+    end,
+}
+
 function DynamicCam:InitDatabase()
     self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true);
     self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
@@ -1397,7 +1406,10 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
 
     -- remove dbVersion, move to a per-profile version number
-    self.db.global.dbVersion = nil;
+    if (self.db.global.dbVersion) then
+        upgradingFromOldVersion = true;
+        self.db.global.dbVersion = nil;
+    end
 
     -- reset db if we've got a really old version
     local veryOldVersion = false;
@@ -1416,6 +1428,11 @@ function DynamicCam:InitDatabase()
     for profileName, profile in pairs(DynamicCamDB.profiles) do
         self:ModernizeProfile(profile);
     end
+
+    -- show the updated popup
+    if (upgradingFromOldVersion) then
+        StaticPopup_Show("DYNAMICCAM_UPDATED");
+    end
 end
 
 function DynamicCam:ModernizeProfile(profile)
@@ -1430,7 +1447,9 @@ function DynamicCam:ModernizeProfile(profile)
             profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
         end
 
+        upgradingFromOldVersion = true;
         profile.version = 2;
+        profile.firstRun = false;
     end
 
     -- modernize each situation
@@ -1486,31 +1505,33 @@ function DynamicCam:ModernizeSituation(situation, version)
 end
 
 function DynamicCam:RefreshConfig()
+    local profile = self.db.profile;
+
     -- shutdown the addon if it's enabled
-    if (self.db.profile.enabled and started) then
+    if (profile.enabled and started) then
         self:Shutdown();
     end
 
     -- situation is active, but db killed it
-    -- TODO: still restore from restoration, at least, what we can
     if (self.currentSituationID) then
         self.currentSituationID = nil;
     end
 
     -- clear the options panel so that it reselects
-    if (Options) then
-        Options:ClearSelection();
-    end
-
-    -- TODO: present a menu that loads a set of defaults
-
     -- make sure that options panel selects a situation
     if (Options) then
+        Options:ClearSelection();
         Options:SelectSituation();
     end
 
+    -- present a menu that loads a set of defaults, if this is the profiles first run
+    if (profile.firstRun) then
+        StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE");
+        profile.firstRun = false;
+    end
+
     -- start the addon back up
-    if (self.db.profile.enabled and not started) then
+    if (profile.enabled and not started) then
         self:Startup();
     end
 
@@ -1576,8 +1597,8 @@ function DynamicCam:OpenMenu(input)
     Options:SelectSituation();
 
     -- just open to the frame, double call because blizz bug
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
+    InterfaceOptionsFrame_OpenToCategory(Options.menu);
+    InterfaceOptionsFrame_OpenToCategory(Options.menu);
 end
 
 function DynamicCam:SaveViewCC(input)
