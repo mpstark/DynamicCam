@@ -1367,7 +1367,24 @@ end
 --------------
 -- DATABASE --
 --------------
+local firstDynamicCamLaunch = false;
 local upgradingFromOldVersion = false;
+StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
+    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured.",
+    button1 = "Open Presets",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+    end,
+    OnCancel = function(_, reason)
+    end,
+}
+
 StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     text = "The current DynamicCam profile is fresh and probably empty.\n\nWould you like to see available DynamicCam presets?",
     button1 = "Open Presets",
@@ -1411,27 +1428,31 @@ function DynamicCam:InitDatabase()
         self.db.global.dbVersion = nil;
     end
 
-    -- reset db if we've got a really old version
-    local veryOldVersion = false;
-    for profileName, profile in pairs(DynamicCamDB.profiles) do
-        if (profile.defaultCvars and profile.defaultCvars["cameraovershoulder"]) then
-            veryOldVersion = true;
+    if (not DynamicCamDB.profiles) then
+        firstDynamicCamLaunch = true;
+    else
+        -- reset db if we've got a really old version
+        local veryOldVersion = false;
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            if (profile.defaultCvars and profile.defaultCvars["cameraovershoulder"]) then
+                veryOldVersion = true;
+            end
         end
-    end
 
-    if (veryOldVersion) then
-        self:Print("Detected very old version, resetting DB, sorry about that!");
-        self.db:ResetDB();
-    end
+        if (veryOldVersion) then
+            self:Print("Detected very old version, resetting DB, sorry about that!");
+            self.db:ResetDB();
+        end
 
-    -- modernize each profile
-    for profileName, profile in pairs(DynamicCamDB.profiles) do
-        self:ModernizeProfile(profile);
-    end
+        -- modernize each profile
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            self:ModernizeProfile(profile);
+        end
 
-    -- show the updated popup
-    if (upgradingFromOldVersion) then
-        StaticPopup_Show("DYNAMICCAM_UPDATED");
+        -- show the updated popup
+        if (upgradingFromOldVersion) then
+            StaticPopup_Show("DYNAMICCAM_UPDATED");
+        end
     end
 end
 
@@ -1526,7 +1547,12 @@ function DynamicCam:RefreshConfig()
 
     -- present a menu that loads a set of defaults, if this is the profiles first run
     if (profile.firstRun) then
-        StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE");
+        if (firstDynamicCamLaunch) then
+            StaticPopup_Show("DYNAMICCAM_FIRST_RUN");
+            firstDynamicCamLaunch = false;
+        else
+            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE");
+        end
         profile.firstRun = false;
     end
 
