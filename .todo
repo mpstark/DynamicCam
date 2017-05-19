@@ -18,12 +18,13 @@ Presets:
         ☐ Full ActionCam Experience
 
 Import/Export:
-    ☐ Add versioning information
+    ✔ Add versioning information @done (5/19/2017, 4:53:25 AM)
 
 Misc:
-    ☐ Clean up modernization of DB code
-        ☐ Make continuous rotate code degrees/second
+    ☐ Test upgrading from beta 3
+    ✔ Clean up modernization of DB code @done (5/19/2017, 4:43:45 AM)
+        ✔ Make continuous rotate code degrees/second @done (5/19/2017, 4:35:11 AM)
     ☐ Localize menu
     ☐ Optimize EvaluateSituations to only update situations based on the events that they are registered to
-    ☐ Be able to use LibEasing to choose an easing formula for profile
+    ✔ Be able to use LibEasing to choose an easing formula for profile @done (5/19/2017, 2:48:15 AM)
 

@@ -9,7 +9,6 @@ local LibEasing = LibStub("LibEasing-1.0");
 ---------------
 -- CONSTANTS --
 ---------------
-local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
     ["test_cameraOverShoulder"] = true,
 
@@ -193,17 +192,18 @@ tinsert(UISpecialFrames, unfadeUIFrame:GetName());
 -- DB --
 --------
 DynamicCam.defaults = {
-    global = {
-        dbVersion = 0,
-    };
     profile = {
         enabled = true,
+        version = 0,
+
         advanced = false,
         debugMode = false,
         actionCam = true,
+
         easingZoom = "InOutQuad",
         easingYaw = "InOutQuad",
         easingPitch = "InOutQuad",
+
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = .5,
@@ -257,7 +257,7 @@ DynamicCam.defaults = {
 
                     rotate = false,
                     rotateSetting = "continous",
-                    rotateSpeed = .1,
+                    rotateSpeed = 20,
                     yawDegrees = 0,
                     pitchDegrees = 0,
                     rotateBack = false,
@@ -495,26 +495,28 @@ function DynamicCam:OnInitialize()
         UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
     end
 
-    -- show defaults are out of date dialog
-    if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
-        StaticPopupDialogs["DYNAMICCAM_NEW_DEFAULTS"] = {
-            text = "DynamicCam has a new set of default situations. Would you like to reset your profile?",
-            button1 = "Upgrade Me!",
-            button2 = "No, thanks",
-            timeout = 0,
-            whileDead = true,
-            hideOnEscape = true,
-            preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-            OnAccept = function()
-                DynamicCam.db:ResetProfile();
-            end,
-            OnCancel = function(_, reason)
-                DynamicCam.db.profile.defaultVersion = DEFAULT_VERSION;
-            end,
-        }
+    -- TODO: show a popup for picking a preset
 
-        StaticPopup_Show("DYNAMICCAM_NEW_DEFAULTS");
-    end
+    -- show defaults are out of date dialog
+    -- if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
+    --     StaticPopupDialogs["DYNAMICCAM_NEW_DEFAULTS"] = {
+    --         text = "DynamicCam has a new set of default situations. Would you like to reset your profile?",
+    --         button1 = "Upgrade Me!",
+    --         button2 = "No, thanks",
+    --         timeout = 0,
+    --         whileDead = true,
+    --         hideOnEscape = true,
+    --         preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    --         OnAccept = function()
+    --             DynamicCam.db:ResetProfile();
+    --         end,
+    --         OnCancel = function(_, reason)
+    --             DynamicCam.db.profile.defaultVersion = DEFAULT_VERSION;
+    --         end,
+    --     }
+
+    --     StaticPopup_Show("DYNAMICCAM_NEW_DEFAULTS");
+    -- end
 
     -- disable if the setting is enabled
     if (not self.db.profile.enabled) then
@@ -1394,85 +1396,93 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
 
-    if (not self.db.global.dbVersion or self.db.global.dbVersion <= 1) then
-        self:Print("Upgrading to 7.1 compatablity, this will reset all of your settings. Sorry about that!");
-        self.db:ResetDB();
-        self.db.global.dbVersion = 2;
-    end
+    -- remove dbVersion, move to a per-profile version number
+    self.db.global.dbVersion = nil;
 
-    if (self.db.global.dbVersion == 2) then
-        -- remove removed nameplate keys
-        for profileName, profile in pairs(DynamicCamDB.profiles) do
-            if (profile.situations) then
-                for situationID, situation in pairs(profile.situations) do
-                    if (situation.extras) then
-                        if (situation.extras["nameplates"] ~= nil) then
-                            situation.extras["nameplates"] = nil;
-                        end
-
-                        if (situation.extras["enemyNameplates"] ~= nil) then
-                            situation.extras["enemyNameplates"] = nil;
-                        end
-
-                        if (situation.extras["friendlyNameplates"] ~= nil) then
-                            situation.extras["friendlyNameplates"] = nil;
-                        end
-                    end
-                end
-            end
-        end
-        self.db.global.dbVersion = 3;
-    end
-
-    if (self.db.global.dbVersion == 3) then
-        for profileName, profile in pairs(DynamicCamDB.profiles) do
-            if (profile.situations) then
-                for situationID, situation in pairs(profile.situations) do
-                    if (situation.cameraActions) then
-                        if (situation.cameraActions.rotateDegrees) then
-                            situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees;
-                            situation.cameraActions.pitchDegrees = 0;
-                            situation.cameraActions.rotateDegrees = nil;
-                        end
-                    end
-                end
-            end
-        end
-
-        self.db.global.dbVersion = 4;
-    end
-
+    -- reset db if we've got a really old version
+    local veryOldVersion = false;
     for profileName, profile in pairs(DynamicCamDB.profiles) do
+        if (profile.defaultCvars and profile.defaultCvars["cameraovershoulder"]) then
+            veryOldVersion = true;
+        end
+    end
+
+    if (veryOldVersion) then
+        self:Print("Detected very old version, resetting DB, sorry about that!");
+        self.db:ResetDB();
+    end
+
+    -- modernize each profile
+    for profileName, profile in pairs(DynamicCamDB.profiles) do
+        self:ModernizeProfile(profile);
+    end
+end
+
+function DynamicCam:ModernizeProfile(profile)
+    if (not profile.version) then
+        profile.version = 1;
+    end
+
+    local startVersion = profile.version;
+
+    if (profile.version == 1) then
         if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
             profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
         end
 
-        if (profile.situations) then
-            for situationID, situation in pairs(profile.situations) do
-                if (situation.targetLock and situation.targetLock.enabled) then
-                    -- TODO: CONVERT TO DEGREES/SECOND ON ROTATE SPEED
-                    -- if (situation.cameraActions.rotateSpeed) then
-                    --     situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"));
-                    -- end
+        profile.version = 2;
+    end
 
-                    if (not situation.cameraCVars) then
-                        situation.cameraCVars = {};
-                    end
+    -- modernize each situation
+    if (profile.situations) then
+        for situationID, situation in pairs(profile.situations) do
+            self:ModernizeSituation(situation, startVersion);
+        end
+    end
+end
 
-                    if (situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false) then
-                        situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
-                        situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
-                    else
-                        situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
-                    end
+function DynamicCam:ModernizeSituation(situation, version)
+    if (version == 1) then
+        -- clear unused nameplates db stuff
+        if (situation.extras) then
+            situation.extras["nameplates"] = nil;
+            situation.extras["friendlyNameplates"] = nil;
+            situation.extras["enemyNameplates"] = nil;
+        end
+
+        -- update targetlock features
+        if (situation.targetLock) then
+            if (situation.targetLock.enabled) then
+                if (not situation.cameraCVars) then
+                    situation.cameraCVars = {};
                 end
 
-                situation.targetLock = nil;
+                if (situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false) then
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                    situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
+                else
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                end
+            end
+
+            situation.targetLock = nil;
+        end
+
+        -- update camera rotation
+        if (situation.cameraActions) then
+            -- convert to yaw degrees instead of rotate degrees
+            if (situation.cameraActions.rotateDegrees) then
+                situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees;
+                situation.cameraActions.pitchDegrees = 0;
+                situation.cameraActions.rotateDegrees = nil;
+            end
+
+            -- convert old scalar rotate speed to something that's in degrees/second
+            if (situation.cameraActions.rotateSpeed and situation.cameraActions.rotateSpeed < 5) then
+                situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"));
             end
         end
     end
-
-    self:DebugPrint("Database at level", self.db.global.dbVersion);
 end
 
 function DynamicCam:RefreshConfig()

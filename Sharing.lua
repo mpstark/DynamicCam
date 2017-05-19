@@ -1,7 +1,7 @@
 
 
+local _;
 local Compresser = LibStub:GetLibrary("LibCompress");
-local Encoder = Compresser:GetAddonEncodeTable();
 local Serializer = LibStub:GetLibrary("AceSerializer-3.0");
 
 ---------------------
@@ -108,7 +108,7 @@ local function stringToTable(str)
     local decoded = decodeB64(str);
 
     -- decompress
-    local decompressed, errorMsg = Compresser:Decompress(decoded);
+    local decompressed, _ = Compresser:Decompress(decoded);
     if (not decompressed) then
         return;
     end
@@ -191,9 +191,6 @@ function DynamicCam:ExportProfile(name, author)
         exportTable.author = author;
     end
 
-    -- TODO: some type of versioning
-    --exportTable.version = version;
-
     -- minimize the table, removing all default entries
     exportTable.profile = minimizeTable(self.db.profile, self.defaults.profile);
 
@@ -209,7 +206,7 @@ function DynamicCam:ExportSituation(situationID)
     local exportTable = {};
     --exportTable.name = name;
     --exportTable.author = author;
-    --exportTable.version = version;
+    exportTable.version = self.db.profile.version;
     exportTable.situationID = situationID;
     exportTable.type = "DC_SITUATION";
 
@@ -228,6 +225,9 @@ function DynamicCam:Import(importString)
     end
 
     if (imported.type == "DC_SITUATION") then
+        -- modernize the situation, it could be from a previous version
+        self:ModernizeSituation(imported.situation, imported.version);
+
         -- this is an imported situation
         if (string.find(imported.situationID, "custom")) then
             -- custom situation, so just create a new custom situation and bring everything into it
@@ -259,6 +259,7 @@ function DynamicCam:Import(importString)
         local name = imported.name or "Imported";
         -- this in an imported profile
         if (DynamicCamDB.profiles[name] == nil) then
+            self:ModernizeProfile(imported.profile);
             DynamicCamDB.profiles[name] = imported.profile;
             self:Print("Successfully imported profile:", name);
         else
@@ -278,7 +279,7 @@ function DynamicCam:ImportIntoCurrentProfile(importString)
 
     -- load the imported string into the current profile
     if (imported.type == "DC_PROFILE") then
-        --local name = self.db:GetCurrentProfile();
+        self:ModernizeProfile(imported.profile);
 
         self:Shutdown();
 
