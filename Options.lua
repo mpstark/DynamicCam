@@ -37,7 +37,7 @@ Some handy slash commands:
     ]];
 local knownIssues = [[- The new LibCamera zoom can sometimes zoom you all the way in, report if you find a repeatable spot
     - Places that I think I've fixed: after loading screens/after taxi's
-- Fit nameplates and Reactive Zoom are both using the old camera code
+- Fit nameplates is still using the old camera code
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
 [[Beta 4:
@@ -280,7 +280,7 @@ local settings = {
                     type = 'group',
                     name = "Reactive Zoom Options (Advanced)",
                     hidden = function() return (not DynamicCam.db.profile.advanced) or (not DynamicCam.db.profile.reactiveZoom.enabled) end,
-                    order = 1,
+                    order = 2,
                     inline = true,
                     args = {
                         maxZoomTime = {
@@ -345,6 +345,7 @@ local settings = {
         defaultEasing = {
             type = 'group',
             name = "Default Easing Functions (Advanced)",
+            hidden = function() return (not DynamicCam.db.profile.advanced) end,
             order = 2,
             inline = true,
             args = {
