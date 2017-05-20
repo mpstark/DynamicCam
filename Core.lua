@@ -2,17 +2,16 @@
 -- LIBRARIES --
 ---------------
 local AceAddon = LibStub("AceAddon-3.0");
+local LibCamera = LibStub("LibCamera-1.0");
+local LibEasing = LibStub("LibEasing-1.0");
 
 
 ---------------
 -- CONSTANTS --
 ---------------
-local DATABASE_VERSION = 1;
-local DEFAULT_VERSION = 1;
 local ACTION_CAM_CVARS = {
     ["test_cameraOverShoulder"] = true,
 
-    
     ["test_cameraTargetFocusEnemyEnable"] = true,
     ["test_cameraTargetFocusEnemyStrengthPitch"] = true,
     ["test_cameraTargetFocusEnemyStrengthYaw"] = true,
@@ -20,7 +19,7 @@ local ACTION_CAM_CVARS = {
     ["test_cameraTargetFocusInteractEnable"] = true,
     ["test_cameraTargetFocusInteractStrengthPitch"] = true,
     ["test_cameraTargetFocusInteractStrengthYaw"] = true,
-    
+
     ["test_cameraHeadMovementStrength"] = true,
     ["test_cameraHeadMovementRangeScale"] = true,
     ["test_cameraHeadMovementMovingStrength"] = true,
@@ -49,16 +48,11 @@ DynamicCam.currentSituationID = nil;
 -- LOCALS --
 ------------
 local _;
-local started;
 local Camera;
 local Options;
 local functionCache = {};
 local situationEnvironments = {}
 local conditionExecutionCache = {};
-local evaluateTimer;
-local restoration = {};
-local delayTime;
-local events = {};
 
 local function DC_RunScript(script, situationID)
     if (not script or script == "") then
@@ -100,40 +94,138 @@ local function DC_SetCVar(cvar, setting)
         return;
     end
 
-    DynamicCam:DebugPrint(cvar, setting);
-
-    SetCVar(cvar, setting);
+    -- don't apply cvars if they're already set to the new value
+    if (GetCVar(cvar) ~= ""..setting) then
+        DynamicCam:DebugPrint(cvar, setting);
+        SetCVar(cvar, setting);
+    end
 end
+
+
+---------------------------
+-- LIBEASING CONVENIENCE --
+---------------------------
+local function setShoulderOffset(offset)
+    if (offset and type(offset) == 'number') then
+        SetCVar("test_cameraOverShoulder", offset)
+    end
+end
+
+local easeShoulderOffsetHandle;
+local function easeShoulderOffset(endValue, duration, easingFunc)
+    -- we are currently easing the shoulder offset, make sure to stop that
+    if (easeShoulderOffsetHandle) then
+        LibEasing:StopEasing(easeShoulderOffsetHandle);
+        easeShoulderOffsetHandle = nil;
+    end
+
+    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, tonumber(GetCVar("test_cameraOverShoulder")), endValue, duration, easingFunc);
+end
+
+local hidMinimap;
+local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
+local function setUIAlpha(newAlpha)
+    if (newAlpha and type(newAlpha) == 'number') then
+        UIParent:SetAlpha(newAlpha);
+
+        -- hide the minimap since the icons don't show fade out
+        -- only if we're at 0 alpha
+        if (newAlpha == 0 and Minimap:IsShown()) then
+            Minimap:Hide();
+            hidMinimap = true;
+        else
+            if (hidMinimap and not Minimap:IsShown()) then
+                Minimap:Show();
+                hidMinimap = nil;
+            end
+        end
+
+        -- show unfadeUIFrame if we're faded
+        if (newAlpha < 1 and not unfadeUIFrame:IsShown()) then
+            unfadeUIFrame:Show();
+        elseif (newAlpha == 1) then
+            -- UI is no longer faded, remove the esc handler
+            if (unfadeUIFrame:IsShown()) then
+                -- want to hide the frame without calling it's onhide handler
+                local onHide = unfadeUIFrame:GetScript("OnHide");
+                unfadeUIFrame:SetScript("OnHide", nil);
+                unfadeUIFrame:Hide();
+                unfadeUIFrame:SetScript("OnHide", onHide);
+            end
+        end
+    end
+end
+
+local easeUIAlphaHandle;
+local function stopEasingUIAlpha()
+    -- if we are currently easing the UI out, make sure to stop that
+    if (easeUIAlphaHandle) then
+        LibEasing:StopEasing(easeUIAlphaHandle);
+        easeUIAlphaHandle = nil;
+
+        -- show the minimap if we hid it and it's still hidden
+        if (hidMinimap and not Minimap:IsShown()) then
+            Minimap:Show();
+            hidMinimap = nil;
+        end
+    end
+end
+
+local function easeUIAlpha(endValue, duration, easingFunc)
+    stopEasingUIAlpha();
+
+    if (UIParent:GetAlpha() ~= endValue) then
+        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc);
+    end
+end
+
+-- need to be able to clear the faded UI, use dummy frame that Show() on fade, which will cause esc to
+-- hide it, make OnHide
+unfadeUIFrame:SetScript("OnHide", function(self)
+    stopEasingUIAlpha();
+    UIParent:SetAlpha(1);
+end);
+tinsert(UISpecialFrames, unfadeUIFrame:GetName());
 
 
 --------
 -- DB --
 --------
-local defaults = {
-    global = {
-        dbVersion = 0,
-    };
+DynamicCam.defaults = {
     profile = {
         enabled = true,
+        version = 0,
+        firstRun = true,
+
         advanced = false,
         debugMode = false,
         actionCam = true,
+
+        easingZoom = "InOutQuad",
+        easingYaw = "InOutQuad",
+        easingPitch = "InOutQuad",
+
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = .5,
             addIncrements = .5,
             maxZoomTime = .3,
             incAddDifference = 2,
+            easingFunc = "OutQuad",
         },
         defaultCvars = {
             ["cameraZoomSpeed"] = 20,
             ["cameraDistanceMaxZoomFactor"] = 2.6,
-            
+
             ["test_cameraOverShoulder"] = 0,
 
             ["test_cameraTargetFocusEnemyEnable"] = 0,
+            ["test_cameraTargetFocusEnemyStrengthPitch"] = 0.4,
+            ["test_cameraTargetFocusEnemyStrengthYaw"] = 0.5,
             ["test_cameraTargetFocusInteractEnable"] = 0,
-            
+            ["test_cameraTargetFocusInteractStrengthPitch"] = 0.75,
+            ["test_cameraTargetFocusInteractStrengthYaw"] = 1.0,
+
             ["test_cameraHeadMovementStrength"] = 0,
             ["test_cameraHeadMovementRangeScale"] = 5,
             ["test_cameraHeadMovementMovingStrength"] = 0.5,
@@ -142,7 +234,7 @@ local defaults = {
             ["test_cameraHeadMovementStandingDampRate"] = 10,
             ["test_cameraHeadMovementFirstPersonDampRate"] = 20,
             ["test_cameraHeadMovementDeadZone"] = 0.015,
-            
+
             ["test_cameraDynamicPitch"] = 0,
             ["test_cameraDynamicPitchBaseFovPad"] = .35,
             ["test_cameraDynamicPitchBaseFovPadFlying"] = .75,
@@ -150,11 +242,12 @@ local defaults = {
             ["test_cameraDynamicPitchSmartPivotCutoffDist"] = 10,
         },
         situations = {
-            ["*"] = {
+            ["**"] = {
                 name = "",
                 enabled = true,
                 priority = 0,
                 condition = "return false",
+                events = {},
                 delay = 0,
                 executeOnInit = "",
                 executeOnEnter = "",
@@ -165,8 +258,9 @@ local defaults = {
 
                     rotate = false,
                     rotateSetting = "continous",
-                    rotateSpeed = .1,
-                    rotateDegrees = 0,
+                    rotateSpeed = 20,
+                    yawDegrees = 0,
+                    pitchDegrees = 0,
                     rotateBack = false,
 
                     zoomSetting = "off",
@@ -188,16 +282,181 @@ local defaults = {
                     restoreView = false,
                     instant = false,
                 },
-                targetLock = {
-                    enabled = false,
-                    onlyAttackable = true,
-                    dead = false,
-                    nameplateVisible = true,
-                },
                 extras = {
                     hideUI = false,
                 },
                 cameraCVars = {},
+            },
+            ["001"] = {
+                name = "City",
+                priority = 1,
+                condition = "return IsResting();",
+                events = {"PLAYER_UPDATE_RESTING"},
+            },
+            ["002"] = {
+                name = "City (Indoors)",
+                priority = 11,
+                condition = "return IsResting() and IsIndoors();",
+                events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
+            },
+            ["004"] = {
+                name = "World",
+                priority = 0,
+                condition = "return not IsResting() and not IsInInstance();",
+                events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
+            },
+            ["005"] = {
+                name = "World (Indoors)",
+                priority = 10,
+                condition = "return not IsResting() and not IsInInstance() and IsIndoors();",
+                events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
+            },
+            ["006"] = {
+                name = "World (Combat)",
+                priority = 50,
+                condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
+            },
+            ["020"] = {
+                name = "Dungeon",
+                priority = 2,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\");",
+                events = {"ZONE_CHANGED_NEW_AREA"},
+            },
+            ["021"] = {
+                name = "Dungeon (Outdoors)",
+                priority = 12,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsOutdoors();",
+                events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
+            },
+            ["021"] = {
+                name = "Dungeon (Outdoors)",
+                priority = 12,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsOutdoors();",
+                events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
+            },
+            ["023"] = {
+                name = "Dungeon (Combat, Boss)",
+                priority = 302,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+            },
+            ["024"] = {
+                name = "Dungeon (Combat, Trash)",
+                priority = 202,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+            },
+            ["030"] = {
+                name = "Raid",
+                priority = 3,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\");",
+                events = {"ZONE_CHANGED_NEW_AREA"},
+            },
+            ["031"] = {
+                name = "Raid (Outdoors)",
+                priority = 13,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsOutdoors();",
+                events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
+            },
+            ["033"] = {
+                name = "Raid (Combat, Boss)",
+                priority = 303,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+            },
+            ["034"] = {
+                name = "Raid (Combat, Trash)",
+                priority = 203,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+            },
+            ["050"] = {
+                name = "Arena",
+                priority = 3,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\");",
+                events = {"ZONE_CHANGED_NEW_AREA"},
+            },
+            ["051"] = {
+                name = "Arena (Combat)",
+                priority = 203,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\") and UnitAffectingCombat(\"player\");",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
+            },
+            ["060"] = {
+                name = "Battleground",
+                priority = 3,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\");",
+                events = {"ZONE_CHANGED_NEW_AREA"},
+            },
+            ["061"] = {
+                name = "Battleground (Combat)",
+                priority = 203,
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\") and UnitAffectingCombat(\"player\");",
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
+            },
+            ["100"] = {
+                name = "Mounted",
+                priority = 100,
+                condition = "return IsMounted() and not UnitOnTaxi(\"player\");",
+                events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
+            },
+            ["101"] = {
+                name = "Taxi",
+                priority = 1000,
+                condition = "return UnitOnTaxi(\"player\");",
+                events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
+            },
+            ["102"] = {
+                name = "Vehicle",
+                priority = 1000,
+                condition = "return UnitUsingVehicle(\"player\");",
+                events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
+            },
+            ["200"] = {
+                name = "Hearth/Teleport",
+                priority = 20,
+                condition = [[for k,v in pairs(this.spells) do
+    if (UnitCastingInfo("player") == GetSpellInfo(v)) then
+        return true;
+    end
+end
+return false;]],
+                executeOnInit = "this.spells = {227334, 136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};",
+                executeOnEnter = "local _, _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
+                events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
+            },
+            ["201"] = {
+                name = "Annoying Spells",
+                priority = 1000,
+                condition = [[for k,v in pairs(this.buffs) do
+    if (UnitBuff("player", GetSpellInfo(v))) then
+        return true;
+    end
+end
+return false;]],
+                events = {"UNIT_AURA"},
+                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};",
+            },
+            ["300"] = {
+                name = "NPC Interaction",
+                priority = 20,
+                condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
+                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
+                delay = .5,
+            },
+            ["301"] = {
+                name = "Mailbox",
+                priority = 20,
+                condition = "return (MailFrame and MailFrame:IsShown())",
+                events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"},
+            },
+            ["302"] = {
+                name = "Fishing",
+                priority = 20,
+                condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))",
+                events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
+                delay = 2,
             },
         },
     },
@@ -207,6 +466,10 @@ local defaults = {
 ----------
 -- CORE --
 ----------
+local started;
+local events = {};
+local evaluateTimer;
+
 function DynamicCam:OnInitialize()
     -- setup db
     self:InitDatabase();
@@ -223,32 +486,14 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
     self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
+
     self:RegisterChatCommand("zoom", "ZoomSlash");
-    
+    self:RegisterChatCommand("pitch", "PitchSlash");
+    self:RegisterChatCommand("yaw", "YawSlash");
+
     -- make sure to disable the message if ActionCam setting is on
     if (self.db.profile.actionCam) then
         UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
-    end
-
-    -- show defaults are out of date dialog
-    if (not self.db.profile.defaultVersion or self.db.profile.defaultVersion < DEFAULT_VERSION) then
-        StaticPopupDialogs["DYNAMICCAM_NEW_DEFAULTS"] = {
-            text = "DynamicCam has a new set of default situations. Would you like to reset your profile?",
-            button1 = "Upgrade Me!",
-            button2 = "No, thanks",
-            timeout = 0,
-            whileDead = true,
-            hideOnEscape = true,
-            preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-            OnAccept = function()
-                DynamicCam.db:ResetProfile();
-            end,
-            OnCancel = function(_, reason)
-                DynamicCam.db.profile.defaultVersion = DEFAULT_VERSION;
-            end,
-        }
-
-        StaticPopup_Show("DYNAMICCAM_NEW_DEFAULTS");
     end
 
     -- disable if the setting is enabled
@@ -275,17 +520,26 @@ function DynamicCam:Startup()
         Options = self.Options;
     end
 
+    -- register for player entering and leaving world to enable legacy zoom
+    self:RegisterEvent("PLAYER_ENTERING_WORLD");
+    self:RegisterEvent("PLAYER_LEAVING_WORLD");
+
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
     self:RegisterMessage("DC_SITUATION_DISABLED");
     self:RegisterMessage("DC_SITUATION_UPDATED");
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED");
-    
+
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
     self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5);
     evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
     self:ScheduleTimer("RegisterEvents", 3);
-    
+
+    -- turn on reactive zoom if it's enabled
+    if (self.db.profile.reactiveZoom.enabled) then
+        self:ReactiveZoomOn();
+    end
+
     started = true;
 end
 
@@ -308,6 +562,9 @@ function DynamicCam:Shutdown()
     -- apply default settings
     self:ApplyDefaultCameraSettings();
 
+    -- turn off reactiveZoom
+    self:ReactiveZoomOff();
+
     started = false;
 end
 
@@ -321,7 +578,35 @@ end
 ----------------
 -- SITUATIONS --
 ----------------
+local delayTime;
 local delayTimer;
+local restoration = {};
+local useLegacyZoom = true;
+local legacyZoomTimer;
+
+local function gotoView(view, instant)
+    -- if you call SetView twice, then it's instant
+    if (instant) then
+        SetView(view);
+    end
+    SetView(view);
+end
+
+local function copyTable(originalTable)
+    local origType = type(originalTable);
+    local copy;
+    if (origType == 'table') then
+        -- this child is a table, copy the table recursively
+        copy = {};
+        for orig_key, orig_value in next, originalTable, nil do
+            copy[copyTable(orig_key)] = copyTable(orig_value);
+        end
+    else
+        -- this child is a value, copy it cover
+        copy = originalTable;
+    end
+    return copy;
+end
 
 function DynamicCam:EvaluateSituations()
     -- if we currently have timer running, kill it
@@ -364,42 +649,38 @@ function DynamicCam:EvaluateSituations()
             end
         end
 
-        if (topSituation) then
-            if (self.currentSituationID) then
-                if (topSituation ~= self.currentSituationID) then
-                    -- check if current situation has a delay and if it does, if it's 'cooling down'
-                    local delay = self.db.profile.situations[self.currentSituationID].delay;
-                    if (delay > 0) then
-                        if (not delayTime) then
-                            -- not yet cooling down, make sure to guarentee an evaluate
-                            delayTime = GetTime() + delay;
-                            delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
-                        elseif (delayTime > GetTime()) then
-                            -- still cooling down, don't swap
-                        else
-                            -- we cooled down and still want to change, so change
-                            delayTime = nil;
-                            self:SetSituation(topSituation);
-                        end
-                    else
-                        -- there isn't a delay, just change over to the new situation
-                        self:SetSituation(topSituation);
-                    end
-                else
-                    -- topSituation is currentSituationID, clear the delay
-                    delayTime = nil;
+        local swap = true;
+        if (self.currentSituationID and (not topSituation or topSituation ~= self.currentSituationID)) then
+            -- we're in a situation that isn't the topSituation or there is no topSituation
+            local delay = self.db.profile.situations[self.currentSituationID].delay;
+            if (delay > 0) then
+                if (not delayTime) then
+                    -- not yet cooling down, make sure to guarentee an evaluate, don't swap
+                    delayTime = GetTime() + delay;
+                    delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
+                    self:DebugPrint("Not changing situation because of a delay");
+                    swap = false;
+                elseif (delayTime > GetTime()) then
+                    -- still cooling down, don't swap
+                    swap = false;
                 end
-            else
-                -- no currentSituationID
-                self:SetSituation(topSituation);
             end
+        end
 
-            -- do target lock evaluation anyways
-            self:EvaluateTargetLock();
-        else
-            --none of the situations are active, leave the current situation
-            if (self.currentSituationID) then
-                self:ExitSituation(self.currentSituationID);
+        if (swap) then
+            if (topSituation) then
+                if (topSituation ~= self.currentSituationID) then
+                    -- we want to swap and there is a situation to swap into, and it's not the current situation
+                    self:SetSituation(topSituation);
+                end
+
+                -- if we had a delay previously, make sure to reset it
+                delayTime = nil;
+            else
+                --none of the situations are active, leave the current situation
+                if (self.currentSituationID) then
+                    self:ExitSituation(self.currentSituationID);
+                end
             end
         end
     end
@@ -420,7 +701,6 @@ end
 
 function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     local situation = self.db.profile.situations[situationID];
-    local oldSituation = self.db.profile.situations[oldSituationID];
     local this = situationEnvironments[situationID].this;
 
     self:DebugPrint("Entering situation", situation.name);
@@ -431,60 +711,83 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     -- set currentSituationID
     self.currentSituationID = situationID;
 
+    restoration[situationID] = {};
+    local a = situation.cameraActions;
+
+    local transitionTime = a.transitionTime;
+    if (this.transitionTime) then
+        transitionTime = this.transitionTime;
+    end
+    -- min 10 frames
+    transitionTime = math.max(10.0/60.0, transitionTime);
+
     -- set view settings
     if (situation.view.enabled) then
         if (situation.view.restoreView) then
             SaveView(1);
         end
 
-        Camera:GotoView(situation.view.viewNumber, situation.cameraActions.transitionTime, situation.view.instant);
-    end
-
-    -- set all cvars
-    restoration[situationID] = {};
-    for cvar, value in pairs(situation.cameraCVars) do
-        DC_SetCVar(cvar, value);
-    end
-
-    local a = situation.cameraActions;
-    local transitionTime = a.transitionTime;
-
-    if (this.transitionTime) then
-        transitionTime = this.transitionTime;
+        gotoView(situation.view.viewNumber, situation.view.instant);
     end
 
     -- ZOOM --
     if (not skipZoom) then
-        if (Camera:IsZooming()) then
-            Camera:StopZooming();
-        end
-
         -- save old zoom level
-        restoration[situationID].zoom = GetCameraZoom();
+        local cameraZoom = GetCameraZoom();
+        restoration[situationID].zoom = cameraZoom;
         restoration[situationID].zoomSituation = oldSituationID;
 
         -- set zoom level
-        local adjustedZoom;
-        
-        if (a.zoomSetting == "in") then
-            adjustedZoom = Camera:ZoomInTo(a.zoomValue, transitionTime, a.timeIsMax);
-        elseif (a.zoomSetting == "out") then
-            adjustedZoom = Camera:ZoomOutTo(a.zoomValue, transitionTime, a.timeIsMax);
+        local newZoomLevel;
+
+        if (a.zoomSetting == "in" and cameraZoom > a.zoomValue) then
+            newZoomLevel = a.zoomValue;
+        elseif (a.zoomSetting == "out" and cameraZoom < a.zoomValue) then
+            newZoomLevel = a.zoomValue;
         elseif (a.zoomSetting == "set") then
-            adjustedZoom = Camera:SetZoom(a.zoomValue, transitionTime, a.timeIsMax);
+            newZoomLevel = a.zoomValue;
         elseif (a.zoomSetting == "range") then
-            adjustedZoom = Camera:ZoomToRange(a.zoomMin, a.zoomMax, transitionTime, a.timeIsMax);
+            if (cameraZoom < a.zoomMin) then
+                newZoomLevel = a.zoomMin;
+            elseif (cameraZoom > a.zoomMax) then
+                newZoomLevel = a.zoomMax;
+            end
         elseif (a.zoomSetting == "fit") then
             local min = a.zoomMin;
             if (a.zoomFitUseCurAsMin) then
-                min = GetCameraZoom();
-                min = math.min(min, a.zoomMax);
+                min = math.min(GetCameraZoom(), a.zoomMax);
             end
-            adjustedZoom = Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous, a.zoomFitToggleNameplate);
+            -- TODO: implement into LibCamera!
+            Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous, a.zoomFitToggleNameplate);
+        end
+
+        -- actually do zoom
+        if (newZoomLevel) then
+            local difference = math.abs(newZoomLevel - cameraZoom)
+            local linearSpeed = difference / transitionTime;
+            local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"));
+            local duration = transitionTime;
+
+            -- if zoom speed is lower than current speed, then calculate a new transitionTime
+            if (a.timeIsMax and linearSpeed < currentSpeed) then
+                -- min time 10 frames
+                duration = math.max(10.0/60.0, difference / currentSpeed)
+            end
+
+            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration);
+
+            if (useLegacyZoom) then
+                -- legacy zoom is for situations that just don't work with new zoom technique
+                -- anything that involves a loading screen or transitions
+                LibCamera:SetZoomUsingCVar(newZoomLevel, duration);
+                self:DebugPrint("Using legacy zoom");
+            else
+                LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
+            end
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
-        if (not adjustedZoom) then
+        if (not newZoomLevel and a.zoomSetting ~= "fit") then
             restoration[situationID].zoom = nil;
             restoration[situationID].zoomSituation = nil;
         end
@@ -492,23 +795,36 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         self:DebugPrint("Restoring zoom level, so skipping zoom action")
     end
 
+    -- set all cvars
+    for cvar, value in pairs(situation.cameraCVars) do
+        if (cvar == "test_cameraOverShoulder") then
+            -- ease shoulder offset over
+            if (GetCVar("test_cameraOverShoulder") ~= tostring(value)) then
+                easeShoulderOffset(value, transitionTime);
+            end
+        else
+            DC_SetCVar(cvar, value);
+        end
+    end
+
     -- ROTATE --
     if (a.rotate) then
         if (a.rotateSetting == "continous") then
-            Camera:StartContinousRotate(a.rotateSpeed);
+            LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime);
         elseif (a.rotateSetting == "degrees") then
-            Camera:RotateDegrees(a.rotateDegrees, transitionTime);
+            if (a.yawDegrees ~= 0) then
+                LibCamera:Yaw(a.yawDegrees, transitionTime, LibEasing[self.db.profile.easingYaw]);
+            end
+
+            if (a.pitchDegrees ~= 0) then
+                LibCamera:Pitch(a.pitchDegrees, transitionTime, LibEasing[self.db.profile.easingPitch]);
+            end
         end
     end
 
     -- EXTRAS --
     if (situation.extras.hideUI) then
-        if (not InCombatLockdown()) then
-            -- hide UI
-            UIParent:Hide();
-        else
-            self:Print("Couldn't hide UI because of UI Combat Lockdown!'")
-        end
+        easeUIAlpha(0, math.min(0.5, transitionTime));
     end
 
     self:SendMessage("DC_SITUATION_ENTERED");
@@ -517,20 +833,19 @@ end
 function DynamicCam:ExitSituation(situationID, newSituationID)
     local restoringZoom;
     local situation = self.db.profile.situations[situationID];
-    local newSituation = self.db.profile.situations[newSituationID];
     self.currentSituationID = nil;
 
     self:DebugPrint("Exiting situation "..situation.name);
 
     -- load and run advanced script onExit
-    DC_RunScript(situation.executeOnExit, id);
+    DC_RunScript(situation.executeOnExit, situationID);
 
     -- restore cvars to their default values
     self:ApplyDefaultCameraSettings();
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
-        Camera:GotoView(1, .75, situation.view.instant);
+        gotoView(1, situation.view.instant);
     end
 
     local a = situation.cameraActions;
@@ -538,52 +853,81 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     -- stop rotating if we started to
     if (a.rotate) then
         if (a.rotateSetting == "continous") then
-            local degrees = Camera:StopRotating();
-            self:DebugPrint("Ended rotate, degrees rotated:", degrees);
+            local yaw = LibCamera:StopYawing();
+
+            -- rotate back if we want to
             if (a.rotateBack) then
-                Camera:RotateDegrees(-degrees, .5);
+                self:DebugPrint("Ended rotate, degrees rotated, yaw:", yaw);
+                if (yaw) then
+                    local yawBack = yaw % 360;
+
+                    -- we're beyond 180 degrees, go the other way
+                    if (yawBack > 180) then
+                        yawBack = yawBack - 360;
+                    end
+
+                    LibCamera:Yaw(-yawBack, 0.75, LibEasing[self.db.profile.easingYaw]);
+                end
             end
         elseif (a.rotateSetting == "degrees") then
-            if (Camera:IsRotating()) then
+            if (LibCamera:IsRotating()) then
                 -- interrupted rotation
-                local degrees = (Camera:StopRotating())%360;
+                local yaw, pitch = LibCamera:StopRotating();
+
+                -- rotate back if we want to
                 if (a.rotateBack) then
-                    Camera:RotateDegrees(-degrees, .5); -- constant time here
+                    self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch);
+                    if (yaw) then
+                        LibCamera:Yaw(-yaw, 0.75, LibEasing[self.db.profile.easingYaw]);
+                    end
+
+                    if (pitch) then
+                        LibCamera:Pitch(-pitch, 0.75, LibEasing[self.db.profile.easingPitch]);
+                    end
                 end
             else
                 if (a.rotateBack) then
-                    Camera:RotateDegrees(-a.rotateDegrees, .5); -- constant time here
+                    if (a.yawDegrees ~= 0) then
+                        LibCamera:Yaw(-a.yawDegrees, 0.75, LibEasing[self.db.profile.easingYaw]);
+                    end
+
+                    if (a.pitchDegrees ~= 0) then
+                        LibCamera:Pitch(-a.pitchDegrees, 0.75, LibEasing[self.db.profile.easingPitch]);
+                    end
                 end
             end
         end
     end
 
-    -- stop zooming if we're still zooming
-    if (a.zoomSetting ~= "off" and Camera:IsZooming()) then
-        self:DebugPrint("Still zooming for situation, stop zooming.")
-        Camera:StopZooming();
-    end
-
     -- restore zoom level if we saved one
     if (self:ShouldRestoreZoom(situationID, newSituationID)) then
-        self:DebugPrint("Restoring zoom level: ", restoration[situationID].zoom);
         restoringZoom = true;
-        Camera:SetZoom(restoration[situationID].zoom, .75, true); -- constant time here
+
+        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
+        local t = math.max(10.0/60.0, math.min(defaultTime, .75));
+        local zoomLevel = restoration[situationID].zoom;
+
+        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
+
+        if (useLegacyZoom) then
+            -- legacy zoom is for situations that just don't work with new zoom technique
+            -- anything that involves a loading screen or transitions
+            LibCamera:SetZoomUsingCVar(zoomLevel, t);
+            self:DebugPrint("Using legacy zoom");
+        else
+            LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
+        end
     else
         self:DebugPrint("Not restoring zoom level");
     end
 
     -- unhide UI
     if (situation.extras.hideUI) then
-        if (not InCombatLockdown()) then
-            UIParent:Show();
-        else
-            self:Print("Couldn't show UI because of UI Combat Lockdown!'")
-        end
+        easeUIAlpha(1, .5);
     end
 
     wipe(restoration[situationID]);
-    
+
     self:SendMessage("DC_SITUATION_EXITED");
 
     return restoringZoom;
@@ -595,6 +939,7 @@ function DynamicCam:GetSituationList()
     for id, situation in pairs(self.db.profile.situations) do
         local prefix = "";
         local suffix = "";
+        local customPrefix = "";
 
         if (self.currentSituationID == id) then
             prefix = "|cFF00FF00";
@@ -607,327 +952,51 @@ function DynamicCam:GetSituationList()
             suffix = "|r";
         end
 
-        situationList[id] = prefix..situation.name..suffix;
+        if (string.find(id, "custom")) then
+            customPrefix = "Custom: ";
+        end
+
+        situationList[id] = prefix..customPrefix..situation.name..suffix;
     end
 
     return situationList;
 end
 
--- TODO: add to another file
--- TODO: have multiple defaults
-function DynamicCam:GetDefaultSituations()
-    local situations = {};
-    local newSituation;
-
-    newSituation = self:CreateSituation("City");
-    newSituation.priority = 1;
-    newSituation.condition = "return IsResting();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING"};
-    newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 10;
-    newSituation.cameraActions.zoomMax = 20;
-    situations["001"] = newSituation;
-
-    newSituation = self:CreateSituation("City (Indoors)");
-    newSituation.priority = 11;
-    newSituation.condition = "return IsResting() and IsIndoors();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"};
-    newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 8;
-    situations["002"] = newSituation;
-
-    newSituation = self:CreateSituation("World");
-    newSituation.priority = 0;
-    newSituation.condition = "return not IsResting() and not IsInInstance();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"};
-    newSituation.cameraActions.zoomSetting = "range";
-    newSituation.cameraActions.zoomMin = 15;
-    newSituation.cameraActions.zoomMax = 20;
-    situations["004"] = newSituation;
-
-    newSituation = self:CreateSituation("World (Indoors)");
-    newSituation.priority = 10;
-    newSituation.condition = "return not IsResting() and not IsInInstance() and IsIndoors();";
-    newSituation.events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
-    newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 10;
-    situations["005"] = newSituation;
-
-    newSituation = self:CreateSituation("World (Combat)");
-    newSituation.priority = 50;
-    newSituation.condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
-    newSituation.cameraActions.zoomSetting = "fit";
-    newSituation.cameraActions.zoomFitUseCurAsMin = true;
-    newSituation.cameraActions.zoomMin = 5;
-    newSituation.cameraActions.zoomMax = 35;
-    newSituation.targetLock.enabled = true;
-    newSituation.targetLock.nameplateVisible = true;
-    situations["006"] = newSituation;
-
-    newSituation = self:CreateSituation("Dungeon");
-    newSituation.enabled = false;
-    newSituation.priority = 2;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\");";
-    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
-    situations["020"] = newSituation;
-
-    newSituation = self:CreateSituation("Dungeon (Outdoors)");
-    newSituation.enabled = false;
-    newSituation.priority = 12;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and IsOutdoors();";
-    newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
-    situations["021"] = newSituation;
-
-    newSituation = self:CreateSituation("Dungeon (Combat, Boss)");
-    newSituation.enabled = false;
-    newSituation.priority = 302;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"};
-    situations["023"] = newSituation;
-
-    newSituation = self:CreateSituation("Dungeon (Combat, Trash)");
-    newSituation.enabled = false;
-    newSituation.priority = 202;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"};
-    situations["024"] = newSituation;
-
-
-
-    newSituation = self:CreateSituation("Raid");
-    newSituation.enabled = false;
-    newSituation.priority = 3;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\");";
-    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
-    situations["030"] = newSituation;
-
-    newSituation = self:CreateSituation("Raid (Outdoors)");
-    newSituation.enabled = false;
-    newSituation.priority = 13;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsOutdoors();";
-    newSituation.events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"};
-    situations["031"] = newSituation;
-
-    newSituation = self:CreateSituation("Raid (Combat, Boss)");
-    newSituation.enabled = false;
-    newSituation.priority = 303;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"};
-    situations["033"] = newSituation;
-
-    newSituation = self:CreateSituation("Raid (Combat, Trash)");
-    newSituation.enabled = false;
-    newSituation.priority = 203;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"};
-    situations["034"] = newSituation;
-
-
-
-    newSituation = self:CreateSituation("Arena");
-    newSituation.enabled = false;
-    newSituation.priority = 3;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\");";
-    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
-    situations["050"] = newSituation;
-
-    newSituation = self:CreateSituation("Arena (Combat)");
-    newSituation.enabled = false;
-    newSituation.priority = 203;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\") and UnitAffectingCombat(\"player\");";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
-    situations["051"] = newSituation;
-
-
-    newSituation = self:CreateSituation("Battleground");
-    newSituation.enabled = false;
-    newSituation.priority = 3;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\");";
-    newSituation.events = {"ZONE_CHANGED_NEW_AREA"};
-    situations["060"] = newSituation;
-
-    newSituation = self:CreateSituation("Battleground (Combat)");
-    newSituation.enabled = false;
-    newSituation.priority = 203;
-    newSituation.condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\") and UnitAffectingCombat(\"player\");";
-    newSituation.events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"};
-    situations["061"] = newSituation;
-
-
-    newSituation = self:CreateSituation("Mounted");
-    newSituation.priority = 100;
-    newSituation.condition = "return IsMounted();";
-    newSituation.events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"};
-    newSituation.cameraActions.zoomSetting = "out";
-    newSituation.cameraActions.zoomValue = 30;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
-    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
-    situations["100"] = newSituation;
-
-    newSituation = self:CreateSituation("Taxi");
-    newSituation.priority = 1000;
-    newSituation.condition = "return UnitOnTaxi(\"player\");";
-    newSituation.events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"};
-    newSituation.cameraActions.zoomSetting = "set";
-    newSituation.cameraActions.zoomValue = 15;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = -1;
-    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
-    newSituation.extras.hideUI = true;
-    situations["101"] = newSituation;
-
-    newSituation = self:CreateSituation("Vehicle");
-    newSituation.priority = 1000;
-    newSituation.condition = "return UnitUsingVehicle(\"player\");";
-    newSituation.events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"};
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
-    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
-    situations["102"] = newSituation;
-
-    newSituation = self:CreateSituation("Hearth/Teleport");
-    newSituation.priority = 20;
-    newSituation.executeOnInit = "this.spells = {136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};";
-    newSituation.condition = [[for k,v in pairs(this.spells) do 
-    if (UnitCastingInfo("player") == GetSpellInfo(v)) then 
-        return true;
+function DynamicCam:CopySituationInto(fromID, toID)
+    -- make sure that both from and to are valid situationIDs
+    if (not fromID or not toID or fromID == toID or not self.db.profile.situations[fromID] or not self.db.profile.situations[toID]) then
+        self:DebugPrint("CopySituationInto has invalid from or to!");
+        return;
     end
-end
-return false;]];
-    newSituation.executeOnEnter = "local _, _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;";
-    newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
-    newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 4;
-    newSituation.cameraActions.rotate = true;
-    newSituation.cameraActions.rotateDegrees = 360;
-    newSituation.cameraActions.rotateSetting = "degrees";
-    newSituation.cameraActions.transitionTime = 10;
-    newSituation.cameraActions.timeIsMax = false;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
-    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
-    newSituation.extras.hideUI = true;
-    situations["200"] = newSituation;
 
-    newSituation = self:CreateSituation("Annoying Spells");
-    newSituation.priority = 1000;
-    newSituation.executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};";
-    newSituation.condition = [[for k,v in pairs(this.buffs) do 
-    if (UnitBuff("player", GetSpellInfo(v))) then
-        return true;
+    local from = self.db.profile.situations[fromID];
+    local to = self.db.profile.situations[toID];
+
+    -- copy settings over
+    to.enabled = from.enabled;
+
+    -- a more robust solution would be much better!
+    to.cameraActions = {};
+    for key, value in pairs(from.cameraActions) do
+        to.cameraActions[key] = from.cameraActions[key];
     end
-end
-return false;]];
-    newSituation.events = {"UNIT_AURA"};
-    newSituation.cameraCVars["test_cameraHeadMovementStrength"] = 0;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 0;
-    newSituation.cameraCVars["test_cameraOverShoulder"] = 0;
-    situations["201"] = newSituation;
 
-    newSituation = self:CreateSituation("NPC Interaction");
-    newSituation.enabled = false;
-    newSituation.priority = 20;
-    newSituation.delay = .5;
-    newSituation.executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\",}";
-    newSituation.condition = [[local shown = false;
-for k,v in pairs(this.frames) do
-    if (_G[v] and _G[v]:IsShown()) then
-        shown = true;
+    to.view = {};
+    for key, value in pairs(from.view) do
+        to.view[key] = from.view[key];
     end
-end
-return UnitExists("npc") and UnitIsUnit("npc", "target") and shown;]];
-    newSituation.events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"};
-    newSituation.cameraActions.zoomSetting = "fit";
-    newSituation.cameraActions.zoomMin = 3;
-    newSituation.cameraActions.zoomMax = 30;
-    newSituation.cameraActions.zoomValue = 4;
-    newSituation.cameraActions.zoomFitIncrements = .5;
-    newSituation.cameraActions.zoomFitPosition = 90;
-    newSituation.cameraActions.zoomFitToggleNameplate = true;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
-    newSituation.targetLock.enabled = true;
-    newSituation.targetLock.onlyAttackable = false;
-    newSituation.targetLock.nameplateVisible = false;
-    situations["300"] = newSituation;
 
-    newSituation = self:CreateSituation("Mailbox");
-    newSituation.enabled = false;
-    newSituation.priority = 20;
-    newSituation.condition = "return (MailFrame and MailFrame:IsShown())";
-    newSituation.events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"};
-    newSituation.cameraActions.zoomSetting = "in";
-    newSituation.cameraActions.zoomValue = 4;
-    situations["301"] = newSituation;
+    to.extras = {};
+    for key, value in pairs(from.extras) do
+        to.extras[key] = from.extras[key];
+    end
 
-    newSituation = self:CreateSituation("Fishing");
-    newSituation.priority = 20;
-    newSituation.condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))";
-    newSituation.events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"};
-    newSituation.delay = 2;
-    newSituation.cameraActions.zoomSetting = "set";
-    newSituation.cameraActions.zoomValue = 7;
-    newSituation.cameraCVars["test_cameraDynamicPitch"] = 1;
-    situations["302"] = newSituation;
+    to.cameraCVars = {};
+    for key, value in pairs(from.cameraCVars) do
+        to.cameraCVars[key] = from.cameraCVars[key];
+    end
 
-    return situations;
-end
-
-function DynamicCam:CreateSituation(name)
-    local situation = {
-        name = name,
-        enabled = true,
-        priority = 0,
-        condition = "return false",
-        delay = 0,
-        executeOnInit = "",
-        executeOnEnter = "",
-        executeOnExit = "",
-        cameraActions = {
-            transitionTime = .75,
-            timeIsMax = true,
-
-            rotate = false,
-            rotateSetting = "continous",
-            rotateSpeed = .1,
-            rotateDegrees = 0,
-
-            zoomSetting = "off",
-            zoomValue = 10,
-            zoomMin = 5,
-            zoomMax = 20,
-
-            zoomFitContinous = false,
-            zoomFitSpeedMultiplier = 2,
-            zoomFitPosition = 84,
-            zoomFitSensitivity = 5,
-            zoomFitIncrements = .25,
-            zoomFitUseCurAsMin = false,
-            zoomFitToggleNameplate = true,
-        },
-        view = {
-            enabled = false,
-            viewNumber = 5,
-            restoreView = false,
-            instant = false,
-        },
-        targetLock = {
-            enabled = false,
-            onlyAttackable = true,
-            dead = false,
-            nameplateVisible = true,
-        },
-        extras = {
-            hideUI = false,
-
-            nameplates = false,
-            friendlyNameplates = true,
-            enemyNameplates = true,
-        },
-        cameraCVars = {},
-    };
-
-    return situation;
+    self:SendMessage("DC_SITUATION_UPDATED", toID);
 end
 
 function DynamicCam:UpdateSituation(situationID)
@@ -937,13 +1006,80 @@ function DynamicCam:UpdateSituation(situationID)
         for cvar, value in pairs(situation.cameraCVars) do
             DC_SetCVar(cvar, value);
         end
+        self:ApplyDefaultCameraSettings();
     end
     DC_RunScript(situation.executeOnInit, situationID);
+    self:RegisterSituationEvents(situationID);
+    self:EvaluateSituations();
+end
+
+function DynamicCam:CreateCustomSituation(name)
+    -- search for a clear id
+    local highest = 0;
+
+    -- go through each and every situation, look for the custom ones, and find the
+    -- highest custom id
+    for id, situation in pairs(self.db.profile.situations) do
+        local i, j = string.find(id, "custom");
+
+        if (i and j) then
+            local num = tonumber(string.sub(id, j+1));
+
+            if (num and num > highest) then
+                highest = num;
+            end
+        end
+    end
+
+    -- copy the default situation into a new table
+    local newSituationID = "custom"..(highest+1);
+    local newSituation = copyTable(self.defaults.profile.situations["**"]);
+
+    newSituation.name = name;
+
+    -- create the entry in the profile with an id 1 higher than the highest already customID
+    self.db.profile.situations[newSituationID] = newSituation;
+
+    -- make sure that the options panel reselects a situation
+    if (Options) then
+        Options:SelectSituation(newSituationID);
+    end
+
+    self:SendMessage("DC_SITUATION_UPDATED", newSituationID);
+    return newSituation, newSituationID;
+end
+
+function DynamicCam:DeleteCustomSituation(situationID)
+    if (not self.db.profile.situations[situationID]) then
+        self:DebugPrint("Cannot delete this situation since it doesn't exist", situationID)
+    end
+
+    if (not string.find(situationID, "custom")) then
+        self:DebugPrint("Cannot delete a non-custom situation");
+    end
+
+    -- if we're currently in this situation, exit it
+    if (self.currentSituationID == situationID) then
+        self:ExitSituation(situationID);
+    end
+
+    -- delete the situation
+    self.db.profile.situations[situationID] = nil;
+
+    -- make sure that the options panel reselects a situation
+    if (Options) then
+        Options:ClearSelection();
+        Options:SelectSituation();
+    end
+
+    -- EvaluateSituations because we might have changed the current situation
     self:EvaluateSituations();
 end
 
 
--- TODO: organization
+-------------
+-- UTILITY --
+-------------
 function DynamicCam:ApplyDefaultCameraSettings()
     local curSituation = self.db.profile.situations[self.currentSituationID];
 
@@ -956,11 +1092,17 @@ function DynamicCam:ApplyDefaultCameraSettings()
         ResetTestCvars();
         UIParent:RegisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
     end
-    
+
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
-            DC_SetCVar(cvar, value);
+            if (cvar == "test_cameraOverShoulder") then
+                if (not (GetCVar("test_cameraOverShoulder") == tostring(value))) then
+                    easeShoulderOffset(value, 0.75);
+                end
+            else
+                DC_SetCVar(cvar, value);
+            end
         end
     end
 end
@@ -970,11 +1112,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
     -- don't restore if we don't have a saved zoom value
     if (not restoration[oldSituationID].zoom) then
-        return false;
-    end
-
-    -- don't restore view if we're still zooming
-    if (Camera:IsZooming()) then
         return false;
     end
 
@@ -1026,6 +1163,112 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 end
 
 
+-------------------
+-- REACTIVE ZOOM --
+-------------------
+local targetZoom;
+local oldCameraZoomIn = CameraZoomIn;
+local oldCameraZoomOut = CameraZoomOut;
+
+local function round(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0);
+    return math.floor(num * mult + 0.5) / mult;
+end
+
+local function clearTargetZoom()
+    -- print("clearTargetZoom");
+    targetZoom = nil;
+end
+
+local function ReactiveZoom(zoomIn, increments, automated)
+    if (not automated) then
+        local currentZoom = GetCameraZoom();
+        local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways;
+        local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements;
+        local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime;
+        local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference;
+        local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc;
+
+        increments = increments or 1;
+
+        -- if we've change directions, make sure to reset
+        if (zoomIn) then
+            if (targetZoom and targetZoom > currentZoom) then
+                targetZoom = nil;
+            end
+        else
+            if (targetZoom and targetZoom < currentZoom) then
+                targetZoom = nil;
+            end
+        end
+
+        -- scale increments up
+        if (increments == 1) then
+            if (targetZoom) then
+                local diff = math.abs(targetZoom - currentZoom);
+
+                if (diff > incAddDifference) then
+                    increments = increments + addIncrementsAlways + addIncrements;
+                else
+                    increments = increments + addIncrementsAlways;
+                end
+            else
+                increments = increments + addIncrementsAlways;
+            end
+        end
+
+        -- if there is already a target zoom, base off that one, or just use the current zoom
+        targetZoom = targetZoom or currentZoom;
+
+        if (zoomIn) then
+            targetZoom = math.max(0, targetZoom - increments);
+        else
+            targetZoom = math.min(39, targetZoom + increments);
+        end
+
+        -- if we don't need to zoom because we're at the max limits, then don't
+        if ((targetZoom == 39 and currentZoom == 39)
+            or (targetZoom == 0 and currentZoom == 0)) then
+            return;
+        end
+
+        -- round target zoom off to the nearest decimal
+        targetZoom = round(targetZoom, 1);
+
+        -- print("ReactiveZoom", targetZoom);
+
+        -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
+        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
+
+        LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
+    else
+        if (zoomIn) then
+            oldCameraZoomIn(increments, automated);
+        else
+            oldCameraZoomOut(increments, automated);
+        end
+    end
+end
+
+local function ReactiveZoomIn(increments, automated)
+    ReactiveZoom(true, increments, automated);
+end
+
+local function ReactiveZoomOut(increments, automated)
+    ReactiveZoom(false, increments, automated);
+end
+
+function DynamicCam:ReactiveZoomOn()
+    CameraZoomIn = ReactiveZoomIn;
+    CameraZoomOut = ReactiveZoomOut;
+end
+
+function DynamicCam:ReactiveZoomOff()
+    CameraZoomIn = oldCameraZoomIn;
+    CameraZoomOut = oldCameraZoomOut;
+end
+
+
 ------------
 -- EVENTS --
 ------------
@@ -1034,6 +1277,18 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
+    if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
+        -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
+        self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
+        useLegacyZoom = true;
+
+        legacyZoomTimer = DynamicCam:ScheduleTimer(function()
+            useLegacyZoom = false;
+            self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
+            legacyZoomTimer = nil;
+        end, 5);
+    end
+
     -- we don't want to evaluate too often, some of the events can be *very* spammy
     if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
         lastEvaluate = GetTime();
@@ -1052,26 +1307,43 @@ function DynamicCam:EventHandler(event, possibleUnit, ...)
 end
 
 function DynamicCam:RegisterEvents()
-    events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_ADDED", "EventHandler");
+    self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
 
-    events["NAME_PLATE_UNIT_ADDED"] = true;
-    self:RegisterEvent("NAME_PLATE_UNIT_REMOVED", "EventHandler");
+    for situationID, situation in pairs(self.db.profile.situations) do
+        self:RegisterSituationEvents(situationID);
+    end
+end
 
-    events["PLAYER_TARGET_CHANGED"] = true;
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", "EventHandler");
-
-    for name, situation in pairs(self.db.profile.situations) do
-        if (situation.events) then
-            for i, event in pairs(situation.events) do
-                if (not events[event]) then
-                    events[event] = true;
-                    self:RegisterEvent(event, "EventHandler");
-                    -- self:DebugPrint("Registered for event:", event);
-                end
+function DynamicCam:RegisterSituationEvents(situationID)
+    local situation = self.db.profile.situations[situationID];
+    if (situation and situation.events) then
+        for i, event in pairs(situation.events) do
+            if (not events[event]) then
+                events[event] = true;
+                self:RegisterEvent(event, "EventHandler");
+                -- self:DebugPrint("Registered for event:", event);
             end
         end
     end
+end
+
+function DynamicCam:PLAYER_ENTERING_WORLD()
+    -- cancel the timer if it exists
+    if (legacyZoomTimer) then
+        self:CancelTimer(legacyZoomTimer);
+        legacyZoomTimer = nil;
+    end
+
+    legacyZoomTimer = DynamicCam:ScheduleTimer(function()
+        useLegacyZoom = false;
+        self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
+        legacyZoomTimer = nil;
+    end, 60);
+end
+
+function DynamicCam:PLAYER_LEAVING_WORLD()
+    self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
+    useLegacyZoom = true;
 end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
@@ -1084,7 +1356,6 @@ end
 
 function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
     self:UpdateSituation(situationID);
-    self:ApplyDefaultCameraSettings();
     self:EvaluateSituations();
 end
 
@@ -1093,97 +1364,200 @@ function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
 end
 
 
------------------
--- TARGET LOCK --
------------------
-function DynamicCam:EvaluateTargetLock()
-    if (self.currentSituationID) then
-        local targetLock = self.db.profile.situations[self.currentSituationID].targetLock;
-        if (targetLock.enabled) and
-            (not targetLock.onlyAttackable or UnitCanAttack("player", "target")) and
-            (targetLock.dead or (not UnitIsDead("target"))) and
-            (not targetLock.nameplateVisible or (C_NamePlate.GetNamePlateForUnit("target") ~= nil))
-        then
-            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
-                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 1);
-            end
-            
-            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
-                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 1);
-            end
-        else
-            if (GetCVar("test_cameraTargetFocusEnemyEnable") ~= "1") then
-                DC_SetCVar ("test_cameraTargetFocusEnemyEnable", 0);
-            end
-            
-            if (GetCVar("test_cameraTargetFocusInteractEnable") ~= "1") then
-                DC_SetCVar ("test_cameraTargetFocusInteractEnable", 0);
-            end
-        end
-    end
-end
-
-
 --------------
 -- DATABASE --
 --------------
+local firstDynamicCamLaunch = false;
+local upgradingFromOldVersion = false;
+StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
+    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured.",
+    button1 = "Open Presets",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+    end,
+    OnCancel = function(_, reason)
+    end,
+}
+
+StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
+    text = "The current DynamicCam profile is fresh and probably empty.\n\nWould you like to see available DynamicCam presets?",
+    button1 = "Open Presets",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+    end,
+    OnCancel = function(_, reason)
+    end,
+}
+
+StaticPopupDialogs["DYNAMICCAM_UPDATED"] = {
+    text = "DynamicCam has been updated, would you like to open the main menu?\n\nThere's a changelog right in there! (You may need to scroll down)",
+    button1 = "Open Menu",
+    button2 = "Close",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnAccept = function()
+        InterfaceOptionsFrame_OpenToCategory(Options.menu);
+        InterfaceOptionsFrame_OpenToCategory(Options.menu);
+    end,
+}
 
 function DynamicCam:InitDatabase()
-    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", defaults, true);
+    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true);
     self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
     self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig");
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
 
-    if (not self.db.global.dbVersion or self.db.global.dbVersion <= 1) then
-        self:Print("Upgrading to 7.1 compatablity, this will reset all of your settings. Sorry about that!");
-        self.db:ResetDB();
-        self.db.global.dbVersion = 2;
+    -- remove dbVersion, move to a per-profile version number
+    if (self.db.global.dbVersion) then
+        upgradingFromOldVersion = true;
+        self.db.global.dbVersion = nil;
     end
-    
-    -- remove all references to test_cameraLockedTargetFocusing
-    for profileName, profile in pairs(DynamicCamDB.profiles) do
+
+    if (not DynamicCamDB.profiles) then
+        firstDynamicCamLaunch = true;
+    else
+        -- reset db if we've got a really old version
+        local veryOldVersion = false;
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            if (profile.defaultCvars and profile.defaultCvars["cameraovershoulder"]) then
+                veryOldVersion = true;
+            end
+        end
+
+        if (veryOldVersion) then
+            self:Print("Detected very old version, resetting DB, sorry about that!");
+            self.db:ResetDB();
+        end
+
+        -- modernize each profile
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            self:ModernizeProfile(profile);
+        end
+
+        -- show the updated popup
+        if (upgradingFromOldVersion) then
+            StaticPopup_Show("DYNAMICCAM_UPDATED");
+        end
+    end
+end
+
+function DynamicCam:ModernizeProfile(profile)
+    if (not profile.version) then
+        profile.version = 1;
+    end
+
+    local startVersion = profile.version;
+
+    if (profile.version == 1) then
         if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
             profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
         end
+
+        upgradingFromOldVersion = true;
+        profile.version = 2;
+        profile.firstRun = false;
     end
 
-    self:DebugPrint("Database at level", self.db.global.dbVersion);
+    -- modernize each situation
+    if (profile.situations) then
+        for situationID, situation in pairs(profile.situations) do
+            self:ModernizeSituation(situation, startVersion);
+        end
+    end
+end
+
+function DynamicCam:ModernizeSituation(situation, version)
+    if (version == 1) then
+        -- clear unused nameplates db stuff
+        if (situation.extras) then
+            situation.extras["nameplates"] = nil;
+            situation.extras["friendlyNameplates"] = nil;
+            situation.extras["enemyNameplates"] = nil;
+        end
+
+        -- update targetlock features
+        if (situation.targetLock) then
+            if (situation.targetLock.enabled) then
+                if (not situation.cameraCVars) then
+                    situation.cameraCVars = {};
+                end
+
+                if (situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false) then
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                    situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
+                else
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                end
+            end
+
+            situation.targetLock = nil;
+        end
+
+        -- update camera rotation
+        if (situation.cameraActions) then
+            -- convert to yaw degrees instead of rotate degrees
+            if (situation.cameraActions.rotateDegrees) then
+                situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees;
+                situation.cameraActions.pitchDegrees = 0;
+                situation.cameraActions.rotateDegrees = nil;
+            end
+
+            -- convert old scalar rotate speed to something that's in degrees/second
+            if (situation.cameraActions.rotateSpeed and situation.cameraActions.rotateSpeed < 5) then
+                situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"));
+            end
+        end
+    end
 end
 
 function DynamicCam:RefreshConfig()
-    local restartTimer = false;
-    
+    local profile = self.db.profile;
+
     -- shutdown the addon if it's enabled
-    if (self.db.profile.enabled and started) then
+    if (profile.enabled and started) then
         self:Shutdown();
     end
 
     -- situation is active, but db killed it
-    -- TODO: still restore from restoration, at least, what we can
     if (self.currentSituationID) then
         self.currentSituationID = nil;
     end
 
     -- clear the options panel so that it reselects
-    if (Options) then
-        Options:ClearSelection();
-    end
-
-    -- load default situations
-    local id, situation = next(self.db.profile.situations);
-    if (not situation or situation.name == "") then
-        self.db.profile.situations = self:GetDefaultSituations();
-        self.db.profile.defaultVersion = DEFAULT_VERSION;
-    end
-
     -- make sure that options panel selects a situation
     if (Options) then
+        Options:ClearSelection();
         Options:SelectSituation();
     end
 
+    -- present a menu that loads a set of defaults, if this is the profiles first run
+    if (profile.firstRun) then
+        if (firstDynamicCamLaunch) then
+            StaticPopup_Show("DYNAMICCAM_FIRST_RUN");
+            firstDynamicCamLaunch = false;
+        else
+            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE");
+        end
+        profile.firstRun = false;
+    end
+
     -- start the addon back up
-    if (self.db.profile.enabled and not started) then
+    if (profile.enabled and not started) then
         self:Startup();
     end
 
@@ -1194,10 +1568,17 @@ function DynamicCam:RefreshConfig()
 end
 
 
-
 -------------------
 -- CHAT COMMANDS --
 -------------------
+local function tokenize(str, delimitor)
+    local tokens = {};
+    for token in str:gmatch(delimitor or "%S+") do
+        table.insert(tokens, token);
+    end
+    return tokens;
+end
+
 StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
     text = "DynamicCam Discord Link:",
     button1 = "Got it!",
@@ -1212,6 +1593,27 @@ StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
     end,
 }
 
+StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
+    text = "Enter name for custom situation:",
+    button1 = "Create!",
+    button2 = "Cancel",
+    timeout = 0,
+    hasEditBox = true,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnShow = function (self, data)
+        self.editBox:SetFocus();
+    end,
+    OnAccept = function (self, data)
+        DynamicCam:CreateCustomSituation(self.editBox:GetText());
+    end,
+    EditBoxOnEnterPressed = function(self)
+        DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText());
+		self:GetParent():Hide();
+	end,
+}
+
 function DynamicCam:OpenMenu(input)
     if (not Options or not Camera) then
         Camera = self.Camera;
@@ -1221,28 +1623,108 @@ function DynamicCam:OpenMenu(input)
     Options:SelectSituation();
 
     -- just open to the frame, double call because blizz bug
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
-    InterfaceOptionsFrame_OpenToCategory("DynamicCam");
+    InterfaceOptionsFrame_OpenToCategory(Options.menu);
+    InterfaceOptionsFrame_OpenToCategory(Options.menu);
 end
 
 function DynamicCam:SaveViewCC(input)
-    if (tonumber(input) and tonumber(input) <= 5 and tonumber(input) > 1) then
-        SaveView(tonumber(input));
+    local tokens = tokenize(input);
+
+    local viewNum = tonumber(tokens[1]);
+
+    if (viewNum and viewNum <= 5 and viewNum > 1) then
+        SaveView(viewNum);
+    else
+        self:Print("Improper view number provided.")
     end
 end
 
 function DynamicCam:ZoomInfoCC(input)
-    Camera:PrintCameraVars();
+    self:Print(string.format("Zoom level: %0.2f", GetCameraZoom()));
 end
 
 function DynamicCam:ZoomSlash(input)
-    if (tonumber(input) and tonumber(input) <= 39 and tonumber(input) >= 0) then
-        Camera:SetZoom(tonumber(input), .5, true);
+    local tokens = tokenize(input);
+
+    local zoom = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
+
+    if (zoom and (zoom <= 39 or zoom >= 0)) then
+        local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
+        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc);
+    end
+end
+
+function DynamicCam:PitchSlash(input)
+    local tokens = tokenize(input);
+
+    local pitch = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
+
+    if (pitch and (pitch <= 90 or pitch >= -90)) then
+        LibCamera:Pitch(pitch, time or 0.75, easingFunc);
+    end
+end
+
+function DynamicCam:YawSlash(input)
+    local tokens = tokenize(input);
+
+    local yaw = tonumber(tokens[1]);
+    local time = tonumber(tokens[2]);
+    local easingFuncName;
+    local easingFunc;
+
+    if (not time) then
+        -- time not provided, maybe 2nd param is easingfunc?
+        easingFuncName = tokens[2];
+    else
+        easingFuncName = tokens[3];
+    end
+
+    -- look up easing func
+    if (easingFuncName) then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    end
+
+    if (yaw) then
+        LibCamera:Yaw(yaw, time or 0.75, easingFunc);
     end
 end
 
 function DynamicCam:PopupDiscordLink()
     StaticPopup_Show("DYNAMICCAM_DISCORD");
+end
+
+function DynamicCam:PopupCreateCustomProfile()
+    StaticPopup_Show("DYNAMICCAM_NEW_CUSTOM_SITUATION");
 end
 
 

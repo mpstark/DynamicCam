@@ -9,30 +9,65 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0");
 -- LOCALS --
 ------------
 local Options = DynamicCam.Options;
-local Camera = DynamicCam.Camera;
 local parent = DynamicCam;
 local _;
 local S, SID;
+local copiedSituationID;
+local exportName, exportAuthor;
 
 local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
 If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord (get a link by doing /dcdiscord) and speak with me there.
 
-I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there. 
+I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there.
 
 Some handy slash commands:
-    `/dc` will open this menu
-    `/zi` will print out the current zoom
-    `/zoom #` will zoom to that zoom level
-    `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
-    `/dcdiscord` will allow you to copy a Discord invite so that you can join]];
-local knownIssues = [[- Fit nameplates is still a work in progress, can do a little in-and-out number
-- Missing a lot of the advanced options such as add/remove situation, import/export, etc.
+    `/dynamiccam` or `/dc` will open this menu
+    `/zoominfo` or `/zi` will print out the current zoom
+    `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
+    `/dcdiscord` will allow you to copy a Discord invite so that you can join
+
+    The following slash commands will also accept a time and an easing function:
+        `/zoom #` will zoom to that zoom level
+        `/yaw #` will yaw the camera left/right by that number of degrees
+        `/pitch #` will pitch the camera up/down by that number of degrees
+
+        Example:
+            `/zoom 5 5 InOutQuint` will zoom to 5 over 5 seconds using InOutQuint as the easing function.
+    ]];
+local knownIssues = [[- The new LibCamera zoom can sometimes zoom you all the way in, report if you find a repeatable spot
+    - Places that I think I've fixed: after loading screens/after taxi's
+- Fit nameplates is still using the old camera code
 - Boss vs. Trash combat detection can be a little wonky]];
 local changelog = {
-[[As always, you have to reset your profile to get the changes to the defaults, including changes to condition, or even new situations, if you want them.]],
-[[Beta 3b:
-    - Update to 7.2 changes to ActionCam
+[[Beta 4:
+    - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
+        - Rotation actions can now also pitch the camera up and down
+        - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
+        - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua implementation
+        - No manipulation of CVars needed to 'trick' WoW's camera engine
+        - Accuracy of rotation actions far improved from previous implementation
+
+    - Settings sharing using clipboard-friendly strings
+        - Very much like WeakAura's export string option
+        - Export/Import a single situation or your entire profile
+
+    - Create new custom situations (Advanced)
+        - Some (in-game) Lua scripting needed
+        - Fully sharable using the new settings sharing system
+
+    - Fade the UI instead of hiding it
+        - Fading can occur in combat, and looks nicer
+        - Hitting escape will show the UI if it is hidden in this manner
+
+    - Minor Changes/Fixes:
+        - Easily copy/paste settings from one situation to another
+        - Changes to the default conditions and new situations will now be automatically applied to profiles
+        - Rotation actions that rotate back are far improved
+        - Some database optimizations, lowered memory overhead a bit
+        - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
+        - Don't redundantly call SetCVar a lot
+        - TOC File changed (finally!) to have the correct value
 ]],
 [[Beta 3:
     - Forced database reset, there was just too much change on Blizzard's end.
@@ -84,6 +119,38 @@ local changelog = {
         - nameplate settings should no longer cause taint]],
 };
 
+local easingValues = {
+    Linear = "Linear",
+    InQuad = "In Quadratic",
+    OutQuad = "Out Quadratic",
+    InOutQuad = "In/Out Quadratic",
+    OutInQuad = "Out/In Quadratic",
+    InCubic = "In Cubic",
+    OutCubic = "Out Cubic",
+    InOutCubic = "In/Out Cubic",
+    OutInCubic = "Out/In Cubic",
+    InQuart = "In Quartic",
+    OutQuart = "Out Quartic",
+    InOutQuart = "In/Out Quartic",
+    OutInQuart = "Out/In Quartic",
+    InQuint = "In Quintic",
+    OutQuint = "Out Quintic",
+    InOutQuint = "In/Out Quintic",
+    OutInQuint = "Out/In Quintic",
+    InSine = "In Sine",
+    OutSine = "Out Sine",
+    InOutSine = "In/Out Sine",
+    OutInSine = "Out/In Sine",
+    InExpo = "In Exponent",
+    OutExpo = "Out Exponent",
+    InOutExpo = "In/Out Exponent",
+    OutInExpo = "Out/In Exponent",
+    InCirc = "In Circular",
+    OutCirc = "Out Circular",
+    InOutCirc = "In/Out Circular",
+    OutInCirc = "Out/In Circular",
+};
+
 local general = {
     name = "DynamicCam",
     handler = DynamicCam,
@@ -131,6 +198,7 @@ local general = {
                     width = "half",
                     order = 4,
                 },
+
             },
         },
         messageGroup = {
@@ -196,14 +264,23 @@ local settings = {
                     name = "Enabled",
                     desc = "Speed up zoom when manually zooming in quickly.",
                     get = function() return (DynamicCam.db.profile.reactiveZoom.enabled) end,
-                    set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.enabled = newValue; end,
+                    set = function(_, newValue)
+                        DynamicCam.db.profile.reactiveZoom.enabled = newValue;
+
+                        -- actually turn it on
+                        if (newValue) then
+                            DynamicCam:ReactiveZoomOn();
+                        else
+                            DynamicCam:ReactiveZoomOff();
+                        end
+                    end,
                     order = 1,
                 },
                 reactiveZoomAdvanced = {
                     type = 'group',
                     name = "Reactive Zoom Options (Advanced)",
                     hidden = function() return (not DynamicCam.db.profile.advanced) or (not DynamicCam.db.profile.reactiveZoom.enabled) end,
-                    order = 1,
+                    order = 2,
                     inline = true,
                     args = {
                         maxZoomTime = {
@@ -251,14 +328,60 @@ local settings = {
                             set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.incAddDifference = newValue; end,
                             order = 5,
                         },
+                        easingFunc = {
+                            type = 'select',
+                            name = "Easing Function",
+                            desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
+                            get = function() return (DynamicCam.db.profile.reactiveZoom.easingFunc) end,
+                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
+                            values = easingValues,
+                            width = "full",
+                            order = 6,
+                        },
                     },
+                },
+            },
+        },
+        defaultEasing = {
+            type = 'group',
+            name = "Default Easing Functions (Advanced)",
+            hidden = function() return (not DynamicCam.db.profile.advanced) end,
+            order = 2,
+            inline = true,
+            args = {
+                easingZoom = {
+                    type = 'select',
+                    name = "Zoom Easing",
+                    desc = "Which easing function to use for zoom.",
+                    get = function() return (DynamicCam.db.profile.easingZoom) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
+                    values = easingValues,
+                    order = 1,
+                },
+                easingYaw = {
+                    type = 'select',
+                    name = "Yaw Easing",
+                    desc = "Which easing function to use for yaw.",
+                    get = function() return (DynamicCam.db.profile.easingYaw) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingYaw = newValue; end,
+                    values = easingValues,
+                    order = 2,
+                },
+                easingPitch = {
+                    type = 'select',
+                    name = "Pitch Easing",
+                    desc = "Which easing function to use for pitch.",
+                    get = function() return (DynamicCam.db.profile.easingPitch) end,
+                    set = function(_, newValue) DynamicCam.db.profile.easingPitch = newValue; end,
+                    values = easingValues,
+                    order = 3,
                 },
             },
         },
         defaultCvars = {
             type = 'group',
             name = "Default Camera Settings",
-            order = 2,
+            order = 3,
             inline = true,
             args = {
                 description = {
@@ -277,28 +400,6 @@ local settings = {
                     get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] == 1) end,
                     set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = .25,
-                },
-                cameraLockedTargetFocusing = {
-                    type = 'toggle',
-                    name = "Target Lock/Focus",
-                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
-                    hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    get = function()
-                            return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1
-                                and DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1)
-                        end,
-                    set = function(_, newValue) 
-                        if (newValue) then
-                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1;
-                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1;
-                        else 
-                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0;
-                            DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0;
-                        end
-                        
-                        Options:SendMessage("DC_BASE_CAMERA_UPDATED");
-                    end,
-                    order = 0.5,
                 },
                 cameraDistanceMaxFactor = {
                     type = 'range',
@@ -329,8 +430,8 @@ local settings = {
                     name = "Camera Shoulder Offset",
                     desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    softMin = -5,
-                    softMax = 5,
+                    min = -5,
+                    max = 5,
                     step = .1,
                     get = function() return DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] end,
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
@@ -350,6 +451,141 @@ local settings = {
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = 5,
                     width = "full",
+                },
+                targetLockGroup = {
+                    type = 'group',
+                    name = "Target Lock/Focus",
+                    order = 50,
+                    inline = true,
+                    args = {
+                        targetLockEnemies = {
+                            type = 'toggle',
+                            name = "Focus Enemies",
+                            desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue) then
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1;
+                                else
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            order = 1,
+                        },
+                        targetLockEnemiesPitch = {
+                            type = 'range',
+                            name = "Focus Enemy Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 2,
+                        },
+                        targetLockEnemiesYaw = {
+                            type = 'range',
+                            name = "Focus Enemy Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 3,
+                        },
+                        targetLockInteractables = {
+                            type = 'toggle',
+                            tristate = true,
+                            name = "Focus On Interact",
+                            desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue) then
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1;
+                                else
+                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            order = 11,
+                        },
+                        targetLockInteractPitch = {
+                            type = 'range',
+                            name = "Focus Interact Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 12,
+                        },
+                        targetLockInteractYaw = {
+                            type = 'range',
+                            name = "Focus Interact Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"])
+                                    or (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                            end,
+                            width = "full",
+                            order = 13,
+                        },
+                    },
                 },
                 dynamicPitchAdvanced = {
                     type = 'group',
@@ -518,6 +754,15 @@ local situationOptions = {
             width = "full",
             order = 1,
         },
+        newSituation = {
+            type = 'execute',
+            name = "New Custom Situation (Advanced)",
+            desc = "Create a new custom situation.",
+            hidden = function() return (not DynamicCam.db.profile.advanced) end,
+            func = function() DynamicCam:PopupCreateCustomProfile() end,
+            order = 1.5,
+            width = "full",
+        },
         enabled = {
             type = 'toggle',
             name = "Enable Situation",
@@ -526,6 +771,43 @@ local situationOptions = {
             get = function() return S.enabled end,
             set = function(_, newValue) S.enabled = newValue if (newValue) then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
             order = 2,
+        },
+        copy = {
+            type = 'execute',
+            name = "Copy",
+            desc = "Copy this situations settings so that you can paste it into another situation.\n\nDoesn't copy the condition or the advanced mode Lua scripts.",
+            hidden = function() return (not S) end,
+            func = function() copiedSituationID = SID; end,
+            order = 5,
+            width = "half",
+        },
+        paste = {
+            type = 'execute',
+            name = "Paste",
+            desc = "Paste the settings from that last copied situation.",
+            hidden = function() return (not S) end,
+            disabled = function() return (not copiedSituationID) end,
+            func = function() parent:CopySituationInto(copiedSituationID, SID); copiedSituationID = nil; end,
+            order = 6,
+            width = "half",
+        },
+        export = {
+            type = 'execute',
+            name = "Export",
+            desc = "Export this entire situation to a string",
+            hidden = function() return (not S) or (not DynamicCam.db.profile.advanced) end,
+            func = function() parent:PopupExport(parent:ExportSituation(SID)); end,
+            order = 7,
+            width = "half",
+        },
+        deleteCustom = {
+            type = 'execute',
+            name = "Delete",
+            desc = "Delete this custom situation",
+            hidden = function() return (not S) or (not string.find(SID, "custom")); end,
+            func = function() DynamicCam:DeleteCustomSituation(SID); end,
+            order = 8,
+            width = "half",
         },
         cameraActions = {
             type = 'group',
@@ -548,7 +830,7 @@ local situationOptions = {
                     name = "Rotate",
                     desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
                     get = function() return S.cameraActions.rotate end,
-                    set = function(_, newValue) S.cameraActions.rotate = newValue; Camera:StopRotating(); end,
+                    set = function(_, newValue) S.cameraActions.rotate = newValue; LibCamera:StopRotating(); end,
                     order = 2,
                 },
                 view = {
@@ -723,32 +1005,43 @@ local situationOptions = {
                         rotateSpeed = {
                             type = 'range',
                             name = "Speed",
-                            desc = "Speed at which to rotate",
-                            min = -5,
-                            max = 5,
-                            softMin = -.5,
-                            softMax = .5,
+                            desc = "Speed at which to rotate, in degrees/second",
+                            min = -900,
+                            max = 900,
+                            softMin = -90,
+                            softMax = 90,
                             hidden = function() return (S.cameraActions.rotateSetting ~= "continous") end,
-                            step = .01,
+                            step = 5,
                             get = function() return S.cameraActions.rotateSpeed end,
                             set = function(_, newValue) S.cameraActions.rotateSpeed = newValue; end,
                             order = 2,
                             width = "double",
                         },
-                        rotateDegrees = {
+                        yawDegrees = {
                             type = 'range',
-                            name = "Degrees",
-                            desc = "Number of degrees to rotate",
+                            name = "Yaw (Left/Right)",
+                            desc = "Number of degrees to yaw (left and right)",
                             min = -1400,
                             max = 1440,
                             softMin = -360,
                             softMax = 360,
                             hidden = function() return (S.cameraActions.rotateSetting == "continous") end,
                             step = 5,
-                            get = function() return S.cameraActions.rotateDegrees end,
-                            set = function(_, newValue) S.cameraActions.rotateDegrees = newValue; end,
+                            get = function() return S.cameraActions.yawDegrees end,
+                            set = function(_, newValue) S.cameraActions.yawDegrees = newValue; end,
                             order = 2,
-                            width = "double",
+                        },
+                        pitchDegrees = {
+                            type = 'range',
+                            name = "Pitch (Up/Down)",
+                            desc = "Number of degrees to pitch (up and down)",
+                            min = -90,
+                            max = 90,
+                            hidden = function() return (S.cameraActions.rotateSetting == "continous") end,
+                            step = 5,
+                            get = function() return S.cameraActions.pitchDegrees end,
+                            set = function(_, newValue) S.cameraActions.pitchDegrees = newValue; end,
+                            order = 3,
                         },
                         rotateBack = {
                             type = 'toggle',
@@ -756,7 +1049,7 @@ local situationOptions = {
                             desc = "When the situation ends, try to rotate back to the original position.",
                             get = function() return S.cameraActions.rotateBack end,
                             set = function(_, newValue) S.cameraActions.rotateBack = newValue end,
-                            order = 3,
+                            order = 4,
                         },
                     },
                 },
@@ -820,6 +1113,8 @@ local situationOptions = {
                     name = "Shoulder Offset Value",
                     desc = "Positive is over right shoulder, negative is over left shoulder",
                     hidden = function() return (S.cameraCVars["test_cameraOverShoulder"] == nil) end,
+                    min = -10,
+                    max = 10,
                     softMin = -5,
                     softMax = 5,
                     step = .1,
@@ -881,44 +1176,153 @@ local situationOptions = {
                     end,
                     order = 4,
                 },
-                targetLock = {
-                    type = 'toggle',
-                    name = "Target Lock/Focus",
-                    desc = "The camera will attempt to get your target on-screen by 'pulling' the camera angle towards the target.",
-                    get = function() return S.targetLock.enabled end,
-                    set = function(_, newValue) S.targetLock.enabled = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                    order = 40,
-                },
-                targetLockSettings = {
+                targetLockGroup = {
                     type = 'group',
-                    name = "Target Lock/Focus Settings",
+                    name = "Target Lock/Focus",
                     order = 50,
                     inline = true,
-                    hidden = function() return (not S.targetLock.enabled) end,
                     args = {
-                        onlyAttackable = {
+                        targetLockEnemies = {
                             type = 'toggle',
-                            name = "Only Attackable",
-                            desc = "Only target lock/focus attackable targets",
-                            get = function() return S.targetLock.onlyAttackable end,
-                            set = function(_, newValue) S.targetLock.onlyAttackable = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                            tristate = true,
+                            name = "Focus Enemies",
+                            desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                if (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == nil) then
+                                    return nil;
+                                end
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue == nil) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"] = nil;
+                                elseif (newValue == true) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                                elseif (newValue == false) then
+                                    S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
                             order = 1,
                         },
-                        dead = {
-                            type = 'toggle',
-                            name = "Ignore Dead",
-                            desc = "Don't target lock/focus dead targets",
-                            get = function() return (not S.targetLock.dead) end,
-                            set = function(_, newValue) S.targetLock.dead = not newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
+                        targetLockEnemiesPitch = {
+                            type = 'range',
+                            name = "Focus Enemy Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusEnemyEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
                             order = 2,
                         },
-                        nameplateVisible = {
+                        targetLockEnemiesYaw = {
+                            type = 'range',
+                            name = "Focus Enemy Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusEnemyEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 3,
+                        },
+                        targetLockInteractables = {
                             type = 'toggle',
-                            name = "Nameplate Visible",
-                            desc = "Only target lock/focus units that have a visible nameplate",
-                            get = function() return S.targetLock.nameplateVisible end,
-                            set = function(_, newValue) S.targetLock.nameplateVisible = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID); end,
-                            order = 4,
+                            tristate = true,
+                            name = "Focus On Interact",
+                            desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
+                            get = function()
+                                if (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == nil) then
+                                    return nil;
+                                end
+                                return (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            set = function(_, newValue)
+                                if (newValue == nil) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"] = nil;
+                                    S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"] = nil;
+                                elseif (newValue == true) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1;
+                                elseif (newValue == false) then
+                                    S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 0;
+                                end
+
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            order = 11,
+                        },
+                        targetLockInteractPitch = {
+                            type = 'range',
+                            name = "Focus Interact Pitch Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusInteractEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 12,
+                        },
+                        targetLockInteractYaw = {
+                            type = 'range',
+                            name = "Focus Interact Yaw Strength (Advanced)",
+                            desc = "",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            hidden = function()
+                                return ((not S.cameraCVars["test_cameraTargetFocusInteractEnable"])
+                                    or (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0)
+                                    or (not DynamicCam.db.profile.advanced))
+                            end,
+                            get = function()
+                                return (S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"]
+                                    or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw")))
+                            end,
+                            set = function(_, newValue)
+                                S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"] = newValue;
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID);
+                            end,
+                            width = "full",
+                            order = 13,
                         },
                     },
                 },
@@ -995,8 +1399,8 @@ local situationOptions = {
             args = {
                 entireUI = {
                     type = 'toggle',
-                    name = "Hide Entire UI",
-                    desc = "Hide the entire UI during this situation.",
+                    name = "Fade UI",
+                    desc = "Fades the UI to transparent during this situation.\n\nPressing escape will cancel the fade.",
                     get = function() return S.extras.hideUI end,
                     set = function(_, newValue) S.extras.hideUI = newValue end,
                     order = 1,
@@ -1090,6 +1494,96 @@ local situationOptions = {
         },
     },
 };
+local presets = {
+    name = "Presets",
+    handler = DynamicCam,
+    type = 'group',
+    args = {
+        description = {
+            type = 'description',
+            name = "Full configurations of DynamicCam that you can load into your current profile.",
+            fontSize = "small",
+            width = "full",
+            order = 1,
+        },
+        loadPreset = {
+            type = 'select',
+            name = "Load Preset",
+            desc = "This will load the selected preset into the current profile.\n\nYOUR CURRENT PROFILE WILL BE COMPLETELY OVERRIDDEN!",
+            get = function() return ""; end,
+            set = function(_, newValue) DynamicCam:LoadPreset(newValue); end,
+            values = "GetPresets",
+            width = "full",
+            order = 2,
+        },
+        presetDescriptions = {
+            name = "Descriptions",
+            type = 'group',
+            inline = true,
+            order = 3,
+            args = {
+                description = {
+                    type = 'description',
+                    name = function() return DynamicCam:GetPresetDescriptions(); end,
+                    fontSize = "small",
+                    width = "full",
+                    order = 1,
+                },
+            },
+        },
+    },
+};
+local sharing = {
+    name = "Import/Export",
+    handler = DynamicCam,
+    type = 'group',
+    args = {
+        exportGroup = {
+            name = "Export My Profile",
+            type = 'group',
+            inline = true,
+            order = 1,
+            args = {
+                name = {
+                    type = 'input',
+                    name = "Profile Name (Required!)",
+                    desc = "The name that other people will see when importing this profile.",
+                    get = function() return exportName; end,
+                    set = function(_, newValue) exportName = newValue; end,
+                    --width = "double",
+                    order = 1,
+                },
+                author = {
+                    type = 'input',
+                    name = "Author (Optional)",
+                    desc = "A name that will be attached to the export so that other people know whom it's from.",
+                    get = function() return exportAuthor; end,
+                    set = function(_, newValue) exportAuthor = newValue; end,
+                    order = 2,
+                },
+                export = {
+                    type = 'execute',
+                    name = "Export!",
+                    desc = "Export the entire current profile to a string.",
+                    disabled = function() return not (exportName and exportName ~= ""); end,
+                    func = function() parent:PopupExport(parent:ExportProfile(exportName, exportAuthor)); end,
+                    order = 50,
+                    --width = "full",
+                },
+            },
+        },
+        import = {
+            type = 'input',
+            name = "Paste and Hit Accept to Import!",
+            desc = "Paste DynamicCam import string for profiles or a situation.",
+            get = function() return ""; end,
+            set = function(_, newValue) DynamicCam:Import(newValue); end,
+            multiline = 25,
+            width = "full",
+            order = 20,
+        },
+    },
+};
 
 
 ----------
@@ -1105,10 +1599,10 @@ end
 
 function Options:OnEnable()
     -- register for dynamiccam messages
-    self:RegisterMessage("DC_SITUATION_ACTIVE", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_INACTIVE", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_ENTERED", "SelectSituation");
-    self:RegisterMessage("DC_SITUATION_EXITED", "SelectSituation");
+    self:RegisterMessage("DC_SITUATION_ACTIVE", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_INACTIVE", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_ENTERED", "ReselectSituation");
+    self:RegisterMessage("DC_SITUATION_EXITED", "ReselectSituation");
 end
 
 function Options:OnDisable()
@@ -1124,17 +1618,22 @@ function Options:ClearSelection()
     S = nil;
 end
 
-function Options:SelectSituation()
-    if (parent.currentSituationID) then
-        for id, situation in pairs(parent.db.profile.situations) do
-            if (id == parent.currentSituationID) then
-                S = situation;
-                SID = id;
-            end
-        end
+function Options:ReselectSituation()
+    self:SelectSituation();
+end
+
+function Options:SelectSituation(selectMe)
+    if (selectMe and parent.db.profile.situations[selectMe]) then
+        S = parent.db.profile.situations[selectMe];
+        SID = selectMe;
     else
-        if (not SID or not S) then
-            SID, S = next(parent.db.profile.situations);
+        if (parent.currentSituationID) then
+            S = parent.db.profile.situations[parent.currentSituationID];
+            SID = parent.currentSituationID;
+        else
+            if (not SID or not S) then
+                SID, S = next(parent.db.profile.situations);
+            end
         end
     end
 
@@ -1144,14 +1643,20 @@ end
 function Options:RegisterMenus()
     -- setup menu
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", general);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
+    self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Settings", settings);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");
+    self.settings = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Situations", situationOptions);
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam");
+    self.situtations = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam");
+
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Sharing", sharing);
+    self.sharing = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Sharing", "Import/Export", "DynamicCam");
+
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Presets", presets);
+    self.presets = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Presets", "Presets", "DynamicCam");
 
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Profiles", LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db));
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");
+    self.profiles = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam");
 end
