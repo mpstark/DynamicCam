@@ -1614,6 +1614,24 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
 	end,
 }
 
+local exportString;
+StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
+    text = "DynamicCam Export:",
+    button1 = "Done!",
+    timeout = 0,
+    hasEditBox = true,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    OnShow = function (self, data)
+        self.editBox:SetText(exportString);
+        self.editBox:HighlightText();
+    end,
+    EditBoxOnEnterPressed = function(self)
+		self:GetParent():Hide();
+	end,
+}
+
 function DynamicCam:OpenMenu(input)
     if (not Options or not Camera) then
         Camera = self.Camera;
@@ -1725,6 +1743,15 @@ end
 
 function DynamicCam:PopupCreateCustomProfile()
     StaticPopup_Show("DYNAMICCAM_NEW_CUSTOM_SITUATION");
+end
+
+function DynamicCam:PopupExport(str)
+    exportString = str;
+    StaticPopup_Show("DYNAMICCAM_EXPORT");
+end
+
+function DynamicCam:PopupExportProfile()
+    self:PopupExport(self:ExportProfile())
 end
 
 
