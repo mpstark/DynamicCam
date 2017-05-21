@@ -207,10 +207,10 @@ DynamicCam.defaults = {
 
         reactiveZoom = {
             enabled = false,
-            addIncrementsAlways = .5,
-            addIncrements = .5,
-            maxZoomTime = .3,
-            incAddDifference = 2,
+            addIncrementsAlways = 1,
+            addIncrements = 3,
+            maxZoomTime = .25,
+            incAddDifference = 4,
             easingFunc = "OutQuad",
         },
         defaultCvars = {
