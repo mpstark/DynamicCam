@@ -4,6 +4,7 @@
 ## Author: mpstark
 ## SavedVariables: DynamicCamDB
 ## Notes: A more dynamic camera.
+## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
 
 embeds.xml
 
