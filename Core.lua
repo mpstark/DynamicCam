@@ -1181,15 +1181,16 @@ local function clearTargetZoom()
 end
 
 local function ReactiveZoom(zoomIn, increments, automated)
-    if (not automated) then
+    increments = increments or 1;
+
+    if (not automated and increments == 1) then
         local currentZoom = GetCameraZoom();
+
         local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways;
         local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements;
         local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime;
         local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference;
         local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc;
-
-        increments = increments or 1;
 
         -- if we've change directions, make sure to reset
         if (zoomIn) then
