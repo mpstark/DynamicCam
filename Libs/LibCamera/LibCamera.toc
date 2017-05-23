@@ -1,7 +1,0 @@
-## Interface: 70100
-## Version: 1.0.70100
-## Title: LibCamera
-## Author: mpstark
-## Notes: Tools for the camera.
-
-LibCamera.lua
