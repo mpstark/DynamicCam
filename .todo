@@ -27,5 +27,7 @@ Misc:
     ✔ Be able to use LibEasing to choose an easing formula for profile @done (5/19/2017, 2:48:15 AM)
     ☐ Localize menu
     ☐ Optimize EvaluateSituations to only update situations based on the events that they are registered to
-    ☐ Add slider to UI fading for opacity
+    ✔ Add slider to UI fading for opacity @done (5/23/2017, 11:26:34 AM)
+    ✔ Add Hide UI after fade option @done (5/23/2017, 11:26:32 AM)
+        ✔ Must show UI if combat occurs, but still faded @done (5/23/2017, 11:26:32 AM)
 

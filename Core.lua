@@ -101,6 +101,11 @@ local function DC_SetCVar(cvar, setting)
     end
 end
 
+local function round(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0);
+    return math.floor(num * mult + 0.5) / mult;
+end
+
 
 ---------------------------
 -- LIBEASING CONVENIENCE --
@@ -122,23 +127,27 @@ local function easeShoulderOffset(endValue, duration, easingFunc)
     easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, tonumber(GetCVar("test_cameraOverShoulder")), endValue, duration, easingFunc);
 end
 
-local hidMinimap;
 local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
+local combatSecureFrame = CreateFrame("Frame", "DynamicCamCombatSecureFrame", nil, "SecureHandlerStateTemplate");
+combatSecureFrame.hidUI = nil;
+combatSecureFrame.lastUIAlpha = nil;
+
+RegisterStateDriver(combatSecureFrame, "dc_combat_state", "[combat] combat; [nocombat] nocombat");
+combatSecureFrame:SetAttribute("_onstate-dc_combat_state", [[ -- arguments: self, stateid, newstate
+    if (newstate == "combat") then
+        if (self.hidUI) then
+            setUIAlpha(combatSecureFrame.lastUIAlpha);
+            UIParent:Show();
+
+            combatSecureFrame.lastUIAlpha = nil;
+            self.hidUI = nil;
+        end
+    end
+]]);
+
 local function setUIAlpha(newAlpha)
     if (newAlpha and type(newAlpha) == 'number') then
         UIParent:SetAlpha(newAlpha);
-
-        -- hide the minimap since the icons don't show fade out
-        -- only if we're at 0 alpha
-        if (newAlpha == 0 and Minimap:IsShown()) then
-            Minimap:Hide();
-            hidMinimap = true;
-        else
-            if (hidMinimap and not Minimap:IsShown()) then
-                Minimap:Show();
-                hidMinimap = nil;
-            end
-        end
 
         -- show unfadeUIFrame if we're faded
         if (newAlpha < 1 and not unfadeUIFrame:IsShown()) then
@@ -157,26 +166,68 @@ local function setUIAlpha(newAlpha)
 end
 
 local easeUIAlphaHandle;
+local hidMinimap;
 local function stopEasingUIAlpha()
     -- if we are currently easing the UI out, make sure to stop that
     if (easeUIAlphaHandle) then
         LibEasing:StopEasing(easeUIAlphaHandle);
         easeUIAlphaHandle = nil;
+    end
 
-        -- show the minimap if we hid it and it's still hidden
-        if (hidMinimap and not Minimap:IsShown()) then
-            Minimap:Show();
-            hidMinimap = nil;
+    -- show the minimap if we hid it and it's still hidden
+    if (hidMinimap and not Minimap:IsShown()) then
+        Minimap:Show();
+        hidMinimap = nil;
+    end
+
+    -- show the UI if we hid it and it's still hidden
+    if (combatSecureFrame.hidUI) then
+        if (not UIParent:IsShown() and (not InCombatLockdown() or issecure())) then
+            setUIAlpha(combatSecureFrame.lastUIAlpha);
+            UIParent:Show();
+        end
+
+        combatSecureFrame.hidUI = nil;
+        combatSecureFrame.lastUIAlpha = nil;
+    end
+end
+
+local function easeUIAlpha(endValue, duration, easingFunc, callback)
+    stopEasingUIAlpha();
+
+    if (UIParent:GetAlpha() ~= endValue) then
+        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc, callback);
+    else
+        -- we're not going to ease because we're already there, have to call the callback anyways
+        if (callback) then
+            callback();
         end
     end
 end
 
-local function easeUIAlpha(endValue, duration, easingFunc)
-    stopEasingUIAlpha();
+local function fadeUI(opacity, duration, hideUI)
+    -- setup a callback that will hide the UI if given or hide the minimap if opacity is 0
+    local callback = function()
+        if (opacity == 0 and hideUI and UIParent:IsShown() and (not InCombatLockdown() or issecure())) then
+            -- hide the UI, but make sure to make opacity 1 so that if escape is pressed, it is shown
+            setUIAlpha(1);
+            UIParent:Hide();
 
-    if (UIParent:GetAlpha() ~= endValue) then
-        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc);
+            combatSecureFrame.lastUIAlpha = opacity;
+            combatSecureFrame.hidUI = true;
+        elseif (opacity == 0 and Minimap:IsShown()) then
+            -- hide the minimap
+            Minimap:Hide();
+            hidMinimap = true;
+        end
     end
+
+    easeUIAlpha(opacity, duration, nil, callback);
+end
+
+local function unfadeUI(opacity, duration)
+    stopEasingUIAlpha();
+    easeUIAlpha(opacity, duration);
 end
 
 -- need to be able to clear the faded UI, use dummy frame that Show() on fade, which will cause esc to
@@ -284,6 +335,8 @@ DynamicCam.defaults = {
                 },
                 extras = {
                     hideUI = false,
+                    actuallyHideUI = false,
+                    hideUIFadeOpacity = 0,
                 },
                 cameraCVars = {},
             },
@@ -734,7 +787,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     if (not skipZoom) then
         -- save old zoom level
         local cameraZoom = GetCameraZoom();
-        restoration[situationID].zoom = cameraZoom;
+        restoration[situationID].zoom = round(cameraZoom, 1);
         restoration[situationID].zoomSituation = oldSituationID;
 
         -- set zoom level
@@ -824,7 +877,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
     -- EXTRAS --
     if (situation.extras.hideUI) then
-        easeUIAlpha(0, math.min(0.5, transitionTime));
+        fadeUI(situation.extras.hideUIFadeOpacity, math.min(0.5, transitionTime), situation.extras.actuallyHideUI);
     end
 
     self:SendMessage("DC_SITUATION_ENTERED");
@@ -923,7 +976,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
     -- unhide UI
     if (situation.extras.hideUI) then
-        easeUIAlpha(1, .5);
+        unfadeUI(1, .5);
     end
 
     wipe(restoration[situationID]);
@@ -1170,13 +1223,7 @@ local targetZoom;
 local oldCameraZoomIn = CameraZoomIn;
 local oldCameraZoomOut = CameraZoomOut;
 
-local function round(num, numDecimalPlaces)
-    local mult = 10^(numDecimalPlaces or 0);
-    return math.floor(num * mult + 0.5) / mult;
-end
-
 local function clearTargetZoom()
-    -- print("clearTargetZoom");
     targetZoom = nil;
 end
 
@@ -1235,8 +1282,6 @@ local function ReactiveZoom(zoomIn, increments, automated)
 
         -- round target zoom off to the nearest decimal
         targetZoom = round(targetZoom, 1);
-
-        -- print("ReactiveZoom", targetZoom);
 
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
         local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
