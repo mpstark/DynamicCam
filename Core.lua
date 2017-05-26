@@ -335,7 +335,7 @@ DynamicCam.defaults = {
                 },
                 extras = {
                     hideUI = false,
-                    actuallyHideUI = false,
+                    actuallyHideUI = true,
                     hideUIFadeOpacity = 0,
                 },
                 cameraCVars = {},
@@ -1170,6 +1170,7 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
     -- restore if we're just exiting a situation, but not going into a new one
     if (not newSituation) then
+        self:DebugPrint("Restoring because just exiting");
         return true;
     end
 
@@ -1185,8 +1186,8 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
     -- restore zoom based on newSituation zoomSetting
     if (newSituation.cameraActions.zoomSetting == "off") then
-        -- restore zoom if the new situation doesn't zoom at all
-        return true;
+        -- don't restore zoom if the new situation doesn't zoom at all
+        return false;
     elseif (newSituation.cameraActions.zoomSetting == "set") then
         -- don't restore zoom if the zoom is going to be setting the zoom anyways
         return false;
