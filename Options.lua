@@ -56,9 +56,12 @@ local changelog = {
         - Some (in-game) Lua scripting needed
         - Fully sharable using the new settings sharing system
 
-    - Fade the UI instead of hiding it
+    - Fade UI replaces Hide UI
+        - UI fades out, and hides when it's done fading (hiding can be disabled)
         - Fading can occur in combat, and looks nicer
+        - Hiding the UI is now securely done, and the UI is safely unhidden in combat
         - Hitting escape will show the UI if it is hidden in this manner
+        - Can fade to a non-zero opacity (but obviously won't hide the UI then)
 
     - Minor Changes/Fixes:
         - Easily copy/paste settings from one situation to another
