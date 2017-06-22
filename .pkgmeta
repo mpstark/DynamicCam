@@ -28,6 +28,9 @@ externals:
 	Libs/AceTimer-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceTimer-3.0
         tag: latest
+    Libs/AceSerializer-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceSerializer-3.0
+        tag: latest
     Libs/CallbackHandler-1.0:
         url: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
         tag: latest
