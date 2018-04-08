@@ -222,6 +222,8 @@ function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
   -- TODO: This should be possible to activate and deactivate in the options.
   -- TODO: Those constants should be user configurable.
   
+  print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")") 
+  
   local startDecrease = 8
   local finishDecrease = 2
   
@@ -1579,13 +1581,23 @@ local function ReactiveZoomOut(increments, automated)
 end
 
 function DynamicCam:ReactiveZoomOn()
+
     CameraZoomIn = ReactiveZoomIn;
     CameraZoomOut = ReactiveZoomOut;
+    
+    Camera:UnsetHooks();
+    
 end
 
+
+
 function DynamicCam:ReactiveZoomOff()
+
     CameraZoomIn = oldCameraZoomIn;
     CameraZoomOut = oldCameraZoomOut;
+    
+    Camera:SetHooks();
+    
 end
 
 
@@ -1724,8 +1736,8 @@ function DynamicCam:PLAYER_ENTERING_WORLD()
         legacyZoomTimer = nil;
     end
 
-    -- TODO: 60 seconds is to extreme for me, at least while testing!
-    legacyZoomTimerDelay = 15
+    -- TODO: 60 seconds is too extreme for me, at least while testing!
+    legacyZoomTimerDelay = 5
     legacyZoomTimer = DynamicCam:ScheduleTimer(function()
         useLegacyZoom = false;
         self:DebugPrint(legacyZoomTimerDelay .. " seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
