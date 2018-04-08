@@ -1562,6 +1562,13 @@ local function ReactiveZoom(zoomIn, increments, automated)
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
         local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
 
+
+        -- Also correct the shoulder offset according to zoom level.
+        local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"]
+        local shoulderOffsetZoomFactor = DynamicCam:GetShoulderOffsetZoomFactor(targetZoom)
+        local correctedValue = shoulderOffsetZoomFactor * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset)
+        easeShoulderOffset(correctedValue, zoomTime, LibEasing[easingFunc]);
+        
         LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
     else
         if (zoomIn) then
