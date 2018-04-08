@@ -222,7 +222,7 @@ function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
   -- TODO: This should be possible to activate and deactivate in the options.
   -- TODO: Those constants should be user configurable.
   
-  print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")") 
+  -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")") 
   
   local startDecrease = 8
   local finishDecrease = 2
