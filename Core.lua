@@ -466,6 +466,12 @@ DynamicCam.defaults = {
                 condition = "return UnitUsingVehicle(\"player\");",
                 events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
             },
+            ["103"] = {
+                name = "Travel Form",
+                priority = 100,
+                condition = "return (GetShapeshiftFormID() == 27 or GetShapeshiftFormID() == 3 or GetShapeshiftFormID() == 29 or GetShapeshiftFormID() == 4) and not UnitAffectingCombat(\"player\")",
+                events = {"UPDATE_SHAPESHIFT_FORMS", "ZONE_CHANGED_NEW_AREA"},
+            },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
