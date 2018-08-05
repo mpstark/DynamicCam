@@ -572,10 +572,6 @@ function DynamicCam:Startup()
         Options = self.Options;
     end
 
-    -- register for player entering and leaving world to enable legacy zoom
-    -- self:RegisterEvent("PLAYER_ENTERING_WORLD");
-    -- self:RegisterEvent("PLAYER_LEAVING_WORLD");
-
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
     self:RegisterMessage("DC_SITUATION_DISABLED");
@@ -633,8 +629,6 @@ end
 local delayTime;
 local delayTimer;
 local restoration = {};
-local useLegacyZoom = false;
-local legacyZoomTimer;
 
 local function gotoView(view, instant)
     -- if you call SetView twice, then it's instant
@@ -827,14 +821,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
             self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration);
 
-            if (useLegacyZoom) then
-                -- legacy zoom is for situations that just don't work with new zoom technique
-                -- anything that involves a loading screen or transitions
-                LibCamera:SetZoomUsingCVar(newZoomLevel, duration);
-                self:DebugPrint("Using legacy zoom");
-            else
-                LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
-            end
+            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
@@ -960,14 +947,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
         self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
 
-        if (useLegacyZoom) then
-            -- legacy zoom is for situations that just don't work with new zoom technique
-            -- anything that involves a loading screen or transitions
-            LibCamera:SetZoomUsingCVar(zoomLevel, t);
-            self:DebugPrint("Using legacy zoom");
-        else
-            LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
-        end
+        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
     else
         self:DebugPrint("Not restoring zoom level");
     end
@@ -1322,18 +1302,6 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
-    -- if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
-    --     -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
-    --     self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
-    --     useLegacyZoom = true;
-
-    --     legacyZoomTimer = DynamicCam:ScheduleTimer(function()
-    --         useLegacyZoom = false;
-    --         self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
-    --         legacyZoomTimer = nil;
-    --     end, 5);
-    -- end
-
     -- we don't want to evaluate too often, some of the events can be *very* spammy
     if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
         lastEvaluate = GetTime();
@@ -1371,25 +1339,6 @@ function DynamicCam:RegisterSituationEvents(situationID)
         end
     end
 end
-
--- function DynamicCam:PLAYER_ENTERING_WORLD()
---     -- cancel the timer if it exists
---     if (legacyZoomTimer) then
---         self:CancelTimer(legacyZoomTimer);
---         legacyZoomTimer = nil;
---     end
-
---     legacyZoomTimer = DynamicCam:ScheduleTimer(function()
---         useLegacyZoom = false;
---         self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
---         legacyZoomTimer = nil;
---     end, 60);
--- end
-
--- function DynamicCam:PLAYER_LEAVING_WORLD()
---     self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
---     useLegacyZoom = true;
--- end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
     self:EvaluateSituations();
