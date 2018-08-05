@@ -39,10 +39,8 @@ externals:
         tag: latest
     Libs/LibCamera:
         url: https://github.com/Mpstark/LibCamera.git
-        tag: latest
     Libs/LibEasing:
         url: https://github.com/Mpstark/LibEasing.git
-        tag: latest
     Libs/LibCompress:
         url: https://repos.wowace.com/wow/libcompress/trunk
 
