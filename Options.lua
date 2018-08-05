@@ -70,7 +70,6 @@ local changelog = {
         - Some database optimizations, lowered memory overhead a bit
         - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
         - Don't redundantly call SetCVar a lot
-        - TOC File changed (finally!) to have the correct value
 ]],
 [[Beta 3:
     - Forced database reset, there was just too much change on Blizzard's end.
@@ -335,6 +334,7 @@ local settings = {
                             type = 'select',
                             name = "Easing Function",
                             desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
+                            hidden = true,
                             get = function() return (DynamicCam.db.profile.reactiveZoom.easingFunc) end,
                             set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
                             values = easingValues,
@@ -356,6 +356,7 @@ local settings = {
                     type = 'select',
                     name = "Zoom Easing",
                     desc = "Which easing function to use for zoom.",
+                    hidden = true,
                     get = function() return (DynamicCam.db.profile.easingZoom) end,
                     set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
                     values = easingValues,

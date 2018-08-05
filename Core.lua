@@ -392,13 +392,13 @@ DynamicCam.defaults = {
                 name = "Dungeon (Combat, Boss)",
                 priority = 302,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["024"] = {
                 name = "Dungeon (Combat, Trash)",
                 priority = 202,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["030"] = {
                 name = "Raid",
@@ -416,13 +416,13 @@ DynamicCam.defaults = {
                 name = "Raid (Combat, Boss)",
                 priority = 303,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["034"] = {
                 name = "Raid (Combat, Trash)",
                 priority = 203,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["050"] = {
                 name = "Arena",
@@ -574,8 +574,8 @@ function DynamicCam:Startup()
     end
 
     -- register for player entering and leaving world to enable legacy zoom
-    self:RegisterEvent("PLAYER_ENTERING_WORLD");
-    self:RegisterEvent("PLAYER_LEAVING_WORLD");
+    -- self:RegisterEvent("PLAYER_ENTERING_WORLD");
+    -- self:RegisterEvent("PLAYER_LEAVING_WORLD");
 
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
@@ -634,7 +634,7 @@ end
 local delayTime;
 local delayTimer;
 local restoration = {};
-local useLegacyZoom = true;
+local useLegacyZoom = false;
 local legacyZoomTimer;
 
 local function gotoView(view, instant)
@@ -761,7 +761,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     -- load and run advanced script onEnter
     DC_RunScript(situation.executeOnEnter, situationID);
 
-    -- set currentSituationID
     self.currentSituationID = situationID;
 
     restoration[situationID] = {};
@@ -1324,17 +1323,17 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
-    if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
-        -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
-        self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
-        useLegacyZoom = true;
+    -- if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
+    --     -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
+    --     self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
+    --     useLegacyZoom = true;
 
-        legacyZoomTimer = DynamicCam:ScheduleTimer(function()
-            useLegacyZoom = false;
-            self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
-            legacyZoomTimer = nil;
-        end, 5);
-    end
+    --     legacyZoomTimer = DynamicCam:ScheduleTimer(function()
+    --         useLegacyZoom = false;
+    --         self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
+    --         legacyZoomTimer = nil;
+    --     end, 5);
+    -- end
 
     -- we don't want to evaluate too often, some of the events can be *very* spammy
     if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
@@ -1374,24 +1373,24 @@ function DynamicCam:RegisterSituationEvents(situationID)
     end
 end
 
-function DynamicCam:PLAYER_ENTERING_WORLD()
-    -- cancel the timer if it exists
-    if (legacyZoomTimer) then
-        self:CancelTimer(legacyZoomTimer);
-        legacyZoomTimer = nil;
-    end
+-- function DynamicCam:PLAYER_ENTERING_WORLD()
+--     -- cancel the timer if it exists
+--     if (legacyZoomTimer) then
+--         self:CancelTimer(legacyZoomTimer);
+--         legacyZoomTimer = nil;
+--     end
 
-    legacyZoomTimer = DynamicCam:ScheduleTimer(function()
-        useLegacyZoom = false;
-        self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
-        legacyZoomTimer = nil;
-    end, 60);
-end
+--     legacyZoomTimer = DynamicCam:ScheduleTimer(function()
+--         useLegacyZoom = false;
+--         self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
+--         legacyZoomTimer = nil;
+--     end, 60);
+-- end
 
-function DynamicCam:PLAYER_LEAVING_WORLD()
-    self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
-    useLegacyZoom = true;
-end
+-- function DynamicCam:PLAYER_LEAVING_WORLD()
+--     self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
+--     useLegacyZoom = true;
+-- end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
     self:EvaluateSituations();
