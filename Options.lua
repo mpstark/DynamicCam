@@ -17,7 +17,7 @@ local exportName, exportAuthor;
 
 local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
-If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord (get a link by doing /dcdiscord) and speak with me there.
+If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments or PM me on reddit (I'm /u/mpstark).
 
 I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there.
 
@@ -25,7 +25,6 @@ Some handy slash commands:
     `/dynamiccam` or `/dc` will open this menu
     `/zoominfo` or `/zi` will print out the current zoom
     `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
-    `/dcdiscord` will allow you to copy a Discord invite so that you can join
 
     The following slash commands will also accept a time and an easing function:
         `/zoom #` will zoom to that zoom level

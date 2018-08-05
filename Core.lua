@@ -539,8 +539,6 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zoominfo", "ZoomInfoCC");
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
-    self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
-
     self:RegisterChatCommand("zoom", "ZoomSlash");
     self:RegisterChatCommand("pitch", "PitchSlash");
     self:RegisterChatCommand("yaw", "YawSlash");
@@ -1626,20 +1624,6 @@ local function tokenize(str, delimitor)
     return tokens;
 end
 
-StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
-    text = "DynamicCam Discord Link:",
-    button1 = "Got it!",
-    timeout = 0,
-    hasEditBox = true,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    OnShow = function (self, data)
-        self.editBox:SetText("https://discordapp.com/invite/0kIVitHDdHYYitiO")
-        self.editBox:HighlightText();
-    end,
-}
-
 StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     text = "Enter name for custom situation:",
     button1 = "Create!",
@@ -1782,10 +1766,6 @@ function DynamicCam:YawSlash(input)
     if (yaw) then
         LibCamera:Yaw(yaw, time or 0.75, easingFunc);
     end
-end
-
-function DynamicCam:PopupDiscordLink()
-    StaticPopup_Show("DYNAMICCAM_DISCORD");
 end
 
 function DynamicCam:PopupCreateCustomProfile()

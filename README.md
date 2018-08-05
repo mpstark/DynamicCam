@@ -8,5 +8,4 @@ Contributing
 
 * See a bug? Report it [here](https://github.com/Mpstark/DynamicCam/issues/new)!
 * New Feature? Request it [here](https://github.com/Mpstark/DynamicCam/issues/new)!
-* Want to chat? [Join the Discord](https://discordapp.com/invite/0kIVitHDdHYYitiO)!
 * Always open to [pull requests](https://github.com/Mpstark/DynamicCam/pulls)!
