@@ -1,3 +1,8 @@
+---------------
+-- LIBRARIES --
+---------------
+local LibCamera = LibStub("LibCamera-1.0");
+
 -------------
 -- GLOBALS --
 -------------
@@ -830,7 +835,7 @@ local situationOptions = {
                 },
                 rotate = {
                     type = 'toggle',
-                    name = "Rotate",
+                    name = "Rotate (Pitch/Yaw)",
                     desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
                     get = function() return S.cameraActions.rotate end,
                     set = function(_, newValue) S.cameraActions.rotate = newValue; LibCamera:StopRotating(); end,
@@ -1022,7 +1027,7 @@ local situationOptions = {
                         },
                         yawDegrees = {
                             type = 'range',
-                            name = "Yaw (Left/Right)",
+                            name = "Yaw (-Left/Right+)",
                             desc = "Number of degrees to yaw (left and right)",
                             min = -1400,
                             max = 1440,
@@ -1036,7 +1041,7 @@ local situationOptions = {
                         },
                         pitchDegrees = {
                             type = 'range',
-                            name = "Pitch (Up/Down)",
+                            name = "Pitch (-Down/Up+)",
                             desc = "Number of degrees to pitch (up and down)",
                             min = -90,
                             max = 90,
