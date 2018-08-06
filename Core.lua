@@ -392,13 +392,13 @@ DynamicCam.defaults = {
                 name = "Dungeon (Combat, Boss)",
                 priority = 302,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["024"] = {
                 name = "Dungeon (Combat, Trash)",
                 priority = 202,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"party\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["030"] = {
                 name = "Raid",
@@ -416,13 +416,13 @@ DynamicCam.defaults = {
                 name = "Raid (Combat, Boss)",
                 priority = 303,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["034"] = {
                 name = "Raid (Combat, Trash)",
                 priority = 203,
                 condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
-                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_STOP", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
+                events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["050"] = {
                 name = "Arena",
@@ -476,14 +476,15 @@ DynamicCam.defaults = {
 end
 return false;]],
                 executeOnInit = "this.spells = {227334, 136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};",
-                executeOnEnter = "local _, _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
+                executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
             },
             ["201"] = {
                 name = "Annoying Spells",
                 priority = 1000,
                 condition = [[for k,v in pairs(this.buffs) do
-    if (UnitBuff("player", GetSpellInfo(v))) then
+    local name = GetSpellInfo(v);
+    if (AuraUtil.FindAuraByName(name, "player", "HELPFUL")) then
         return true;
     end
 end
@@ -538,8 +539,6 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("zoominfo", "ZoomInfoCC");
     self:RegisterChatCommand("zi", "ZoomInfoCC");
 
-    self:RegisterChatCommand("dcdiscord", "PopupDiscordLink");
-
     self:RegisterChatCommand("zoom", "ZoomSlash");
     self:RegisterChatCommand("pitch", "PitchSlash");
     self:RegisterChatCommand("yaw", "YawSlash");
@@ -572,10 +571,6 @@ function DynamicCam:Startup()
         Camera = self.Camera;
         Options = self.Options;
     end
-
-    -- register for player entering and leaving world to enable legacy zoom
-    self:RegisterEvent("PLAYER_ENTERING_WORLD");
-    self:RegisterEvent("PLAYER_LEAVING_WORLD");
 
     -- register for dynamiccam messages
     self:RegisterMessage("DC_SITUATION_ENABLED");
@@ -634,8 +629,6 @@ end
 local delayTime;
 local delayTimer;
 local restoration = {};
-local useLegacyZoom = true;
-local legacyZoomTimer;
 
 local function gotoView(view, instant)
     -- if you call SetView twice, then it's instant
@@ -761,7 +754,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     -- load and run advanced script onEnter
     DC_RunScript(situation.executeOnEnter, situationID);
 
-    -- set currentSituationID
     self.currentSituationID = situationID;
 
     restoration[situationID] = {};
@@ -829,14 +821,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
             self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration);
 
-            if (useLegacyZoom) then
-                -- legacy zoom is for situations that just don't work with new zoom technique
-                -- anything that involves a loading screen or transitions
-                LibCamera:SetZoomUsingCVar(newZoomLevel, duration);
-                self:DebugPrint("Using legacy zoom");
-            else
-                LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
-            end
+            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
@@ -962,14 +947,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
         self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
 
-        if (useLegacyZoom) then
-            -- legacy zoom is for situations that just don't work with new zoom technique
-            -- anything that involves a loading screen or transitions
-            LibCamera:SetZoomUsingCVar(zoomLevel, t);
-            self:DebugPrint("Using legacy zoom");
-        else
-            LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
-        end
+        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
     else
         self:DebugPrint("Not restoring zoom level");
     end
@@ -1324,18 +1302,6 @@ local TIME_BEFORE_NEXT_EVALUATE = .1;
 local EVENT_DOUBLE_TIME = .2;
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
-    if (event == "PLAYER_CONTROL_GAINED" and not legacyZoomTimer) then
-        -- this is really hacky, but I don't understand why getting off a taxi breaks zoom using LibCamera
-        self:DebugPrint("PLAYER_CONTROL_GAINED, turn on legacy zoom");
-        useLegacyZoom = true;
-
-        legacyZoomTimer = DynamicCam:ScheduleTimer(function()
-            useLegacyZoom = false;
-            self:DebugPrint("5 seconds elapsed since PLAYER_CONTROL_GAINED, turn off legacy zoom");
-            legacyZoomTimer = nil;
-        end, 5);
-    end
-
     -- we don't want to evaluate too often, some of the events can be *very* spammy
     if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
         lastEvaluate = GetTime();
@@ -1372,25 +1338,6 @@ function DynamicCam:RegisterSituationEvents(situationID)
             end
         end
     end
-end
-
-function DynamicCam:PLAYER_ENTERING_WORLD()
-    -- cancel the timer if it exists
-    if (legacyZoomTimer) then
-        self:CancelTimer(legacyZoomTimer);
-        legacyZoomTimer = nil;
-    end
-
-    legacyZoomTimer = DynamicCam:ScheduleTimer(function()
-        useLegacyZoom = false;
-        self:DebugPrint("60 seconds elapsed since PLAYER_ENTERING_WORLD, turn off legacy zoom");
-        legacyZoomTimer = nil;
-    end, 60);
-end
-
-function DynamicCam:PLAYER_LEAVING_WORLD()
-    self:DebugPrint("PLAYER_LEAVING_WORLD, turn on legacy zoom");
-    useLegacyZoom = true;
 end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
@@ -1626,20 +1573,6 @@ local function tokenize(str, delimitor)
     return tokens;
 end
 
-StaticPopupDialogs["DYNAMICCAM_DISCORD"] = {
-    text = "DynamicCam Discord Link:",
-    button1 = "Got it!",
-    timeout = 0,
-    hasEditBox = true,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    OnShow = function (self, data)
-        self.editBox:SetText("https://discordapp.com/invite/0kIVitHDdHYYitiO")
-        self.editBox:HighlightText();
-    end,
-}
-
 StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     text = "Enter name for custom situation:",
     button1 = "Create!",
@@ -1782,10 +1715,6 @@ function DynamicCam:YawSlash(input)
     if (yaw) then
         LibCamera:Yaw(yaw, time or 0.75, easingFunc);
     end
-end
-
-function DynamicCam:PopupDiscordLink()
-    StaticPopup_Show("DYNAMICCAM_DISCORD");
 end
 
 function DynamicCam:PopupCreateCustomProfile()

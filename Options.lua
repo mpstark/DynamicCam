@@ -1,3 +1,8 @@
+---------------
+-- LIBRARIES --
+---------------
+local LibCamera = LibStub("LibCamera-1.0");
+
 -------------
 -- GLOBALS --
 -------------
@@ -17,7 +22,7 @@ local exportName, exportAuthor;
 
 local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
-If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments, PM me on reddit (I'm /u/mpstark), or best of all, come into the Discord (get a link by doing /dcdiscord) and speak with me there.
+If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments or PM me on reddit (I'm /u/mpstark).
 
 I've actually managed to stick this up on GitHub, so please, if you'd like to contribute, open a pull request there.
 
@@ -25,7 +30,6 @@ Some handy slash commands:
     `/dynamiccam` or `/dc` will open this menu
     `/zoominfo` or `/zi` will print out the current zoom
     `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
-    `/dcdiscord` will allow you to copy a Discord invite so that you can join
 
     The following slash commands will also accept a time and an easing function:
         `/zoom #` will zoom to that zoom level
@@ -70,7 +74,6 @@ local changelog = {
         - Some database optimizations, lowered memory overhead a bit
         - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
         - Don't redundantly call SetCVar a lot
-        - TOC File changed (finally!) to have the correct value
 ]],
 [[Beta 3:
     - Forced database reset, there was just too much change on Blizzard's end.
@@ -335,6 +338,7 @@ local settings = {
                             type = 'select',
                             name = "Easing Function",
                             desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
+                            hidden = true,
                             get = function() return (DynamicCam.db.profile.reactiveZoom.easingFunc) end,
                             set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
                             values = easingValues,
@@ -356,6 +360,7 @@ local settings = {
                     type = 'select',
                     name = "Zoom Easing",
                     desc = "Which easing function to use for zoom.",
+                    hidden = true,
                     get = function() return (DynamicCam.db.profile.easingZoom) end,
                     set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
                     values = easingValues,
@@ -830,7 +835,7 @@ local situationOptions = {
                 },
                 rotate = {
                     type = 'toggle',
-                    name = "Rotate",
+                    name = "Rotate (Pitch/Yaw)",
                     desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
                     get = function() return S.cameraActions.rotate end,
                     set = function(_, newValue) S.cameraActions.rotate = newValue; LibCamera:StopRotating(); end,
@@ -1022,7 +1027,7 @@ local situationOptions = {
                         },
                         yawDegrees = {
                             type = 'range',
-                            name = "Yaw (Left/Right)",
+                            name = "Yaw (-Left/Right+)",
                             desc = "Number of degrees to yaw (left and right)",
                             min = -1400,
                             max = 1440,
@@ -1036,7 +1041,7 @@ local situationOptions = {
                         },
                         pitchDegrees = {
                             type = 'range',
-                            name = "Pitch (Up/Down)",
+                            name = "Pitch (-Down/Up+)",
                             desc = "Number of degrees to pitch (up and down)",
                             min = -90,
                             max = 90,
