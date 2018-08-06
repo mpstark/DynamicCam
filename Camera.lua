@@ -40,7 +40,12 @@ end
 -- CORE --
 ----------
 function Camera:OnInitialize()
-	-- hook camera functions to figure out wtf is happening
+	Camera:SetHooks()
+end
+
+
+function Camera:SetHooks()
+
 	self:Hook("CameraZoomIn", true);
 	self:Hook("CameraZoomOut", true);
 
@@ -48,7 +53,25 @@ function Camera:OnInitialize()
 	self:Hook("MoveViewInStop", true);
 	self:Hook("MoveViewOutStart", true);
 	self:Hook("MoveViewOutStop", true);
+  
 end
+
+
+function Camera:UnsetHooks()
+
+	self:Unhook("CameraZoomIn", true);
+	self:Unhook("CameraZoomOut", true);
+
+	self:Unhook("MoveViewInStart", true);
+	self:Unhook("MoveViewInStop", true);
+	self:Unhook("MoveViewOutStart", true);
+	self:Unhook("MoveViewOutStop", true);
+
+end
+
+
+
+
 
 
 -----------
@@ -156,6 +179,12 @@ function Camera:CameraZoom(direction, increments, automated)
 
 		zoom.time = GetTime() + timeToZoom;
 		zoom.incTimer = self:ScheduleTimer(CameraZoomFinished, timeToZoom, not automated);
+    
+    
+    -- Adjust the shoulder offset based on zoom level.
+    -- parent:DebugPrint(parent.currentShoulderOffset .. " * " .. parent:GetShoulderOffsetZoomFactor(zoom.set) .. " = " .. parent.currentShoulderOffset * parent:GetShoulderOffsetZoomFactor(zoom.set) .. " (zoomLevel: " .. zoom.set .. ")")
+    SetCVar("test_cameraOverShoulder", parent.currentShoulderOffset * parent:GetShoulderOffsetZoomFactor(zoom.set))
+    
 	end
 
 	-- if (increments ~= 0) then
