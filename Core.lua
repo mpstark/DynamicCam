@@ -95,7 +95,7 @@ local function DC_SetCVar(cvar, setting)
     end
 
     -- don't apply cvars if they're already set to the new value
-    if (GetCVar(cvar) ~= ""..setting) then
+    if (GetCVar(cvar) ~= tostring(setting)) then
         DynamicCam:DebugPrint(cvar, setting);
         SetCVar(cvar, setting);
     end
@@ -117,14 +117,19 @@ local function setShoulderOffset(offset)
 end
 
 local easeShoulderOffsetHandle;
-local function easeShoulderOffset(endValue, duration, easingFunc)
-    -- we are currently easing the shoulder offset, make sure to stop that
+local function stopEasingShoulderOffset()
     if (easeShoulderOffsetHandle) then
         LibEasing:StopEasing(easeShoulderOffsetHandle);
         easeShoulderOffsetHandle = nil;
     end
+end
 
-    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, tonumber(GetCVar("test_cameraOverShoulder")), endValue, duration, easingFunc);
+local function easeShoulderOffset(endValue, duration, easingFunc)
+    stopEasingShoulderOffset();
+
+    local oldOffest = tonumber(GetCVar("test_cameraOverShoulder"));
+    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, oldOffest, endValue, duration, easingFunc);
+    DynamicCam:DebugPrint("test_cameraOverShoulder", oldOffest, "->", endValue);
 end
 
 local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
@@ -837,6 +842,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     for cvar, value in pairs(situation.cameraCVars) do
         if (cvar == "test_cameraOverShoulder") then
             -- ease shoulder offset over
+            stopEasingShoulderOffset();
             if (GetCVar("test_cameraOverShoulder") ~= tostring(value)) then
                 easeShoulderOffset(value, transitionTime);
             end
@@ -879,7 +885,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     DC_RunScript(situation.executeOnExit, situationID);
 
     -- restore cvars to their default values
-    self:ApplyDefaultCameraSettings();
+    self:ApplyDefaultCameraSettings(newSituationID);
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
@@ -1111,8 +1117,12 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplyDefaultCameraSettings()
+function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
     local curSituation = self.db.profile.situations[self.currentSituationID];
+
+    if (newSituationID) then
+        curSituation = self.db.profile.situations[newSituationID];
+    end
 
     -- apply ActionCam setting
     if (self.db.profile.actionCam) then
@@ -1128,6 +1138,7 @@ function DynamicCam:ApplyDefaultCameraSettings()
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
             if (cvar == "test_cameraOverShoulder") then
+                stopEasingShoulderOffset();
                 if (not (GetCVar("test_cameraOverShoulder") == tostring(value))) then
                     easeShoulderOffset(value, 0.75);
                 end
