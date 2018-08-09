@@ -1579,23 +1579,15 @@ local function ReactiveZoomOut(increments, automated)
 end
 
 function DynamicCam:ReactiveZoomOn()
-
     CameraZoomIn = ReactiveZoomIn;
     CameraZoomOut = ReactiveZoomOut;
-    
-    Camera:UnsetHooks();
-    
 end
 
 
 
 function DynamicCam:ReactiveZoomOff()
-
     CameraZoomIn = oldCameraZoomIn;
     CameraZoomOut = oldCameraZoomOut;
-    
-    Camera:SetHooks();
-    
 end
 
 
