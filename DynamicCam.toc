@@ -11,6 +11,4 @@ embeds.xml
 Core.lua
 Sharing.lua
 Presets.lua
-
-Camera.lua
 Options.lua
