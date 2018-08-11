@@ -89,54 +89,49 @@ end
 
 
 
-function DynamicCam:getCurrentMount() 
+function DynamicCam:getCurrentMount()
 
-  for k,v in pairs (C_MountJournal.GetMountIDs()) do 
+  for k,v in pairs (C_MountJournal.GetMountIDs()) do
 
-    creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(v)    
-    
+    creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(v)
+
     if (active) then
       return creatureName
     end
   end
 
   return nil
-  
+
 end
 
 
 
 
-
-
-
-
-
-
-
-
-function DynamicCam:CorrectShoulderOffset(offset) 
+function DynamicCam:CorrectShoulderOffset(offset)
 
   -- print ("CorrectShoulderOffset")
 
+
+
   local factor = 1
-    
-    
+
+
+
   if (IsMounted()) then
-  
+
     if (not UnitOnTaxi("player")) then
       local currentMount = self:getCurrentMount()
-    
+
 
       -- print ("You are mounted on " .. currentMount .. "!")
 
-      
-      if (currentMount == "Black War Kodo") 
-      or (currentMount == "Brown Kodo") 
-      or (currentMount == "Gray Kodo") 
-      or (currentMount == "Great Brown Kodo") 
-      or (currentMount == "Great Gray Kodo") 
-      or (currentMount == "Great White Kodo") 
+
+      if (currentMount == "Black War Kodo")
+      or (currentMount == "Brown Kodo")
+      or (currentMount == "Gray Kodo")
+      or (currentMount == "Great Brown Kodo")
+      or (currentMount == "Great Gray Kodo")
+      or (currentMount == "Great White Kodo")
       or (currentMount == "White Kodo") then
         factor = 4.2
       elseif (currentMount == "Albino Drake") then
@@ -146,26 +141,27 @@ function DynamicCam:CorrectShoulderOffset(offset)
         factor = 6
       end
 
-    else 
+    else
       -- print ("You are on a taxi!")
       -- Works all right for Wind Riders.
       factor = 2.5
     end
-  
-    -- No idea why this is necessary!
+
+    -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
     if (offset < 0) then
       factor = factor / 10
     end
-  
+
+    
   elseif (GetShapeshiftForm(true) ~= 0) then
     -- https://wow.gamepedia.com/API_GetShapeshiftForm
     -- Each shapeshift form needs a slightly different factor.
     local localizedClass, englishClass, classIndex = UnitClass("player");
-    -- print ("you are a shape shifted " .. englishClass .. "...")
-          
+    -- print ("You are a shape shifted " .. englishClass .. "...")
+
     if (englishClass == "DRUID") then
       local formID = GetShapeshiftForm(true)
-      
+
       if (formID == 1) then
         -- print ("... in Bear form.")
         factor = 0.825
@@ -173,10 +169,10 @@ function DynamicCam:CorrectShoulderOffset(offset)
         -- print ("... in Cat form.")
         factor = 0.86
       elseif (formID == 3) then
-        if (IsSwimming()) then 
+        if (IsSwimming()) then
           -- print ("... in Aquatic form.")
           factor = 0.71
-        elseif (IsFlying()) then 
+        elseif (IsFlying()) then
           -- print ("... in Flight form.")
           -- TODO Factor
         else
@@ -197,36 +193,58 @@ function DynamicCam:CorrectShoulderOffset(offset)
        -- print ("... in Ghostwolf form.")
        factor = 0.775
     end
+    
+    
   else
-    -- print ("you are normal!")
-    
+    -- print ("You are normal...")
+
     -- TODO Get factors for all races and genders...
-    
+
+    raceName, raceId = UnitRace("player");
+
+    -- 2: Male, 3: Female.
+    genderCode = UnitSex("player")
+
+    -- print ("... " .. raceId .. " " .. genderCode)
+
+
+    if     ((raceId == "Orc") and (genderCode == 2)) then
+      -- print ("... Orc Male")
+      factor = 1
+    elseif ((raceId == "Orc") and (genderCode == 3)) then
+      -- print ("... Orc Female")
+      factor = 1.26
+    elseif ((raceId == "Goblin") and (genderCode == 2)) then
+      -- print ("... Goblin Male")
+      factor = 1.32
+    end
+
+
   end
-  
+
 
   -- print ("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor )
-  
+
   -- Store this value for quick access of the zoom function.
   self.currentShoulderOffset = offset * factor
-  
+
   return self.currentShoulderOffset
-  
+
 end
 
 
 
 -- If we zoom between startDecrease and finishDecrease, we want to decrease the shoulder offset gradually.
-function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel) 
+function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
 
   -- TODO: This should be possible to activate and deactivate in the options.
   -- TODO: Those constants should be user configurable.
-  
-  -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")") 
-  
+
+  -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
+
   local startDecrease = 8
   local finishDecrease = 2
-  
+
   if (zoomLevel < finishDecrease) then
     return 0
   elseif (zoomLevel < startDecrease) then
@@ -297,7 +315,7 @@ local function DC_SetCVar(cvar, setting)
       setting = DynamicCam:CorrectShoulderOffset(setting)
       setting = DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom()) * setting
     end
-    
+
     -- don't apply cvars if they're already set to the new value
     if (GetCVar(cvar) ~= tostring(setting)) then
         DynamicCam:DebugPrint(cvar, setting);
@@ -331,6 +349,9 @@ local function stopEasingShoulderOffset()
 end
 
 local function easeShoulderOffset(endValue, duration, easingFunc)
+
+    -- print ("easeShoulderOffset(" .. endValue .. ", " .. duration .. ")")
+
     stopEasingShoulderOffset();
 
     local oldOffest = tonumber(GetCVar("test_cameraOverShoulder"));
@@ -801,9 +822,9 @@ function DynamicCam:Startup()
         self:ReactiveZoomOn();
     end
 
-    
+
     self:PerformShoulderOffsetCorrection("STARTUP")
-    
+
     started = true;
 end
 
@@ -998,8 +1019,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         restoration[situationID].zoom = round(cameraZoom, 1);
         restoration[situationID].zoomSituation = oldSituationID;
 
-        self:DebugPrint("Storing zoom level:", cameraZoom);
-
         -- set zoom level
         local newZoomLevel;
 
@@ -1056,19 +1075,14 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         if (cvar == "test_cameraOverShoulder") then
 
             local zoomValue = GetCameraZoom()
-            if (a.zoomValue) then 
+            if (a.zoomValue) then
                 zoomValue = a.zoomValue
             end
             local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(zoomValue)
             local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(value)
-            
-            if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedValue)) then
-                if (useLegacyZoom) then
-                    SetCVar("test_cameraOverShoulder", correctedValue)
-                else
-                    easeShoulderOffset(correctedValue, transitionTime);
-                end
 
+            if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedValue)) then
+                easeShoulderOffset(correctedValue, transitionTime);
             end
         else
             DC_SetCVar(cvar, value);
@@ -1109,9 +1123,11 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     DC_RunScript(situation.executeOnExit, situationID);
 
     -- restore cvars to their default values
-
-    self:ApplyDefaultCameraSettings(newSituationID);
-
+    -- This normally also restores the shoulder offset, possibly too fast or too slow.
+    -- We want to restore it at the same speed as the zoom (see below).
+    -- By passing true as the second argument (exitingSituationFlag),
+    -- we avoid test_cameraOverShoulder from being set.
+    self:ApplyDefaultCameraSettings(newSituationID, true);
 
     -- restore view that is enabled
     if (situation.view.enabled and situation.view.restoreView) then
@@ -1173,54 +1189,39 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     if (self:ShouldRestoreZoom(situationID, newSituationID)) then
         restoringZoom = true;
 
-        local zoomLevel = restoration[situationID].zoom;
-        
         -- TODO: Why can the user set a transition time to enter the situation.
         -- But exiting the situation is done with the standard cameraZoomSpeed
         -- unless this would take more than .75 or less than .1666
         -- There should be an option for transition time when exiting!
-        local defaultTime = math.abs(zoomLevel - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
+        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
         local t = math.max(10.0/60.0, math.min(defaultTime, .75));
-        
+        local zoomLevel = restoration[situationID].zoom;
 
-        
+        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
 
-        if (useLegacyZoom) then
-            -- legacy zoom is for situations that just don't work with new zoom technique
-            -- anything that involves a loading screen or transitions
-            LibCamera:SetZoomUsingCVar(zoomLevel, t);
-            self:DebugPrint("Using legacy zoom");
-        else
-            LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
-        end
-        
-        
+        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
+
+
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
         local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(zoomLevel)
         local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset)
         
-        if (useLegacyZoom) then
-            SetCVar("test_cameraOverShoulder", correctedValue)
-        else
-            easeShoulderOffset(correctedValue, t, LibEasing[self.db.profile.easingZoom]);
-        end
+        easeShoulderOffset(correctedValue, t, LibEasing[self.db.profile.easingZoom]);
 
         self:DebugPrint("Restoring! zoom level:", zoomLevel, "test_cameraOverShoulder", correctedValue, "duration", t);
 
     else
         self:DebugPrint("Not restoring zoom level");
-        
-        -- Just restore test_cameraOverShoulder, because we skipped it by passing true to ApplyDefaultCameraSettings() above.
+
+        -- Just restore test_cameraOverShoulder, because we skipped it by passing true as the second
+        -- argument (exitingSituationFlag) to ApplyDefaultCameraSettings() above.
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
         local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
         local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset)
 
-        if (useLegacyZoom) then
-            SetCVar("test_cameraOverShoulder", correctedValue)
-        else
-            -- TODO: Why actually 0.75?
-            easeShoulderOffset(correctedValue, 0.75);
-        end
+        -- TODO: Why actually 0.75?
+        easeShoulderOffset(correctedValue, 0.75);
+
         self:DebugPrint("Restoring! test_cameraOverShoulder: " .. correctedValue)
 
     end
@@ -1384,7 +1385,7 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
+function DynamicCam:ApplyDefaultCameraSettings(newSituationID, exitingSituationFlag)
     local curSituation = self.db.profile.situations[self.currentSituationID];
 
     if (newSituationID) then
@@ -1405,19 +1406,17 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if (not curSituation or not curSituation.cameraCVars[cvar]) then
             if (cvar == "test_cameraOverShoulder") then
-            
+
                 -- When exiting a situation, we want to restore the shoulderOffset just as fast as the zoom.
                 -- Setting it here might result in glitches.
-                if (not exitingSituation) then
-                
+                if (not exitingSituationFlag) then
+
                     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
                     local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(value)
                     if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedValue)) then
                         -- TODO: Why actually 0.75?
                         easeShoulderOffset(correctedValue, 0.75);
                     end
-                    
-                    -- DC_SetCVar(cvar, value);
                 end
             else
                 DC_SetCVar(cvar, value);
@@ -1559,7 +1558,7 @@ local function ReactiveZoom(zoomIn, increments, automated)
         local shoulderOffsetZoomFactor = DynamicCam:GetShoulderOffsetZoomFactor(targetZoom)
         local correctedValue = shoulderOffsetZoomFactor * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset)
         easeShoulderOffset(correctedValue, zoomTime, LibEasing[easingFunc]);
-        
+
         LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
     else
         if (zoomIn) then
@@ -1582,8 +1581,6 @@ function DynamicCam:ReactiveZoomOn()
     CameraZoomIn = ReactiveZoomIn;
     CameraZoomOut = ReactiveZoomOut;
 end
-
-
 
 function DynamicCam:ReactiveZoomOff()
     CameraZoomIn = oldCameraZoomIn;
@@ -1623,14 +1620,24 @@ end
 
 
 function DynamicCam:PerformShoulderOffsetCorrection(event)
+
+  -- Got to stop shoulder offset easing that might already be in process
+  -- triggered by ExitSituation() called at the same time as the
+  -- PLAYER_MOUNT_DISPLAY_CHANGED event.
+  -- Otherweise there is a problem, if you change directly from "mounted" to "shapeshifted".
+  -- Because ExitSituation will find the player temporarily in normal form,
+  -- calculate the shoulder offset for it and start the shoulder offset ease.
+  -- Then comes the UPDATE_SHAPESHIFT_FORM event triggering PerformShoulderOffsetCorrection(),
+  -- but its new shoulder offset value will not come into effect.
+  stopEasingShoulderOffset();
   
-  -- This is necessary to always get the fix.
-  -- print ("Got event: " .. event)
-  
+
+  -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
+
   local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
   local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
-  
-  
+
+
   if (event == "UPDATE_SHAPESHIFT_FORM") then
     if (GetShapeshiftForm(true) ~= 0) then
       -- print ("You are turning into shapeshift!")
@@ -1641,20 +1648,22 @@ function DynamicCam:PerformShoulderOffsetCorrection(event)
       -- (Mostly) perfect for wolf -> shaman
       return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
     end
-  -- Would have liked to fix the "dismount wobble". But to no avail so far.
-  -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
-    -- if (IsMounted() == false) then
-      -- -- print ("you are dismounting!")
-      -- return DynamicCam_wait(0.0, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-    -- else
-      -- -- print ("you are mounting!")
-      -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-    -- end
-  else 
-    return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-  end
-  
-end  
+    -- Would have liked to fix the "dismount wobble". But to no avail so far.
+    -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
+      -- if (IsMounted() == false) then
+        -- -- print ("you are dismounting!")
+        -- return DynamicCam_wait(0.0, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+      -- else
+        -- -- print ("you are mounting!")
+        -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+      -- end
+    else
+      local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+      -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
+      return SetCVar("test_cameraOverShoulder", newValue)
+    end
+
+end
 
 
 
@@ -1667,23 +1676,18 @@ function DynamicCam:RegisterEvents()
     -- changing the shoulder offset.
     events["UPDATE_SHAPESHIFT_FORM"] = true;
     self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "PerformShoulderOffsetCorrection");
+
     
-
-    -- TODO: Tried to get the switch from mounted to unmounted faster, but to no avail so far.
-    events["PLAYER_MOUNT_DISPLAY_CHANGED"] = true;
-    self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "PerformShoulderOffsetCorrection");
-
-
     -- Needed because when mounted while teleporting into dungeon, where you get automatically dismounted.
     events["PLAYER_ENTERENTERING_WORLD"] = true;
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "PerformShoulderOffsetCorrection");
-    
-    
-    -- Needed for taxi.
+
+
+    -- Needed for taxi and mounts.
     events["PLAYER_MOUNT_DISPLAY_CHANGED"] = true;
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "PerformShoulderOffsetCorrection");
-    
-    
+
+
 
 
 
@@ -1706,7 +1710,6 @@ function DynamicCam:RegisterSituationEvents(situationID)
         end
     end
 end
-
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
     self:EvaluateSituations();
