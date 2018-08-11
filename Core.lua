@@ -276,6 +276,11 @@ tinsert(UISpecialFrames, unfadeUIFrame:GetName());
 -- NAMEPLATE ZOOMING --
 -----------------------
 local nameplateRestore = {};
+local RAMP_TIME = .25;
+local HYS = 3;
+local SETTLE_TIME = .5;
+local ERROR_MULT = 2.5;
+local STOPPING_SPEED = 5;
 
 local function restoreNameplates()
 	if (not InCombatLockdown()) then
@@ -306,10 +311,8 @@ local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, to
     end
 
     local lastSpeed = 0;
-    local startTime, startError, peakZoom;
-    local HYS = 2;
-    local START_SPEED = 1;
-    local ZOOM_PER_SEC = 20;
+    local startTime = GetTime();
+    local settleTimeStart;
     local zoomFunc = function() -- returning 0 will stop camera, returning nil stops camera, returning number puts camera to that speed
         local nameplate = C_NamePlate.GetNamePlateForUnit("target");
 
@@ -318,55 +321,35 @@ local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, to
             local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
             local difference = screenHeight - yCenter;
             local ratio = (1 - difference/screenHeight) * 100;
-
             local error = ratio - nameplatePosition;
-            local absError = abs(error);
-
-            -- if (difference < 40) then
-			-- 	-- we're at the top, go at top speed
-			-- 	if ((GetCameraZoom() + (increments*4)) <= zoomMax) then
-			-- 		return "out", increments*4, 14*speedMultiplier;
-			-- 	end
-			-- elseif (ratio > (isFitting and math.min(94, nameplatePosition + sensitivity/2) or math.min(94, nameplatePosition + sensitivity))) then
-			-- 	-- we're on screen, but above the target
-			-- 	if ((GetCameraZoom() + increments) <= zoomMax) then
-			-- 		return "out", increments, 11*speedMultiplier;
-			-- 	end
-			-- elseif (ratio > 50 and ratio <= (isFitting and math.max(50, nameplatePosition - sensitivity/2) or math.max(50, nameplatePosition - sensitivity))) then
-			-- 	-- we're on screen, "in front" of the player
-			-- 	if ((GetCameraZoom() - (increments)) >= zoomMin) then
-			-- 		return "in", increments, 11*speedMultiplier;
-			-- 	end
-			-- end
 
             local speed = 0;
-            if (lastSpeed == 0 and absError < HYS/2) then
-                speed = 0
-            elseif (absError > HYS) then
-                if (lastSpeed == 0) then
-                    -- starting up
-                    startTime = GetTime();
-                    startError = absError;
-                    peakZoom = nil
-                end
+            if (lastSpeed == 0 and abs(error) < HYS) then
+                speed = 0;
+            elseif (abs(error) > HYS/4 or abs(lastSpeed) > STOPPING_SPEED) then
+                speed = ERROR_MULT * error;
 
-                if (absError > startError/2) then
-                    -- front half of the zoom
-                    speed = (GetTime() - startTime) * ZOOM_PER_SEC + START_SPEED;
-                else
-                    -- back half of the zoom
-                    peakZoom = peakZoom or lastSpeed;
-                    speed = peakZoom * (1 - absError/(startError/2)) + START_SPEED;
-                end
-
-                if (error < 0) then
-                    speed = -speed;
+                local deltaTime = GetTime() - startTime;
+                if (deltaTime < RAMP_TIME) then
+                    speed = speed * (deltaTime / RAMP_TIME);
                 end
             end
 
-            print(speed);
+            local curZoom = GetCameraZoom();
+            if (speed > 0 and curZoom >= maxZoom) then
+                speed = 0;
+            elseif (speed < 0 and curZoom <= minZoom) then
+                speed = 0;
+            end
 
-            if (speed == 0 and not continously) then
+            if (speed == 0) then
+                startTime = GetTime();
+                settleTimeStart = settleTimeStart or GetTime();
+            else
+                settleTimeStart = nil;
+            end
+
+            if (speed == 0 and not continously and (GetTime() - settleTimeStart > SETTLE_TIME)) then
                 return nil;
             end
 
@@ -382,6 +365,7 @@ local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, to
     end
 
     LibCamera:CustomZoom(zoomFunc, restoreNameplates);
+    DynamicCam:DebugPrint("zoom fit nameplate");
 end
 
 
@@ -466,10 +450,7 @@ DynamicCam.defaults = {
                     zoomMax = 15,
 
                     zoomFitContinous = false,
-                    zoomFitSpeedMultiplier = 2,
                     zoomFitPosition = 84,
-                    zoomFitSensitivity = 5,
-                    zoomFitIncrements = .25,
                     zoomFitUseCurAsMin = false,
                     zoomFitToggleNameplate = false,
                 },
@@ -923,8 +904,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             if (a.zoomFitUseCurAsMin) then
                 min = math.min(GetCameraZoom(), a.zoomMax);
             end
-            -- TODO: implement into LibCamera!
-            -- Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous, a.zoomFitToggleNameplate);
+
             fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate);
         end
 
@@ -1330,8 +1310,10 @@ local targetZoom;
 local oldCameraZoomIn = CameraZoomIn;
 local oldCameraZoomOut = CameraZoomOut;
 
-local function clearTargetZoom()
-    targetZoom = nil;
+local function clearTargetZoom(wasInterrupted)
+    if (not wasInterrupted) then
+        targetZoom = nil;
+    end
 end
 
 local function ReactiveZoom(zoomIn, increments, automated)
