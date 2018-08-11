@@ -153,44 +153,39 @@ function DynamicCam:CorrectShoulderOffset(offset)
     end
 
     
-  elseif (GetShapeshiftForm(true) ~= 0) then
-    -- https://wow.gamepedia.com/API_GetShapeshiftForm
+  elseif (GetShapeshiftFormID(true) ~= nil) then
+  
+  
+    local formID = GetShapeshiftFormID(true)
+    -- print ("formID: " .. formID)
+  
+    -- https://wow.gamepedia.com/API_GetShapeshiftFormID
     -- Each shapeshift form needs a slightly different factor.
-    local localizedClass, englishClass, classIndex = UnitClass("player");
-    -- print ("You are a shape shifted " .. englishClass .. "...")
 
-    if (englishClass == "DRUID") then
-      local formID = GetShapeshiftForm(true)
+    -- print ("You are a ...")
 
-      if (formID == 1) then
-        -- print ("... in Bear form.")
-        factor = 0.825
-      elseif (formID == 2) then
-        -- print ("... in Cat form.")
-        factor = 0.86
-      elseif (formID == 3) then
-        if (IsSwimming()) then
-          -- print ("... in Aquatic form.")
-          factor = 0.71
-        elseif (IsFlying()) then
-          -- print ("... in Flight form.")
-          -- TODO Factor
-        else
-          -- print ("... in Travel form.")
-          factor = 0.89
-        end
-      elseif (formID == 4) then
-        -- print ("... in the first known of: Moonkin Form, Treant Form, Stag Form (in order).")
-        -- TODO Factor
-      elseif (formID == 5) then
-        -- print ("... in the second known of: Moonkin Form, Treant Form, Stag Form (in order).")
-        -- TODO Factor
-      elseif (formID == 6) then
-        -- print ("... in the third known of: Moonkin Form, Treant Form, Stag Form (in order).")
-        -- TODO Factor
-      end
-    elseif (englishClass == "SHAMAN") then
-       -- print ("... in Ghostwolf form.")
+    if (formID == 5) then
+      -- print ("... Druid in Bear form.")
+      factor = 0.83
+    elseif (formID == 1) then
+      -- print ("... Druid in Cat form.")
+      factor = 0.86
+    elseif (formID == 3) then
+      -- print ("... Druid in Travel form.")
+      factor = 0.89
+    elseif (formID == 4) then
+      -- print ("... Druid in Aquatic form.")
+      factor = 0.71
+    elseif (formID == 29) then
+      -- print ("... Druid in Flight form.")
+      -- TODO
+    elseif (formID == 27) then
+      -- print ("... Druid in Swift Flight form.")
+      factor = 0.54
+      
+      
+    elseif (formID == 16) then
+       -- print ("... Shaman in Ghostwolf form.")
        factor = 0.775
     end
     
@@ -217,7 +212,11 @@ function DynamicCam:CorrectShoulderOffset(offset)
     elseif ((raceId == "Goblin") and (genderCode == 2)) then
       -- print ("... Goblin Male")
       factor = 1.32
+    elseif ((raceId == "Tauren") and (genderCode == 2)) then
+      -- print ("... Tauren Male")
+      factor = 1
     end
+    
 
 
   end
@@ -1621,46 +1620,67 @@ end
 
 function DynamicCam:PerformShoulderOffsetCorrection(event)
 
-  -- Got to stop shoulder offset easing that might already be in process
-  -- triggered by ExitSituation() called at the same time as the
-  -- PLAYER_MOUNT_DISPLAY_CHANGED event.
-  -- Otherweise there is a problem, if you change directly from "mounted" to "shapeshifted".
-  -- Because ExitSituation will find the player temporarily in normal form,
-  -- calculate the shoulder offset for it and start the shoulder offset ease.
-  -- Then comes the UPDATE_SHAPESHIFT_FORM event triggering PerformShoulderOffsetCorrection(),
-  -- but its new shoulder offset value will not come into effect.
-  stopEasingShoulderOffset();
+    -- Got to stop shoulder offset easing that might already be in process
+    -- triggered by ExitSituation() called at the same time as the
+    -- PLAYER_MOUNT_DISPLAY_CHANGED event.
+    -- Otherweise there is a problem, if you change directly from "mounted" to "shapeshifted".
+    -- Because ExitSituation will find the player temporarily in normal form,
+    -- calculate the shoulder offset for it and start the shoulder offset ease.
+    -- Then comes the UPDATE_SHAPESHIFT_FORM event triggering PerformShoulderOffsetCorrection(),
+    -- but its new shoulder offset value will not come into effect.
+    stopEasingShoulderOffset();
+    
+
+    -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
+
+    local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
+    local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
+
+
+    if (event == "UPDATE_SHAPESHIFT_FORM") then
   
+        local localizedClass, englishClass, classIndex = UnitClass("player");
+        -- print ("You are a shape shifted " .. englishClass .. "...")
+      
 
-  -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
-
-  local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
-  local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
-
-
-  if (event == "UPDATE_SHAPESHIFT_FORM") then
-    if (GetShapeshiftForm(true) ~= 0) then
-      -- print ("You are turning into shapeshift!")
-      -- Perfect for shaman -> wolf
-      return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-    else
-      -- print ("You are turning into normal!")
-      -- (Mostly) perfect for wolf -> shaman
-      return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-    end
+        if (englishClass == "SHAMAN") then
+            if (GetShapeshiftFormID(true) ~= nil) then
+                print ("You are turning into shapeshift! " .. GetShapeshiftFormID(true))
+                -- Mostly perfect timing for shaman -> ghostwolf
+                return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+            else
+                print ("You are turning into normal!")
+                -- Mostly perfect timing for ghostwolf -> shaman
+                return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+            end
+            
+            
+        -- Still problems...
+        -- elseif (englishClass == "DRUID") then
+        
+        
+        -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
+        else
+            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", newValue)
+        end
+    
+    
     -- Would have liked to fix the "dismount wobble". But to no avail so far.
     -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
-      -- if (IsMounted() == false) then
-        -- -- print ("you are dismounting!")
-        -- return DynamicCam_wait(0.0, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-      -- else
-        -- -- print ("you are mounting!")
-        -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-      -- end
+        -- if (IsMounted() == false) then
+            -- print ("you are dismounting!")
+            -- return DynamicCam_wait(0.0, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+        -- else
+            -- print ("you are mounting!")
+            -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
+        -- end
+    
+    
     else
-      local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-      -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
-      return SetCVar("test_cameraOverShoulder", newValue)
+        local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+        -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
+        return SetCVar("test_cameraOverShoulder", newValue)
     end
 
 end
