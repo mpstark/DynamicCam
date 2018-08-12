@@ -263,7 +263,6 @@ end
 -- LOCALS --
 ------------
 local _;
-local Camera;
 local Options;
 local functionCache = {};
 local situationEnvironments = {}
@@ -327,10 +326,36 @@ local function round(num, numDecimalPlaces)
     return math.floor(num * mult + 0.5) / mult;
 end
 
+local function gotoView(view, instant)
+    -- if you call SetView twice, then it's instant
+    if (instant) then
+        SetView(view);
+    end
+    SetView(view);
+end
 
----------------------------
--- LIBEASING CONVENIENCE --
----------------------------
+local function copyTable(originalTable)
+    local origType = type(originalTable);
+    local copy;
+    if (origType == 'table') then
+        -- this child is a table, copy the table recursively
+        copy = {};
+        for orig_key, orig_value in next, originalTable, nil do
+            copy[copyTable(orig_key)] = copyTable(orig_value);
+        end
+    else
+        -- this child is a value, copy it cover
+        copy = originalTable;
+    end
+    return copy;
+end
+
+
+----------------------
+-- SHOULDER OFFSET  --
+----------------------
+local easeShoulderOffsetHandle;
+
 -- This function is only called from within easeShoulderOffset()
 -- and we make sure that this itself is only called with the added shoulderOffsetZoomFactor.
 local function setShoulderOffset(offset)
@@ -339,7 +364,6 @@ local function setShoulderOffset(offset)
     end
 end
 
-local easeShoulderOffsetHandle;
 local function stopEasingShoulderOffset()
     if (easeShoulderOffsetHandle) then
         LibEasing:StopEasing(easeShoulderOffsetHandle);
@@ -358,6 +382,12 @@ local function easeShoulderOffset(endValue, duration, easingFunc)
     DynamicCam:DebugPrint("test_cameraOverShoulder", oldOffest, "->", endValue);
 end
 
+
+-------------
+-- FADE UI --
+-------------
+local easeUIAlphaHandle;
+local hidMinimap;
 local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
 local combatSecureFrame = CreateFrame("Frame", "DynamicCamCombatSecureFrame", nil, "SecureHandlerStateTemplate");
 combatSecureFrame.hidUI = nil;
@@ -396,8 +426,6 @@ local function setUIAlpha(newAlpha)
     end
 end
 
-local easeUIAlphaHandle;
-local hidMinimap;
 local function stopEasingUIAlpha()
     -- if we are currently easing the UI out, make sure to stop that
     if (easeUIAlphaHandle) then
@@ -468,6 +496,103 @@ unfadeUIFrame:SetScript("OnHide", function(self)
     UIParent:SetAlpha(1);
 end);
 tinsert(UISpecialFrames, unfadeUIFrame:GetName());
+
+
+-----------------------
+-- NAMEPLATE ZOOMING --
+-----------------------
+local nameplateRestore = {};
+local RAMP_TIME = .25;
+local HYS = 3;
+local SETTLE_TIME = .5;
+local ERROR_MULT = 2.5;
+local STOPPING_SPEED = 5;
+
+local function restoreNameplates()
+	if (not InCombatLockdown()) then
+		for k,v in pairs(nameplateRestore) do
+			SetCVar(k, v);
+		end
+		nameplateRestore = {};
+	end
+end
+
+local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, toggleNameplates)
+    if (toggleNameplates) then
+        nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll");
+        nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
+        nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
+
+        SetCVar("nameplateShowAll", 1);
+        if (UnitExists("target")) then
+            if (UnitIsFriend("player", "target")) then
+                SetCVar("nameplateShowFriends", 1);
+            else
+                SetCVar("nameplateShowEnemies", 1);
+            end
+        else
+            SetCVar("nameplateShowFriends", 1);
+            SetCVar("nameplateShowEnemies", 1);
+        end
+    end
+
+    local lastSpeed = 0;
+    local startTime = GetTime();
+    local settleTimeStart;
+    local zoomFunc = function() -- returning 0 will stop camera, returning nil stops camera, returning number puts camera to that speed
+        local nameplate = C_NamePlate.GetNamePlateForUnit("target");
+
+        if (nameplate) then
+            local yCenter = (nameplate:GetTop() + nameplate:GetBottom())/2;
+            local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
+            local difference = screenHeight - yCenter;
+            local ratio = (1 - difference/screenHeight) * 100;
+            local error = ratio - nameplatePosition;
+
+            local speed = 0;
+            if (lastSpeed == 0 and abs(error) < HYS) then
+                speed = 0;
+            elseif (abs(error) > HYS/4 or abs(lastSpeed) > STOPPING_SPEED) then
+                speed = ERROR_MULT * error;
+
+                local deltaTime = GetTime() - startTime;
+                if (deltaTime < RAMP_TIME) then
+                    speed = speed * (deltaTime / RAMP_TIME);
+                end
+            end
+
+            local curZoom = GetCameraZoom();
+            if (speed > 0 and curZoom >= maxZoom) then
+                speed = 0;
+            elseif (speed < 0 and curZoom <= minZoom) then
+                speed = 0;
+            end
+
+            if (speed == 0) then
+                startTime = GetTime();
+                settleTimeStart = settleTimeStart or GetTime();
+            else
+                settleTimeStart = nil;
+            end
+
+            if (speed == 0 and not continously and (GetTime() - settleTimeStart > SETTLE_TIME)) then
+                return nil;
+            end
+
+            lastSpeed = speed;
+            return speed;
+        end
+
+        if (continously) then
+            return 0;
+        end
+
+        return nil;
+    end
+
+    LibCamera:CustomZoom(zoomFunc, restoreNameplates);
+    DynamicCam:DebugPrint("zoom fit nameplate");
+end
 
 
 --------
@@ -551,10 +676,7 @@ DynamicCam.defaults = {
                     zoomMax = 15,
 
                     zoomFitContinous = false,
-                    zoomFitSpeedMultiplier = 2,
                     zoomFitPosition = 84,
-                    zoomFitSensitivity = 5,
-                    zoomFitIncrements = .25,
                     zoomFitUseCurAsMin = false,
                     zoomFitToggleNameplate = false,
                 },
@@ -800,8 +922,7 @@ end
 
 function DynamicCam:Startup()
     -- make sure that shortcuts have values
-    if (not Options or not Camera) then
-        Camera = self.Camera;
+    if (not Options) then
         Options = self.Options;
     end
 
@@ -865,30 +986,6 @@ end
 local delayTime;
 local delayTimer;
 local restoration = {};
-
-local function gotoView(view, instant)
-    -- if you call SetView twice, then it's instant
-    if (instant) then
-        SetView(view);
-    end
-    SetView(view);
-end
-
-local function copyTable(originalTable)
-    local origType = type(originalTable);
-    local copy;
-    if (origType == 'table') then
-        -- this child is a table, copy the table recursively
-        copy = {};
-        for orig_key, orig_value in next, originalTable, nil do
-            copy[copyTable(orig_key)] = copyTable(orig_value);
-        end
-    else
-        -- this child is a value, copy it cover
-        copy = originalTable;
-    end
-    return copy;
-end
 
 function DynamicCam:EvaluateSituations()
     -- if we currently have timer running, kill it
@@ -1038,8 +1135,8 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             if (a.zoomFitUseCurAsMin) then
                 min = math.min(GetCameraZoom(), a.zoomMax);
             end
-            -- TODO: implement into LibCamera!
-            Camera:FitNameplate(min, a.zoomMax, a.zoomFitIncrements, a.zoomFitPosition, a.zoomFitSensitivity, a.zoomFitSpeedMultiplier, a.zoomFitContinous, a.zoomFitToggleNameplate);
+
+            fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate);
         end
 
         -- actually do zoom
@@ -1488,8 +1585,10 @@ local targetZoom;
 local oldCameraZoomIn = CameraZoomIn;
 local oldCameraZoomOut = CameraZoomOut;
 
-local function clearTargetZoom()
-    targetZoom = nil;
+local function clearTargetZoom(wasInterrupted)
+    if (not wasInterrupted) then
+        targetZoom = nil;
+    end
 end
 
 local function ReactiveZoom(zoomIn, increments, automated)
@@ -2004,8 +2103,7 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
 }
 
 function DynamicCam:OpenMenu(input)
-    if (not Options or not Camera) then
-        Camera = self.Camera;
+    if (not Options) then
         Options = self.Options;
     end
 

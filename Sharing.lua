@@ -1,5 +1,12 @@
+-------------
+-- GLOBALS --
+-------------
+assert(DynamicCam);
 
 
+------------
+-- LOCALS --
+------------
 local _;
 local Compresser = LibStub:GetLibrary("LibCompress");
 local Serializer = LibStub:GetLibrary("AceSerializer-3.0");
