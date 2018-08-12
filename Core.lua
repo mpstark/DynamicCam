@@ -46,12 +46,6 @@ DynamicCam.currentSituationID = nil;
 
 
 
--- This is needed for adjusting the shoulder offset depending on zoom level.
--- We do not want to determine the mount every time etc...
-DynamicCam.currentShoulderOffset = 1;
-
-
-
 
 -- This is needed to (almost) perfect the timing of changing the shoulder offset when shapeshifting.
 -- http://wowwiki.wikia.com/wiki/Wait
@@ -107,37 +101,62 @@ end
 
 
 
-function DynamicCam:CorrectShoulderOffset(offset)
+function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
   -- print ("CorrectShoulderOffset")
 
-
-
   local factor = 1
 
+  
+  
 
+  if (enteringVehicleGUID or UnitInVehicle("player")) then
+  
+  
+    local vehicleGUID = ""
+  
+    if (enteringVehicleGUID) then
+      vehicleGUID = enteringVehicleGUID
+      -- print ("Enterung vehicle.")
+    else
+      vehicleGUID = UnitGUID("vehicle")
+      -- print ("Already in vehicle.")
+    end
+    
+    
+    local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
 
-  if (IsMounted()) then
+    if (vehicleID == "40854") then
+      -- print ("... River Boat")
+      factor = 0.20
+    else
+      print ("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...")
+      factor = 0.5
+    end
+  
+  
+  
+
+  elseif (IsMounted()) then
 
     if (not UnitOnTaxi("player")) then
       local currentMount = self:getCurrentMount()
 
-
       -- print ("You are mounted on " .. currentMount .. "!")
 
-
-      if (currentMount == "Black War Kodo")
-      or (currentMount == "Brown Kodo")
-      or (currentMount == "Gray Kodo")
-      or (currentMount == "Great Brown Kodo")
-      or (currentMount == "Great Gray Kodo")
-      or (currentMount == "Great White Kodo")
-      or (currentMount == "White Kodo") then
+      if   (currentMount == "Black War Kodo")
+        or (currentMount == "Brown Kodo")
+        or (currentMount == "Gray Kodo")
+        or (currentMount == "Great Brown Kodo")
+        or (currentMount == "Great Gray Kodo")
+        or (currentMount == "Great White Kodo")
+        or (currentMount == "White Kodo") then
         factor = 4.2
       elseif (currentMount == "Albino Drake") then
         factor = 2.5
       else
         -- Default for all other mounts...
+        print ("... TODO: Mount '" .. currentMount .. "' not yet known...")
         factor = 6
       end
 
@@ -147,6 +166,7 @@ function DynamicCam:CorrectShoulderOffset(offset)
       factor = 2.5
     end
 
+    
     -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
     if (offset < 0) then
       factor = factor / 10
@@ -189,19 +209,15 @@ function DynamicCam:CorrectShoulderOffset(offset)
        factor = 0.775
     end
     
-    
+
+  
   else
-    -- print ("You are normal...")
-
-    -- TODO Get factors for all races and genders...
-
+    -- print ("You are normal ...")
+    
+    
     raceName, raceId = UnitRace("player");
-
-    -- 2: Male, 3: Female.
     genderCode = UnitSex("player")
-
-    -- print ("... " .. raceId .. " " .. genderCode)
-
+    -- print (" ... " .. raceId .. " " .. genderCode)
 
     if     ((raceId == "Orc") and (genderCode == 2)) then
       -- print ("... Orc Male")
@@ -209,13 +225,25 @@ function DynamicCam:CorrectShoulderOffset(offset)
     elseif ((raceId == "Orc") and (genderCode == 3)) then
       -- print ("... Orc Female")
       factor = 1.26
-    elseif ((raceId == "Goblin") and (genderCode == 2)) then
-      -- print ("... Goblin Male")
-      factor = 1.32
+    elseif ((raceId == "Scourge") and (genderCode == 2)) then
+      -- print ("... Scourge Male")
+      factor = 1.2
+      
+      
     elseif ((raceId == "Tauren") and (genderCode == 2)) then
       -- print ("... Tauren Male")
       factor = 1
+    elseif ((raceId == "Tauren") and (genderCode == 3)) then
+      -- print ("... Tauren Female")
+      factor = 1.15
+    elseif ((raceId == "Goblin") and (genderCode == 2)) then
+      -- print ("... Goblin Male")
+      factor = 1.32
+    elseif ((raceId == "Goblin") and (genderCode == 3)) then
+      -- print ("... Goblin Female")
+      factor = 1.32
     end
+
     
 
 
@@ -224,10 +252,7 @@ function DynamicCam:CorrectShoulderOffset(offset)
 
   -- print ("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor )
 
-  -- Store this value for quick access of the zoom function.
-  self.currentShoulderOffset = offset * factor
-
-  return self.currentShoulderOffset
+  return offset * factor
 
 end
 
@@ -248,7 +273,7 @@ function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     return 0
   elseif (zoomLevel < startDecrease) then
     -- TODO: At the moment we are just doing it linearly with the zoomLevel.
-    -- Would be a lot nicer with easing function as well!
+    -- Would be nicer with easing function as well!
     return (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
   else
     return 1
@@ -309,9 +334,7 @@ local function DC_SetCVar(cvar, setting)
     end
 
     if (cvar == "test_cameraOverShoulder") then
-      -- Must be called separately because CorrectShoulderOffset stores the value for quick access for the zoom function.
-      setting = DynamicCam:CorrectShoulderOffset(setting)
-      setting = DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom()) * setting
+      setting = DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom()) * DynamicCam:CorrectShoulderOffset(setting)
     end
 
     -- don't apply cvars if they're already set to the new value
@@ -1481,6 +1504,11 @@ end
 -------------
 -- UTILITY --
 -------------
+-- The second argument (exitingSituationFlag) can is set to true if ApplyDefaultCameraSettings
+-- is called when exiting a situation. This will lead to skipping test_cameraOverShoulder in
+-- assinging all default settings. Because we would like to ease the shoulder offset transition
+-- at the same pace as we change the zoom level when exiting a situation, instead of setting
+-- the shoulder offset instantaneously.
 function DynamicCam:ApplyDefaultCameraSettings(newSituationID, exitingSituationFlag)
     local curSituation = self.db.profile.situations[self.currentSituationID];
 
@@ -1717,7 +1745,10 @@ end
 
 
 
-function DynamicCam:PerformShoulderOffsetCorrection(event)
+function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
+  
+    -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
+  
 
     -- Got to stop shoulder offset easing that might already be in process
     -- triggered by ExitSituation() called at the same time as the
@@ -1730,7 +1761,7 @@ function DynamicCam:PerformShoulderOffsetCorrection(event)
     stopEasingShoulderOffset();
     
 
-    -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
+    
 
     local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
@@ -1744,21 +1775,18 @@ function DynamicCam:PerformShoulderOffsetCorrection(event)
 
         if (englishClass == "SHAMAN") then
             if (GetShapeshiftFormID(true) ~= nil) then
-                print ("You are turning into shapeshift! " .. GetShapeshiftFormID(true))
+                -- print ("You are turning into shapeshift! " .. GetShapeshiftFormID(true))
                 -- Mostly perfect timing for shaman -> ghostwolf
                 return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
             else
-                print ("You are turning into normal!")
+                -- print ("You are turning into normal!")
                 -- Mostly perfect timing for ghostwolf -> shaman
                 return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
             end
             
-            
-        -- Still problems...
-        -- elseif (englishClass == "DRUID") then
-        
         
         -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
+        -- Still problems with DRUID...
         else
             local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", newValue)
@@ -1775,6 +1803,12 @@ function DynamicCam:PerformShoulderOffsetCorrection(event)
             -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
         -- end
     
+    elseif (event == "UNIT_ENTERING_VEHICLE") then
+    
+        local timestamp, unitName, dontcare1, dontcare2, vehicleGUID = ...;    
+        
+        local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
+        return SetCVar("test_cameraOverShoulder", newValue)
     
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
@@ -1807,9 +1841,14 @@ function DynamicCam:RegisterEvents()
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "PerformShoulderOffsetCorrection");
 
 
+    -- Needed for vehicles.
+    events["UNIT_ENTERING_VEHICLE"] = true;
+    self:RegisterEvent("UNIT_ENTERING_VEHICLE", "PerformShoulderOffsetCorrection");
+    events["UNIT_EXITING_VEHICLE"] = true;
+    self:RegisterEvent("UNIT_EXITING_VEHICLE", "PerformShoulderOffsetCorrection");
 
-
-
+    
+    
     self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
 
     for situationID, situation in pairs(self.db.profile.situations) do
