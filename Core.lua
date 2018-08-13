@@ -57,7 +57,7 @@ function DynamicCam_wait(delay, func, ...)
     if (type(delay) ~= "number" or type(func) ~= "function") then
         return false;
     end
-    if(DynamicCam_waitFrame == nil) then
+    if (DynamicCam_waitFrame == nil) then
         DynamicCam_waitFrame = CreateFrame("Frame", "WaitFrame", UIParent);
         DynamicCam_waitFrame:SetScript("onUpdate",
             function (self, elapse)
@@ -155,20 +155,26 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
             vehicleGUID = UnitGUID("vehicle");
             -- print ("Already in vehicle.");
         end
+        
+        -- TODO: Could also be "Player-...." if you mount a player in druid travel form.
+        -- print (vehicleGUID)
 
         -- We are only interested in vehicleID here...
         local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
 
+        
         -- Here, we have to fill in offset factors for each and every vehicle model in the game...
         -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
         -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
         -- explaining how to determine the correct factor, which they would then send to us.
         if (vehicleID == "40854") then -- River Boat
             factor = 0.20;
-        else
+        elseif (vehicleID) then
             -- Default for all other vehicles...
             print ("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...");
             factor = 0.5;
+        else
+            -- print ("... ERROR!!");
         end
 
 
@@ -1844,11 +1850,19 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
 
     elseif (event == "UNIT_ENTERING_VEHICLE") then
 
-        local timestamp, unitName, dontcare1, dontcare2, vehicleGUID = ...;
+        local unitName, dontcare1, dontcare2, dontcare2, vehicleGUID = ...;
 
-        local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
-        return SetCVar("test_cameraOverShoulder", newValue);
-
+        -- print (unitName);
+        -- print (vehicleGUID);
+        
+        if (unitName == "player") then 
+          local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
+          return SetCVar("test_cameraOverShoulder", newValue);
+        end
+        
+        
+        
+        
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
         -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
