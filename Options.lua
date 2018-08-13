@@ -997,7 +997,7 @@ local situationOptions = {
                             softMin = -90,
                             softMax = 90,
                             hidden = function() return (S.cameraActions.rotateSetting ~= "continous") end,
-                            step = 5,
+                            step = 1,
                             get = function() return S.cameraActions.rotateSpeed end,
                             set = function(_, newValue) S.cameraActions.rotateSpeed = newValue; end,
                             order = 2,
