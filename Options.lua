@@ -20,7 +20,7 @@ local S, SID;
 local copiedSituationID;
 local exportName, exportAuthor;
 
-local welcomeMessage = [[Hello and welcome to the beta of DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
+local welcomeMessage = [[Hello and welcome to DynamicCam! I'm glad that you're here and I hope that you have fun with the addon.
 
 If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments or PM me on reddit (I'm /u/mpstark).
 
@@ -39,10 +39,9 @@ Some handy slash commands:
         Example:
             `/zoom 5 5 InOutQuint` will zoom to 5 over 5 seconds using InOutQuint as the easing function.
     ]];
-local knownIssues = [[- The new LibCamera zoom can sometimes zoom you all the way in, report if you find a repeatable spot
-    - Places that I think I've fixed: after loading screens/after taxi's
-- Fit nameplates is still using the old camera code
-- Boss vs. Trash combat detection can be a little wonky]];
+local knownIssues = [[- Boss vs. Trash combat detection can be a little wonky
+- Pre-8.0 profiles may not have cleanly been upgraded and can throw errors (ENCOUNTER_STOP)
+- Only a single preset profile]];
 local changelog = {
 [[Beta 4:
     - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
