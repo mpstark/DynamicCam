@@ -54,230 +54,243 @@ local waitTable = {};
 local waitFrame = nil;
 
 function DynamicCam_wait(delay, func, ...)
-  if(type(delay)~="number" or type(func)~="function") then
-    return false;
-  end
-  if(waitFrame == nil) then
-    waitFrame = CreateFrame("Frame","WaitFrame", UIParent);
-    waitFrame:SetScript("onUpdate",function (self,elapse)
-      local count = #waitTable;
-      local i = 1;
-      while(i<=count) do
-        local waitRecord = tremove(waitTable,i);
-        local d = tremove(waitRecord,1);
-        local f = tremove(waitRecord,1);
-        local p = tremove(waitRecord,1);
-        if(d>elapse) then
-          tinsert(waitTable,i,{d-elapse,f,p});
-          i = i + 1;
-        else
-          count = count - 1;
-          f(unpack(p));
-        end
-      end
-    end);
-  end
-  tinsert(waitTable,{delay,func,{...}});
-  return true;
+    if (type(delay) ~= "number" or type(func) ~= "function") then
+        return false;
+    end
+    if(waitFrame == nil) then
+        waitFrame = CreateFrame("Frame", "WaitFrame", UIParent);
+        waitFrame:SetScript("onUpdate",
+            function (self, elapse)
+                local count = #waitTable;
+                local i = 1;
+                while(i<=count) do
+                    local waitRecord = tremove(waitTable, i);
+                    local d = tremove(waitRecord, 1);
+                    local f = tremove(waitRecord, 1);
+                    local p = tremove(waitRecord, 1);
+                    if (d>elapse) then
+                        tinsert(waitTable, i, {d-elapse, f, p});
+                        i = i + 1;
+                    else
+                        count = count - 1;
+                        f(unpack(p));
+                    end
+                end
+            end
+        );
+    end
+    tinsert(waitTable, {delay, func, {...}});
+    return true;
 end
 
 
-
+-- Return the name of the currently active mount if any.
 function DynamicCam:getCurrentMount()
 
-  for k,v in pairs (C_MountJournal.GetMountIDs()) do
+    for k,v in pairs (C_MountJournal.GetMountIDs()) do
 
-    creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(v)
+        creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(v)
 
-    if (active) then
-      return creatureName
+        if (active) then
+            return creatureName
+        end
     end
-  end
 
-  return nil
-
+    return nil
 end
 
 
 
-
+-- WoW interprets the test_cameraOverShoulder variable differently depending on the current player model.
+-- If we want the camera to always have the same shoulder offset relative to the player's center,
+-- we need to adjust the test_cameraOverShoulder value depending on the current player model.
+-- Arguments:
+--   offset                   The original test_cameraOverShoulder that should be adjusted.
+--   enteringVehicleGUID      (optional) When CorrectShoulderOffset is called while entering a vehicle
+--                            we pass the vehicle's GUID to determine the test_cameraOverShoulder adjustment.
+--                            This is necessary because while entering the vehicle, UnitInVehicle("player") will
+--                            still return 'false' while the camera is already regarding the vehicle's model.
 function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
-  -- print ("CorrectShoulderOffset")
+    -- print ("CorrectShoulderOffset")
 
-  local factor = 1
+    -- In the end of the function, offset*factor is returned.
+    local factor = 1
 
-  
-  
 
-  if (enteringVehicleGUID or UnitInVehicle("player")) then
-  
-  
-    local vehicleGUID = ""
-  
-    if (enteringVehicleGUID) then
-      vehicleGUID = enteringVehicleGUID
-      -- print ("Enterung vehicle.")
+
+    -- Is the player entering a vehicle or already in a vehicle?
+    if (enteringVehicleGUID or UnitInVehicle("player")) then
+
+        local vehicleGUID = ""
+        if (enteringVehicleGUID) then
+            vehicleGUID = enteringVehicleGUID
+            -- print ("Enterung vehicle.")
+        else
+            vehicleGUID = UnitGUID("vehicle")
+            -- print ("Already in vehicle.")
+        end
+
+        -- We are only interested in vehicleID here...
+        local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
+
+        -- Here, we have to fill in offset factors for each and every vehicle model in the game...
+        -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
+        -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
+        -- explaining how to determine the correct factor, which they would then send to us.
+        if (vehicleID == "40854") then
+            -- print ("... River Boat")
+            factor = 0.20
+        else
+            -- Default for all other vehicles...
+            print ("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...")
+            factor = 0.5
+        end
+
+
+
+    -- Is the player mounted?
+    elseif (IsMounted()) then
+
+        -- Is the player really mounted and not on a "taxi"?
+        if (not UnitOnTaxi("player")) then
+            local currentMount = self:getCurrentMount()
+
+            -- print ("You are mounted on " .. currentMount .. "!")
+
+
+            -- Here, we have to fill in offset factors for each and every mount model in the game...
+            -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
+            -- if their current mount is not yet in the code, and I could make a youtube video tutorial
+            -- explaining how to determine the correct factor, which they would then send to us.
+            if   (currentMount == "Black War Kodo")
+                or (currentMount == "Brown Kodo")
+                or (currentMount == "Gray Kodo")
+                or (currentMount == "Great Brown Kodo")
+                or (currentMount == "Great Gray Kodo")
+                or (currentMount == "Great White Kodo")
+                or (currentMount == "White Kodo") then
+                factor = 4.2
+            elseif (currentMount == "Albino Drake") then
+                factor = 2.5
+            else
+                -- Default for all other mounts...
+                print ("... TODO: Mount '" .. currentMount .. "' not yet known...")
+                factor = 6
+            end
+
+        else
+            -- print ("You are on a taxi!")
+            -- Works all right for Wind Riders.
+            -- TODO: This should probably also be done correclty for all taxi models in the game.
+            factor = 2.5
+        end
+
+
+        -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
+        if (offset < 0) then
+            factor = factor / 10
+        end
+
+
+    -- Is the player shapeshifted?
+    elseif (GetShapeshiftFormID(true) ~= nil) then
+
+        local formID = GetShapeshiftFormID(true)
+        -- print ("formID: " .. formID)
+
+        -- See here for meaning of formIDs: https://wow.gamepedia.com/API_GetShapeshiftFormID
+        -- Each shapeshift form needs a slightly different factor.
+
+        -- print ("You are a ...")
+
+        if (formID == 5) then
+            -- print ("... Druid in Bear form.")
+            factor = 0.83
+        elseif (formID == 1) then
+            -- print ("... Druid in Cat form.")
+            factor = 0.86
+        elseif (formID == 3) then
+            -- print ("... Druid in Travel form.")
+            factor = 0.89
+        elseif (formID == 4) then
+            -- print ("... Druid in Aquatic form.")
+            factor = 0.71
+        elseif (formID == 27) then
+            -- print ("... Druid in Swift Flight form.")
+            factor = 0.54
+        elseif (formID == 29) then
+            -- print ("... Druid in Flight form.")
+            -- TODO: Only tested Swift Flight form, guessing it will be the same for Non-Swift Flight form.
+            factor = 0.54
+
+        elseif (formID == 16) then
+             -- print ("... Shaman in Ghostwolf form.")
+             factor = 0.775
+        end
+
+    -- Is the player "normal"?
     else
-      vehicleGUID = UnitGUID("vehicle")
-      -- print ("Already in vehicle.")
-    end
-    
-    
-    local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
+        -- print ("You are normal ...")
 
-    if (vehicleID == "40854") then
-      -- print ("... River Boat")
-      factor = 0.20
-    else
-      print ("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...")
-      factor = 0.5
-    end
-  
-  
-  
+        raceName, raceId = UnitRace("player");
+        genderCode = UnitSex("player")
+        -- print (" ... " .. raceId .. " " .. genderCode)
 
-  elseif (IsMounted()) then
+        if     ((raceId == "Orc") and (genderCode == 2)) then
+            -- print ("... Orc Male")
+          factor = 1
+        elseif ((raceId == "Orc") and (genderCode == 3)) then
+            -- print ("... Orc Female")
+            factor = 1.26
+        elseif ((raceId == "Scourge") and (genderCode == 2)) then
+            -- print ("... Scourge Male")
+            factor = 1.2
 
-    if (not UnitOnTaxi("player")) then
-      local currentMount = self:getCurrentMount()
 
-      -- print ("You are mounted on " .. currentMount .. "!")
+        elseif ((raceId == "Tauren") and (genderCode == 2)) then
+            -- print ("... Tauren Male")
+            factor = 1
+        elseif ((raceId == "Tauren") and (genderCode == 3)) then
+            -- print ("... Tauren Female")
+            factor = 1.15
+        elseif ((raceId == "Goblin") and (genderCode == 2)) then
+              -- print ("... Goblin Male")
+              factor = 1.32
+        elseif ((raceId == "Goblin") and (genderCode == 3)) then
+              -- print ("... Goblin Female")
+              factor = 1.32
+        end
 
-      if   (currentMount == "Black War Kodo")
-        or (currentMount == "Brown Kodo")
-        or (currentMount == "Gray Kodo")
-        or (currentMount == "Great Brown Kodo")
-        or (currentMount == "Great Gray Kodo")
-        or (currentMount == "Great White Kodo")
-        or (currentMount == "White Kodo") then
-        factor = 4.2
-      elseif (currentMount == "Albino Drake") then
-        factor = 2.5
-      else
-        -- Default for all other mounts...
-        print ("... TODO: Mount '" .. currentMount .. "' not yet known...")
-        factor = 6
-      end
-
-    else
-      -- print ("You are on a taxi!")
-      -- Works all right for Wind Riders.
-      factor = 2.5
     end
 
-    
-    -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
-    if (offset < 0) then
-      factor = factor / 10
-    end
 
-    
-  elseif (GetShapeshiftFormID(true) ~= nil) then
-  
-  
-    local formID = GetShapeshiftFormID(true)
-    -- print ("formID: " .. formID)
-  
-    -- https://wow.gamepedia.com/API_GetShapeshiftFormID
-    -- Each shapeshift form needs a slightly different factor.
-
-    -- print ("You are a ...")
-
-    if (formID == 5) then
-      -- print ("... Druid in Bear form.")
-      factor = 0.83
-    elseif (formID == 1) then
-      -- print ("... Druid in Cat form.")
-      factor = 0.86
-    elseif (formID == 3) then
-      -- print ("... Druid in Travel form.")
-      factor = 0.89
-    elseif (formID == 4) then
-      -- print ("... Druid in Aquatic form.")
-      factor = 0.71
-    elseif (formID == 29) then
-      -- print ("... Druid in Flight form.")
-      -- TODO
-    elseif (formID == 27) then
-      -- print ("... Druid in Swift Flight form.")
-      factor = 0.54
-      
-      
-    elseif (formID == 16) then
-       -- print ("... Shaman in Ghostwolf form.")
-       factor = 0.775
-    end
-    
-
-  
-  else
-    -- print ("You are normal ...")
-    
-    
-    raceName, raceId = UnitRace("player");
-    genderCode = UnitSex("player")
-    -- print (" ... " .. raceId .. " " .. genderCode)
-
-    if     ((raceId == "Orc") and (genderCode == 2)) then
-      -- print ("... Orc Male")
-      factor = 1
-    elseif ((raceId == "Orc") and (genderCode == 3)) then
-      -- print ("... Orc Female")
-      factor = 1.26
-    elseif ((raceId == "Scourge") and (genderCode == 2)) then
-      -- print ("... Scourge Male")
-      factor = 1.2
-      
-      
-    elseif ((raceId == "Tauren") and (genderCode == 2)) then
-      -- print ("... Tauren Male")
-      factor = 1
-    elseif ((raceId == "Tauren") and (genderCode == 3)) then
-      -- print ("... Tauren Female")
-      factor = 1.15
-    elseif ((raceId == "Goblin") and (genderCode == 2)) then
-      -- print ("... Goblin Male")
-      factor = 1.32
-    elseif ((raceId == "Goblin") and (genderCode == 3)) then
-      -- print ("... Goblin Female")
-      factor = 1.32
-    end
-
-    
-
-
-  end
-
-
-  -- print ("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor )
-
-  return offset * factor
+    -- print ("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor )
+    return offset * factor
 
 end
 
 
 
 -- If we zoom between startDecrease and finishDecrease, we want to decrease the shoulder offset gradually.
+-- TODO: This could be possible to activate and deactivate in the options.
+-- TODO: The startDecrease and finishDecrease constants could also be user configurable.
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
 
-  -- TODO: This should be possible to activate and deactivate in the options.
-  -- TODO: Those constants should be user configurable.
+    -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-  -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
+    local startDecrease = 8
+    local finishDecrease = 2
 
-  local startDecrease = 8
-  local finishDecrease = 2
-
-  if (zoomLevel < finishDecrease) then
-    return 0
-  elseif (zoomLevel < startDecrease) then
-    -- TODO: At the moment we are just doing it linearly with the zoomLevel.
-    -- Would be nicer with easing function as well!
-    return (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
-  else
-    return 1
-  end
+    if (zoomLevel < finishDecrease) then
+        return 0
+    elseif (zoomLevel < startDecrease) then
+        -- TODO: At the moment we are just doing it linearly with the zoomLevel.
+        -- Would be nicer with easing function as well!
+        return (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
+    else
+        return 1
+    end
 
 end
 
@@ -1324,7 +1337,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
         local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(zoomLevel)
         local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset)
-        
+
         easeShoulderOffset(correctedValue, t, LibEasing[self.db.profile.easingZoom]);
 
         self:DebugPrint("Restoring! zoom level:", zoomLevel, "test_cameraOverShoulder", correctedValue, "duration", t);
@@ -1746,9 +1759,9 @@ end
 
 
 function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
-  
+
     -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
-  
+
 
     -- Got to stop shoulder offset easing that might already be in process
     -- triggered by ExitSituation() called at the same time as the
@@ -1759,19 +1772,19 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
     -- Then comes the UPDATE_SHAPESHIFT_FORM event triggering PerformShoulderOffsetCorrection(),
     -- but its new shoulder offset value will not come into effect.
     stopEasingShoulderOffset();
-    
 
-    
+
+
 
     local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
 
 
     if (event == "UPDATE_SHAPESHIFT_FORM") then
-  
+
         local localizedClass, englishClass, classIndex = UnitClass("player");
         -- print ("You are a shape shifted " .. englishClass .. "...")
-      
+
 
         if (englishClass == "SHAMAN") then
             if (GetShapeshiftFormID(true) ~= nil) then
@@ -1783,16 +1796,16 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
                 -- Mostly perfect timing for ghostwolf -> shaman
                 return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
             end
-            
-        
+
+
         -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
         -- Still problems with DRUID...
         else
             local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", newValue)
         end
-    
-    
+
+
     -- Would have liked to fix the "dismount wobble". But to no avail so far.
     -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
         -- if (IsMounted() == false) then
@@ -1802,14 +1815,14 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
             -- print ("you are mounting!")
             -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
         -- end
-    
+
     elseif (event == "UNIT_ENTERING_VEHICLE") then
-    
-        local timestamp, unitName, dontcare1, dontcare2, vehicleGUID = ...;    
-        
+
+        local timestamp, unitName, dontcare1, dontcare2, vehicleGUID = ...;
+
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
         return SetCVar("test_cameraOverShoulder", newValue)
-    
+
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
         -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
@@ -1830,7 +1843,7 @@ function DynamicCam:RegisterEvents()
     events["UPDATE_SHAPESHIFT_FORM"] = true;
     self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "PerformShoulderOffsetCorrection");
 
-    
+
     -- Needed because when mounted while teleporting into dungeon, where you get automatically dismounted.
     events["PLAYER_ENTERENTERING_WORLD"] = true;
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "PerformShoulderOffsetCorrection");
@@ -1847,8 +1860,8 @@ function DynamicCam:RegisterEvents()
     events["UNIT_EXITING_VEHICLE"] = true;
     self:RegisterEvent("UNIT_EXITING_VEHICLE", "PerformShoulderOffsetCorrection");
 
-    
-    
+
+
     self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
 
     for situationID, situation in pairs(self.db.profile.situations) do
