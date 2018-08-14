@@ -298,16 +298,8 @@ local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, to
         nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
 
         SetCVar("nameplateShowAll", 1);
-        if (UnitExists("target")) then
-            if (UnitIsFriend("player", "target")) then
-                SetCVar("nameplateShowFriends", 1);
-            else
-                SetCVar("nameplateShowEnemies", 1);
-            end
-        else
-            SetCVar("nameplateShowFriends", 1);
-            SetCVar("nameplateShowEnemies", 1);
-        end
+        SetCVar("nameplateShowFriends", 1);
+        SetCVar("nameplateShowEnemies", 1);
     end
 
     local lastSpeed = 0;
