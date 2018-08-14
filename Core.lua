@@ -292,7 +292,7 @@ local function restoreNameplates()
 end
 
 local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, toggleNameplates)
-    if (toggleNameplates) then
+    if (toggleNameplates and not InCombatLockdown()) then
         nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll");
         nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
         nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
