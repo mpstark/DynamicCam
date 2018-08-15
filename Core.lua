@@ -84,20 +84,45 @@ function DynamicCam_wait(delay, func, ...)
 end
 
 
+
+
+
+-- Map mountID to sholder offset factor.
+-- TODO: Here, we have to fill in offset factors for each and every mount model in the game...
+-- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
+-- if their current mount is not yet in the code, and I could make a youtube video tutorial
+-- explaining how to determine the correct factor, which they would then send to us.
+DynamicCam.mountIDtoShoulderOffsetFactor = {
+
+    [71] = 4.2,    -- Gray Kodo
+    [72] = 4.2,    -- Brown Kodo
+    [76] = 4.2,    -- Black War Kodo
+    [101] = 4.2,   -- Great White Kodo
+    [102] = 4.2,   -- Great Gray Kodo
+    [103] = 4.2,   -- Great Brown Kodo
+    [309] = 4.2,   -- White Kodo
+    
+    [268] = 2.5,   -- Albino Drake
+    
+};
+
+
+
+
 -- To skip the iteration through all mounts trying to find the active one,
 -- we store the last active mount to be checked first.
-local DynamicCam_lastActiveMount = nil;
+DynamicCam.lastActiveMount = nil;
 
 -- Return the name of the currently active mount if any.
 function DynamicCam:getCurrentMount()
 
     -- First check if the last active mount is still active.
     -- This will save us the effort of iterating through the whole mount journal.
-    if (DynamicCam_lastActiveMount) then
+    if (self.lastActiveMount) then
     
-        -- print ("Last active mount: " .. DynamicCam_lastActiveMount);
+        -- print ("Last active mount: " .. self.lastActiveMount);
     
-        local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(DynamicCam_lastActiveMount);
+        local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
     
         if (active) then
             return;
@@ -112,7 +137,7 @@ function DynamicCam:getCurrentMount()
 
         if (active) then
             -- Store current mount as last active mount.
-            DynamicCam_lastActiveMount = v;
+            self.lastActiveMount = v;
             return;
         end
     end
@@ -131,7 +156,14 @@ end
 --                            still return 'false' while the camera is already regarding the vehicle's model.
 function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
-    -- print ("CorrectShoulderOffset")
+    -- print ("CorrectShoulderOffset (" .. offset)
+
+
+    if (self.db.profile.modelIndependentShoulderOffset == 0) then
+        return offset
+    end
+
+    
 
     -- If no offset is set, there is no need to correct it.
     if (offset == 0) then
@@ -163,7 +195,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
 
         
-        -- Here, we have to fill in offset factors for each and every vehicle model in the game...
+        -- TODO: Here, we have to fill in offset factors for each and every vehicle model in the game...
         -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
         -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
         -- explaining how to determine the correct factor, which they would then send to us.
@@ -171,7 +203,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
             factor = 0.20;
         elseif (vehicleID) then
             -- Default for all other vehicles...
-            print ("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...");
+            DynamicCam:DebugPrint("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...");
             factor = 0.5;
         else
             -- print ("... ERROR!!");
@@ -185,32 +217,20 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         -- Is the player really mounted and not on a "taxi"?
         if (not UnitOnTaxi("player")) then
         
-            -- This will set the global variable DynamicCam_lastActiveMount.
+            -- This will set the global variable self.lastActiveMount.
             self:getCurrentMount();
             
-            local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(DynamicCam_lastActiveMount);
+            local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
             -- print ("You are mounted on '" .. creatureName .. "' (" .. mountID .. ").")
 
-            -- Here, we have to fill in offset factors for each and every mount model in the game...
-            -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
-            -- if their current mount is not yet in the code, and I could make a youtube video tutorial
-            -- explaining how to determine the correct factor, which they would then send to us.
-            if   (mountID == 71) -- Gray Kodo
-              or (mountID == 72) -- Brown Kodo
-              or (mountID == 76) -- Black War Kodo
-              or (mountID == 101) -- Great White Kodo
-              or (mountID == 102) -- Great Gray Kodo
-              or (mountID == 103) -- Great Brown Kodo
-              or (mountID == 309) then -- White Kodo
-                factor = 4.2;
-            elseif (mountID == 268) then -- Albino Drake
-                factor = 2.5;
+            if (self.mountIDtoShoulderOffsetFactor[mountID]) then
+                factor = self.mountIDtoShoulderOffsetFactor[mountID];
             else
                 -- Default for all other mounts...
-                print ("... TODO: Mount '" .. creatureName .. "' (" .. mountID .. ") not yet known...");
+                DynamicCam:DebugPrint("... TODO: Mount '" .. creatureName .. "' (" .. mountID .. ") not yet known...");
                 factor = 6;
             end
-
+            
         else
             -- print ("You are on a taxi!")
             -- Works all right for Wind Riders.
@@ -218,7 +238,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
             factor = 2.5;
         end
 
-
+        
         -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
         if (offset < 0) then
             factor = factor / 10;
@@ -271,27 +291,26 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
         if     ((raceId == "Orc") and (genderCode == 2)) then
             -- print ("... Orc Male");
-          factor = 1
+            factor = 1;
         elseif ((raceId == "Orc") and (genderCode == 3)) then
             -- print ("... Orc Female");
-            factor = 1.26
+            factor = 1.26;
         elseif ((raceId == "Scourge") and (genderCode == 2)) then
             -- print ("... Scourge Male");
-            factor = 1.2
-
-
+            factor = 1.2;
+            
         elseif ((raceId == "Tauren") and (genderCode == 2)) then
             -- print ("... Tauren Male");
-            factor = 1
+            factor = 1;
         elseif ((raceId == "Tauren") and (genderCode == 3)) then
             -- print ("... Tauren Female");
-            factor = 1.15
+            factor = 1.15;
         elseif ((raceId == "Goblin") and (genderCode == 2)) then
-              -- print ("... Goblin Male");
-              factor = 1.32
+            -- print ("... Goblin Male");
+            factor = 1.32;
         elseif ((raceId == "Goblin") and (genderCode == 3)) then
-              -- print ("... Goblin Female");
-              factor = 1.32
+            -- print ("... Goblin Female");
+            factor = 1.32;
         end
 
     end
@@ -308,9 +327,12 @@ end
 -- At zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
 -- At zoom levels greater than startDecrease, we want the user set shoulder offset.
 -- In zoom levels between we want a gradual transition.
--- TODO: This could be possible to activate and deactivate in the options.
--- TODO: The startDecrease and finishDecrease constants could also be user configurable.
+-- TODO: The startDecrease and finishDecrease constants could be made user configurable.
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
+
+    if (self.db.profile.shoulderOffsetZoom == 0) then
+        return 1
+    end
 
     -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")");
 
@@ -680,6 +702,9 @@ DynamicCam.defaults = {
         easingZoom = "InOutQuad",
         easingYaw = "InOutQuad",
         easingPitch = "InOutQuad",
+        
+        modelIndependentShoulderOffset = true,
+        shoulderOffsetZoom = true,
 
         reactiveZoom = {
             enabled = false,
