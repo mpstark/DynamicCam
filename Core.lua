@@ -350,6 +350,8 @@ local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, to
         end
 
         if (continously) then
+            startTime = GetTime();
+            lastSpeed = 0;
             return 0;
         end
 
