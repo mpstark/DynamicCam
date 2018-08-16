@@ -104,6 +104,8 @@ DynamicCam.mountIDtoShoulderOffsetFactor = {
     
     [268] = 2.5,   -- Albino Drake
     
+    [780] = 5.4,   -- Felsaber
+    
 };
 
 
@@ -156,25 +158,19 @@ end
 --                            still return 'false' while the camera is already regarding the vehicle's model.
 function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
-    -- print ("CorrectShoulderOffset (" .. offset)
-
+    -- print ("CorrectShoulderOffset (" .. offset .. ")")
 
     if (self.db.profile.modelIndependentShoulderOffset == 0) then
         return offset
     end
 
-    
-
     -- If no offset is set, there is no need to correct it.
     if (offset == 0) then
-        return 0;
+        return offset;
     end
-    
     
     -- In the end of the function, offset*factor is returned.
     local factor = 1;
-
-
 
     -- Is the player entering a vehicle or already in a vehicle?
     if (enteringVehicleGUID or UnitInVehicle("player")) then
@@ -194,16 +190,27 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         -- We are only interested in vehicleID here...
         local type, zero, serverID, instanceID, zoneUID, vehicleID, spawnUID = strsplit("-", vehicleGUID);
 
-        
+        -- print (vehicleID) 
+                
         -- TODO: Here, we have to fill in offset factors for each and every vehicle model in the game...
         -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
         -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
         -- explaining how to determine the correct factor, which they would then send to us.
         if (vehicleID == "40854") then -- River Boat
             factor = 0.20;
+        elseif (vehicleID == "35129") then -- Reprogrammed Shredder
+            factor = 0.38;
         elseif (vehicleID) then
-            -- Default for all other vehicles...
-            DynamicCam:DebugPrint("... TODO: Vehicle '" .. UnitName("vehicle") .. "' (" .. vehicleID .. ") not yet known...");
+        
+            local vehicleName = GetUnitName("vehicle", false);
+            
+            if (vehicleName == nil) then
+                DynamicCam:DebugPrint("... TODO: Just entering unknown vehicle with ID " .. vehicleID .. ". Zoom in or out to get message including vehicle name!");
+            else
+                DynamicCam:DebugPrint("... TODO: Vehicle '" .. vehicleName .. "' (" .. vehicleID .. ") not yet known...");
+            end
+            
+            -- Default for all unknown vehicles...
             factor = 0.5;
         else
             -- print ("... ERROR!!");
@@ -217,18 +224,26 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         -- Is the player really mounted and not on a "taxi"?
         if (not UnitOnTaxi("player")) then
         
-            -- This will set the global variable self.lastActiveMount.
+            -- This should set the global variable self.lastActiveMount.
             self:getCurrentMount();
             
-            local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
-            -- print ("You are mounted on '" .. creatureName .. "' (" .. mountID .. ").")
-
-            if (self.mountIDtoShoulderOffsetFactor[mountID]) then
-                factor = self.mountIDtoShoulderOffsetFactor[mountID];
+            -- Only right after logging in while on a mount it happens that "IsMounted()" returns true,
+            -- but C_MountJournal.GetMountInfoByID() is not able yet to determine that the mount is active.
+            -- We have to catch this here to avoid an error message.
+            if (self.lastActiveMount == nil) then
+                -- Just some default. Will be momentariliy overwritten by the next call of this function anyway...
+                factor = 0;
             else
-                -- Default for all other mounts...
-                DynamicCam:DebugPrint("... TODO: Mount '" .. creatureName .. "' (" .. mountID .. ") not yet known...");
-                factor = 6;
+                local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
+                -- print ("You are mounted on '" .. creatureName .. "' (" .. mountID .. ").")
+
+                if (self.mountIDtoShoulderOffsetFactor[mountID]) then
+                    factor = self.mountIDtoShoulderOffsetFactor[mountID];
+                else
+                    -- Default for all other mounts...
+                    DynamicCam:DebugPrint("... TODO: Mount '" .. creatureName .. "' (" .. mountID .. ") not yet known...");
+                    factor = 6;
+                end
             end
             
         else
@@ -311,10 +326,17 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         elseif ((raceId == "Goblin") and (genderCode == 3)) then
             -- print ("... Goblin Female");
             factor = 1.32;
+            
+        elseif ((raceId == "BloodElf") and (genderCode == 2)) then
+            -- print ("... BloodElf Male");
+            factor = 1.32;
+        elseif ((raceId == "BloodElf") and (genderCode == 3)) then
+            -- print ("... BloodElf Male");
+            factor = 1.38;
+            
         end
 
     end
-
 
     -- print ("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor );
     return offset * factor;
@@ -1035,9 +1057,6 @@ function DynamicCam:Startup()
     if (self.db.profile.reactiveZoom.enabled) then
         self:ReactiveZoomOn();
     end
-
-
-    self:PerformShoulderOffsetCorrection("STARTUP")
 
     started = true;
 end
@@ -1830,12 +1849,8 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
     -- but its new shoulder offset value will not come into effect.
     stopEasingShoulderOffset();
 
-
-
-
     local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom());
-
 
     if (event == "UPDATE_SHAPESHIFT_FORM") then
 
@@ -1862,7 +1877,6 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
             return SetCVar("test_cameraOverShoulder", newValue);
         end
 
-
     -- Would have liked to fix the "dismount wobble". But to no avail so far.
     -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
         -- if (IsMounted() == false) then
@@ -1884,9 +1898,6 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
           local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
           return SetCVar("test_cameraOverShoulder", newValue);
         end
-        
-        
-        
         
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
@@ -1924,7 +1935,6 @@ function DynamicCam:RegisterEvents()
     self:RegisterEvent("UNIT_ENTERING_VEHICLE", "PerformShoulderOffsetCorrection");
     events["UNIT_EXITING_VEHICLE"] = true;
     self:RegisterEvent("UNIT_EXITING_VEHICLE", "PerformShoulderOffsetCorrection");
-
 
 
     self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
