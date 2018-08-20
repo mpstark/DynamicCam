@@ -160,6 +160,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
     -- print ("CorrectShoulderOffset (" .. offset .. ")")
 
+    -- If the "Correct Shoulder Offset" function is deactivated, we do not correct the offset.
     if (self.db.profile.modelIndependentShoulderOffset == 0) then
         return offset
     end
@@ -228,10 +229,10 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
             self:getCurrentMount();
             
             -- Only right after logging in while on a mount it happens that "IsMounted()" returns true,
-            -- but C_MountJournal.GetMountInfoByID() is not able yet to determine that the mount is active.
+            -- but C_MountJournal.GetMountInfoByID() is not yet able to determine that the mount is active.
             -- We have to catch this here to avoid an error message.
             if (self.lastActiveMount == nil) then
-                -- Just some default. Will be momentariliy overwritten by the next call of this function anyway...
+                -- Just some default. Will be momentariliy overwritten by the next call of this function...
                 factor = 0;
             else
                 local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
@@ -300,8 +301,10 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
     else
         -- print ("You are normal ...")
 
-        raceName, raceId = UnitRace("player");
-        genderCode = UnitSex("player");
+        
+        -- http://wowwiki.wikia.com/wiki/API_UnitRace
+        local raceName, raceId = UnitRace("player");
+        local genderCode = UnitSex("player");
         -- print (" ... " .. raceId .. " " .. genderCode);
 
         if     ((raceId == "Orc") and (genderCode == 2)) then
@@ -313,26 +316,34 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         elseif ((raceId == "Scourge") and (genderCode == 2)) then
             -- print ("... Scourge Male");
             factor = 1.2;
-            
+        elseif ((raceId == "Scourge") and (genderCode == 3)) then
+            -- print ("... Scourge Female");
+            factor = 1.4;
         elseif ((raceId == "Tauren") and (genderCode == 2)) then
             -- print ("... Tauren Male");
             factor = 1;
         elseif ((raceId == "Tauren") and (genderCode == 3)) then
             -- print ("... Tauren Female");
             factor = 1.15;
-        elseif ((raceId == "Goblin") and (genderCode == 2)) then
-            -- print ("... Goblin Male");
-            factor = 1.32;
-        elseif ((raceId == "Goblin") and (genderCode == 3)) then
-            -- print ("... Goblin Female");
-            factor = 1.32;
-            
+        elseif ((raceId == "Troll") and (genderCode == 2)) then
+            -- print ("... Troll Male");
+            factor = 0.98;
+        elseif ((raceId == "Troll") and (genderCode == 3)) then
+            -- print ("... Troll Female");
+            factor = 1.25;
         elseif ((raceId == "BloodElf") and (genderCode == 2)) then
             -- print ("... BloodElf Male");
             factor = 1.32;
         elseif ((raceId == "BloodElf") and (genderCode == 3)) then
             -- print ("... BloodElf Male");
             factor = 1.38;
+        elseif ((raceId == "Goblin") and (genderCode == 2)) then
+            -- print ("... Goblin Male");
+            factor = 1.32;
+        elseif ((raceId == "Goblin") and (genderCode == 3)) then
+            -- print ("... Goblin Female");
+            factor = 1.32;
+        
             
         end
 
@@ -352,11 +363,11 @@ end
 -- TODO: The startDecrease and finishDecrease constants could be made user configurable.
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
 
+    -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")");
+
     if (self.db.profile.shoulderOffsetZoom == 0) then
         return 1
     end
-
-    -- print ("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")");
 
     local startDecrease = 8;
     local finishDecrease = 2;
@@ -1056,7 +1067,12 @@ function DynamicCam:Startup()
     -- turn on reactive zoom if it's enabled
     if (self.db.profile.reactiveZoom.enabled) then
         self:ReactiveZoomOn();
+    else
+        -- This will make sure that the shoulder offset zoom is hooked if enabled.
+        self:ReactiveZoomOff();
     end
+    
+    
 
     started = true;
 end
@@ -1287,11 +1303,10 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             if (a.zoomValue) then
                 zoomValue = a.zoomValue
             end
-            local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(zoomValue)
-            local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(value)
 
-            if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedValue)) then
-                easeShoulderOffset(correctedValue, transitionTime);
+            local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(zoomValue) * self:CorrectShoulderOffset(value);
+            if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedShoulderOffset)) then
+                easeShoulderOffset(correctedShoulderOffset, transitionTime);
             end
         else
             DC_SetCVar(cvar, value);
@@ -1411,27 +1426,24 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
 
 
-        local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
-        local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(zoomLevel)
-        local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset)
+        local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
+        local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(zoomLevel) * self:CorrectShoulderOffset(userSetShoulderOffset);
 
-        easeShoulderOffset(correctedValue, t, LibEasing[self.db.profile.easingZoom]);
+        easeShoulderOffset(correctedShoulderOffset, t, LibEasing[self.db.profile.easingZoom]);
 
-        self:DebugPrint("Restoring! zoom level:", zoomLevel, "test_cameraOverShoulder", correctedValue, "duration", t);
+        self:DebugPrint("Restoring! zoom level:", zoomLevel, "test_cameraOverShoulder", correctedShoulderOffset, "duration", t);
 
     else
         self:DebugPrint("Not restoring zoom level");
 
         -- Just restore test_cameraOverShoulder, because we skipped it by passing true as the second
         -- argument (exitingSituationFlag) to ApplyDefaultCameraSettings() above.
-        local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"]
-        local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
-        local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset)
+        local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
+        local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(GetCameraZoom()) * self:CorrectShoulderOffset(userSetShoulderOffset);
 
-        -- TODO: Why actually 0.75?
-        easeShoulderOffset(correctedValue, 0.75);
+        easeShoulderOffset(correctedShoulderOffset, 0.75);
 
-        self:DebugPrint("Restoring! test_cameraOverShoulder: " .. correctedValue)
+        self:DebugPrint("Restoring! test_cameraOverShoulder: " .. correctedShoulderOffset)
 
     end
 
@@ -1625,11 +1637,9 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID, exitingSituationF
                 -- Setting it here might result in glitches.
                 if (not exitingSituationFlag) then
 
-                    local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom())
-                    local correctedValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(value)
-                    if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedValue)) then
-                        -- TODO: Why actually 0.75?
-                        easeShoulderOffset(correctedValue, 0.75);
+                    local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(GetCameraZoom()) * self:CorrectShoulderOffset(value);
+                    if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedShoulderOffset)) then
+                        easeShoulderOffset(correctedShoulderOffset, 0.75);
                     end
                 end
             else
@@ -1771,8 +1781,8 @@ local function ReactiveZoom(zoomIn, increments, automated)
 
         -- Also correct the shoulder offset according to zoom level.
         local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"]
-        local correctedValue = DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset)
-        easeShoulderOffset(correctedValue, zoomTime, LibEasing[easingFunc]);
+        local correctedShoulderOffset = DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset)
+        easeShoulderOffset(correctedShoulderOffset, zoomTime, LibEasing[easingFunc]);
 
         LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
     else
@@ -1798,9 +1808,71 @@ function DynamicCam:ReactiveZoomOn()
 end
 
 function DynamicCam:ReactiveZoomOff()
-    CameraZoomIn = oldCameraZoomIn;
-    CameraZoomOut = oldCameraZoomOut;
+    -- CameraZoomIn = oldCameraZoomIn;
+    -- CameraZoomOut = oldCameraZoomOut;
+    -- shoulderOffsetZoomCheck will make the above hooks.
+    self:shoulderOffsetZoomCheck();
 end
+
+
+
+-- To enable shoulder offset correction for non-reactive zoom,
+-- we need to hook the "old zoom" functions.
+function hooked_oldCameraZoomIn(...)
+    -- print ("hooked_oldCameraZoomIn");
+
+    local increments = ...;
+    local currentZoom = GetCameraZoom();
+
+    -- Use the method from reactiveZoom to determine final zoom level.
+    if (targetZoom and targetZoom > currentZoom) then
+        targetZoom = nil;
+    end
+    targetZoom = targetZoom or currentZoom;
+    targetZoom = math.max(0, targetZoom - increments);
+    
+    local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"];
+    local correctedShoulderOffset = DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
+    SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+    -- easeShoulderOffset(correctedShoulderOffset, 0.1);
+    
+    return oldCameraZoomIn(...);
+end
+
+
+function hooked_oldCameraZoomOut(...)
+    -- print ("hooked_oldCameraZoomOut");
+    
+    local increments = ...;
+    local currentZoom = GetCameraZoom();
+
+    -- Use the method from reactiveZoom to determine final zoom level.
+    if (targetZoom and targetZoom < currentZoom) then
+        targetZoom = nil;
+    end
+    targetZoom = targetZoom or currentZoom;
+    targetZoom = math.min(39, targetZoom + increments);
+    
+    local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"];
+    local correctedShoulderOffset = DynamicCam:GetShoulderOffsetZoomFactor(currentZoom + increments) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
+    SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+    -- easeShoulderOffset(correctedShoulderOffset, 0.1);
+    
+    return oldCameraZoomOut(...);
+end
+
+
+function DynamicCam:shoulderOffsetZoomCheck()
+    if (self.db.profile.shoulderOffsetZoom == 1) then
+        CameraZoomIn  = hooked_oldCameraZoomIn;
+        CameraZoomOut = hooked_oldCameraZoomOut;
+    else
+        CameraZoomIn  = oldCameraZoomIn;
+        CameraZoomOut = oldCameraZoomOut;
+    end
+end
+
+
 
 
 ------------
@@ -1836,8 +1908,7 @@ end
 
 function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
 
-    -- print (">>>>>>>>>>>>> PerformShoulderOffsetCorrection got event: " .. event)
-
+    -- print ("PerformShoulderOffsetCorrection got event: " .. event)
 
     -- Got to stop shoulder offset easing that might already be in process
     -- triggered by ExitSituation() called at the same time as the
@@ -1901,7 +1972,7 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
         
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-        -- print ("<<<<<<<<<<<<<< Setting test_cameraOverShoulder to " .. newValue);
+        -- print ("Setting test_cameraOverShoulder to " .. newValue);
         return SetCVar("test_cameraOverShoulder", newValue);
     end
 

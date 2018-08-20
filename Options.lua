@@ -424,7 +424,15 @@ local settings = {
                     desc = "Enabling this option will gradually reduce the Camera Shoulder Offset as you zoom-in (mouse wheel) on your character. Otherwise a greater shoulder offset may be awkward while walking through narrow corridors. With this option enabled you just have to zoom in a little more on your character while walking through such corridors and it will be more pleasent as the shoulder offset is reduced.",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     get = function() return (DynamicCam.db.profile.shoulderOffsetZoom == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.shoulderOffsetZoom = 1; else DynamicCam.db.profile.shoulderOffsetZoom = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                    set = function(_, newValue)
+                              if (newValue) then
+                                  DynamicCam.db.profile.shoulderOffsetZoom = 1;
+                              else
+                                  DynamicCam.db.profile.shoulderOffsetZoom = 0;
+                              end
+                              DynamicCam:shoulderOffsetZoomCheck();
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED");
+                          end,
                     order = .35,
                 },
                 cameraDistanceMaxFactor = {
