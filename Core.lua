@@ -319,11 +319,11 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         elseif ((raceId == "Scourge") and (genderCode == 3)) then
             -- print ("... Scourge Female");
             factor = 1.4;
-        elseif ((raceId == "Tauren") and (genderCode == 2)) then
-            -- print ("... Tauren Male");
+        elseif (((raceId == "Tauren") or (raceId == "HighmountainTauren")) and (genderCode == 2)) then
+            -- print ("... Tauren or HighmountainTauren Male");
             factor = 1;
-        elseif ((raceId == "Tauren") and (genderCode == 3)) then
-            -- print ("... Tauren Female");
+        elseif (((raceId == "Tauren") or (raceId == "HighmountainTauren")) and (genderCode == 3)) then
+            -- print ("... Tauren or HighmountainTauren Female");
             factor = 1.15;
         elseif ((raceId == "Troll") and (genderCode == 2)) then
             -- print ("... Troll Male");
@@ -331,11 +331,11 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
         elseif ((raceId == "Troll") and (genderCode == 3)) then
             -- print ("... Troll Female");
             factor = 1.25;
-        elseif ((raceId == "BloodElf") and (genderCode == 2)) then
-            -- print ("... BloodElf Male");
+        elseif (((raceId == "BloodElf") or (raceId == "VoidElf"))and (genderCode == 2)) then
+            -- print ("... BloodElf or VoidElf Male");
             factor = 1.32;
-        elseif ((raceId == "BloodElf") and (genderCode == 3)) then
-            -- print ("... BloodElf Male");
+        elseif (((raceId == "BloodElf") or (raceId == "VoidElf")) and (genderCode == 3)) then
+            -- print ("... BloodElf or VoidElf Female");
             factor = 1.38;
         elseif ((raceId == "Goblin") and (genderCode == 2)) then
             -- print ("... Goblin Male");
@@ -344,7 +344,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
             -- print ("... Goblin Female");
             factor = 1.32;
         
-            
+        
         end
 
     end
