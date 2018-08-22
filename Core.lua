@@ -84,8 +84,8 @@ function DynamicCam_wait(delay, func, ...)
 end
 
 
--- Sometimes, modelFrame:GetModelFileID() to determin Worgen form does return nil while changing form.
--- For these cases we use the last known form stored in this variable.
+-- Sometimes, modelFrame:GetModelFileID() to determine Worgen form does return nil while changing form.
+-- For these cases we use the last known form stored in this variable, while waiting for the restart.
 -- Default 307454 is Worgen.
 DynamicCam.lastModelID = 307454;
 
@@ -93,22 +93,22 @@ DynamicCam.lastModelID = 307454;
 
 
 -- Map mountID to sholder offset factor.
--- TODO: Here, we have to fill in offset factors for each and every mount model in the game...
+-- TODO: Here we have to fill in offset factors for each and every mount model in the game...
 -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
 -- if their current mount is not yet in the code, and I could make a youtube video tutorial
 -- explaining how to determine the correct factor, which they would then send to us.
 DynamicCam.mountIDtoShoulderOffsetFactor = {
 
-    [71] = 4.2,    -- Gray Kodo
-    [72] = 4.2,    -- Brown Kodo
-    [76] = 4.2,    -- Black War Kodo
-    [101] = 4.2,   -- Great White Kodo
-    [102] = 4.2,   -- Great Gray Kodo
-    [103] = 4.2,   -- Great Brown Kodo
-    [309] = 4.2,   -- White Kodo
-
+    [6]   = 7.5,   -- Brown Horse
+    [71]  = 4.7,   -- Gray Kodo
+    [72]  = 4.7,   -- Brown Kodo
+    [76]  = 4.45,  -- Black War Kodo
+    [101] = 4.45,  -- Great White Kodo
+    [102] = 4.45,  -- Great Gray Kodo
+    [103] = 4.45,  -- Great Brown Kodo
+    [203] = 5.8,   -- Cenarion War Hippogryph
     [268] = 2.5,   -- Albino Drake
-
+    [309] = 4.7,   -- White Kodo
     [780] = 5.4,   -- Felsaber
 
 };
@@ -198,7 +198,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGUID)
 
         -- print (vehicleID)
 
-        -- TODO: Here, we have to fill in offset factors for each and every vehicle model in the game...
+        -- TODO: Here we have to fill in offset factors for each and every vehicle model in the game...
         -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
         -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
         -- explaining how to determine the correct factor, which they would then send to us.
@@ -1489,10 +1489,6 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     if (self:ShouldRestoreZoom(situationID, newSituationID)) then
         restoringZoom = true;
 
-        -- TODO: Why can the user set a transition time to enter the situation.
-        -- But exiting the situation is done with the standard cameraZoomSpeed
-        -- unless this would take more than .75 or less than .1666
-        -- There should be an option for transition time when exiting!
         local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
         local t = math.max(10.0/60.0, math.min(defaultTime, .75));
         local zoomLevel = restoration[situationID].zoom;
@@ -1976,13 +1972,16 @@ end
 
 
 
+DynamicCam.suppressNextUnitAura = false;
+DynamicCam.suppressNextUnitModelChanged = false;
 
-
+DynamicCam.dismounting = false;
 
 
 function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
 
     -- print ("PerformShoulderOffsetCorrection got event: " .. event)
+    -- print (...)
 
     -- Got to stop shoulder offset easing that might already be in process
     -- triggered by ExitSituation() called at the same time as the
@@ -1994,6 +1993,7 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
     -- but its new shoulder offset value will not come into effect.
     stopEasingShoulderOffset();
 
+
     local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom());
 
@@ -2004,18 +2004,40 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
 
 
         if (englishClass == "SHAMAN") then
+
             if (GetShapeshiftFormID(true) ~= nil) then
                 -- print ("You are turning into shapeshift! " .. GetShapeshiftFormID(true));
-                -- Mostly perfect timing for shaman -> ghostwolf
+
+                -- The UPDATE_SHAPESHIFT_FORM while turning into Ghostwolf comes too early.
+                -- And even the subsequent UNIT_MODEL_CHANGED and UNIT_AURA are still too early.
+                -- That is why we have to prevent these events from changing the shoulder offset
+                -- and use the DynamicCam_wait timer instead.
+                -- But only do this if we are not dismounting at the same time as shapeshifting,
+                -- because while dismounting we need the UNIT_AURA!
+                if (self.dismounting == false) then
+                    self.suppressNextUnitModelChanged = true;
+                    self.suppressNextUnitAura = true;
+                end
+
                 local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
                 return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", newValue);
+
             else
                 -- print ("You are turning into normal!");
-                -- Mostly perfect timing for ghostwolf -> shaman
-                local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-                return DynamicCam_wait(0.145, SetCVar, "test_cameraOverShoulder", newValue);
-            end
 
+                -- Do not change the shoulder offset here.
+                -- Wait until the next trigger of UNIT_AURA for perfect timing.
+                self.suppressNextUnitModelChanged = false;
+                self.suppressNextUnitAura = false;
+
+                -- TODO: Very rarely there are two UPDATE_SHAPESHIFT_FORM events while turning back into normal.
+                -- If this happens, the second event is probably the one that should start a timer to update
+                -- the shoulder offset. However, the next UNIT_AURA is too early. To fix this for good we
+                -- would need a possibility to start timers like DynamicCam_wait and stop currently queued timers
+                -- that have not been executed yet... Then UPDATE_SHAPESHIFT_FORM could always stop the current
+                -- timers and start a new one.
+                return;
+            end
 
         -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
         -- TODO: Still timing problems with DRUID...
@@ -2024,36 +2046,75 @@ function DynamicCam:PerformShoulderOffsetCorrection(event, ...)
             return SetCVar("test_cameraOverShoulder", newValue);
         end
 
-    -- TODO: Would have liked to fix the "dismount wobble". But to no avail so far.
-    -- elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
-        -- if (IsMounted() == false) then
-            -- print ("you are dismounting!")
-            -- return DynamicCam_wait(0.0, SetCVar, "test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-        -- else
-            -- print ("you are mounting!")
-            -- return SetCVar("test_cameraOverShoulder", shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset))
-        -- end
+    elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
+        if (IsMounted() == false) then
+            -- print ("You are dismounting!")
 
-    elseif (event == "UNIT_ENTERING_VEHICLE") then
-        local unitName, dontcare1, dontcare2, dontcare2, vehicleGUID = ...;
+            -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
+            -- for the time between PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
+            -- Ask Blizzard why this is necessary...
+            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            if (newValue > 0) then
+                newValue = newValue * 10;
+            end
 
-        -- print (unitName);
-        -- print (vehicleGUID);
+            self.dismounting = true;
 
-        if (unitName == "player") then
-          local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
-          return SetCVar("test_cameraOverShoulder", newValue);
+            return SetCVar("test_cameraOverShoulder", newValue);
+
+        else
+            -- print ("You are mounting!")
+            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", newValue);
         end
 
-    -- This is for Worgen form changes.
-    -- TODO: Still slight timing problems.
-    elseif (event == "UNIT_MODEL_CHANGED") then
-        local unitName = ...;
 
+    elseif (event == "UNIT_AURA") then
+
+        if (self.suppressNextUnitAura == true) then
+            -- print ("Suppressing");
+            self.suppressNextUnitAura = false;
+            return;
+        end
+
+        if (self.dismounting == true) then
+            self.dismounting = false;
+        end
+
+        local unitName = ...;
+        if (unitName == "player") then
+            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", newValue);
+        end
+
+
+    elseif (event == "UNIT_MODEL_CHANGED") then
+
+        if (self.suppressNextUnitModelChanged == true) then
+            -- print ("Suppressing");
+            self.suppressNextUnitModelChanged = false;
+            return;
+        end
+
+        local unitName = ...;
         if (unitName == "player") then
           local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
           return SetCVar("test_cameraOverShoulder", newValue);
         end
+
+
+
+    elseif (event == "UNIT_ENTERING_VEHICLE") then
+        local unitName, dontcare1, dontcare2, dontcare2, vehicleGUID = ...;
+        -- print (unitName);
+        -- print (vehicleGUID);
+        if (unitName == "player") then
+            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
+            return SetCVar("test_cameraOverShoulder", newValue);
+        end
+
+
+
 
     else
         local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
@@ -2085,10 +2146,14 @@ function DynamicCam:RegisterEvents()
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "PerformShoulderOffsetCorrection");
 
 
-    -- Needed for taxi and mounts.
+    -- Needed for taxi and mounting.
     events["PLAYER_MOUNT_DISPLAY_CHANGED"] = true;
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "PerformShoulderOffsetCorrection");
 
+
+    -- Needed for the right time of model change while dismounting.
+    events["UNIT_AURA"] = true;
+    self:RegisterEvent("UNIT_AURA", "PerformShoulderOffsetCorrection");
 
     -- Needed for vehicles.
     events["UNIT_ENTERING_VEHICLE"] = true;
