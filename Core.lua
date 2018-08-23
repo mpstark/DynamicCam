@@ -1412,6 +1412,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
             local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(zoomValue) * self:CorrectShoulderOffset(value);
             if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedShoulderOffset)) then
+                stopEasingShoulderOffset();
                 easeShoulderOffset(correctedShoulderOffset, transitionTime);
             end
         else
@@ -1741,6 +1742,7 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID, exitingSituationF
 
                     local correctedShoulderOffset = self:GetShoulderOffsetZoomFactor(GetCameraZoom()) * self:CorrectShoulderOffset(value);
                     if (GetCVar("test_cameraOverShoulder") ~= tostring(correctedShoulderOffset)) then
+                        stopEasingShoulderOffset();
                         easeShoulderOffset(correctedShoulderOffset, 0.75);
                     end
                 end
