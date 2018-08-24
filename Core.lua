@@ -1970,6 +1970,12 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     -- print("ShoulderOffsetEventHandler got event: " .. event)
     -- print(...)
 
+    -- If the shoulder offset adjustments are disabled, do nothing!
+    if ((self.db.profile.modelIndependentShoulderOffset == 0) and (self.db.profile.shoulderOffsetZoom == 0)) then
+        return;
+    end
+
+
     -- Got to stop shoulder offset easing that might already be in process
     -- triggered by ExitSituation() called at the same time as the PLAYER_MOUNT_DISPLAY_CHANGED event.
     -- Otherweise there is a problem, if you change directly from "mounted" to "shapeshifted".
@@ -2018,9 +2024,16 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- Update lastWorgenModelID.
                 self.lastWorgenModelID = self:switchLastWorgenModelID();
 
-                local genderCode = UnitSex("player");
-                local newValue = shoulderOffsetZoomFactor * userSetShoulderOffset * self.raceAndGenderToShoulderOffsetFactor["Human"][genderCode];
-                return DynamicCam_wait(0.06, SetCVar, "test_cameraOverShoulder", newValue);
+
+                -- As we are circumventing CorrectShoulderOffset(), we have to check the setting here!
+                local factor = 1;
+                if (self.db.profile.modelIndependentShoulderOffset == 1) then
+                    local genderCode = UnitSex("player");
+                    factor = self.raceAndGenderToShoulderOffsetFactor["Human"][genderCode];
+                end
+
+                local correctedShoulderOffset = shoulderOffsetZoomFactor * userSetShoulderOffset * factor;
+                return DynamicCam_wait(0.06, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
 
             else
                 -- print("Changing into Worgen.");
@@ -2054,9 +2067,15 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             -- Update lastWorgenModelID.
             self.lastWorgenModelID = self:switchLastWorgenModelID();
 
-            local genderCode = UnitSex("player");
-            local newValue = shoulderOffsetZoomFactor * userSetShoulderOffset * self.raceAndGenderToShoulderOffsetFactor["Worgen"][genderCode];
-            return SetCVar("test_cameraOverShoulder", newValue);
+            -- As we are circumventing CorrectShoulderOffset(), we have to check the setting here!
+            local factor = 1;
+            if (self.db.profile.modelIndependentShoulderOffset == 1) then
+                local genderCode = UnitSex("player");
+                factor = self.raceAndGenderToShoulderOffsetFactor["Worgen"][genderCode];
+            end
+
+            local correctedShoulderOffset = shoulderOffsetZoomFactor * userSetShoulderOffset * factor;
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
 
         -- print("...doing nothing!");
@@ -2077,8 +2096,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- -- The UPDATE_SHAPESHIFT_FORM while turning into Ghostwolf comes too early.
                 -- -- And also the subsequent UNIT_MODEL_CHANGED is still too early.
                 -- -- That is why we have to use the DynamicCam_wait timer instead.
-                local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-                return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", newValue);
+                local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+                return DynamicCam_wait(0.025, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
 
             else
                 -- print("You are turning into normal Shaman!");
@@ -2099,8 +2118,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
         -- TODO: Still slight timing problems with DRUID...
         else
-            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-            return SetCVar("test_cameraOverShoulder", newValue);
+            local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
 
 
@@ -2109,20 +2128,22 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         if (IsMounted() == false) then
             -- print("You are dismounting!")
 
-            -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
-            -- for the time between PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
-            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-            if (newValue > 0) then
-                newValue = newValue * 10;
-            end
-
             -- Change the shoulder offset once here and then again with the next UNIT_AURA (see below).
             self.activateNextUnitAura = true;
-            return SetCVar("test_cameraOverShoulder", newValue);
+
+            local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
+            -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
+            -- But only if modelIndependentShoulderOffset is enabled.
+            if ((self.db.profile.modelIndependentShoulderOffset == 1) and (correctedShoulderOffset > 0)) then
+                correctedShoulderOffset = correctedShoulderOffset * 10;
+            end
+
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         else
             -- print("You are mounting!")
-            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-            return SetCVar("test_cameraOverShoulder", newValue);
+            local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
 
 
@@ -2141,8 +2162,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         if (self.activateNextUnitAura == true) then
             self.activateNextUnitAura = false;
 
-            local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-            return SetCVar("test_cameraOverShoulder", newValue);
+            local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
 
         -- print("... doing nothing!");
@@ -2159,18 +2180,18 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             return;
         end
 
-        local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
-        return SetCVar("test_cameraOverShoulder", newValue);
+        local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGUID);
+        return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
 
 
     -- TODO: Make UNIT_EXITING_VEHICLE explicit and check for unitName == "player"?
-    
-    
+
+
     -- This is then only needed for PLAYER_ENTERENTERING_WORLD.
     else
-        local newValue = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-        return SetCVar("test_cameraOverShoulder", newValue);
+        local correctedShoulderOffset = shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+        return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
     end
 
 end
