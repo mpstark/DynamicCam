@@ -119,7 +119,7 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
     -- These are the factors for Worgen form. For Human form take Human factors.
     ["Worgen"]              = {  [2] = 0.94,  [3] = 1.18  },
     -- TODO: Only tested female factor so far.
-    ["WorgenRunningWild"]   = {  [2] = 11.8,  [3] = 11.8  },
+    ["WorgenRunningWild"]   = {  [2] = 9.4,  [3] = 11.8  },
 
     -- TODO: Pandaren
 
@@ -190,28 +190,18 @@ end
 
 
 
-
-
-
-
-
 -- Sometimes, modelFrame:GetModelFileID() to determine Worgen form does return nil while changing form.
 -- For these cases we use the last known form stored in this variable, while waiting for the restart.
 DynamicCam.lastWorgenModelId = nil;
 
-
-
 -- We call this in the end of UNIT_MODEL_CHANGED to be safe against "hiccups",
 -- that my leave lastWorgenModelId at the wrong value.
 function DynamicCam:setLastWorgenModelId()
-
     -- print("setLastWorgenModelId()");
-
 
     local modelFrame = CreateFrame("PlayerModel");
     modelFrame:SetUnit("player");
     local modelId = modelFrame:GetModelFileID();
-
 
     if (modelId == nil) then
         -- print(modelId)
@@ -223,9 +213,7 @@ function DynamicCam:setLastWorgenModelId()
         -- print("Determined " .. modelId);
         self.lastWorgenModelId = modelId;
     end
-
 end
-
 
 -- Switch lastWorgenModelId without having to care about gender.
 function DynamicCam:switchLastWorgenModelId()
@@ -242,10 +230,7 @@ function DynamicCam:switchLastWorgenModelId()
         -- print("Switching nothing!");
         return self.lastWorgenModelId;
     end
-
 end
-
-
 
 
 -- WoW interprets the test_cameraOverShoulder variable differently depending on the current player model.
@@ -474,9 +459,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
     -- print("Correcting " .. offset .. " by " .. factor .. " to: " .. offset * factor );
     return offset * factor;
-
 end
-
 
 
 -- At zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
@@ -501,7 +484,6 @@ function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     else
         return 1;
     end
-
 end
 
 
