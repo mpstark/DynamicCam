@@ -121,7 +121,8 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
     -- TODO: Only tested female factor so far.
     ["WorgenRunningWild"]   = {  [2] = 9.4,  [3] = 11.8  },
 
-    -- TODO: Pandaren
+    -- TODO: Pandaren Female
+    ["Pandaren"]            = {  [2] = 0.95,  [3] = 1.25  },
 
 };
 
