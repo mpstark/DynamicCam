@@ -157,6 +157,30 @@ DynamicCam.mountIdToShoulderOffsetFactor = {
 
 
 
+DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
+
+    -- See here for meaning of formIds: https://wow.gamepedia.com/API_GetShapeshiftFormID
+
+    -- TODO: Other druid races have probably other factors...
+    [1]   = 0.862,   -- Cat
+    [3]   = 0.888,   -- Travel
+    [4]   = 0.71,    -- Aquatic
+    [5]   = 0.83,    -- Bear
+    [27]  = 0.54,    -- Swift Flight
+    [29]  = 0.54,    -- Flight          -- Assumed same as Swift Flight (not tested).
+    [31]  = 0.933,   -- Moonkin
+    -- TODO: Tree of Life
+
+    -- Ghostwolf seems to be independent of race.
+    [16]  = 0.775,  -- Ghostwolf
+
+
+    -- TODO: Demon Hunter Metamorphosis
+};
+
+
+
+
 
 -- To skip the iteration through all mounts trying to find the active one,
 -- we store the last active mount to be checked first.
@@ -309,7 +333,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
         else
             -- Should never happen!
             print("... ERROR!!");
-            return 1.0;
+            return 1;
         end
 
 
@@ -393,46 +417,17 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
     elseif (GetShapeshiftFormID(true) ~= nil) then
         -- print("You are shapeshifted.")
 
-
         local formId = GetShapeshiftFormID(true);
         -- print("formId: " .. formId)
 
-        -- See here for meaning of formIds: https://wow.gamepedia.com/API_GetShapeshiftFormID
-        -- Each shapeshift form needs a slightly different factor.
-
-        -- print("You are a ...")
-
-        if (formId == 5) then
-            -- print("... Druid in Bear form.")
-            return 0.83;
-        elseif (formId == 1) then
-            -- print("... Druid in Cat form.")
-            return 0.86;
-        elseif (formId == 3) then
-            -- print("... Druid in Travel form.")
-            return 0.89;
-        elseif (formId == 4) then
-            -- print("... Druid in Aquatic form.")
-            return 0.71;
-        elseif (formId == 27) then
-            -- print("... Druid in Swift Flight form.")
-            return 0.54;
-        elseif (formId == 29) then
-            -- print("... Druid in Flight form.")
-            -- TODO: Only tested Swift Flight form, guessing it will be the same for Non-Swift Flight form.
-            return 0.54;
-
-
-        -- TODO: Demon Hunter Metamorphosis
-        -- TODO: Druid Moonkin
-        -- TODO: Druid for all races...
-
-
-
-        elseif (formId == 16) then
-             -- print("... Shaman in Ghostwolf form.")
-             return 0.775;
+        -- Is the shapeshift form already in the code?
+        if (self.shapeshiftFormIdToShoulderOffsetFactor[formId]) then
+            return self.shapeshiftFormIdToShoulderOffsetFactor[formId];
+        else
+            DynamicCam:DebugPrint("... TODO: Shapeshift form id " .. formId .. " not yet known...");
+            return 1;
         end
+
 
     -- Is the player "normal"?
     else
@@ -2073,7 +2068,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
     -- Needed for Worgen form change.
     if (event == "UNIT_SPELLCAST_SUCCEEDED") then
-        local unitName, spellLineIDCounter, spellID = ...;
+        local unitName, _, spellId = ...;
 
         -- Only do something if UNIT_SPELLCAST_SUCCEEDED is for "player".
         if (unitName ~= "player") then
@@ -2086,7 +2081,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
             -- We only use this for chaning from Worgen into Human,
             -- because then the UNIT_MODEL_CHANGED comes a little too late.
-            if (spellID == 68996) then
+            if (spellId == 68996) then
                 -- print("Worgen form change ('Two Forms')!");
 
                 -- The cooldown of "Two Forms" is shorter than it takes to fully change into Worgen.
@@ -2132,7 +2127,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                         factor = self.raceAndGenderToShoulderOffsetFactor["Human"][genderCode];
                     end
 
-                    local correctedShoulderOffset = shoulderOffsetZoomFactor * userSetShoulderOffset * factor;
+                    local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * factor;
                     return DynamicCam_wait(0.065, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
 
                 else
@@ -2146,7 +2141,6 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 end
             end
         end  -- (raceId == "Worgen")
-
 
 
     -- Needed for Worgen form change.
@@ -2245,9 +2239,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
         end  -- (raceId == "Worgen")
 
-
         -- print("...doing nothing!");
-
 
 
     -- To suppress Worgen UNIT_MODEL_CHANGED after loading screen.
@@ -2265,7 +2257,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     -- Needed for shapeshifting.
     elseif (event == "UPDATE_SHAPESHIFT_FORM") then
 
-        local localizedClass, englishClass, classIndex = UnitClass("player");
+        local _, englishClass = UnitClass("player");
         if (englishClass == "SHAMAN") then
 
             if (GetShapeshiftFormID(true) ~= nil) then
@@ -2293,10 +2285,41 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 return;
             end
         -- end (englishClass == "SHAMAN")
+        elseif (englishClass == "DRUID") then
+
+            local raceName, raceId = UnitRace("player");
+            if ((raceId == "Worgen")) then
+                self.skipNextWorgenUnitModelChanged = 1;
+            end
+
+
+            local formId = GetShapeshiftFormID(true);
+            if (formId ~= nil) then
+                -- print("You are turning into something (" .. formId .. ").");
+
+                local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+
+                if (formId == 5) then
+                    -- For bear this works quite reliable!
+                    return DynamicCam_wait(0.05, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+                elseif (formId == 1) then
+                    -- For cat it only works some of the time, and I could not find out what the cause is...
+                    return DynamicCam_wait(0.05, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+                end
+
+                return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+
+            else
+                -- print("You are turning into normal Druid!");
+
+                -- Do not change the shoulder offset here.
+                -- Wait until the next UNIT_AURA for perfect timing.
+                self.activateNextUnitAura = true;
+                return;
+            end
 
 
         -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
-        -- TODO: Still slight timing problems with DRUID...  Maybe try UNIT_MODEL_CHANGED instead?
         else
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2341,6 +2364,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- This is flag is set while dismounting and while changing from Ghostwolf into Shaman.
         if (self.activateNextUnitAura == true) then
             self.activateNextUnitAura = false;
+
+            -- print("... executing!");
 
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2413,7 +2438,8 @@ function DynamicCam:RegisterEvents()
     self:RegisterEvent("UNIT_EXITING_VEHICLE", "ShoulderOffsetEventHandler");
 
     -- Needed for being teleported into a dungeon while mounted,
-    -- beacuse you when entering you get automatically dismounted.
+    -- because when entering you get automatically dismounted
+    -- without PLAYER_MOUNT_DISPLAY_CHANGED being executed.
     events["PLAYER_ENTERING_WORLD"] = true;
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "ShoulderOffsetEventHandler");
 
