@@ -48,7 +48,7 @@ DynamicCam.currentSituationID = nil;
 
 
 -- This is needed to get the timing of changing the shoulder offset as good as possible
--- for some model changes. We also use it to restart setLastWorgenModelId() or correctedShoulderOffset()
+-- for some model changes. We also use it to restart setLastWorgenModelId()
 -- when the current Worgen model could not yet been determined.
 -- http://wowwiki.wikia.com/wiki/Wait
 
@@ -101,8 +101,10 @@ DynamicCam.modelId = {
 DynamicCam.raceAndGenderToShoulderOffsetFactor = {
 
     -- http://wowwiki.wikia.com/wiki/API_UnitRace
+    -- https://wow.gamepedia.com/RaceId
     -- race                         male         female
     ["Orc"]                 = {  [2] = 1.00,  [3] = 1.26  },
+    ["MagharOrc"]           = {  [2] = 1.00,  [3] = 1.26  },   -- Assumed same as Orc (not tested).
     ["Scourge"]             = {  [2] = 1.20,  [3] = 1.40  },
     ["Tauren"]              = {  [2] = 1.00,  [3] = 1.15  },
     ["HighmountainTauren"]  = {  [2] = 1.00,  [3] = 1.15  },   -- Assumed same as Tauren (not tested).
@@ -110,9 +112,9 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
     ["BloodElf"]            = {  [2] = 1.32,  [3] = 1.38  },
     ["VoidElf"]             = {  [2] = 1.32,  [3] = 1.38  },   -- Assumed same as BloodElf (not tested).
     ["Goblin"]              = {  [2] = 1.32,  [3] = 1.32  },
-
     ["Human"]               = {  [2] = 1.25,  [3] = 1.45  },
     ["Dwarf"]               = {  [2] = 1.13,  [3] = 1.42  },
+    ["DarkIronDwarf"]       = {  [2] = 1.13,  [3] = 1.42  },   -- Assumed same as Dwarf (not tested).
     ["NightElf"]            = {  [2] = 1.20,  [3] = 1.40  },
     ["Nightborne"]          = {  [2] = 1.20,  [3] = 1.40  },   -- Assumed same as NightElf (not tested).
     ["Gnome"]               = {  [2] = 1.60,  [3] = 1.62  },
@@ -121,7 +123,7 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
     -- These are the factors for Worgen form. For Human form take Human factors.
     ["Worgen"]              = {  [2] = 0.94,  [3] = 1.18  },
     -- TODO: Only tested female factor so far.
-    ["WorgenRunningWild"]   = {  [2] = 9.4,  [3] = 11.8  },
+    ["WorgenRunningWild"]   = {  [2] = 9.40,  [3] = 11.8  },
 
     -- TODO: Only tested male factor so far.
     ["Pandaren"]            = {  [2] = 0.95,  [3] = 1.25  },
@@ -305,15 +307,16 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
             -- Default for all unknown vehicles...
             return 0.5;
         else
+            -- Should never happen!
             print("... ERROR!!");
-            return;
+            return 1.0;
         end
 
 
 
     -- Is the player mounted?
     elseif (IsMounted()) then
-        -- print("You are mounted.")
+        -- print("You are mounted.");
 
         -- No idea why this is necessary when mounted; seems to be a persistent bug on Blizzard's side!
         local mountedFactor = 1;
@@ -348,29 +351,31 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
                 -- Happens when mounted while logging in.
                 if (self.lastActiveMount == nil) then
-                    return mountedFactor * 1;
+                    -- TODO: If you want to make it better, remember the last mount for each character
+                    -- in the add-on database...
+                    return mountedFactor * 6;
                 -- Use the last active mount.
                 else
-                    local creatureName = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
+                    -- Is the mount already in the code?
                     if (self.mountIdToShoulderOffsetFactor[self.lastActiveMount]) then
                         return mountedFactor * self.mountIdToShoulderOffsetFactor[self.lastActiveMount];
                     else
-                        -- Default for all other mounts...
+                        local creatureName = C_MountJournal.GetMountInfoByID(self.lastActiveMount);
                         DynamicCam:DebugPrint("... TODO: Mount '" .. creatureName .. "' (" .. self.lastActiveMount .. ") not yet known...");
+                        -- Default for all other mounts...
                         return mountedFactor * 6;
                     end
                 end
 
             -- mountId not nil
             else
-                local creatureName = C_MountJournal.GetMountInfoByID(mountId);
-                -- print("You are mounted on '" .. creatureName .. "' (" .. mountId .. ").")
-
+                -- Is the mount already in the code?
                 if (self.mountIdToShoulderOffsetFactor[mountId]) then
                     return mountedFactor * self.mountIdToShoulderOffsetFactor[mountId];
                 else
-                    -- Default for all other mounts...
+                    local creatureName = C_MountJournal.GetMountInfoByID(mountId);
                     DynamicCam:DebugPrint("... TODO: Mount '" .. creatureName .. "' (" .. mountId .. ") not yet known...");
+                    -- Default for all other mounts...
                     return mountedFactor * 6;
                 end
             end
@@ -418,8 +423,10 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
             return 0.54;
 
 
-        -- TODO: Druid Moonkin
         -- TODO: Demon Hunter Metamorphosis
+        -- TODO: Druid Moonkin
+        -- TODO: Druid for all races...
+
 
 
         elseif (formId == 16) then
@@ -446,13 +453,11 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
             -- While dismounting, modelId may return nil.
             -- When this occurs we use the last known modelId and
-            -- restart CorrectShoulderOffset with a slight delay,
-            -- to be sure to get the correct form eventually.
+            -- call setLastWorgenModelId, to be sure to get the
+            -- correct Worgen form eventually.
             if (modelId == nil) then
-                -- print("Restarting")
-                DynamicCam_wait(0.1, DynamicCam.CorrectShoulderOffset, DynamicCam, offset);
-
                 modelId = self.lastWorgenModelId;
+                self:setLastWorgenModelId();
             else
                 self.lastWorgenModelId = modelId;
             end
@@ -1185,12 +1190,20 @@ function DynamicCam:Startup()
         self:ReactiveZoomOff();
     end
 
-
     -- This will eventually set the right Worgen model ID.
-    local raceName, raceId = UnitRace("player");
+    local _, raceId = UnitRace("player");
     if ((raceId == "Worgen")) then
         self:setLastWorgenModelId();
     end
+
+    -- If we do not set the shoulder offset once already here, there will always be a
+    -- slight delay after logging in, as entering situation comes a little too late.
+    -- This only comes into effect, when you switch between characters with different factors.
+    local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom());
+    local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
+    local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+    SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+
 
     started = true;
 end
@@ -1417,9 +1430,9 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
     for cvar, value in pairs(situation.cameraCVars) do
         if (cvar == "test_cameraOverShoulder") then
 
-            local zoomValue = GetCameraZoom()
+            local zoomValue = GetCameraZoom();
             if (a.zoomValue) then
-                zoomValue = a.zoomValue
+                zoomValue = a.zoomValue;
             end
 
             local correctedShoulderOffset = value * self:GetShoulderOffsetZoomFactor(zoomValue) * self:CorrectShoulderOffset(value);
@@ -1536,8 +1549,6 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         local t = math.max(10.0/60.0, math.min(defaultTime, .75));
         local zoomLevel = restoration[situationID].zoom;
 
-        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
-
         LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
 
 
@@ -1546,11 +1557,9 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
         easeShoulderOffset(correctedShoulderOffset, t, LibEasing[self.db.profile.easingZoom]);
 
-        self:DebugPrint("Restoring! zoom level:", zoomLevel, "test_cameraOverShoulder", correctedShoulderOffset, "duration", t);
+        self:DebugPrint("Restoring zoom level:", zoomLevel, " and shoulder offset:", correctedShoulderOffset, " with duration:", t);
 
     else
-        self:DebugPrint("Not restoring zoom level");
-
         -- Just restore test_cameraOverShoulder, because we skipped it by passing true as the second
         -- argument (exitingSituationFlag) to ApplyDefaultCameraSettings() above.
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
@@ -1558,8 +1567,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
         easeShoulderOffset(correctedShoulderOffset, 0.75);
 
-        self:DebugPrint("Restoring! test_cameraOverShoulder: " .. correctedShoulderOffset)
-
+        self:DebugPrint("Not restoring zoom level but shoulder offset: " .. correctedShoulderOffset);
     end
 
     -- unhide UI
@@ -1721,7 +1729,7 @@ end
 -------------
 -- UTILITY --
 -------------
--- The second argument (exitingSituationFlag) can is set to true if ApplyDefaultCameraSettings
+-- The second argument (exitingSituationFlag) can be set to true if ApplyDefaultCameraSettings
 -- is called when exiting a situation. This will lead to skipping test_cameraOverShoulder in
 -- assinging all default settings. Because we would like to ease the shoulder offset transition
 -- at the same pace as we change the zoom level when exiting a situation, instead of setting
@@ -2024,10 +2032,17 @@ DynamicCam.activateNextUnitAura = false;
 -- The cooldown of "Two Forms" is shorter than it actually takes to perform the transformation.
 -- This flag indicates that a change into Worgen with "Two Forms" is in progress.
 DynamicCam.changingIntoWorgen = false;
--- When "Two Forms" is used again while the change into Worgen is in progress,
--- we need to skip the next 2 executions of UNIT_MODEL_CHANGED, lest a change into
--- Worgen form is assumed.
-DynamicCam.changingIntoHuman = 0;
+
+-- To detect a spontaneous change into Worgen when entering combat, we need
+-- to react to every execution of UNIT_MODEL_CHANGED. Every Worgen form change triggers
+-- two UNIT_MODEL_CHANGED executions, the first of which has the right timing but
+-- can only get modelId == nil. So we assume a form change whenever we get
+-- UNIT_MODEL_CHANGED and modelId == nil.
+-- However, there are certain situations in which we want to suppress the next executions of
+-- UNIT_MODEL_CHANGED to do this. (E.g. when "Two Forms" is used again while the change into
+-- Worgen is in progress etc.) This variable can be set to skip a certain number of upcoming
+-- UNIT_MODEL_CHANGED executions.
+DynamicCam.skipNextWorgenUnitModelChanged = 0;
 
 
 function DynamicCam:ShoulderOffsetEventHandler(event, ...)
@@ -2035,16 +2050,17 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     -- print("ShoulderOffsetEventHandler got event: " .. event)
     -- print(...)
 
-    -- If the shoulder offset adjustments are disabled, do nothing!
+    -- If both shoulder offset adjustments are disabled, do nothing!
     if ((self.db.profile.modelIndependentShoulderOffset == 0) and (self.db.profile.shoulderOffsetZoom == 0)) then
         return;
     end
 
 
-    -- Got to stop shoulder offset easing that might already be in process
-    -- triggered by ExitSituation() called at the same time as the PLAYER_MOUNT_DISPLAY_CHANGED event.
+    -- Got to stop shoulder offset easing that might already be in process.
+    -- E.g. an easing started in ExitSituation() called at the same time as
+    -- the execution of PLAYER_MOUNT_DISPLAY_CHANGED.
     -- Otherweise there is a problem, if you change directly from "mounted" to "shapeshifted".
-    -- Because ExitSituation will find the player temporarily in normal form,
+    -- Because ExitSituation() will find the player temporarily in normal form,
     -- calculate the shoulder offset for it and start the shoulder offset ease.
     -- Then comes the UPDATE_SHAPESHIFT_FORM event triggering ShoulderOffsetEventHandler(),
     -- but its new shoulder offset value will be overridden by the ongoing easing.
@@ -2078,7 +2094,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 if (self.changingIntoWorgen) then
                     self.changingIntoWorgen = false;
                     -- We need to skip the next two executions of UNIT_MODEL_CHANGED.
-                    self.changingIntoHuman = 2;
+                    self.skipNextWorgenUnitModelChanged = 2;
                     return;
                 end
 
@@ -2105,9 +2121,9 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
                     -- Remember that we are currently chaning into Human in order to suppress
                     -- a shoulder offset change by the next UNIT_MODEL_CHANGED.
-                    -- The subsequent UNIT_MODEL_CHANGED would not hurt, as it would correctly
+                    -- The second next UNIT_MODEL_CHANGED would not hurt, as it would correctly
                     -- identify the Human model, but we can suppress it as well.
-                    self.changingIntoHuman = 2;
+                    self.skipNextWorgenUnitModelChanged = 2;
 
                     -- As we are circumventing CorrectShoulderOffset(), we have to check the setting here!
                     local factor = 1;
@@ -2159,9 +2175,9 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             -- Thus, when turning from Worgen into Human, we completely suppress the first
             -- call of UNIT_MODEL_CHANGED. (When using "Two Forms" while chaning into Worgen
             -- we even have to skip the next two calls of UNIT_MODEL_CHANGED.)
-            if (self.changingIntoHuman > 0) then
-                -- print("Suppressing UNIT_MODEL_CHANGED because Worgen->Human");
-                self.changingIntoHuman = self.changingIntoHuman - 1;
+            if (self.skipNextWorgenUnitModelChanged > 0) then
+                -- print("Suppressing UNIT_MODEL_CHANGED because of skipNextWorgenUnitModelChanged == " .. self.skipNextWorgenUnitModelChanged);
+                self.skipNextWorgenUnitModelChanged = self.skipNextWorgenUnitModelChanged - 1;
 
                 -- This will eventually set the right model ID.
                 self:setLastWorgenModelId();
@@ -2189,7 +2205,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             -- print(modelId);
 
             if ((modelId == self.modelId["Worgen"][2]) or (modelId == self.modelId["Worgen"][3])) then
-                -- print("UNIT_MODEL_CHANGED Human->Worgen");
+                -- print("UNIT_MODEL_CHANGED ->Worgen");
 
                 -- Remember that the change into Worgen is complete.
                 self.changingIntoWorgen = false;
@@ -2204,12 +2220,14 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- This will eventually set the right model ID.
                 self:setLastWorgenModelId();
 
-                local correctedShoulderOffset = shoulderOffsetZoomFactor * userSetShoulderOffset * factor;
+                local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * factor;
+                -- TODO: In fact this is still a little bit too late! But if we want to set it earlier, we would have
+                -- to capture every event that will force change from worgen into human... Is it possible?
                 return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
             else
                 -- This should never happen except directly after logging in.
-                -- print("UNIT_MODEL_CHANGED Human->Worgen");
+                -- print("UNIT_MODEL_CHANGED ->Human");
 
                 -- As we are circumventing CorrectShoulderOffset(), we have to check the setting here!
                 local factor = 1;
@@ -2221,7 +2239,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- This will eventually set the right model ID.
                 self:setLastWorgenModelId();
 
-                local correctedShoulderOffset = shoulderOffsetZoomFactor * userSetShoulderOffset * factor;
+                local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * factor;
                 return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
             end
 
@@ -2229,6 +2247,19 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
 
         -- print("...doing nothing!");
+
+
+
+    -- To suppress Worgen UNIT_MODEL_CHANGED after loading screen.
+    elseif (event == "LOADING_SCREEN_DISABLED") then
+
+        local raceName, raceId = UnitRace("player");
+        if ((raceId == "Worgen")) then
+            self.skipNextWorgenUnitModelChanged = 3;
+        end
+
+
+
 
 
     -- Needed for shapeshifting.
@@ -2357,6 +2388,10 @@ function DynamicCam:RegisterEvents()
     -- Needed for Worgen form change.
     events["UNIT_MODEL_CHANGED"] = true;
     self:RegisterEvent("UNIT_MODEL_CHANGED", "ShoulderOffsetEventHandler");
+
+    -- To suppress Worgen UNIT_MODEL_CHANGED after loading screen.
+    events["LOADING_SCREEN_DISABLED"] = true;
+    self:RegisterEvent("LOADING_SCREEN_DISABLED", "ShoulderOffsetEventHandler");
 
     -- Needed for shapeshifting.
     events["UPDATE_SHAPESHIFT_FORM"] = true;
