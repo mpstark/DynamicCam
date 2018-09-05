@@ -48,7 +48,7 @@ DynamicCam.currentSituationID = nil;
 
 
 -- This is needed to get the timing of changing the shoulder offset as good as possible
--- for some model changes. We also use it to restart setLastWorgenModelId()
+-- for some model changes. We also use it to restart SetLastWorgenModelId()
 -- when the current Worgen model could not yet been determined.
 -- http://wowwiki.wikia.com/wiki/Wait
 
@@ -131,6 +131,27 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
 };
 
 
+DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
+
+    -- See here for meaning of formIds: https://wow.gamepedia.com/API_GetShapeshiftFormID
+
+    -- TODO: Other druid races have probably other factors...
+    [1]   = 0.862,   -- Cat
+    [3]   = 0.888,   -- Travel
+    [4]   = 0.71,    -- Aquatic
+    [5]   = 0.83,    -- Bear
+    [27]  = 0.54,    -- Swift Flight
+    [29]  = 0.54,    -- Flight          -- Assumed same as Swift Flight (not tested).
+    [31]  = 0.933,   -- Moonkin
+    -- TODO: Tree of Life
+
+    -- Ghostwolf seems to be independent of race.
+    [16]  = 0.775,  -- Ghostwolf
+
+    -- TODO: This is only for BloodElf Male
+    ["DemonHunterMetamorphosis"]  = 0.52,
+    ["DemonHunterVengeance"]      = 0.74,
+};
 
 
 -- Map mountId to sholder offset factor.
@@ -156,29 +177,16 @@ DynamicCam.mountIdToShoulderOffsetFactor = {
 };
 
 
+-- TODO: Here we have to fill in offset factors for each and every vehicle model in the game...
+-- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
+-- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
+-- explaining how to determine the correct factor, which they would then send to us.
+DynamicCam.vehicleIdToShoulderOffsetFactor = {
 
-DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
+    [35129]  = 0.38,  -- Reprogrammed Shredder
+    [40854]  = 0.20,  -- River Boat
 
-    -- See here for meaning of formIds: https://wow.gamepedia.com/API_GetShapeshiftFormID
-
-    -- TODO: Other druid races have probably other factors...
-    [1]   = 0.862,   -- Cat
-    [3]   = 0.888,   -- Travel
-    [4]   = 0.71,    -- Aquatic
-    [5]   = 0.83,    -- Bear
-    [27]  = 0.54,    -- Swift Flight
-    [29]  = 0.54,    -- Flight          -- Assumed same as Swift Flight (not tested).
-    [31]  = 0.933,   -- Moonkin
-    -- TODO: Tree of Life
-
-    -- Ghostwolf seems to be independent of race.
-    [16]  = 0.775,  -- Ghostwolf
-
-
-    -- TODO: Demon Hunter Metamorphosis
 };
-
-
 
 
 
@@ -191,7 +199,7 @@ DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
 DynamicCam.lastActiveMount = nil;
 
 -- Returns the mount ID of the currently active mount if any.
-function DynamicCam:getCurrentMount()
+function DynamicCam:GetCurrentMount()
 
     -- First check if the last active mount is still active.
     -- This will save us the effort of iterating through the whole mount journal.
@@ -228,8 +236,8 @@ DynamicCam.lastWorgenModelId = nil;
 
 -- We call this in the end of UNIT_MODEL_CHANGED to be safe against "hiccups",
 -- that my leave lastWorgenModelId at the wrong value.
-function DynamicCam:setLastWorgenModelId()
-    -- print("setLastWorgenModelId()");
+function DynamicCam:SetLastWorgenModelId()
+    -- print("SetLastWorgenModelId()");
 
     local modelFrame = CreateFrame("PlayerModel");
     modelFrame:SetUnit("player");
@@ -238,7 +246,7 @@ function DynamicCam:setLastWorgenModelId()
     if (modelId == nil) then
         -- print(modelId)
         -- print("Restarting")
-        DynamicCam_wait(0.01, DynamicCam.setLastWorgenModelId, DynamicCam);
+        DynamicCam_wait(0.01, DynamicCam.SetLastWorgenModelId, DynamicCam);
 
         modelId = self.lastWorgenModelId;
     else
@@ -248,7 +256,7 @@ function DynamicCam:setLastWorgenModelId()
 end
 
 -- Switch lastWorgenModelId without having to care about gender.
-function DynamicCam:switchLastWorgenModelId()
+function DynamicCam:SwitchLastWorgenModelId()
 
     if     (self.lastWorgenModelId == self.modelId["Human"][2]) then
                                return self.modelId["Worgen"][2];   -- Human to Worgen male.
@@ -308,20 +316,14 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
 
         local _, _, _, _, _, vehicleId = strsplit("-", vehicleGuid);
+        vehicleId = tonumber(vehicleId);
         -- print(vehicleId)
 
-        -- TODO: Here we have to fill in offset factors for each and every vehicle model in the game...
-        -- We could maybe make this a "croudsourcing" endeavour. People will see the console message below,
-        -- if their current vehicle is not yet in the code, and I could make a youtube video tutorial
-        -- explaining how to determine the correct factor, which they would then send to us.
-        if (vehicleId == "40854") then -- River Boat
-            return 0.20;
-        elseif (vehicleId == "35129") then -- Reprogrammed Shredder
-            return 0.38;
-        elseif (vehicleId) then
-
+        -- Is the shapeshift form already in the code?
+        if (self.vehicleIdToShoulderOffsetFactor[vehicleId]) then
+            return self.vehicleIdToShoulderOffsetFactor[vehicleId];
+        else
             local vehicleName = GetUnitName("vehicle", false);
-
             if (vehicleName == nil) then
                 DynamicCam:DebugPrint("... TODO: Just entering unknown vehicle with ID " .. vehicleId .. ". Zoom in or out to get message including vehicle name!");
             else
@@ -330,12 +332,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
             -- Default for all unknown vehicles...
             return 0.5;
-        else
-            -- Should never happen!
-            print("... ERROR!!");
-            return 1;
         end
-
 
 
     -- Is the player mounted?
@@ -351,7 +348,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
         -- Is the player really mounted and not on a "taxi"?
         if (not UnitOnTaxi("player")) then
 
-            local mountId = self:getCurrentMount();
+            local mountId = self:GetCurrentMount();
 
             -- Right after logging in while on a mount it happens that "IsMounted()" returns true,
             -- but C_MountJournal.GetMountInfoByID() is not yet able to determine that the mount is active.
@@ -363,7 +360,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
                 local raceName, raceId = UnitRace("player");
                 if ((raceId == "Worgen")) then
                     for i = 1,40 do
-                        local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player",i);
+                        local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
                         if (spellId == 87840) then
                             -- print("Running wild");
                             local genderCode = UnitSex("player");
@@ -407,7 +404,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
         else
             -- print("You are on a taxi!")
             -- Works all right for Wind Riders.
-            -- TODO: This should probably also be done separately for all taxi models in the game.
+            -- TODO: This should probably also be done individually for all taxi models in the game.
             return mountedFactor * 2.5;
         end
 
@@ -433,6 +430,27 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
     else
         -- print("You are normal ...")
 
+        -- Check for Demon Hunter Metamorphosis.
+        local _, englishClass = UnitClass("player");
+        if (englishClass == "DEMONHUNTER") then
+            for i = 1,40 do
+                local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+                -- print (name, spellId);
+                if (spellId == 162264) then
+                    -- print("Demon Hunter Metamorphosis Havoc");
+                    return self.shapeshiftFormIdToShoulderOffsetFactor["DemonHunterMetamorphosis"];
+                elseif (spellId == 187827) then
+                    -- print("Demon Hunter Metamorphosis Vengeance");
+                    return self.shapeshiftFormIdToShoulderOffsetFactor["DemonHunterVengeance"];
+                end
+            end
+        end
+
+
+
+
+
+
         -- http://wowwiki.wikia.com/wiki/API_UnitRace
         local raceName, raceId = UnitRace("player");
         local genderCode = UnitSex("player");
@@ -448,11 +466,11 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
             -- While dismounting, modelId may return nil.
             -- When this occurs we use the last known modelId and
-            -- call setLastWorgenModelId, to be sure to get the
+            -- call SetLastWorgenModelId, to be sure to get the
             -- correct Worgen form eventually.
             if (modelId == nil) then
                 modelId = self.lastWorgenModelId;
-                self:setLastWorgenModelId();
+                self:SetLastWorgenModelId();
             else
                 self.lastWorgenModelId = modelId;
             end
@@ -1188,7 +1206,7 @@ function DynamicCam:Startup()
     -- This will eventually set the right Worgen model ID.
     local _, raceId = UnitRace("player");
     if ((raceId == "Worgen")) then
-        self:setLastWorgenModelId();
+        self:SetLastWorgenModelId();
     end
 
     -- If we do not set the shoulder offset once already here, there will always be a
@@ -2021,7 +2039,8 @@ end
 
 -- While dismounting we need to execute a shoulder offset change at the time
 -- of the next UNIT_AURA event; but only then. So we use this variable as a flag.
--- We also need this for the perfect timing while changing from Ghostwolf back to Shaman.
+-- We also need this for the perfect timing while changing from Ghostwolf back to Shaman
+-- and from shapeshifted back to Druid.
 DynamicCam.activateNextUnitAura = false;
 
 -- The cooldown of "Two Forms" is shorter than it actually takes to perform the transformation.
@@ -2066,7 +2085,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom());
 
 
-    -- Needed for Worgen form change.
+    -- Needed for Worgen form change and Demon Hunter Metamorphosis.
     if (event == "UNIT_SPELLCAST_SUCCEEDED") then
         local unitName, _, spellId = ...;
 
@@ -2095,7 +2114,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
 
                 -- Derive the Worgen form you are changing into from the last known form.
-                local targetWorgenFormAtSpellcast = self:switchLastWorgenModelId();
+                local targetWorgenFormAtSpellcast = self:SwitchLastWorgenModelId();
                 if ((targetWorgenFormAtSpellcast == self.modelId["Human"][2]) or (targetWorgenFormAtSpellcast == self.modelId["Human"][3])) then
                     -- print("Changing into Human.");
 
@@ -2174,7 +2193,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 self.skipNextWorgenUnitModelChanged = self.skipNextWorgenUnitModelChanged - 1;
 
                 -- This will eventually set the right model ID.
-                self:setLastWorgenModelId();
+                self:SetLastWorgenModelId();
 
                 return;
             end
@@ -2192,7 +2211,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
 
             if (modelId == nil) then
                 -- print("Using the opposite of lastWorgenModelId.");
-                modelId = self:switchLastWorgenModelId();
+                modelId = self:SwitchLastWorgenModelId();
             end
 
             -- print("Assuming you turn into");
@@ -2212,7 +2231,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 end
 
                 -- This will eventually set the right model ID.
-                self:setLastWorgenModelId();
+                self:SetLastWorgenModelId();
 
                 local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * factor;
                 -- TODO: In fact this is still a little bit too late! But if we want to set it earlier, we would have
@@ -2231,7 +2250,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 end
 
                 -- This will eventually set the right model ID.
-                self:setLastWorgenModelId();
+                self:SetLastWorgenModelId();
 
                 local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * factor;
                 return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2249,9 +2268,6 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         if ((raceId == "Worgen")) then
             self.skipNextWorgenUnitModelChanged = 3;
         end
-
-
-
 
 
     -- Needed for shapeshifting.
@@ -2297,6 +2313,11 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             if (formId ~= nil) then
                 -- print("You are turning into something (" .. formId .. ").");
 
+                -- When turning from druid into shapeshift, two UPDATE_SHAPESHIFT_FORM
+                -- are executed, the first of which still gets formId == nil.
+                -- So it will set activateNextUnitAura to true which we are revoking here.
+                self.activateNextUnitAura = false;
+
                 local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
 
                 if (formId == 5) then
@@ -2317,13 +2338,9 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 self.activateNextUnitAura = true;
                 return;
             end
+        end -- (englishClass == "DRUID")
 
-
-        -- If there is a UPDATE_SHAPESHIFT_FORM class we have forgotten...
-        else
-            local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
-            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
-        end
+        -- print("... doing nothing!");
 
 
     -- Needed for mounting and entering taxis.
@@ -2350,8 +2367,9 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         end
 
 
-    -- Needed to determine the right time to change shoulder offset while dismounting
-    -- and when changing from Shaman Ghostwolf into normal.
+    -- Needed to determine the right time to change shoulder offset while dismounting,
+    -- when changing from Shaman Ghostwolf into normal
+    -- and for Demon Hunter Metamorphosis.
     elseif (event == "UNIT_AURA") then
 
         -- Only do something if UNIT_AURA is for "player".
@@ -2360,8 +2378,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             return;
         end
 
-
-        -- This is flag is set while dismounting and while changing from Ghostwolf into Shaman.
+        -- This is flag is set while dismounting, while changing from Ghostwolf into Shaman
+        -- and while changing from shapeshifted into Druid.
         if (self.activateNextUnitAura == true) then
             self.activateNextUnitAura = false;
 
@@ -2370,6 +2388,38 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
+
+
+
+        -- We are also using UNIT_AURA to get the right timing for Demon Hunter Metamorphosis.
+        -- Demon hunter always has to check for Metamorphosis.
+        -- TODO: Mounting and dismounting while in Metamorphosis would have to be taken care of specifically.
+        local _, englishClass = UnitClass("player");
+        if (englishClass == "DEMONHUNTER") then
+
+            -- Turning into Metamorphosis.
+            for i = 1,40 do
+                local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+                -- print (name, spellId);
+                if (spellId == 162264) then
+                    -- print("UNIT_AURA for METAMORPHOSIS HAVOC");
+                    local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+                    return DynamicCam_wait(0.69, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+                elseif (spellId == 187827) then
+                    -- print("UNIT_AURA for METAMORPHOSIS VENGEANCE");
+                    local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+                    return DynamicCam_wait(0.966, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+                end
+            end
+
+            -- Turning into normal Demon Hunter.
+            local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            -- print("UNIT_AURA for DEMON HUNTER back to normal");
+            -- return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+            return DynamicCam_wait(0.082, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+
+        end  -- (englishClass == "DEMONHUNTER")
+
 
         -- print("... doing nothing!");
 
@@ -2388,13 +2438,23 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset, vehicleGuid);
         return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
+    -- Needed for vehicles.
+    elseif (event == "UNIT_EXITING_VEHICLE") then
+        local unitName = ...;
+
+        -- Only do something if UNIT_EXITING_VEHICLE is for "player".
+        if (unitName ~= "player") then
+            return;
+        end
+
+        local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+        return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
 
-    -- TODO: Make UNIT_EXITING_VEHICLE explicit and check for unitName == "player"?
-
-
-    -- This is then only needed for PLAYER_ENTERING_WORLD.
-    else
+    -- Needed for being teleported into a dungeon while mounted,
+    -- because when entering you get automatically dismounted
+    -- without PLAYER_MOUNT_DISPLAY_CHANGED being executed.
+    elseif (event == "PLAYER_ENTERING_WORLD") then
         local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
         return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
     end
@@ -2426,8 +2486,9 @@ function DynamicCam:RegisterEvents()
     events["PLAYER_MOUNT_DISPLAY_CHANGED"] = true;
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "ShoulderOffsetEventHandler");
 
-    -- Needed to determine the right time to change shoulder offset while dismounting
-    -- and when changing from Shaman Ghostwolf into normal.
+    -- Needed to determine the right time to change shoulder offset while dismounting,
+    -- when changing from Shaman Ghostwolf into normal
+    -- and for Demon Hunter Metamorphosis.
     events["UNIT_AURA"] = true;
     self:RegisterEvent("UNIT_AURA", "ShoulderOffsetEventHandler");
 
