@@ -1946,8 +1946,8 @@ end
 function DynamicCam:ReactiveZoomOff()
     -- CameraZoomIn = oldCameraZoomIn;
     -- CameraZoomOut = oldCameraZoomOut;
-    -- shoulderOffsetZoomCheck will make the above hooks.
-    self:shoulderOffsetZoomCheck();
+    -- ShoulderOffsetZoomCheck will make the above hooks.
+    self:ShoulderOffsetZoomCheck();
 end
 
 
@@ -1996,7 +1996,7 @@ function hooked_oldCameraZoomOut(...)
 end
 
 
-function DynamicCam:shoulderOffsetZoomCheck()
+function DynamicCam:ShoulderOffsetZoomCheck()
     if (self.db.profile.shoulderOffsetZoom == 1) then
         CameraZoomIn  = hooked_oldCameraZoomIn;
         CameraZoomOut = hooked_oldCameraZoomOut;
