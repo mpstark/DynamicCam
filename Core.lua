@@ -2348,17 +2348,23 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         if (IsMounted() == false) then
             -- print("You are dismounting!")
 
-            -- Change the shoulder offset once here and then again with the next UNIT_AURA (see below).
+            -- Change the shoulder offset once here and then again with the next UNIT_AURA.
             self.activateNextUnitAura = true;
-
+            
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+
+            -- There are cases (e.g. when leaving a taxi or sometimes when being dismounted
+            -- automatically while entering indoors) when there comes no UNIT_AURA after PLAYER_MOUNT_DISPLAY_CHANGED.
+            -- To catch these cases as well, we start the timer here.
+            DynamicCam_wait(0.2, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+            
             -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
             -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
             -- But only if modelIndependentShoulderOffset is enabled.
             if ((self.db.profile.modelIndependentShoulderOffset == 1) and (correctedShoulderOffset > 0)) then
                 correctedShoulderOffset = correctedShoulderOffset * 10;
             end
-
+            
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         else
             -- print("You are mounting!")
@@ -2775,8 +2781,8 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText());
-		self:GetParent():Hide();
-	end,
+    self:GetParent():Hide();
+  end,
 }
 
 local exportString;
@@ -2793,8 +2799,8 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
         self.editBox:HighlightText();
     end,
     EditBoxOnEnterPressed = function(self)
-		self:GetParent():Hide();
-	end,
+    self:GetParent():Hide();
+  end,
 }
 
 function DynamicCam:OpenMenu(input)
