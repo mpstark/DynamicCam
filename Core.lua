@@ -2353,10 +2353,11 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
 
-            -- There are cases (e.g. when leaving a taxi or sometimes when being dismounted
-            -- automatically while entering indoors) when there comes no UNIT_AURA after PLAYER_MOUNT_DISPLAY_CHANGED.
-            -- To catch these cases as well, we start the timer here.
-            DynamicCam_wait(0.2, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
+            -- Sometimes when being dismounted automatically while entering indoors
+            -- there comes no UNIT_AURA after PLAYER_MOUNT_DISPLAY_CHANGED.
+            -- At the moment still experimenting if SPELL_UPDATE_USABLE can be used instead...
+            -- Otherweise, we have to start the timer here.
+            -- DynamicCam_wait(0.2, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
             
             -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
             -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
@@ -2388,9 +2389,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- and while changing from shapeshifted into Druid.
         if (self.activateNextUnitAura == true) then
             self.activateNextUnitAura = false;
-
             -- print("... executing!");
-
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
@@ -2430,6 +2429,22 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- print("... doing nothing!");
 
 
+    -- Sometimes PLAYER_MOUNT_DISPLAY_CHANGED is not followed by UNIT_AURA.
+    -- For those cases we hope that SPELL_UPDATE_USABLE is fired instead...
+    elseif (event == "SPELL_UPDATE_USABLE") then
+
+        -- This is flag is set while dismounting, while changing from Ghostwolf into Shaman
+        -- and while changing from shapeshifted into Druid.
+        if (self.activateNextUnitAura == true) then
+            self.activateNextUnitAura = false;
+            -- print("... executing!");
+            local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+            return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+        end
+        
+        -- print("... doing nothing!");
+        
+        
     -- Needed for vehicles.
     elseif (event == "UNIT_ENTERING_VEHICLE") then
         local unitName, _, _, _, vehicleGuid = ...;
@@ -2498,6 +2513,11 @@ function DynamicCam:RegisterEvents()
     events["UNIT_AURA"] = true;
     self:RegisterEvent("UNIT_AURA", "ShoulderOffsetEventHandler");
 
+    -- Sometimes PLAYER_MOUNT_DISPLAY_CHANGED is not followed by UNIT_AURA.
+    -- For those cases we hope that SPELL_UPDATE_USABLE is fired instead...
+    events["SPELL_UPDATE_USABLE"] = true;
+    self:RegisterEvent("SPELL_UPDATE_USABLE", "ShoulderOffsetEventHandler");
+        
     -- Needed for vehicles.
     events["UNIT_ENTERING_VEHICLE"] = true;
     self:RegisterEvent("UNIT_ENTERING_VEHICLE", "ShoulderOffsetEventHandler");
