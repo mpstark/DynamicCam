@@ -2035,10 +2035,12 @@ function DynamicCam:EventHandler(event, possibleUnit, ...)
 end
 
 
-
+  
 
 -- While dismounting we need to execute a shoulder offset change at the time
--- of the next UNIT_AURA event; but only then. So we use this variable as a flag.
+-- of the next SPELL_UPDATE_USABLE event; but only then. So we use this variable as a flag.
+DynamicCam.activateNextSpellUpdateUsable = false;
+
 -- We also need this for the perfect timing while changing from Ghostwolf back to Shaman
 -- and from shapeshifted back to Druid.
 DynamicCam.activateNextUnitAura = false;
@@ -2348,8 +2350,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         if (IsMounted() == false) then
             -- print("You are dismounting!")
 
-            -- Change the shoulder offset once here and then again with the next UNIT_AURA.
-            self.activateNextUnitAura = true;
+            -- Change the shoulder offset once here and then again with the next SPELL_UPDATE_USABLE.
+            self.activateNextSpellUpdateUsable = true;
             
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
 
@@ -2360,7 +2362,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
             -- DynamicCam_wait(0.2, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
             
             -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
-            -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next UNIT_AURA.
+            -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next SPELL_UPDATE_USABLE.
             -- But only if modelIndependentShoulderOffset is enabled.
             if ((self.db.profile.modelIndependentShoulderOffset == 1) and (correctedShoulderOffset > 0)) then
                 correctedShoulderOffset = correctedShoulderOffset * 10;
@@ -2374,8 +2376,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         end
 
 
-    -- Needed to determine the right time to change shoulder offset while dismounting,
-    -- when changing from Shaman Ghostwolf into normal
+    -- Needed to determine the right time to change shoulder offset
+    -- when changing from Shaman Ghostwolf into normal, from shapeshifted Druid into normal,
     -- and for Demon Hunter Metamorphosis.
     elseif (event == "UNIT_AURA") then
 
@@ -2429,14 +2431,13 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- print("... doing nothing!");
 
 
-    -- Sometimes PLAYER_MOUNT_DISPLAY_CHANGED is not followed by UNIT_AURA.
-    -- For those cases we hope that SPELL_UPDATE_USABLE is fired instead...
+    -- Needed to determine the right time to change shoulder offset while dismounting.
     elseif (event == "SPELL_UPDATE_USABLE") then
 
         -- This is flag is set while dismounting, while changing from Ghostwolf into Shaman
         -- and while changing from shapeshifted into Druid.
-        if (self.activateNextUnitAura == true) then
-            self.activateNextUnitAura = false;
+        if (self.activateNextSpellUpdateUsable == true) then
+            self.activateNextSpellUpdateUsable = false;
             -- print("... executing!");
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2507,14 +2508,13 @@ function DynamicCam:RegisterEvents()
     events["PLAYER_MOUNT_DISPLAY_CHANGED"] = true;
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "ShoulderOffsetEventHandler");
 
-    -- Needed to determine the right time to change shoulder offset while dismounting,
-    -- when changing from Shaman Ghostwolf into normal
+    -- Needed to determine the right time to change shoulder offset
+    -- when changing from Shaman Ghostwolf into normal, from shapeshifted Druid into normal,
     -- and for Demon Hunter Metamorphosis.
     events["UNIT_AURA"] = true;
     self:RegisterEvent("UNIT_AURA", "ShoulderOffsetEventHandler");
 
-    -- Sometimes PLAYER_MOUNT_DISPLAY_CHANGED is not followed by UNIT_AURA.
-    -- For those cases we hope that SPELL_UPDATE_USABLE is fired instead...
+    -- Needed to determine the right time to change shoulder offset while dismounting.
     events["SPELL_UPDATE_USABLE"] = true;
     self:RegisterEvent("SPELL_UPDATE_USABLE", "ShoulderOffsetEventHandler");
         
