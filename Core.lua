@@ -2298,7 +2298,8 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- If this happens, the second event is probably the one that should start a timer to update
                 -- the shoulder offset, because then the next UNIT_AURA is too early. To fix this for good we
                 -- would need a possibility to start timers like DynamicCam_wait and stop currently queued timers
-                -- that have not been executed yet... Then UPDATE_SHAPESHIFT_FORM could always stop the currently queued
+                -- that have not been executed yet (DynamicCam_waitTable = {};).
+                -- Then UPDATE_SHAPESHIFT_FORM could always stop the currently queued
                 -- timers and start a new one.
                 return;
             end
@@ -2325,11 +2326,12 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 if (formId == 5) then
                     -- For bear this works quite reliable!
                     return DynamicCam_wait(0.05, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
-                elseif (formId == 1) then
-                    -- For cat it only works some of the time, and I could not find out what the cause is...
-                    return DynamicCam_wait(0.05, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
                 end
 
+                -- When turning from bear into another form, we have to clear the currently queued SetCVars
+                -- such that the bear factor does not come afterwards.
+                DynamicCam_waitTable = {};
+                
                 return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
             else
