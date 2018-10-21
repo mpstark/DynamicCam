@@ -162,12 +162,17 @@ DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
 DynamicCam.mountIdToShoulderOffsetFactor = {
 
     [6]   = 7.5,   -- Brown Horse
+    [17]  = 7.6,   -- Felsteed
     [71]  = 4.7,   -- Gray Kodo
     [72]  = 4.7,   -- Brown Kodo
     [76]  = 4.45,  -- Black War Kodo
     [101] = 4.45,  -- Great White Kodo
     [102] = 4.45,  -- Great Gray Kodo
     [103] = 4.45,  -- Great Brown Kodo
+    [152] = 6.45,  -- Red Hawkstryder
+    [157] = 6.45,  -- Purple Hawkstryder
+    [158] = 6.45,  -- Blue Hawkstryder
+    [159] = 6.45,  -- Black Hawkstryder
     [203] = 5.8,   -- Cenarion War Hippogryph
     [268] = 2.5,   -- Albino Drake
     [309] = 4.7,   -- White Kodo
@@ -271,6 +276,11 @@ function DynamicCam:SwitchLastWorgenModelId()
         return self.lastWorgenModelId;
     end
 end
+
+
+-- Flag to remember that you are on a taxi, because the shoulder offset change while
+-- leaving a taxi (PLAYER_MOUNT_DISPLAY_CHANGED) needs special treatment...
+DynamicCam.isOnTaxi = false;
 
 
 -- WoW interprets the test_cameraOverShoulder variable differently depending on the current player model.
@@ -403,6 +413,11 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
 
         else
             -- print("You are on a taxi!")
+
+            -- Remember that you are on a taxi, because the shoulder offset change while
+            -- leaving a taxi (PLAYER_MOUNT_DISPLAY_CHANGED) needs special treatment...
+            DynamicCam.isOnTaxi = true;
+
             -- Works all right for Wind Riders.
             -- TODO: This should probably also be done individually for all taxi models in the game.
             return mountedFactor * 2.5;
@@ -2035,7 +2050,7 @@ function DynamicCam:EventHandler(event, possibleUnit, ...)
 end
 
 
-  
+
 
 -- While dismounting we need to execute a shoulder offset change at the time
 -- of the next SPELL_UPDATE_USABLE event; but only then. So we use this variable as a flag.
@@ -2331,7 +2346,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
                 -- When turning from bear into another form, we have to clear the currently queued SetCVars
                 -- such that the bear factor does not come afterwards.
                 DynamicCam_waitTable = {};
-                
+
                 return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
 
             else
@@ -2350,29 +2365,38 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     -- Needed for mounting and entering taxis.
     elseif (event == "PLAYER_MOUNT_DISPLAY_CHANGED") then
         if (IsMounted() == false) then
-            -- print("You are dismounting!")
+
+            -- print("PLAYER_MOUNT_DISPLAY_CHANGED: IsMounted() == false")
+
+            local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
+
+            -- Sometimes there is no SPELL_UPDATE_USABLE after leaving a taxi.
+            -- But it is also not necessary to wait with setting the corrected value then.
+            if (self.isOnTaxi) then
+              self.isOnTaxi = false;
+              return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+            end
+
+            -- Sometimes when being dismounted automatically while entering indoors there comes no
+            -- SPELL_UPDATE_USABLE after PLAYER_MOUNT_DISPLAY_CHANGED...
+            if (IsIndoors()) then
+              return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
+            end
+
 
             -- Change the shoulder offset once here and then again with the next SPELL_UPDATE_USABLE.
             self.activateNextSpellUpdateUsable = true;
-            
-            local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
 
-            -- Sometimes when being dismounted automatically while entering indoors
-            -- there comes no UNIT_AURA after PLAYER_MOUNT_DISPLAY_CHANGED.
-            -- At the moment still experimenting if SPELL_UPDATE_USABLE can be used instead...
-            -- Otherweise, we have to start the timer here.
-            -- DynamicCam_wait(0.2, SetCVar, "test_cameraOverShoulder", correctedShoulderOffset);
-            
             -- When shoulder offset is greater than 0, we need to set it to 10 times its actual value
             -- for the time between this PLAYER_MOUNT_DISPLAY_CHANGED and the next SPELL_UPDATE_USABLE.
             -- But only if modelIndependentShoulderOffset is enabled.
             if ((self.db.profile.modelIndependentShoulderOffset == 1) and (correctedShoulderOffset > 0)) then
                 correctedShoulderOffset = correctedShoulderOffset * 10;
             end
-            
+
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         else
-            -- print("You are mounting!")
+            -- print("PLAYER_MOUNT_DISPLAY_CHANGED: IsMounted() == true")
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
@@ -2393,7 +2417,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- and while changing from shapeshifted into Druid.
         if (self.activateNextUnitAura == true) then
             self.activateNextUnitAura = false;
-            -- print("... executing!");
+            -- print("UNIT_AURA executing!");
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
@@ -2440,14 +2464,15 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
         -- and while changing from shapeshifted into Druid.
         if (self.activateNextSpellUpdateUsable == true) then
             self.activateNextSpellUpdateUsable = false;
-            -- print("... executing!");
+            -- print("SPELL_UPDATE_USABLE executing!");
+
             local correctedShoulderOffset = userSetShoulderOffset * shoulderOffsetZoomFactor * self:CorrectShoulderOffset(userSetShoulderOffset);
             return SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
         end
-        
+
         -- print("... doing nothing!");
-        
-        
+
+
     -- Needed for vehicles.
     elseif (event == "UNIT_ENTERING_VEHICLE") then
         local unitName, _, _, _, vehicleGuid = ...;
@@ -2519,7 +2544,7 @@ function DynamicCam:RegisterEvents()
     -- Needed to determine the right time to change shoulder offset while dismounting.
     events["SPELL_UPDATE_USABLE"] = true;
     self:RegisterEvent("SPELL_UPDATE_USABLE", "ShoulderOffsetEventHandler");
-        
+
     -- Needed for vehicles.
     events["UNIT_ENTERING_VEHICLE"] = true;
     self:RegisterEvent("UNIT_ENTERING_VEHICLE", "ShoulderOffsetEventHandler");
