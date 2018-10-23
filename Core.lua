@@ -128,18 +128,37 @@ DynamicCam.raceAndGenderToShoulderOffsetFactor = {
 };
 
 
+DynamicCam.shamanGhostwolfToShoulderOffsetFactor = {
 
-
--- See here for meaning of formIds: https://wow.gamepedia.com/API_GetShapeshiftFormID
-DynamicCam.shapeshiftFormIdToShoulderOffsetFactor = {
-
-    -- Ghostwolf seems to be independent of race.
+    -- Ghostwolf hopefully independent of race and gender...
+    -- This is for Orc male:
     [16]  = 0.775,  -- Ghostwolf
-
-    -- TODO: This is only for BloodElf Male
-    ["DemonHunterMetamorphosis"]  = 0.52,
-    ["DemonHunterVengeance"]      = 0.74,
 };
+
+
+DynamicCam.demonhunterFormToShoulderOffsetFactor = {
+    ["BloodElf"] = {
+        [2] = {   -- male
+            ["Havoc"]     = 0.52,
+            ["Vengeance"] = 0.74,
+        },
+        [3] = {   -- female
+            ["Havoc"]     = 0.57,
+            ["Vengeance"] = 0.87,
+        },
+    },
+    ["NightElf"] = {
+        [2] = {   -- male
+            ["Havoc"]     = 0.52,
+            ["Vengeance"] = 0.74,
+        },
+        [3] = {   -- female
+            ["Havoc"]     = 0.61,
+            ["Vengeance"] = 0.91,
+        },
+    },
+}
+
 
 DynamicCam.druidFormIdToShoulderOffsetFactor = {
 
@@ -166,14 +185,25 @@ DynamicCam.druidFormIdToShoulderOffsetFactor = {
         },
     },
     ["Worgen"] = {
+        -- Actually the same for male and female...
         [2] = {   -- male
             [1]   = 0.685,   -- Cat
-            [2]   = 0.62,    -- Tree of Life
+            [2]   = 0.63,    -- Tree of Life
             [3]   = 0.66,    -- Travel
             [4]   = 0.515,   -- Aquatic
             [5]   = 0.68,    -- Bear
-            [27]  = 0.39,    -- Swift Flight
-            [29]  = 0.39,    -- Flight          -- Assumed same as Swift Flight (not tested).
+            [27]  = 0.38,    -- Swift Flight
+            [29]  = 0.38,    -- Flight          -- Assumed same as Swift Flight (not tested).
+            [31]  = 0.72,    -- Moonkin
+        },
+        [3] = {   -- female
+            [1]   = 0.685,   -- Cat
+            [2]   = 0.63,    -- Tree of Life
+            [3]   = 0.66,    -- Travel
+            [4]   = 0.515,   -- Aquatic
+            [5]   = 0.68,    -- Bear
+            [27]  = 0.38,    -- Swift Flight
+            [29]  = 0.38,    -- Flight          -- Assumed same as Swift Flight (not tested).
             [31]  = 0.72,    -- Moonkin
         },
     }
@@ -458,8 +488,8 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
     elseif (GetShapeshiftFormID(true) ~= nil) then
         -- print("You are shapeshifted.")
 
-
         local _, englishClass = UnitClass("player");
+        local formId = GetShapeshiftFormID(true);
 
         if (englishClass == "DRUID") then
 
@@ -469,7 +499,7 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
                 local genderCode = UnitSex("player");
                 if (self.druidFormIdToShoulderOffsetFactor[raceFile][genderCode]) then
 
-                    local formId = GetShapeshiftFormID(true);
+
                     if (self.druidFormIdToShoulderOffsetFactor[raceFile][genderCode][formId]) then
                         return self.druidFormIdToShoulderOffsetFactor[raceFile][genderCode][formId];
                     else
@@ -484,10 +514,8 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
                 DynamicCam:DebugPrint("... TODO: " .. raceFile .. " druid form factors not yet known...");
                 return 1;
             end
-
         else
-            -- Currently only used for shaman...
-            return self.shapeshiftFormIdToShoulderOffsetFactor[formId];
+            return self.shamanGhostwolfToShoulderOffsetFactor[formId];
         end
 
 
@@ -495,28 +523,35 @@ function DynamicCam:CorrectShoulderOffset(offset, enteringVehicleGuid)
     else
         -- print("You are normal ...")
 
-        -- Check for Demon Hunter Metamorphosis.
         local _, englishClass = UnitClass("player");
+        local _, raceFile = UnitRace("player");
+        local genderCode = UnitSex("player");
+        -- print(englishClass, raceFile, genderCode);
+
+        -- Check for Demon Hunter Metamorphosis.
         if (englishClass == "DEMONHUNTER") then
             for i = 1,40 do
                 local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
                 -- print (name, spellId);
                 if (spellId == 162264) then
                     -- print("Demon Hunter Metamorphosis Havoc");
-                    return self.shapeshiftFormIdToShoulderOffsetFactor["DemonHunterMetamorphosis"];
+                    if (self.demonhunterFormToShoulderOffsetFactor[raceFile][genderCode]["Havoc"]) then
+                        return self.demonhunterFormToShoulderOffsetFactor[raceFile][genderCode]["Havoc"];
+                    else
+                        DynamicCam:DebugPrint("... TODO: " .. raceFile .. " " .. ((genderCode == 2) and "male" or "female") .. " Demonhunter form factor for form 'Havoc' not yet known...");
+                        return 1;
+                    end
                 elseif (spellId == 187827) then
                     -- print("Demon Hunter Metamorphosis Vengeance");
-                    return self.shapeshiftFormIdToShoulderOffsetFactor["DemonHunterVengeance"];
+                    if (self.demonhunterFormToShoulderOffsetFactor[raceFile][genderCode]["Vengeance"]) then
+                        return self.demonhunterFormToShoulderOffsetFactor[raceFile][genderCode]["Vengeance"];
+                    else
+                        DynamicCam:DebugPrint("... TODO: " .. raceFile .. " " .. ((genderCode == 2) and "male" or "female") .. " Demonhunter form factor for form 'Vengeance' not yet known...");
+                        return 1;
+                    end
                 end
             end
         end
-
-
-
-        -- http://wowwiki.wikia.com/wiki/API_UnitRace
-        local _, raceFile = UnitRace("player");
-        local genderCode = UnitSex("player");
-        -- print(" ... " .. raceFile .. " " .. genderCode);
 
         -- Worgen need special treatment!
         if ((raceFile == "Worgen")) then
