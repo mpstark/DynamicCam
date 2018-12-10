@@ -2083,7 +2083,7 @@ function hooked_oldCameraZoomOut(...)
     targetZoom = math.min(39, targetZoom + increments);
 
     local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"];
-    local correctedShoulderOffset = userSetShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(currentZoom + increments) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
+    local correctedShoulderOffset = userSetShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
     SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
     -- easeShoulderOffset(correctedShoulderOffset, 0.1);
 
