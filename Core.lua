@@ -1660,6 +1660,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
 
 
+        -- TODO: Should get the shoulder offset of the newSituationID!
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
         local correctedShoulderOffset = userSetShoulderOffset * self:GetShoulderOffsetZoomFactor(zoomLevel) * self:CorrectShoulderOffset(userSetShoulderOffset);
 
@@ -1670,6 +1671,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     else
         -- Just restore test_cameraOverShoulder, because we skipped it by passing true as the second
         -- argument (exitingSituationFlag) to ApplyDefaultCameraSettings() above.
+        -- TODO: Should get the shoulder offset of the newSituationID!
         local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
         local correctedShoulderOffset = userSetShoulderOffset * self:GetShoulderOffsetZoomFactor(GetCameraZoom()) * self:CorrectShoulderOffset(userSetShoulderOffset);
 
@@ -2011,6 +2013,7 @@ local function ReactiveZoom(zoomIn, increments, automated)
 
 
         -- Also correct the shoulder offset according to zoom level.
+        -- TODO: Should get the shoulder offset of current situation!
         local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"]
         local correctedShoulderOffset = userSetShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
         easeShoulderOffset(correctedShoulderOffset, zoomTime, LibEasing[easingFunc]);
@@ -2061,6 +2064,7 @@ function hooked_oldCameraZoomIn(...)
     targetZoom = targetZoom or currentZoom;
     targetZoom = math.max(0, targetZoom - increments);
 
+    -- TODO: Should get the shoulder offset of current situation!
     local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"];
     local correctedShoulderOffset = userSetShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
     SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2082,6 +2086,7 @@ function hooked_oldCameraZoomOut(...)
     targetZoom = targetZoom or currentZoom;
     targetZoom = math.min(39, targetZoom + increments);
 
+    -- TODO: Should get the shoulder offset of current situation!
     local userSetShoulderOffset = DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"];
     local correctedShoulderOffset = userSetShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(targetZoom) * DynamicCam:CorrectShoulderOffset(userSetShoulderOffset);
     SetCVar("test_cameraOverShoulder", correctedShoulderOffset);
@@ -2176,7 +2181,7 @@ function DynamicCam:ShoulderOffsetEventHandler(event, ...)
     -- but its new shoulder offset value will be overridden by the ongoing easing.
     stopEasingShoulderOffset();
 
-
+    -- TODO: Should get the shoulder offset of current situation!
     local userSetShoulderOffset = self.db.profile.defaultCvars["test_cameraOverShoulder"];
     local shoulderOffsetZoomFactor = self:GetShoulderOffsetZoomFactor(GetCameraZoom());
 
