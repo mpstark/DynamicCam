@@ -575,23 +575,17 @@ DynamicCam.defaults = {
                 condition = "return UnitOnTaxi(\"player\");",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
             },
-            ["102"] = {
-                name = "Vehicle",
-                priority = 1000,
-                condition = "return UnitUsingVehicle(\"player\");",
-                events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
-            },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
                 condition = [[for k,v in pairs(this.spells) do
-    if (UnitCastingInfo("player") == GetSpellInfo(v)) then
+    if (CastingInfo("player") == GetSpellInfo(v) and GetSpellInfo(v) ~= nil) then
         return true;
     end
 end
 return false;]],
                 executeOnInit = "this.spells = {227334, 136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};",
-                executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
+                executeOnEnter = "local _, _, _, startTime, endTime = CastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
             },
             ["201"] = {
@@ -611,7 +605,7 @@ return false;]],
                 name = "NPC Interaction",
                 priority = 20,
                 condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
-                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
+                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED"},
                 delay = .5,
             },
             ["301"] = {
@@ -623,7 +617,7 @@ return false;]],
             ["302"] = {
                 name = "Fishing",
                 priority = 20,
-                condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))",
+                condition = "return (ChannelInfo(\"player\") == GetSpellInfo(7620))",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 delay = 2,
             },
