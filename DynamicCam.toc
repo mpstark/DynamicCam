@@ -1,7 +1,7 @@
-## Interface: 80000
-## Version: Beta 4
+## Interface: 80300
+## Version: 1.0.0
 ## Title: DynamicCam
-## Author: mpstark
+## Author: mpstark, LudiusMaximus
 ## SavedVariables: DynamicCamDB
 ## Notes: A more dynamic camera.
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
