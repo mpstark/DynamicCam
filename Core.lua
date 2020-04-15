@@ -575,22 +575,60 @@ DynamicCam.defaults = {
                 condition = "return UnitOnTaxi(\"player\");",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
             },
-            ["102"] = {
-                name = "Vehicle",
-                priority = 1000,
-                condition = "return UnitUsingVehicle(\"player\");",
-                events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
-            },
+            -- ["102"] = {
+                -- name = "Vehicle",
+                -- priority = 1000,
+                -- condition = "return UnitUsingVehicle(\"player\");",
+                -- events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
+            -- },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
                 condition = [[for k,v in pairs(this.spells) do
-    if (UnitCastingInfo("player") == GetSpellInfo(v)) then
+    if GetSpellInfo(v) and GetSpellInfo(v) == CastingInfo("player") then
         return true;
     end
 end
 return false;]],
-                executeOnInit = "this.spells = {227334, 136508, 189838, 54406, 94719, 556, 168487, 168499, 171253, 50977, 8690, 222695, 171253, 224869, 53140, 3565, 32271, 193759, 3562, 3567, 33690, 35715, 32272, 49358, 176248, 3561, 49359, 3566, 88342, 88344, 3563, 132627, 132621, 176242, 192085, 192084, 216016};",
+                executeOnInit = "this.spells = {"
+                  .. "556,"     -- Astral Recall
+                  .. "3561,"    -- Teleport: Stormwind
+                  .. "3562,"    -- Teleport: Ironforge
+                  .. "3563,"    -- Teleport: Undercity
+                  .. "3565,"    -- Teleport: Darnassus
+                  .. "3566,"    -- Teleport: Thunder Bluff
+                  .. "3567,"    -- Teleport: Orgrimmar
+                  .. "8690,"    -- Hearthstone
+                  .. "32271,"   -- Teleport: Exodar
+                  .. "32272,"   -- Teleport: Silvermoon
+                  .. "33690,"   -- Teleport: Shattrath
+                  .. "35715,"   -- Teleport: Shattrath
+                  .. "49358,"   -- Teleport: Stonard
+                  .. "49359,"   -- Teleport: Theramore
+                  .. "50977,"   -- Death Gate 
+                  .. "53140,"   -- Teleport: Dalaran - Northrend
+                  .. "54406,"   -- Teleport: Dalaran
+                  .. "88342,"   -- Teleport: Tol Barad
+                  .. "88344,"   -- Teleport: Tol Barad
+                  .. "94719,"   -- The Innkeeper's Daughter
+                  .. "132621,"  -- Teleport: Vale of Eternal Blossoms
+                  .. "132627,"  -- Teleport: Vale of Eternal Blossoms
+                  .. "136508,"  -- Dark Portal
+                  .. "168487,"  -- Home Away from Home
+                  .. "168499,"  -- Home Away from Home
+                  .. "171253,"  -- Garrison Hearthstone
+                  .. "176242,"  -- Teleport: Warspear
+                  .. "176248,"  -- Teleport: Stormshield
+                  .. "189838,"  -- Teleport to Shipyard
+                  .. "192084,"  -- Jump to Skyhold
+                  .. "192085,"  -- Jump to Skyhold
+                  .. "193759,"  -- Teleport: Hall of the Guardian
+                  .. "216016,"  -- Jump to Skyhold
+                  .. "222695,"  -- Dalaran Hearthstone
+                  .. "224869,"  -- Teleport: Dalaran - Broken Isles
+                  .. "227334,"  -- Flight Master's Whistle
+                  .. "308742,"  -- Eternal Traveler's Hearthstone
+                .. "};",
                 executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
             },
@@ -611,7 +649,8 @@ return false;]],
                 name = "NPC Interaction",
                 priority = 20,
                 condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
-                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
+                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED"},
+                -- "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"
                 delay = .5,
             },
             ["301"] = {
@@ -623,7 +662,7 @@ return false;]],
             ["302"] = {
                 name = "Fishing",
                 priority = 20,
-                condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))",
+                condition = "return (ChannelInfo(\"player\") == GetSpellInfo(7620))",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 delay = 2,
             },
