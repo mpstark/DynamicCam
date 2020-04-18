@@ -283,12 +283,12 @@ local ERROR_MULT = 2.5;
 local STOPPING_SPEED = 5;
 
 local function restoreNameplates()
-	if (not InCombatLockdown()) then
-		for k,v in pairs(nameplateRestore) do
-			SetCVar(k, v);
-		end
-		nameplateRestore = {};
-	end
+    if (not InCombatLockdown()) then
+        for k,v in pairs(nameplateRestore) do
+            SetCVar(k, v);
+        end
+        nameplateRestore = {};
+    end
 end
 
 local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, toggleNameplates)
@@ -1726,8 +1726,8 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText());
-		self:GetParent():Hide();
-	end,
+        self:GetParent():Hide();
+    end,
 }
 
 local exportString;
@@ -1744,8 +1744,8 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
         self.editBox:HighlightText();
     end,
     EditBoxOnEnterPressed = function(self)
-		self:GetParent():Hide();
-	end,
+        self:GetParent():Hide();
+    end,
 }
 
 function DynamicCam:OpenMenu(input)

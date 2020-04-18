@@ -135,49 +135,49 @@ end
 
 local function removeEmptySubTables(tbl)
     for k, v in pairs(tbl) do
-		if (type(v) == "table") then
-			if (isTableEmpty(v)) then
-				tbl[k] = nil;
-			else
-				removeEmptySubTables(v);
-			end
-		end
-	end
+        if (type(v) == "table") then
+            if (isTableEmpty(v)) then
+                tbl[k] = nil;
+            else
+                removeEmptySubTables(v);
+            end
+        end
+    end
 end
 
 local function minimizeTable(tbl, base)
     local minimized = {}
 
     -- go through all entries, only keep unique entries
-	for key, value in pairs(tbl) do
-		if ((type(value) == "table") and base[key] and (type(base[key]) == "table")) then
+    for key, value in pairs(tbl) do
+        if ((type(value) == "table") and base[key] and (type(base[key]) == "table")) then
             -- child table with matching table in base, minimize it recursively
-			minimized[key] = minimizeTable(value, base[key]);
-		else
-			if (tbl[key] ~= base[key]) then
-				minimized[key] = value;
-			end
-		end
-	end
+            minimized[key] = minimizeTable(value, base[key]);
+        else
+            if (tbl[key] ~= base[key]) then
+                minimized[key] = value;
+            end
+        end
+    end
 
     -- remove now empty tables from the minimized table
-	removeEmptySubTables(minimized);
+    removeEmptySubTables(minimized);
 
-	return minimized;
+    return minimized;
 end
 
 local function copyTable(src, dest)
-	if type(dest) ~= "table" then dest = {} end
-	if type(src) == "table" then
-		for k,v in pairs(src) do
-			if type(v) == "table" then
-				-- try to index the key first so that the metatable creates the defaults, if set, and use that table
-				v = copyTable(v, dest[k])
-			end
-			dest[k] = v
-		end
-	end
-	return dest
+    if type(dest) ~= "table" then dest = {} end
+    if type(src) == "table" then
+        for k,v in pairs(src) do
+            if type(v) == "table" then
+                -- try to index the key first so that the metatable creates the defaults, if set, and use that table
+                v = copyTable(v, dest[k])
+            end
+            dest[k] = v
+        end
+    end
+    return dest
 end
 
 
