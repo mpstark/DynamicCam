@@ -291,76 +291,6 @@ local function restoreNameplates()
     end
 end
 
-local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, toggleNameplates)
-    if (toggleNameplates and not InCombatLockdown()) then
-        nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll");
-        nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
-        nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
-
-        SetCVar("nameplateShowAll", 1);
-        SetCVar("nameplateShowFriends", 1);
-        SetCVar("nameplateShowEnemies", 1);
-    end
-
-    local lastSpeed = 0;
-    local startTime = GetTime();
-    local settleTimeStart;
-    local zoomFunc = function() -- returning 0 will stop camera, returning nil stops camera, returning number puts camera to that speed
-        local nameplate = C_NamePlate.GetNamePlateForUnit("target");
-
-        if (nameplate) then
-            local yCenter = (nameplate:GetTop() + nameplate:GetBottom())/2;
-            local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-            local difference = screenHeight - yCenter;
-            local ratio = (1 - difference/screenHeight) * 100;
-            local error = ratio - nameplatePosition;
-
-            local speed = 0;
-            if (lastSpeed == 0 and abs(error) < HYS) then
-                speed = 0;
-            elseif (abs(error) > HYS/4 or abs(lastSpeed) > STOPPING_SPEED) then
-                speed = ERROR_MULT * error;
-
-                local deltaTime = GetTime() - startTime;
-                if (deltaTime < RAMP_TIME) then
-                    speed = speed * (deltaTime / RAMP_TIME);
-                end
-            end
-
-            local curZoom = GetCameraZoom();
-            if (speed > 0 and curZoom >= maxZoom) then
-                speed = 0;
-            elseif (speed < 0 and curZoom <= minZoom) then
-                speed = 0;
-            end
-
-            if (speed == 0) then
-                startTime = GetTime();
-                settleTimeStart = settleTimeStart or GetTime();
-            else
-                settleTimeStart = nil;
-            end
-
-            if (speed == 0 and not continously and (GetTime() - settleTimeStart > SETTLE_TIME)) then
-                return nil;
-            end
-
-            lastSpeed = speed;
-            return speed;
-        end
-
-        if (continously) then
-            startTime = GetTime();
-            lastSpeed = 0;
-            return 0;
-        end
-
-        return nil;
-    end
-
-    LibCamera:CustomZoom(zoomFunc, restoreNameplates);
-    DynamicCam:DebugPrint("zoom fit nameplate");
-end
 
 
 --------
@@ -442,11 +372,6 @@ DynamicCam.defaults = {
                     zoomValue = 10,
                     zoomMin = 5,
                     zoomMax = 15,
-
-                    zoomFitContinous = false,
-                    zoomFitPosition = 84,
-                    zoomFitUseCurAsMin = false,
-                    zoomFitToggleNameplate = false,
                 },
                 view = {
                     enabled = false,
@@ -611,6 +536,7 @@ return false;]],
                   .. "88342,"   -- Teleport: Tol Barad
                   .. "88344,"   -- Teleport: Tol Barad
                   .. "94719,"   -- The Innkeeper's Daughter
+                  .. "120145,"  -- Ancient Teleport: Dalaran
                   .. "132621,"  -- Teleport: Vale of Eternal Blossoms
                   .. "132627,"  -- Teleport: Vale of Eternal Blossoms
                   .. "136508,"  -- Dark Portal
@@ -627,6 +553,8 @@ return false;]],
                   .. "222695,"  -- Dalaran Hearthstone
                   .. "224869,"  -- Teleport: Dalaran - Broken Isles
                   .. "227334,"  -- Flight Master's Whistle
+                  .. "281403,"  -- Teleport: Boralus
+                  .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
                 .. "};",
                 executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
@@ -925,13 +853,6 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             elseif (cameraZoom > a.zoomMax) then
                 newZoomLevel = a.zoomMax;
             end
-        elseif (a.zoomSetting == "fit") then
-            local min = a.zoomMin;
-            if (a.zoomFitUseCurAsMin) then
-                min = math.min(GetCameraZoom(), a.zoomMax);
-            end
-
-            fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate);
         end
 
         -- actually do zoom
@@ -953,7 +874,7 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
-        if (not newZoomLevel and a.zoomSetting ~= "fit") then
+        if not newZoomLevel then
             restoration[situationID].zoom = nil;
             restoration[situationID].zoomSituation = nil;
         end
@@ -1302,9 +1223,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
         return false;
     elseif (newSituation.cameraActions.zoomSetting == "set") then
         -- don't restore zoom if the zoom is going to be setting the zoom anyways
-        return false;
-    elseif (newSituation.cameraActions.zoomSetting == "fit") then
-        -- don't restore zoom to a zoom fit
         return false;
     elseif (newSituation.cameraActions.zoomSetting == "range") then
         --only restore zoom if zoom will be in the range
