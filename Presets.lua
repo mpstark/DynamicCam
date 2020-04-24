@@ -18,7 +18,7 @@ local presets = {
 
 function DynamicCam:LoadPreset(defaultName)
     -- if there is a preset with this name, then load it into the current profile
-    if (presets[defaultName]) then
+    if presets[defaultName] then
         self:ImportIntoCurrentProfile(presets[defaultName].importString)
     end
 end

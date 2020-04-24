@@ -107,7 +107,7 @@ end
 
 local function stringToTable(str)
     -- some sanity checks
-    if (str == nil or str == '') then
+    if str == nil or str == '' then
         return
     end
 
@@ -116,13 +116,13 @@ local function stringToTable(str)
 
     -- decompress
     local decompressed, _ = Compresser:Decompress(decoded)
-    if (not decompressed) then
+    if not decompressed then
         return
     end
 
     -- deserialize
     local success, deserialized = Serializer:Deserialize(decompressed)
-    if (not success) then
+    if not success then
         return
     end
 
@@ -135,8 +135,8 @@ end
 
 local function removeEmptySubTables(tbl)
     for k, v in pairs(tbl) do
-        if (type(v) == "table") then
-            if (isTableEmpty(v)) then
+        if type(v) == "table" then
+            if isTableEmpty(v) then
                 tbl[k] = nil
             else
                 removeEmptySubTables(v)
@@ -150,11 +150,11 @@ local function minimizeTable(tbl, base)
 
     -- go through all entries, only keep unique entries
     for key, value in pairs(tbl) do
-        if ((type(value) == "table") and base[key] and (type(base[key]) == "table")) then
+        if type(value) == "table" and base[key] and type(base[key]) == "table" then
             -- child table with matching table in base, minimize it recursively
             minimized[key] = minimizeTable(value, base[key])
         else
-            if (tbl[key] ~= base[key]) then
+            if tbl[key] ~= base[key] then
                 minimized[key] = value
             end
         end
@@ -185,7 +185,7 @@ end
 -- IMPORT/EXPORT --
 -------------------
 function DynamicCam:ExportProfile(name, author)
-    if (not name) then
+    if not name then
         self:Print("Cannot export a profile without a name!")
         return
     end
@@ -194,7 +194,7 @@ function DynamicCam:ExportProfile(name, author)
     local exportTable = {}
     exportTable.type = "DC_PROFILE"
     exportTable.name = name
-    if (author) then
+    if author then
         exportTable.author = author
     end
 
@@ -226,23 +226,23 @@ end
 function DynamicCam:Import(importString)
     -- convert the import string into a table
     local imported = stringToTable(importString)
-    if (not imported) then
+    if not imported then
         self:Print("Something went wrong with the import!")
         return
     end
 
-    if (imported.type == "DC_SITUATION") then
+    if imported.type == "DC_SITUATION" then
         -- modernize the situation, it could be from a previous version
         self:ModernizeSituation(imported.situation, imported.version)
 
         -- this is an imported situation
-        if (string.find(imported.situationID, "custom")) then
+        if string.find(imported.situationID, "custom") then
             -- custom situation, so just create a new custom situation and bring everything into it
             -- TODO: this is ugly, but effective
             local situation, situationID = self:CreateCustomSituation(imported.situation.name)
 
             for key, value in pairs(imported.situation) do
-                if (type(value) == 'table') then
+                if type(value) == 'table' then
                     -- this only works because our table only has two levels
                     -- a more robust solution would be better
                     for k2, v2 in pairs(imported.situation[key]) do
@@ -262,10 +262,10 @@ function DynamicCam:Import(importString)
             -- self.db.profile.situations[situationID] = imported
             -- self:SendMessage("DC_SITUATION_UPDATED", situationID)
         end
-    elseif (imported.type == "DC_PROFILE") then
+    elseif imported.type == "DC_PROFILE" then
         local name = imported.name or "Imported"
         -- this in an imported profile
-        if (DynamicCamDB.profiles[name] == nil) then
+        if DynamicCamDB.profiles[name] == nil then
             self:ModernizeProfile(imported.profile)
             DynamicCamDB.profiles[name] = imported.profile
             self:Print("Successfully imported profile:", name)
@@ -279,13 +279,13 @@ end
 function DynamicCam:ImportIntoCurrentProfile(importString)
     -- convert the import string into a table
     local imported = stringToTable(importString)
-    if (not imported) then
+    if not imported then
         self:Print("Something went wrong with loading the default!")
         return
     end
 
     -- load the imported string into the current profile
-    if (imported.type == "DC_PROFILE") then
+    if imported.type == "DC_PROFILE" then
         self:ModernizeProfile(imported.profile)
 
         self:Shutdown()

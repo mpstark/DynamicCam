@@ -172,7 +172,7 @@ local general = {
                     name = "Enable",
                     desc = "If the addon is enabled.",
                     get = "IsEnabled",
-                    set = function(_, newValue) if (not newValue) then DynamicCam:Disable(); else DynamicCam:Enable(); end end,
+                    set = function(_, newValue) if not newValue then DynamicCam:Disable(); else DynamicCam:Enable(); end end,
                     order = 1,
                     width = "half",
                 },
@@ -273,7 +273,7 @@ local settings = {
                         DynamicCam.db.profile.reactiveZoom.enabled = newValue
 
                         -- actually turn it on
-                        if (newValue) then
+                        if newValue then
                             DynamicCam:ReactiveZoomOn()
                         else
                             DynamicCam:ReactiveZoomOff()
@@ -405,7 +405,7 @@ local settings = {
                     desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
                     get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] == 1) end,
-                    set = function(_, newValue) if (newValue) then DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
+                    set = function(_, newValue) if newValue then DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 1; else DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 0; end Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
                     order = .25,
                 },
                 cameraDistanceMaxFactor = {
@@ -472,7 +472,7 @@ local settings = {
                             get = function()
                                 return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
                             set = function(_, newValue)
-                                if (newValue) then
+                                if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1
                                 else
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0
@@ -536,7 +536,7 @@ local settings = {
                             get = function()
                                 return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
                             set = function(_, newValue)
-                                if (newValue) then
+                                if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1
                                 else
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0
@@ -778,7 +778,7 @@ local situationOptions = {
             desc = "If this situation should be checked and activated",
             hidden = function() return (not S) end,
             get = function() return S.enabled end,
-            set = function(_, newValue) S.enabled = newValue if (newValue) then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
+            set = function(_, newValue) S.enabled = newValue if newValue then Options:SendMessage("DC_SITUATION_ENABLED") else Options:SendMessage("DC_SITUATION_DISABLED") end end,
             order = 2,
         },
         copy = {
@@ -831,7 +831,7 @@ local situationOptions = {
                     name = "Zoom",
                     desc = "Set a zoom level when this situation is activated",
                     get = function() return (S.cameraActions.zoomSetting ~= "off") end,
-                    set = function(_, newValue) if (newValue) then S.cameraActions.zoomSetting = "set"; else S.cameraActions.zoomSetting = "off"; end end,
+                    set = function(_, newValue) if newValue then S.cameraActions.zoomSetting = "set"; else S.cameraActions.zoomSetting = "off"; end end,
                     order = 1,
                 },
                 rotate = {
@@ -1055,7 +1055,7 @@ local situationOptions = {
                     name = "Adjust Shoulder Offset",
                     desc = "If this setting should be affected",
                     get = function() return (S.cameraCVars["test_cameraOverShoulder"] ~= nil) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["test_cameraOverShoulder"] = 0 else S.cameraCVars["test_cameraOverShoulder"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    set = function(_, newValue) if newValue then S.cameraCVars["test_cameraOverShoulder"] = 0 else S.cameraCVars["test_cameraOverShoulder"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     order = 0,
                 },
                 overShoulder = {
@@ -1078,7 +1078,7 @@ local situationOptions = {
                     name = "Adjust Head Tracking",
                     desc = "If this setting should be affected",
                     get = function() return (S.cameraCVars["test_cameraHeadMovementStrength"] ~= nil) end,
-                    set = function(_, newValue) if (newValue) then S.cameraCVars["test_cameraHeadMovementStrength"] = 0 else S.cameraCVars["test_cameraHeadMovementStrength"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    set = function(_, newValue) if newValue then S.cameraCVars["test_cameraHeadMovementStrength"] = 0 else S.cameraCVars["test_cameraHeadMovementStrength"] = nil end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     order = 3,
                 },
                 headTracking = {
@@ -1101,25 +1101,25 @@ local situationOptions = {
                     name = "Dynamic Pitch",
                     desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.\n\nA gray checkbox means that the default will be used instead.",
                     get = function()
-                        if (S.cameraCVars["test_cameraDynamicPitch"] == nil) then
+                        if S.cameraCVars["test_cameraDynamicPitch"] == nil then
                             return nil
-                        elseif (S.cameraCVars["test_cameraDynamicPitch"] == 1) then
+                        elseif S.cameraCVars["test_cameraDynamicPitch"] == 1 then
                             return true
-                        elseif (S.cameraCVars["test_cameraDynamicPitch"] == 0) then
+                        elseif S.cameraCVars["test_cameraDynamicPitch"] == 0 then
                             return false
                         end
                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                     end,
                     set = function(_, newValue)
-                        if (newValue == nil) then
+                        if newValue == nil then
                             S.cameraCVars["test_cameraDynamicPitch"] = nil
                             S.cameraCVars["test_cameraDynamicPitchBaseFovPad"] = nil
                             S.cameraCVars["test_cameraDynamicPitchBaseFovPadFlying"] = nil
                             S.cameraCVars["test_cameraDynamicPitchBaseFovPadDownScale"] = nil
                             S.cameraCVars["test_cameraDynamicPitchSmartPivotCutoffDist"] = nil
-                        elseif (newValue == true) then
+                        elseif newValue == true then
                             S.cameraCVars["test_cameraDynamicPitch"] = 1
-                        elseif (newValue == false) then
+                        elseif newValue == false then
                             S.cameraCVars["test_cameraDynamicPitch"] = 0
                         end
                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
@@ -1138,18 +1138,18 @@ local situationOptions = {
                             name = "Focus Enemies",
                             desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
                             get = function()
-                                if (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == nil) then
+                                if S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == nil then
                                     return nil
                                 end
                                 return (S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 1) end,
                             set = function(_, newValue)
-                                if (newValue == nil) then
+                                if newValue == nil then
                                     S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = nil
                                     S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"] = nil
                                     S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"] = nil
-                                elseif (newValue == true) then
+                                elseif newValue == true then
                                     S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
-                                elseif (newValue == false) then
+                                elseif newValue == false then
                                     S.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 0
                                 end
 
@@ -1209,18 +1209,18 @@ local situationOptions = {
                             name = "Focus On Interact",
                             desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
                             get = function()
-                                if (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == nil) then
+                                if S.cameraCVars["test_cameraTargetFocusInteractEnable"] == nil then
                                     return nil
                                 end
                                 return (S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 1) end,
                             set = function(_, newValue)
-                                if (newValue == nil) then
+                                if newValue == nil then
                                     S.cameraCVars["test_cameraTargetFocusInteractEnable"] = nil
                                     S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"] = nil
                                     S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"] = nil
-                                elseif (newValue == true) then
+                                elseif newValue == true then
                                     S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
-                                elseif (newValue == false) then
+                                elseif newValue == false then
                                     S.cameraCVars["test_cameraTargetFocusInteractEnable"] = 0
                                 end
 
@@ -1392,7 +1392,7 @@ local situationOptions = {
                     desc = "",
                     get = function() return table.concat(S.events, ", ") end,
                     set = function(_, newValue)
-                        if (newValue == "") then
+                        if newValue == "" then
                             S.events = {}
                         else
                             newValue = string.gsub(newValue, "%s+", "")
@@ -1408,7 +1408,7 @@ local situationOptions = {
                     name = "Priority",
                     desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
                     get = function() return ""..S.priority end,
-                    set = function(_, newValue) if (tonumber(newValue)) then S.priority = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    set = function(_, newValue) if tonumber(newValue) then S.priority = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     width = "half",
                     order = 1,
                 },
@@ -1417,7 +1417,7 @@ local situationOptions = {
                     name = "Delay",
                     desc = "How long to delay exiting this situation",
                     get = function() return ""..S.delay end,
-                    set = function(_, newValue) if (tonumber(newValue)) then S.delay = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
+                    set = function(_, newValue) if tonumber(newValue) then S.delay = tonumber(newValue) end Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
                     width = "half",
                     order = 2,
                 },
@@ -1594,15 +1594,15 @@ function Options:ReselectSituation()
 end
 
 function Options:SelectSituation(selectMe)
-    if (selectMe and parent.db.profile.situations[selectMe]) then
+    if selectMe and parent.db.profile.situations[selectMe] then
         S = parent.db.profile.situations[selectMe]
         SID = selectMe
     else
-        if (parent.currentSituationID) then
+        if parent.currentSituationID then
             S = parent.db.profile.situations[parent.currentSituationID]
             SID = parent.currentSituationID
         else
-            if (not SID or not S) then
+            if not SID or not S then
                 SID, S = next(parent.db.profile.situations)
             end
         end
