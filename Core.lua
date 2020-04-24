@@ -1,9 +1,9 @@
 ---------------
 -- LIBRARIES --
 ---------------
-local AceAddon = LibStub("AceAddon-3.0");
-local LibCamera = LibStub("LibCamera-1.0");
-local LibEasing = LibStub("LibEasing-1.0");
+local AceAddon = LibStub("AceAddon-3.0")
+local LibCamera = LibStub("LibCamera-1.0")
+local LibEasing = LibStub("LibEasing-1.0")
 
 
 ---------------
@@ -34,167 +34,167 @@ local ACTION_CAM_CVARS = {
     ["test_cameraDynamicPitchBaseFovPadFlying"] = true,
     ["test_cameraDynamicPitchBaseFovPadDownScale"] = true,
     ["test_cameraDynamicPitchSmartPivotCutoffDist"] = true,
-};
+}
 
 
 -------------
 -- GLOBALS --
 -------------
-DynamicCam = AceAddon:NewAddon("DynamicCam", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0");
-DynamicCam.currentSituationID = nil;
+DynamicCam = AceAddon:NewAddon("DynamicCam", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
+DynamicCam.currentSituationID = nil
 
 
 ------------
 -- LOCALS --
 ------------
-local _;
-local Options;
-local functionCache = {};
+local _
+local Options
+local functionCache = {}
 local situationEnvironments = {}
-local conditionExecutionCache = {};
+local conditionExecutionCache = {}
 
 local function DC_RunScript(script, situationID)
-    if (not script or script == "") then
-        return;
+    if not script or script == "" then
+        return
     end
 
     -- make sure that we're not creating tables willy nilly
-    if (not functionCache[script]) then
-        functionCache[script] = assert(loadstring(script));
+    if not functionCache[script] then
+        functionCache[script] = assert(loadstring(script))
 
         -- if env, set the environment to that
-        if (situationID) then
-            if (not situationEnvironments[situationID]) then
+        if situationID then
+            if not situationEnvironments[situationID] then
                 situationEnvironments[situationID] = setmetatable({}, { __index =
                     function(t, k)
-                        if (k == "_G") then
-                            return t;
-                        elseif (k == "this") then
-                            return situationEnvironments[situationID].this;
+                        if k == "_G" then
+                            return t
+                        elseif k == "this" then
+                            return situationEnvironments[situationID].this
                         else
-                            return _G[k];
+                            return _G[k]
                         end
                     end
-                });
-                situationEnvironments[situationID].this = {};
+                })
+                situationEnvironments[situationID].this = {}
             end
 
-            setfenv(functionCache[script], situationEnvironments[situationID]);
+            setfenv(functionCache[script], situationEnvironments[situationID])
         end
     end
 
     -- return the result
-    return functionCache[script]();
+    return functionCache[script]()
 end
 
 local function DC_SetCVar(cvar, setting)
     -- if actioncam flag is off and if cvar is an ActionCam setting, don't set it
-    if (not DynamicCam.db.profile.actionCam and ACTION_CAM_CVARS[cvar]) then
-        return;
+    if not DynamicCam.db.profile.actionCam and ACTION_CAM_CVARS[cvar] then
+        return
     end
 
     -- don't apply cvars if they're already set to the new value
-    if (GetCVar(cvar) ~= tostring(setting)) then
-        DynamicCam:DebugPrint(cvar, setting);
-        SetCVar(cvar, setting);
+    if GetCVar(cvar) ~= tostring(setting) then
+        DynamicCam:DebugPrint(cvar, setting)
+        SetCVar(cvar, setting)
     end
 end
 
 local function round(num, numDecimalPlaces)
-    local mult = 10^(numDecimalPlaces or 0);
-    return math.floor(num * mult + 0.5) / mult;
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
 end
 
 local function gotoView(view, instant)
     -- if you call SetView twice, then it's instant
-    if (instant) then
-        SetView(view);
+    if instant then
+        SetView(view)
     end
-    SetView(view);
+    SetView(view)
 end
 
 local function copyTable(originalTable)
-    local origType = type(originalTable);
-    local copy;
-    if (origType == 'table') then
+    local origType = type(originalTable)
+    local copy
+    if origType == 'table' then
         -- this child is a table, copy the table recursively
-        copy = {};
+        copy = {}
         for orig_key, orig_value in next, originalTable, nil do
-            copy[copyTable(orig_key)] = copyTable(orig_value);
+            copy[copyTable(orig_key)] = copyTable(orig_value)
         end
     else
         -- this child is a value, copy it cover
-        copy = originalTable;
+        copy = originalTable
     end
-    return copy;
+    return copy
 end
 
 
 ----------------------
 -- SHOULDER OFFSET  --
 ----------------------
-local easeShoulderOffsetHandle;
+local easeShoulderOffsetHandle
 
 local function setShoulderOffset(offset)
-    if (offset and type(offset) == 'number') then
+    if offset and type(offset) == 'number' then
         SetCVar("test_cameraOverShoulder", offset)
     end
 end
 
 local function stopEasingShoulderOffset()
-    if (easeShoulderOffsetHandle) then
-        LibEasing:StopEasing(easeShoulderOffsetHandle);
-        easeShoulderOffsetHandle = nil;
+    if easeShoulderOffsetHandle then
+        LibEasing:StopEasing(easeShoulderOffsetHandle)
+        easeShoulderOffsetHandle = nil
     end
 end
 
 local function easeShoulderOffset(endValue, duration, easingFunc)
-    stopEasingShoulderOffset();
+    stopEasingShoulderOffset()
 
-    local oldOffest = tonumber(GetCVar("test_cameraOverShoulder"));
-    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, oldOffest, endValue, duration, easingFunc);
-    DynamicCam:DebugPrint("test_cameraOverShoulder", oldOffest, "->", endValue);
+    local oldOffest = tonumber(GetCVar("test_cameraOverShoulder"))
+    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, oldOffest, endValue, duration, easingFunc)
+    DynamicCam:DebugPrint("test_cameraOverShoulder", oldOffest, "->", endValue)
 end
 
 
 -------------
 -- FADE UI --
 -------------
-local easeUIAlphaHandle;
-local hidMinimap;
-local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame");
-local combatSecureFrame = CreateFrame("Frame", "DynamicCamCombatSecureFrame", nil, "SecureHandlerStateTemplate");
-combatSecureFrame.hidUI = nil;
-combatSecureFrame.lastUIAlpha = nil;
+local easeUIAlphaHandle
+local hidMinimap
+local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame")
+local combatSecureFrame = CreateFrame("Frame", "DynamicCamCombatSecureFrame", nil, "SecureHandlerStateTemplate")
+combatSecureFrame.hidUI = nil
+combatSecureFrame.lastUIAlpha = nil
 
-RegisterStateDriver(combatSecureFrame, "dc_combat_state", "[combat] combat; [nocombat] nocombat");
+RegisterStateDriver(combatSecureFrame, "dc_combat_state", "[combat] combat; [nocombat] nocombat")
 combatSecureFrame:SetAttribute("_onstate-dc_combat_state", [[ -- arguments: self, stateid, newstate
-    if (newstate == "combat") then
-        if (self.hidUI) then
-            setUIAlpha(combatSecureFrame.lastUIAlpha);
-            UIParent:Show();
+    if newstate == "combat" then
+        if self.hidUI then
+            setUIAlpha(combatSecureFrame.lastUIAlpha)
+            UIParent:Show()
 
-            combatSecureFrame.lastUIAlpha = nil;
-            self.hidUI = nil;
+            combatSecureFrame.lastUIAlpha = nil
+            self.hidUI = nil
         end
     end
-]]);
+]])
 
 local function setUIAlpha(newAlpha)
-    if (newAlpha and type(newAlpha) == 'number') then
-        UIParent:SetAlpha(newAlpha);
+    if newAlpha and type(newAlpha) == 'number' then
+        UIParent:SetAlpha(newAlpha)
 
         -- show unfadeUIFrame if we're faded
-        if (newAlpha < 1 and not unfadeUIFrame:IsShown()) then
-            unfadeUIFrame:Show();
-        elseif (newAlpha == 1) then
+        if newAlpha < 1 and not unfadeUIFrame:IsShown() then
+            unfadeUIFrame:Show()
+        elseif newAlpha == 1 then
             -- UI is no longer faded, remove the esc handler
-            if (unfadeUIFrame:IsShown()) then
+            if unfadeUIFrame:IsShown() then
                 -- want to hide the frame without calling it's onhide handler
-                local onHide = unfadeUIFrame:GetScript("OnHide");
-                unfadeUIFrame:SetScript("OnHide", nil);
-                unfadeUIFrame:Hide();
-                unfadeUIFrame:SetScript("OnHide", onHide);
+                local onHide = unfadeUIFrame:GetScript("OnHide")
+                unfadeUIFrame:SetScript("OnHide", nil)
+                unfadeUIFrame:Hide()
+                unfadeUIFrame:SetScript("OnHide", onHide)
             end
         end
     end
@@ -202,38 +202,38 @@ end
 
 local function stopEasingUIAlpha()
     -- if we are currently easing the UI out, make sure to stop that
-    if (easeUIAlphaHandle) then
-        LibEasing:StopEasing(easeUIAlphaHandle);
-        easeUIAlphaHandle = nil;
+    if easeUIAlphaHandle then
+        LibEasing:StopEasing(easeUIAlphaHandle)
+        easeUIAlphaHandle = nil
     end
 
     -- show the minimap if we hid it and it's still hidden
-    if (hidMinimap and not Minimap:IsShown()) then
-        Minimap:Show();
-        hidMinimap = nil;
+    if hidMinimap and not Minimap:IsShown() then
+        Minimap:Show()
+        hidMinimap = nil
     end
 
     -- show the UI if we hid it and it's still hidden
-    if (combatSecureFrame.hidUI) then
-        if (not UIParent:IsShown() and (not InCombatLockdown() or issecure())) then
-            setUIAlpha(combatSecureFrame.lastUIAlpha);
-            UIParent:Show();
+    if combatSecureFrame.hidUI then
+        if not UIParent:IsShown() and (not InCombatLockdown() or issecure()) then
+            setUIAlpha(combatSecureFrame.lastUIAlpha)
+            UIParent:Show()
         end
 
-        combatSecureFrame.hidUI = nil;
-        combatSecureFrame.lastUIAlpha = nil;
+        combatSecureFrame.hidUI = nil
+        combatSecureFrame.lastUIAlpha = nil
     end
 end
 
 local function easeUIAlpha(endValue, duration, easingFunc, callback)
-    stopEasingUIAlpha();
+    stopEasingUIAlpha()
 
-    if (UIParent:GetAlpha() ~= endValue) then
-        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc, callback);
+    if UIParent:GetAlpha() ~= endValue then
+        easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc, callback)
     else
         -- we're not going to ease because we're already there, have to call the callback anyways
-        if (callback) then
-            callback();
+        if callback then
+            callback()
         end
     end
 end
@@ -241,125 +241,125 @@ end
 local function fadeUI(opacity, duration, hideUI)
     -- setup a callback that will hide the UI if given or hide the minimap if opacity is 0
     local callback = function()
-        if (opacity == 0 and hideUI and UIParent:IsShown() and (not InCombatLockdown() or issecure())) then
+        if opacity == 0 and hideUI and UIParent:IsShown() and (not InCombatLockdown() or issecure()) then
             -- hide the UI, but make sure to make opacity 1 so that if escape is pressed, it is shown
-            setUIAlpha(1);
-            UIParent:Hide();
+            setUIAlpha(1)
+            UIParent:Hide()
 
-            combatSecureFrame.lastUIAlpha = opacity;
-            combatSecureFrame.hidUI = true;
-        elseif (opacity == 0 and Minimap:IsShown()) then
+            combatSecureFrame.lastUIAlpha = opacity
+            combatSecureFrame.hidUI = true
+        elseif opacity == 0 and Minimap:IsShown() then
             -- hide the minimap
-            Minimap:Hide();
-            hidMinimap = true;
+            Minimap:Hide()
+            hidMinimap = true
         end
     end
 
-    easeUIAlpha(opacity, duration, nil, callback);
+    easeUIAlpha(opacity, duration, nil, callback)
 end
 
 local function unfadeUI(opacity, duration)
-    stopEasingUIAlpha();
-    easeUIAlpha(opacity, duration);
+    stopEasingUIAlpha()
+    easeUIAlpha(opacity, duration)
 end
 
 -- need to be able to clear the faded UI, use dummy frame that Show() on fade, which will cause esc to
 -- hide it, make OnHide
 unfadeUIFrame:SetScript("OnHide", function(self)
-    stopEasingUIAlpha();
-    UIParent:SetAlpha(1);
-end);
-tinsert(UISpecialFrames, unfadeUIFrame:GetName());
+    stopEasingUIAlpha()
+    UIParent:SetAlpha(1)
+end)
+tinsert(UISpecialFrames, unfadeUIFrame:GetName())
 
 
 -----------------------
 -- NAMEPLATE ZOOMING --
 -----------------------
-local nameplateRestore = {};
-local RAMP_TIME = .25;
-local HYS = 3;
-local SETTLE_TIME = .5;
-local ERROR_MULT = 2.5;
-local STOPPING_SPEED = 5;
+local nameplateRestore = {}
+local RAMP_TIME = .25
+local HYS = 3
+local SETTLE_TIME = .5
+local ERROR_MULT = 2.5
+local STOPPING_SPEED = 5
 
 local function restoreNameplates()
-	if (not InCombatLockdown()) then
-		for k,v in pairs(nameplateRestore) do
-			SetCVar(k, v);
-		end
-		nameplateRestore = {};
-	end
+    if not InCombatLockdown() then
+        for k,v in pairs(nameplateRestore) do
+            SetCVar(k, v)
+        end
+        nameplateRestore = {}
+    end
 end
 
 local function fitNameplate(minZoom, maxZoom, nameplatePosition, continously, toggleNameplates)
-    if (toggleNameplates and not InCombatLockdown()) then
-        nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll");
-        nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends");
-        nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies");
+    if toggleNameplates and not InCombatLockdown() then
+        nameplateRestore["nameplateShowAll"] = GetCVar("nameplateShowAll")
+        nameplateRestore["nameplateShowFriends"] = GetCVar("nameplateShowFriends")
+        nameplateRestore["nameplateShowEnemies"] = GetCVar("nameplateShowEnemies")
 
-        SetCVar("nameplateShowAll", 1);
-        SetCVar("nameplateShowFriends", 1);
-        SetCVar("nameplateShowEnemies", 1);
+        SetCVar("nameplateShowAll", 1)
+        SetCVar("nameplateShowFriends", 1)
+        SetCVar("nameplateShowEnemies", 1)
     end
 
-    local lastSpeed = 0;
-    local startTime = GetTime();
-    local settleTimeStart;
+    local lastSpeed = 0
+    local startTime = GetTime()
+    local settleTimeStart
     local zoomFunc = function() -- returning 0 will stop camera, returning nil stops camera, returning number puts camera to that speed
-        local nameplate = C_NamePlate.GetNamePlateForUnit("target");
+        local nameplate = C_NamePlate.GetNamePlateForUnit("target")
 
-        if (nameplate) then
-            local yCenter = (nameplate:GetTop() + nameplate:GetBottom())/2;
-            local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale();
-            local difference = screenHeight - yCenter;
-            local ratio = (1 - difference/screenHeight) * 100;
-            local error = ratio - nameplatePosition;
+        if nameplate then
+            local yCenter = (nameplate:GetTop() + nameplate:GetBottom())/2
+            local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale()
+            local difference = screenHeight - yCenter
+            local ratio = (1 - difference/screenHeight) * 100
+            local error = ratio - nameplatePosition
 
-            local speed = 0;
-            if (lastSpeed == 0 and abs(error) < HYS) then
-                speed = 0;
-            elseif (abs(error) > HYS/4 or abs(lastSpeed) > STOPPING_SPEED) then
-                speed = ERROR_MULT * error;
+            local speed = 0
+            if lastSpeed == 0 and abs(error) < HYS then
+                speed = 0
+            elseif abs(error) > HYS/4 or abs(lastSpeed) > STOPPING_SPEED then
+                speed = ERROR_MULT * error
 
-                local deltaTime = GetTime() - startTime;
-                if (deltaTime < RAMP_TIME) then
-                    speed = speed * (deltaTime / RAMP_TIME);
+                local deltaTime = GetTime() - startTime
+                if deltaTime < RAMP_TIME then
+                    speed = speed * (deltaTime / RAMP_TIME)
                 end
             end
 
-            local curZoom = GetCameraZoom();
-            if (speed > 0 and curZoom >= maxZoom) then
-                speed = 0;
-            elseif (speed < 0 and curZoom <= minZoom) then
-                speed = 0;
+            local curZoom = GetCameraZoom()
+            if speed > 0 and curZoom >= maxZoom then
+                speed = 0
+            elseif speed < 0 and curZoom <= minZoom then
+                speed = 0
             end
 
-            if (speed == 0) then
-                startTime = GetTime();
-                settleTimeStart = settleTimeStart or GetTime();
+            if speed == 0 then
+                startTime = GetTime()
+                settleTimeStart = settleTimeStart or GetTime()
             else
-                settleTimeStart = nil;
+                settleTimeStart = nil
             end
 
-            if (speed == 0 and not continously and (GetTime() - settleTimeStart > SETTLE_TIME)) then
-                return nil;
+            if speed == 0 and not continously and GetTime() - settleTimeStart > SETTLE_TIME then
+                return nil
             end
 
-            lastSpeed = speed;
-            return speed;
+            lastSpeed = speed
+            return speed
         end
 
-        if (continously) then
-            startTime = GetTime();
-            lastSpeed = 0;
-            return 0;
+        if continously then
+            startTime = GetTime()
+            lastSpeed = 0
+            return 0
         end
 
-        return nil;
+        return nil
     end
 
-    LibCamera:CustomZoom(zoomFunc, restoreNameplates);
-    DynamicCam:DebugPrint("zoom fit nameplate");
+    LibCamera:CustomZoom(zoomFunc, restoreNameplates)
+    DynamicCam:DebugPrint("zoom fit nameplate")
 end
 
 
@@ -586,7 +586,7 @@ DynamicCam.defaults = {
                 priority = 20,
                 condition = [[for k,v in pairs(this.spells) do
     if GetSpellInfo(v) and GetSpellInfo(v) == CastingInfo("player") then
-        return true;
+        return true
     end
 end
 return false;]],
@@ -611,6 +611,7 @@ return false;]],
                   .. "88342,"   -- Teleport: Tol Barad
                   .. "88344,"   -- Teleport: Tol Barad
                   .. "94719,"   -- The Innkeeper's Daughter
+                  .. "120145,"  -- Ancient Teleport: Dalaran
                   .. "132621,"  -- Teleport: Vale of Eternal Blossoms
                   .. "132627,"  -- Teleport: Vale of Eternal Blossoms
                   .. "136508,"  -- Dark Portal
@@ -627,6 +628,8 @@ return false;]],
                   .. "222695,"  -- Dalaran Hearthstone
                   .. "224869,"  -- Teleport: Dalaran - Broken Isles
                   .. "227334,"  -- Flight Master's Whistle
+                  .. "281403,"  -- Teleport: Boralus
+                  .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
                 .. "};",
                 executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
@@ -636,9 +639,9 @@ return false;]],
                 name = "Annoying Spells",
                 priority = 1000,
                 condition = [[for k,v in pairs(this.buffs) do
-    local name = GetSpellInfo(v);
-    if (AuraUtil.FindAuraByName(name, "player", "HELPFUL")) then
-        return true;
+    local name = GetSpellInfo(v)
+    if AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
+        return true
     end
 end
 return false;]],
@@ -668,110 +671,110 @@ return false;]],
             },
         },
     },
-};
+}
 
 
 ----------
 -- CORE --
 ----------
-local started;
-local events = {};
-local evaluateTimer;
+local started
+local events = {}
+local evaluateTimer
 
 function DynamicCam:OnInitialize()
     -- setup db
-    self:InitDatabase();
-    self:RefreshConfig();
+    self:InitDatabase()
+    self:RefreshConfig()
 
     -- setup chat commands
-    self:RegisterChatCommand("dynamiccam", "OpenMenu");
-    self:RegisterChatCommand("dc", "OpenMenu");
+    self:RegisterChatCommand("dynamiccam", "OpenMenu")
+    self:RegisterChatCommand("dc", "OpenMenu")
 
-    self:RegisterChatCommand("saveview", "SaveViewCC");
-    self:RegisterChatCommand("sv", "SaveViewCC");
+    self:RegisterChatCommand("saveview", "SaveViewCC")
+    self:RegisterChatCommand("sv", "SaveViewCC")
 
-    self:RegisterChatCommand("zoominfo", "ZoomInfoCC");
-    self:RegisterChatCommand("zi", "ZoomInfoCC");
+    self:RegisterChatCommand("zoominfo", "ZoomInfoCC")
+    self:RegisterChatCommand("zi", "ZoomInfoCC")
 
-    self:RegisterChatCommand("zoom", "ZoomSlash");
-    self:RegisterChatCommand("pitch", "PitchSlash");
-    self:RegisterChatCommand("yaw", "YawSlash");
+    self:RegisterChatCommand("zoom", "ZoomSlash")
+    self:RegisterChatCommand("pitch", "PitchSlash")
+    self:RegisterChatCommand("yaw", "YawSlash")
 
     -- make sure to disable the message if ActionCam setting is on
-    if (self.db.profile.actionCam) then
-        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+    if self.db.profile.actionCam then
+        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
     end
 
     -- disable if the setting is enabled
-    if (not self.db.profile.enabled) then
-        self:Disable();
+    if not self.db.profile.enabled then
+        self:Disable()
     end
 end
 
 function DynamicCam:OnEnable()
-    self.db.profile.enabled = true;
+    self.db.profile.enabled = true
 
-    self:Startup();
+    self:Startup()
 end
 
 function DynamicCam:OnDisable()
-    self.db.profile.enabled = false;
-    self:Shutdown();
+    self.db.profile.enabled = false
+    self:Shutdown()
 end
 
 function DynamicCam:Startup()
     -- make sure that shortcuts have values
-    if (not Options) then
-        Options = self.Options;
+    if not Options then
+        Options = self.Options
     end
 
     -- register for dynamiccam messages
-    self:RegisterMessage("DC_SITUATION_ENABLED");
-    self:RegisterMessage("DC_SITUATION_DISABLED");
-    self:RegisterMessage("DC_SITUATION_UPDATED");
-    self:RegisterMessage("DC_BASE_CAMERA_UPDATED");
+    self:RegisterMessage("DC_SITUATION_ENABLED")
+    self:RegisterMessage("DC_SITUATION_DISABLED")
+    self:RegisterMessage("DC_SITUATION_UPDATED")
+    self:RegisterMessage("DC_BASE_CAMERA_UPDATED")
 
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
-    self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5);
-    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3);
-    self:ScheduleTimer("RegisterEvents", 3);
+    self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5)
+    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3)
+    self:ScheduleTimer("RegisterEvents", 3)
 
     -- turn on reactive zoom if it's enabled
-    if (self.db.profile.reactiveZoom.enabled) then
-        self:ReactiveZoomOn();
+    if self.db.profile.reactiveZoom.enabled then
+        self:ReactiveZoomOn()
     end
 
-    started = true;
+    started = true
 end
 
 function DynamicCam:Shutdown()
     -- kill the evaluate timer if it's running
-    if (evaluateTimer) then
-        self:CancelTimer(evaluateTimer);
-        evaluateTimer = nil;
+    if evaluateTimer then
+        self:CancelTimer(evaluateTimer)
+        evaluateTimer = nil
     end
 
     -- exit the current situation if in one
-    if (self.currentSituationID) then
-        self:ExitSituation(self.currentSituationID);
+    if self.currentSituationID then
+        self:ExitSituation(self.currentSituationID)
     end
 
-    events = {};
-    self:UnregisterAllEvents();
-    self:UnregisterAllMessages();
+    events = {}
+    self:UnregisterAllEvents()
+    self:UnregisterAllMessages()
 
     -- apply default settings
-    self:ApplyDefaultCameraSettings();
+    self:ApplyDefaultCameraSettings()
 
     -- turn off reactiveZoom
-    self:ReactiveZoomOff();
+    self:ReactiveZoomOff()
 
-    started = false;
+    started = false
 end
 
 function DynamicCam:DebugPrint(...)
-    if (self.db.profile.debugMode) then
-        self:Print(...);
+    if self.db.profile.debugMode then
+        self:Print(...)
     end
 end
 
@@ -779,82 +782,82 @@ end
 ----------------
 -- SITUATIONS --
 ----------------
-local delayTime;
-local delayTimer;
-local restoration = {};
+local delayTime
+local delayTimer
+local restoration = {}
 
 function DynamicCam:EvaluateSituations()
     -- if we currently have timer running, kill it
-    if (evaluateTimer) then
-        self:CancelTimer(evaluateTimer);
-        evaluateTimer = nil;
+    if evaluateTimer then
+        self:CancelTimer(evaluateTimer)
+        evaluateTimer = nil
     end
 
-    if (self.db.profile.enabled) then
-        local highestPriority = -100;
-        local topSituation;
+    if self.db.profile.enabled then
+        local highestPriority = -100
+        local topSituation
 
         -- go through all situations pick the best one
         for id, situation in pairs(self.db.profile.situations) do
-            if (situation.enabled) then
+            if situation.enabled then
                 -- evaluate the condition, if it checks out and the priority is larger then any other, set it
-                local lastEvaluate = conditionExecutionCache[id];
-                local thisEvaluate = DC_RunScript(situation.condition, id);
-                conditionExecutionCache[id] = thisEvaluate;
+                local lastEvaluate = conditionExecutionCache[id]
+                local thisEvaluate = DC_RunScript(situation.condition, id)
+                conditionExecutionCache[id] = thisEvaluate
 
-                if (thisEvaluate) then
+                if thisEvaluate then
                     -- the condition is true
-                    if (not lastEvaluate) then
+                    if not lastEvaluate then
                         -- last evaluate wasn't true, so this we "flipped"
-                        self:SendMessage("DC_SITUATION_ACTIVE", id);
+                        self:SendMessage("DC_SITUATION_ACTIVE", id)
                     end
 
                     -- check to see if we've already found something with higher priority
-                    if (situation.priority > highestPriority) then
-                        highestPriority = situation.priority;
-                        topSituation = id;
+                    if situation.priority > highestPriority then
+                        highestPriority = situation.priority
+                        topSituation = id
                     end
                 else
                     -- the condition is false
-                    if (lastEvaluate) then
+                    if lastEvaluate then
                         -- last evaluate was true, so we "flipped"
-                        self:SendMessage("DC_SITUATION_INACTIVE", id);
+                        self:SendMessage("DC_SITUATION_INACTIVE", id)
                     end
                 end
             end
         end
 
-        local swap = true;
-        if (self.currentSituationID and (not topSituation or topSituation ~= self.currentSituationID)) then
+        local swap = true
+        if self.currentSituationID and (not topSituation or topSituation ~= self.currentSituationID) then
             -- we're in a situation that isn't the topSituation or there is no topSituation
-            local delay = self.db.profile.situations[self.currentSituationID].delay;
-            if (delay > 0) then
-                if (not delayTime) then
+            local delay = self.db.profile.situations[self.currentSituationID].delay
+            if delay > 0 then
+                if not delayTime then
                     -- not yet cooling down, make sure to guarentee an evaluate, don't swap
-                    delayTime = GetTime() + delay;
-                    delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER");
-                    self:DebugPrint("Not changing situation because of a delay");
-                    swap = false;
-                elseif (delayTime > GetTime()) then
+                    delayTime = GetTime() + delay
+                    delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER")
+                    self:DebugPrint("Not changing situation because of a delay")
+                    swap = false
+                elseif delayTime > GetTime() then
                     -- still cooling down, don't swap
-                    swap = false;
+                    swap = false
                 end
             end
         end
 
-        if (swap) then
-            if (topSituation) then
-                if (topSituation ~= self.currentSituationID) then
+        if swap then
+            if topSituation then
+                if topSituation ~= self.currentSituationID then
                     -- we want to swap and there is a situation to swap into, and it's not the current situation
-                    self:SetSituation(topSituation);
+                    self:SetSituation(topSituation)
                 end
 
                 -- if we had a delay previously, make sure to reset it
-                delayTime = nil;
+                delayTime = nil
             else
                 --none of the situations are active, leave the current situation
-                if (self.currentSituationID) then
-                    self:ExitSituation(self.currentSituationID);
+                if self.currentSituationID then
+                    self:ExitSituation(self.currentSituationID)
                 end
             end
         end
@@ -862,101 +865,101 @@ function DynamicCam:EvaluateSituations()
 end
 
 function DynamicCam:SetSituation(situationID)
-    local oldSituationID = self.currentSituationID;
-    local restoringZoom;
+    local oldSituationID = self.currentSituationID
+    local restoringZoom
 
     -- if currently in a situation, leave it
-    if (self.currentSituationID) then
-        restoringZoom = self:ExitSituation(self.currentSituationID, situationID);
+    if self.currentSituationID then
+        restoringZoom = self:ExitSituation(self.currentSituationID, situationID)
     end
 
     -- go into the new situation
-    self:EnterSituation(situationID, oldSituationID, restoringZoom);
+    self:EnterSituation(situationID, oldSituationID, restoringZoom)
 end
 
 function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
-    local situation = self.db.profile.situations[situationID];
-    local this = situationEnvironments[situationID].this;
+    local situation = self.db.profile.situations[situationID]
+    local this = situationEnvironments[situationID].this
 
-    self:DebugPrint("Entering situation", situation.name);
+    self:DebugPrint("Entering situation", situation.name)
 
     -- load and run advanced script onEnter
-    DC_RunScript(situation.executeOnEnter, situationID);
+    DC_RunScript(situation.executeOnEnter, situationID)
 
-    self.currentSituationID = situationID;
+    self.currentSituationID = situationID
 
-    restoration[situationID] = {};
-    local a = situation.cameraActions;
+    restoration[situationID] = {}
+    local a = situation.cameraActions
 
-    local transitionTime = a.transitionTime;
-    if (this.transitionTime) then
-        transitionTime = this.transitionTime;
+    local transitionTime = a.transitionTime
+    if this.transitionTime then
+        transitionTime = this.transitionTime
     end
     -- min 10 frames
-    transitionTime = math.max(10.0/60.0, transitionTime);
+    transitionTime = math.max(10.0/60.0, transitionTime)
 
     -- set view settings
-    if (situation.view.enabled) then
-        if (situation.view.restoreView) then
-            SaveView(1);
+    if situation.view.enabled then
+        if situation.view.restoreView then
+            SaveView(1)
         end
 
-        gotoView(situation.view.viewNumber, situation.view.instant);
+        gotoView(situation.view.viewNumber, situation.view.instant)
     end
 
     -- ZOOM --
-    if (not skipZoom) then
+    if not skipZoom then
         -- save old zoom level
-        local cameraZoom = GetCameraZoom();
-        restoration[situationID].zoom = round(cameraZoom, 1);
-        restoration[situationID].zoomSituation = oldSituationID;
+        local cameraZoom = GetCameraZoom()
+        restoration[situationID].zoom = round(cameraZoom, 1)
+        restoration[situationID].zoomSituation = oldSituationID
 
         -- set zoom level
-        local newZoomLevel;
+        local newZoomLevel
 
-        if (a.zoomSetting == "in" and cameraZoom > a.zoomValue) then
-            newZoomLevel = a.zoomValue;
-        elseif (a.zoomSetting == "out" and cameraZoom < a.zoomValue) then
-            newZoomLevel = a.zoomValue;
-        elseif (a.zoomSetting == "set") then
-            newZoomLevel = a.zoomValue;
-        elseif (a.zoomSetting == "range") then
-            if (cameraZoom < a.zoomMin) then
-                newZoomLevel = a.zoomMin;
-            elseif (cameraZoom > a.zoomMax) then
-                newZoomLevel = a.zoomMax;
+        if a.zoomSetting == "in" and cameraZoom > a.zoomValue then
+            newZoomLevel = a.zoomValue
+        elseif a.zoomSetting == "out" and cameraZoom < a.zoomValue then
+            newZoomLevel = a.zoomValue
+        elseif a.zoomSetting == "set" then
+            newZoomLevel = a.zoomValue
+        elseif a.zoomSetting == "range" then
+            if cameraZoom < a.zoomMin then
+                newZoomLevel = a.zoomMin
+            elseif cameraZoom > a.zoomMax then
+                newZoomLevel = a.zoomMax
             end
-        elseif (a.zoomSetting == "fit") then
-            local min = a.zoomMin;
-            if (a.zoomFitUseCurAsMin) then
-                min = math.min(GetCameraZoom(), a.zoomMax);
+        elseif a.zoomSetting == "fit" then
+            local min = a.zoomMin
+            if a.zoomFitUseCurAsMin then
+                min = math.min(GetCameraZoom(), a.zoomMax)
             end
 
-            fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate);
+            fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate)
         end
 
         -- actually do zoom
-        if (newZoomLevel) then
+        if newZoomLevel then
             local difference = math.abs(newZoomLevel - cameraZoom)
-            local linearSpeed = difference / transitionTime;
-            local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"));
-            local duration = transitionTime;
+            local linearSpeed = difference / transitionTime
+            local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"))
+            local duration = transitionTime
 
             -- if zoom speed is lower than current speed, then calculate a new transitionTime
-            if (a.timeIsMax and linearSpeed < currentSpeed) then
+            if a.timeIsMax and linearSpeed < currentSpeed then
                 -- min time 10 frames
                 duration = math.max(10.0/60.0, difference / currentSpeed)
             end
 
-            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration);
+            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration)
 
-            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom]);
+            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom])
         end
 
         -- if we didn't adjust the zoom, then reset oldZoom
-        if (not newZoomLevel and a.zoomSetting ~= "fit") then
-            restoration[situationID].zoom = nil;
-            restoration[situationID].zoomSituation = nil;
+        if not newZoomLevel and a.zoomSetting ~= "fit" then
+            restoration[situationID].zoom = nil
+            restoration[situationID].zoomSituation = nil
         end
     else
         self:DebugPrint("Restoring zoom level, so skipping zoom action")
@@ -964,103 +967,103 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
 
     -- set all cvars
     for cvar, value in pairs(situation.cameraCVars) do
-        if (cvar == "test_cameraOverShoulder") then
+        if cvar == "test_cameraOverShoulder" then
             -- ease shoulder offset over
-            stopEasingShoulderOffset();
-            if (GetCVar("test_cameraOverShoulder") ~= tostring(value)) then
-                easeShoulderOffset(value, transitionTime);
+            stopEasingShoulderOffset()
+            if GetCVar("test_cameraOverShoulder") ~= tostring(value) then
+                easeShoulderOffset(value, transitionTime)
             end
         else
-            DC_SetCVar(cvar, value);
+            DC_SetCVar(cvar, value)
         end
     end
 
     -- ROTATE --
-    if (a.rotate) then
-        if (a.rotateSetting == "continous") then
-            LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime);
-        elseif (a.rotateSetting == "degrees") then
-            if (a.yawDegrees ~= 0) then
-                LibCamera:Yaw(a.yawDegrees, transitionTime, LibEasing[self.db.profile.easingYaw]);
+    if a.rotate then
+        if a.rotateSetting == "continous" then
+            LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime)
+        elseif a.rotateSetting == "degrees" then
+            if a.yawDegrees ~= 0 then
+                LibCamera:Yaw(a.yawDegrees, transitionTime, LibEasing[self.db.profile.easingYaw])
             end
 
-            if (a.pitchDegrees ~= 0) then
-                LibCamera:Pitch(a.pitchDegrees, transitionTime, LibEasing[self.db.profile.easingPitch]);
+            if a.pitchDegrees ~= 0 then
+                LibCamera:Pitch(a.pitchDegrees, transitionTime, LibEasing[self.db.profile.easingPitch])
             end
         end
     end
 
     -- EXTRAS --
-    if (situation.extras.hideUI) then
-        fadeUI(situation.extras.hideUIFadeOpacity, math.min(0.5, transitionTime), situation.extras.actuallyHideUI);
+    if situation.extras.hideUI then
+        fadeUI(situation.extras.hideUIFadeOpacity, math.min(0.5, transitionTime), situation.extras.actuallyHideUI)
     end
 
-    self:SendMessage("DC_SITUATION_ENTERED");
+    self:SendMessage("DC_SITUATION_ENTERED")
 end
 
 function DynamicCam:ExitSituation(situationID, newSituationID)
-    local restoringZoom;
-    local situation = self.db.profile.situations[situationID];
-    self.currentSituationID = nil;
+    local restoringZoom
+    local situation = self.db.profile.situations[situationID]
+    self.currentSituationID = nil
 
-    self:DebugPrint("Exiting situation "..situation.name);
+    self:DebugPrint("Exiting situation "..situation.name)
 
     -- load and run advanced script onExit
-    DC_RunScript(situation.executeOnExit, situationID);
+    DC_RunScript(situation.executeOnExit, situationID)
 
     -- restore cvars to their default values
-    self:ApplyDefaultCameraSettings(newSituationID);
+    self:ApplyDefaultCameraSettings(newSituationID)
 
     -- restore view that is enabled
-    if (situation.view.enabled and situation.view.restoreView) then
-        gotoView(1, situation.view.instant);
+    if situation.view.enabled and situation.view.restoreView then
+        gotoView(1, situation.view.instant)
     end
 
-    local a = situation.cameraActions;
+    local a = situation.cameraActions
 
     -- stop rotating if we started to
-    if (a.rotate) then
-        if (a.rotateSetting == "continous") then
-            local yaw = LibCamera:StopYawing();
+    if a.rotate then
+        if a.rotateSetting == "continous" then
+            local yaw = LibCamera:StopYawing()
 
             -- rotate back if we want to
-            if (a.rotateBack) then
-                self:DebugPrint("Ended rotate, degrees rotated, yaw:", yaw);
-                if (yaw) then
-                    local yawBack = yaw % 360;
+            if a.rotateBack then
+                self:DebugPrint("Ended rotate, degrees rotated, yaw:", yaw)
+                if yaw then
+                    local yawBack = yaw % 360
 
                     -- we're beyond 180 degrees, go the other way
-                    if (yawBack > 180) then
-                        yawBack = yawBack - 360;
+                    if yawBack > 180 then
+                        yawBack = yawBack - 360
                     end
 
-                    LibCamera:Yaw(-yawBack, 0.75, LibEasing[self.db.profile.easingYaw]);
+                    LibCamera:Yaw(-yawBack, 0.75, LibEasing[self.db.profile.easingYaw])
                 end
             end
-        elseif (a.rotateSetting == "degrees") then
-            if (LibCamera:IsRotating()) then
+        elseif a.rotateSetting == "degrees" then
+            if LibCamera:IsRotating() then
                 -- interrupted rotation
-                local yaw, pitch = LibCamera:StopRotating();
+                local yaw, pitch = LibCamera:StopRotating()
 
                 -- rotate back if we want to
-                if (a.rotateBack) then
-                    self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch);
-                    if (yaw) then
-                        LibCamera:Yaw(-yaw, 0.75, LibEasing[self.db.profile.easingYaw]);
+                if a.rotateBack then
+                    self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch)
+                    if yaw then
+                        LibCamera:Yaw(-yaw, 0.75, LibEasing[self.db.profile.easingYaw])
                     end
 
-                    if (pitch) then
-                        LibCamera:Pitch(-pitch, 0.75, LibEasing[self.db.profile.easingPitch]);
+                    if pitch then
+                        LibCamera:Pitch(-pitch, 0.75, LibEasing[self.db.profile.easingPitch])
                     end
                 end
             else
-                if (a.rotateBack) then
-                    if (a.yawDegrees ~= 0) then
-                        LibCamera:Yaw(-a.yawDegrees, 0.75, LibEasing[self.db.profile.easingYaw]);
+                if a.rotateBack then
+                    if a.yawDegrees ~= 0 then
+                        LibCamera:Yaw(-a.yawDegrees, 0.75, LibEasing[self.db.profile.easingYaw])
                     end
 
-                    if (a.pitchDegrees ~= 0) then
-                        LibCamera:Pitch(-a.pitchDegrees, 0.75, LibEasing[self.db.profile.easingPitch]);
+                    if a.pitchDegrees ~= 0 then
+                        LibCamera:Pitch(-a.pitchDegrees, 0.75, LibEasing[self.db.profile.easingPitch])
                     end
                 end
             end
@@ -1068,173 +1071,173 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     end
 
     -- restore zoom level if we saved one
-    if (self:ShouldRestoreZoom(situationID, newSituationID)) then
-        restoringZoom = true;
+    if self:ShouldRestoreZoom(situationID, newSituationID) then
+        restoringZoom = true
 
-        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
-        local t = math.max(10.0/60.0, math.min(defaultTime, .75));
-        local zoomLevel = restoration[situationID].zoom;
+        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
+        local t = math.max(10.0/60.0, math.min(defaultTime, .75))
+        local zoomLevel = restoration[situationID].zoom
 
-        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t);
+        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t)
 
-        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom]);
+        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom])
     else
-        self:DebugPrint("Not restoring zoom level");
+        self:DebugPrint("Not restoring zoom level")
     end
 
     -- unhide UI
-    if (situation.extras.hideUI) then
-        unfadeUI(1, .5);
+    if situation.extras.hideUI then
+        unfadeUI(1, .5)
     end
 
-    wipe(restoration[situationID]);
+    wipe(restoration[situationID])
 
-    self:SendMessage("DC_SITUATION_EXITED");
+    self:SendMessage("DC_SITUATION_EXITED")
 
-    return restoringZoom;
+    return restoringZoom
 end
 
 function DynamicCam:GetSituationList()
-    local situationList = {};
+    local situationList = {}
 
     for id, situation in pairs(self.db.profile.situations) do
-        local prefix = "";
-        local suffix = "";
-        local customPrefix = "";
+        local prefix = ""
+        local suffix = ""
+        local customPrefix = ""
 
-        if (self.currentSituationID == id) then
-            prefix = "|cFF00FF00";
-            suffix = "|r";
-        elseif (not situation.enabled) then
-            prefix = "|cFF808A87";
-            suffix = "|r";
-        elseif (conditionExecutionCache[id]) then
-            prefix = "|cFF63B8FF";
-            suffix = "|r";
+        if self.currentSituationID == id then
+            prefix = "|cFF00FF00"
+            suffix = "|r"
+        elseif not situation.enabled then
+            prefix = "|cFF808A87"
+            suffix = "|r"
+        elseif conditionExecutionCache[id] then
+            prefix = "|cFF63B8FF"
+            suffix = "|r"
         end
 
-        if (string.find(id, "custom")) then
-            customPrefix = "Custom: ";
+        if string.find(id, "custom") then
+            customPrefix = "Custom: "
         end
 
-        situationList[id] = prefix..customPrefix..situation.name..suffix;
+        situationList[id] = prefix..customPrefix..situation.name..suffix
     end
 
-    return situationList;
+    return situationList
 end
 
 function DynamicCam:CopySituationInto(fromID, toID)
     -- make sure that both from and to are valid situationIDs
-    if (not fromID or not toID or fromID == toID or not self.db.profile.situations[fromID] or not self.db.profile.situations[toID]) then
-        self:DebugPrint("CopySituationInto has invalid from or to!");
-        return;
+    if not fromID or not toID or fromID == toID or not self.db.profile.situations[fromID] or not self.db.profile.situations[toID] then
+        self:DebugPrint("CopySituationInto has invalid from or to!")
+        return
     end
 
-    local from = self.db.profile.situations[fromID];
-    local to = self.db.profile.situations[toID];
+    local from = self.db.profile.situations[fromID]
+    local to = self.db.profile.situations[toID]
 
     -- copy settings over
-    to.enabled = from.enabled;
+    to.enabled = from.enabled
 
     -- a more robust solution would be much better!
-    to.cameraActions = {};
+    to.cameraActions = {}
     for key, value in pairs(from.cameraActions) do
-        to.cameraActions[key] = from.cameraActions[key];
+        to.cameraActions[key] = from.cameraActions[key]
     end
 
-    to.view = {};
+    to.view = {}
     for key, value in pairs(from.view) do
-        to.view[key] = from.view[key];
+        to.view[key] = from.view[key]
     end
 
-    to.extras = {};
+    to.extras = {}
     for key, value in pairs(from.extras) do
-        to.extras[key] = from.extras[key];
+        to.extras[key] = from.extras[key]
     end
 
-    to.cameraCVars = {};
+    to.cameraCVars = {}
     for key, value in pairs(from.cameraCVars) do
-        to.cameraCVars[key] = from.cameraCVars[key];
+        to.cameraCVars[key] = from.cameraCVars[key]
     end
 
-    self:SendMessage("DC_SITUATION_UPDATED", toID);
+    self:SendMessage("DC_SITUATION_UPDATED", toID)
 end
 
 function DynamicCam:UpdateSituation(situationID)
-    local situation = self.db.profile.situations[situationID];
-    if (situation and (situationID == self.currentSituationID)) then
+    local situation = self.db.profile.situations[situationID]
+    if situation and situationID == self.currentSituationID then
         -- apply cvars
         for cvar, value in pairs(situation.cameraCVars) do
-            DC_SetCVar(cvar, value);
+            DC_SetCVar(cvar, value)
         end
-        self:ApplyDefaultCameraSettings();
+        self:ApplyDefaultCameraSettings()
     end
-    DC_RunScript(situation.executeOnInit, situationID);
-    self:RegisterSituationEvents(situationID);
-    self:EvaluateSituations();
+    DC_RunScript(situation.executeOnInit, situationID)
+    self:RegisterSituationEvents(situationID)
+    self:EvaluateSituations()
 end
 
 function DynamicCam:CreateCustomSituation(name)
     -- search for a clear id
-    local highest = 0;
+    local highest = 0
 
     -- go through each and every situation, look for the custom ones, and find the
     -- highest custom id
     for id, situation in pairs(self.db.profile.situations) do
-        local i, j = string.find(id, "custom");
+        local i, j = string.find(id, "custom")
 
-        if (i and j) then
-            local num = tonumber(string.sub(id, j+1));
+        if i and j then
+            local num = tonumber(string.sub(id, j+1))
 
-            if (num and num > highest) then
-                highest = num;
+            if num and num > highest then
+                highest = num
             end
         end
     end
 
     -- copy the default situation into a new table
-    local newSituationID = "custom"..(highest+1);
-    local newSituation = copyTable(self.defaults.profile.situations["**"]);
+    local newSituationID = "custom"..(highest+1)
+    local newSituation = copyTable(self.defaults.profile.situations["**"])
 
-    newSituation.name = name;
+    newSituation.name = name
 
     -- create the entry in the profile with an id 1 higher than the highest already customID
-    self.db.profile.situations[newSituationID] = newSituation;
+    self.db.profile.situations[newSituationID] = newSituation
 
     -- make sure that the options panel reselects a situation
-    if (Options) then
-        Options:SelectSituation(newSituationID);
+    if Options then
+        Options:SelectSituation(newSituationID)
     end
 
-    self:SendMessage("DC_SITUATION_UPDATED", newSituationID);
-    return newSituation, newSituationID;
+    self:SendMessage("DC_SITUATION_UPDATED", newSituationID)
+    return newSituation, newSituationID
 end
 
 function DynamicCam:DeleteCustomSituation(situationID)
-    if (not self.db.profile.situations[situationID]) then
+    if not self.db.profile.situations[situationID] then
         self:DebugPrint("Cannot delete this situation since it doesn't exist", situationID)
     end
 
-    if (not string.find(situationID, "custom")) then
-        self:DebugPrint("Cannot delete a non-custom situation");
+    if not string.find(situationID, "custom") then
+        self:DebugPrint("Cannot delete a non-custom situation")
     end
 
     -- if we're currently in this situation, exit it
-    if (self.currentSituationID == situationID) then
-        self:ExitSituation(situationID);
+    if self.currentSituationID == situationID then
+        self:ExitSituation(situationID)
     end
 
     -- delete the situation
-    self.db.profile.situations[situationID] = nil;
+    self.db.profile.situations[situationID] = nil
 
     -- make sure that the options panel reselects a situation
-    if (Options) then
-        Options:ClearSelection();
-        Options:SelectSituation();
+    if Options then
+        Options:ClearSelection()
+        Options:SelectSituation()
     end
 
     -- EvaluateSituations because we might have changed the current situation
-    self:EvaluateSituations();
+    self:EvaluateSituations()
 end
 
 
@@ -1242,264 +1245,263 @@ end
 -- UTILITY --
 -------------
 function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
-    local curSituation = self.db.profile.situations[self.currentSituationID];
+    local curSituation = self.db.profile.situations[self.currentSituationID]
 
-    if (newSituationID) then
-        curSituation = self.db.profile.situations[newSituationID];
+    if newSituationID then
+        curSituation = self.db.profile.situations[newSituationID]
     end
 
     -- apply ActionCam setting
-    if (self.db.profile.actionCam) then
+    if self.db.profile.actionCam then
         -- if it's on, unregister the event, so that we don't get popup
-        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
     else
         -- if it's off, make sure to reset all ActionCam settings, then reenable popup
-        ResetTestCvars();
-        UIParent:RegisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED");
+        ResetTestCvars()
+        UIParent:RegisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
     end
 
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
-        if (not curSituation or not curSituation.cameraCVars[cvar]) then
-            if (cvar == "test_cameraOverShoulder") then
-                stopEasingShoulderOffset();
-                if (not (GetCVar("test_cameraOverShoulder") == tostring(value))) then
-                    easeShoulderOffset(value, 0.75);
+        if not curSituation or not curSituation.cameraCVars[cvar] then
+            if cvar == "test_cameraOverShoulder" then
+                stopEasingShoulderOffset()
+                if GetCVar("test_cameraOverShoulder") ~= tostring(value) then
+                    easeShoulderOffset(value, 0.75)
                 end
             else
-                DC_SetCVar(cvar, value);
+                DC_SetCVar(cvar, value)
             end
         end
     end
 end
 
 function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
-    local newSituation = self.db.profile.situations[newSituationID];
+    local newSituation = self.db.profile.situations[newSituationID]
 
     -- don't restore if we don't have a saved zoom value
-    if (not restoration[oldSituationID].zoom) then
-        return false;
+    if not restoration[oldSituationID].zoom then
+        return false
     end
 
     -- restore if we're just exiting a situation, but not going into a new one
-    if (not newSituation) then
-        self:DebugPrint("Restoring because just exiting");
-        return true;
+    if not newSituation then
+        self:DebugPrint("Restoring because just exiting")
+        return true
     end
 
     -- only restore zoom if returning to the same situation
-    if (restoration[oldSituationID].zoomSituation ~= newSituationID) then
-        return false;
+    if restoration[oldSituationID].zoomSituation ~= newSituationID then
+        return false
     end
 
     -- don't restore zoom if we're about to go into a view
-    if (newSituation.view.enabled) then
-        return false;
+    if newSituation.view.enabled then
+        return false
     end
 
     -- restore zoom based on newSituation zoomSetting
-    if (newSituation.cameraActions.zoomSetting == "off") then
+    if newSituation.cameraActions.zoomSetting == "off" then
         -- don't restore zoom if the new situation doesn't zoom at all
-        return false;
-    elseif (newSituation.cameraActions.zoomSetting == "set") then
+        return false
+    elseif newSituation.cameraActions.zoomSetting == "set" then
         -- don't restore zoom if the zoom is going to be setting the zoom anyways
-        return false;
-    elseif (newSituation.cameraActions.zoomSetting == "fit") then
+        return false
+    elseif newSituation.cameraActions.zoomSetting == "fit" then
         -- don't restore zoom to a zoom fit
-        return false;
-    elseif (newSituation.cameraActions.zoomSetting == "range") then
+        return false
+    elseif newSituation.cameraActions.zoomSetting == "range" then
         --only restore zoom if zoom will be in the range
-        if ((newSituation.cameraActions.zoomMin <= restoration[oldSituationID].zoom + .5) and
-            (newSituation.cameraActions.zoomMax >= restoration[oldSituationID].zoom - .5)) then
-            return true;
+        if newSituation.cameraActions.zoomMin <= restoration[oldSituationID].zoom + .5 and
+           newSituation.cameraActions.zoomMax >= restoration[oldSituationID].zoom - .5 then
+            return true
         end
-    elseif (newSituation.cameraActions.zoomSetting == "in") then
+    elseif newSituation.cameraActions.zoomSetting == "in" then
         -- only restore if restoration zoom will still be acceptable
-        if (newSituation.cameraActions.zoomValue >= restoration[oldSituationID].zoom - .5) then
-            return true;
+        if newSituation.cameraActions.zoomValue >= restoration[oldSituationID].zoom - .5 then
+            return true
         end
-    elseif (newSituation.cameraActions.zoomSetting == "out") then
+    elseif newSituation.cameraActions.zoomSetting == "out" then
         -- restore zoom if newSituation is zooming out and we would already be zooming out farther
-        if (newSituation.cameraActions.zoomValue <= restoration[oldSituationID].zoom + .5) then
-            return true;
+        if newSituation.cameraActions.zoomValue <= restoration[oldSituationID].zoom + .5 then
+            return true
         end
     end
 
     -- if nothing else, don't restore
-    return false;
+    return false
 end
 
 
 -------------------
 -- REACTIVE ZOOM --
 -------------------
-local targetZoom;
-local oldCameraZoomIn = CameraZoomIn;
-local oldCameraZoomOut = CameraZoomOut;
+local targetZoom
+local oldCameraZoomIn = CameraZoomIn
+local oldCameraZoomOut = CameraZoomOut
 
 local function clearTargetZoom(wasInterrupted)
-    if (not wasInterrupted) then
-        targetZoom = nil;
+    if not wasInterrupted then
+        targetZoom = nil
     end
 end
 
 local function ReactiveZoom(zoomIn, increments, automated)
-    increments = increments or 1;
+    increments = increments or 1
 
-    if (not automated and increments == 1) then
-        local currentZoom = GetCameraZoom();
+    if not automated and increments == 1 then
+        local currentZoom = GetCameraZoom()
 
-        local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways;
-        local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements;
-        local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime;
-        local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference;
-        local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc;
+        local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways
+        local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements
+        local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime
+        local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference
+        local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc
 
         -- if we've change directions, make sure to reset
-        if (zoomIn) then
-            if (targetZoom and targetZoom > currentZoom) then
-                targetZoom = nil;
+        if zoomIn then
+            if targetZoom and targetZoom > currentZoom then
+                targetZoom = nil
             end
         else
-            if (targetZoom and targetZoom < currentZoom) then
-                targetZoom = nil;
+            if targetZoom and targetZoom < currentZoom then
+                targetZoom = nil
             end
         end
 
         -- scale increments up
-        if (increments == 1) then
-            if (targetZoom) then
-                local diff = math.abs(targetZoom - currentZoom);
+        if increments == 1 then
+            if targetZoom then
+                local diff = math.abs(targetZoom - currentZoom)
 
-                if (diff > incAddDifference) then
-                    increments = increments + addIncrementsAlways + addIncrements;
+                if diff > incAddDifference then
+                    increments = increments + addIncrementsAlways + addIncrements
                 else
-                    increments = increments + addIncrementsAlways;
+                    increments = increments + addIncrementsAlways
                 end
             else
-                increments = increments + addIncrementsAlways;
+                increments = increments + addIncrementsAlways
             end
         end
 
         -- if there is already a target zoom, base off that one, or just use the current zoom
-        targetZoom = targetZoom or currentZoom;
+        targetZoom = targetZoom or currentZoom
 
-        if (zoomIn) then
-            targetZoom = math.max(0, targetZoom - increments);
+        if zoomIn then
+            targetZoom = math.max(0, targetZoom - increments)
         else
-            targetZoom = math.min(39, targetZoom + increments);
+            targetZoom = math.min(39, targetZoom + increments)
         end
 
         -- if we don't need to zoom because we're at the max limits, then don't
-        if ((targetZoom == 39 and currentZoom == 39)
-            or (targetZoom == 0 and currentZoom == 0)) then
-            return;
+        if (targetZoom == 39 and currentZoom == 39) or (targetZoom == 0 and currentZoom == 0) then
+            return
         end
 
         -- round target zoom off to the nearest decimal
-        targetZoom = round(targetZoom, 1);
+        targetZoom = round(targetZoom, 1)
 
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
-        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")));
+        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")))
 
-        LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom);
+        LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom)
     else
-        if (zoomIn) then
-            oldCameraZoomIn(increments, automated);
+        if zoomIn then
+            oldCameraZoomIn(increments, automated)
         else
-            oldCameraZoomOut(increments, automated);
+            oldCameraZoomOut(increments, automated)
         end
     end
 end
 
 local function ReactiveZoomIn(increments, automated)
-    ReactiveZoom(true, increments, automated);
+    ReactiveZoom(true, increments, automated)
 end
 
 local function ReactiveZoomOut(increments, automated)
-    ReactiveZoom(false, increments, automated);
+    ReactiveZoom(false, increments, automated)
 end
 
 function DynamicCam:ReactiveZoomOn()
-    CameraZoomIn = ReactiveZoomIn;
-    CameraZoomOut = ReactiveZoomOut;
+    CameraZoomIn = ReactiveZoomIn
+    CameraZoomOut = ReactiveZoomOut
 end
 
 function DynamicCam:ReactiveZoomOff()
-    CameraZoomIn = oldCameraZoomIn;
-    CameraZoomOut = oldCameraZoomOut;
+    CameraZoomIn = oldCameraZoomIn
+    CameraZoomOut = oldCameraZoomOut
 end
 
 
 ------------
 -- EVENTS --
 ------------
-local lastEvaluate;
-local TIME_BEFORE_NEXT_EVALUATE = .1;
-local EVENT_DOUBLE_TIME = .2;
+local lastEvaluate
+local TIME_BEFORE_NEXT_EVALUATE = .1
+local EVENT_DOUBLE_TIME = .2
 
 function DynamicCam:EventHandler(event, possibleUnit, ...)
     -- we don't want to evaluate too often, some of the events can be *very* spammy
-    if (not lastEvaluate or (lastEvaluate and ((lastEvaluate + TIME_BEFORE_NEXT_EVALUATE) < GetTime()))) then
-        lastEvaluate = GetTime();
+    if not lastEvaluate or (lastEvaluate and lastEvaluate + TIME_BEFORE_NEXT_EVALUATE < GetTime()) then
+        lastEvaluate = GetTime()
 
         -- call the evaluate
-        self:EvaluateSituations();
+        self:EvaluateSituations()
 
         -- double the event, since a lot of events happen before the condition turns out to be true
-        evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME);
+        evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME)
     else
         -- we're delaying the call of evaluate situations until next evaluate
-        if (not evaluateTimer) then
-            evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE);
+        if not evaluateTimer then
+            evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE)
         end
     end
 end
 
 function DynamicCam:RegisterEvents()
-    self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler");
+    self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler")
 
     for situationID, situation in pairs(self.db.profile.situations) do
-        self:RegisterSituationEvents(situationID);
+        self:RegisterSituationEvents(situationID)
     end
 end
 
 function DynamicCam:RegisterSituationEvents(situationID)
-    local situation = self.db.profile.situations[situationID];
-    if (situation and situation.events) then
+    local situation = self.db.profile.situations[situationID]
+    if situation and situation.events then
         for i, event in pairs(situation.events) do
-            if (not events[event]) then
-                events[event] = true;
-                self:RegisterEvent(event, "EventHandler");
-                -- self:DebugPrint("Registered for event:", event);
+            if not events[event] then
+                events[event] = true
+                self:RegisterEvent(event, "EventHandler")
+                -- self:DebugPrint("Registered for event:", event)
             end
         end
     end
 end
 
 function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
-    self:EvaluateSituations();
+    self:EvaluateSituations()
 end
 
 function DynamicCam:DC_SITUATION_DISABLED(message, situationID)
-    self:EvaluateSituations();
+    self:EvaluateSituations()
 end
 
 function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
-    self:UpdateSituation(situationID);
-    self:EvaluateSituations();
+    self:UpdateSituation(situationID)
+    self:EvaluateSituations()
 end
 
 function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
-    self:ApplyDefaultCameraSettings();
+    self:ApplyDefaultCameraSettings()
 end
 
 
 --------------
 -- DATABASE --
 --------------
-local firstDynamicCamLaunch = false;
-local upgradingFromOldVersion = false;
+local firstDynamicCamLaunch = false
+local upgradingFromOldVersion = false
 StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured.",
     button1 = "Open Presets",
@@ -1509,8 +1511,8 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.presets);
-        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets)
+        InterfaceOptionsFrame_OpenToCategory(Options.presets)
     end,
     OnCancel = function(_, reason)
     end,
@@ -1525,8 +1527,8 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.presets);
-        InterfaceOptionsFrame_OpenToCategory(Options.presets);
+        InterfaceOptionsFrame_OpenToCategory(Options.presets)
+        InterfaceOptionsFrame_OpenToCategory(Options.presets)
     end,
     OnCancel = function(_, reason)
     end,
@@ -1541,160 +1543,160 @@ StaticPopupDialogs["DYNAMICCAM_UPDATED"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.menu);
-        InterfaceOptionsFrame_OpenToCategory(Options.menu);
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
     end,
 }
 
 function DynamicCam:InitDatabase()
-    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true);
-    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig");
-    self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown");
+    self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true)
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig")
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig")
+    self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig")
+    self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown")
 
     -- remove dbVersion, move to a per-profile version number
-    if (self.db.global.dbVersion) then
-        upgradingFromOldVersion = true;
-        self.db.global.dbVersion = nil;
+    if self.db.global.dbVersion then
+        upgradingFromOldVersion = true
+        self.db.global.dbVersion = nil
     end
 
-    if (not DynamicCamDB.profiles) then
-        firstDynamicCamLaunch = true;
+    if not DynamicCamDB.profiles then
+        firstDynamicCamLaunch = true
     else
         -- reset db if we've got a really old version
-        local veryOldVersion = false;
+        local veryOldVersion = false
         for profileName, profile in pairs(DynamicCamDB.profiles) do
-            if (profile.defaultCvars and profile.defaultCvars["cameraovershoulder"]) then
-                veryOldVersion = true;
+            if profile.defaultCvars and profile.defaultCvars["cameraovershoulder"] then
+                veryOldVersion = true
             end
         end
 
-        if (veryOldVersion) then
-            self:Print("Detected very old version, resetting DB, sorry about that!");
-            self.db:ResetDB();
+        if veryOldVersion then
+            self:Print("Detected very old version, resetting DB, sorry about that!")
+            self.db:ResetDB()
         end
 
         -- modernize each profile
         for profileName, profile in pairs(DynamicCamDB.profiles) do
-            self:ModernizeProfile(profile);
+            self:ModernizeProfile(profile)
         end
 
         -- show the updated popup
-        if (upgradingFromOldVersion) then
-            StaticPopup_Show("DYNAMICCAM_UPDATED");
+        if upgradingFromOldVersion then
+            StaticPopup_Show("DYNAMICCAM_UPDATED")
         end
     end
 end
 
 function DynamicCam:ModernizeProfile(profile)
-    if (not profile.version) then
-        profile.version = 1;
+    if not profile.version then
+        profile.version = 1
     end
 
-    local startVersion = profile.version;
+    local startVersion = profile.version
 
-    if (profile.version == 1) then
-        if (profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil) then
-            profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil;
+    if profile.version == 1 then
+        if profile.defaultCvars and profile.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil then
+            profile.defaultCvars["test_cameraLockedTargetFocusing"] = nil
         end
 
-        upgradingFromOldVersion = true;
-        profile.version = 2;
-        profile.firstRun = false;
+        upgradingFromOldVersion = true
+        profile.version = 2
+        profile.firstRun = false
     end
 
     -- modernize each situation
-    if (profile.situations) then
+    if profile.situations then
         for situationID, situation in pairs(profile.situations) do
-            self:ModernizeSituation(situation, startVersion);
+            self:ModernizeSituation(situation, startVersion)
         end
     end
 end
 
 function DynamicCam:ModernizeSituation(situation, version)
-    if (version == 1) then
+    if version == 1 then
         -- clear unused nameplates db stuff
-        if (situation.extras) then
-            situation.extras["nameplates"] = nil;
-            situation.extras["friendlyNameplates"] = nil;
-            situation.extras["enemyNameplates"] = nil;
+        if situation.extras then
+            situation.extras["nameplates"] = nil
+            situation.extras["friendlyNameplates"] = nil
+            situation.extras["enemyNameplates"] = nil
         end
 
         -- update targetlock features
-        if (situation.targetLock) then
-            if (situation.targetLock.enabled) then
-                if (not situation.cameraCVars) then
-                    situation.cameraCVars = {};
+        if situation.targetLock then
+            if situation.targetLock.enabled then
+                if not situation.cameraCVars then
+                    situation.cameraCVars = {}
                 end
 
-                if (situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false) then
-                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                if situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false then
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
                     situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
                 else
-                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1;
+                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
                 end
             end
 
-            situation.targetLock = nil;
+            situation.targetLock = nil
         end
 
         -- update camera rotation
-        if (situation.cameraActions) then
+        if situation.cameraActions then
             -- convert to yaw degrees instead of rotate degrees
-            if (situation.cameraActions.rotateDegrees) then
-                situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees;
-                situation.cameraActions.pitchDegrees = 0;
-                situation.cameraActions.rotateDegrees = nil;
+            if situation.cameraActions.rotateDegrees then
+                situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees
+                situation.cameraActions.pitchDegrees = 0
+                situation.cameraActions.rotateDegrees = nil
             end
 
             -- convert old scalar rotate speed to something that's in degrees/second
-            if (situation.cameraActions.rotateSpeed and situation.cameraActions.rotateSpeed < 5) then
-                situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"));
+            if situation.cameraActions.rotateSpeed and situation.cameraActions.rotateSpeed < 5 then
+                situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"))
             end
         end
     end
 end
 
 function DynamicCam:RefreshConfig()
-    local profile = self.db.profile;
+    local profile = self.db.profile
 
     -- shutdown the addon if it's enabled
-    if (profile.enabled and started) then
-        self:Shutdown();
+    if profile.enabled and started then
+        self:Shutdown()
     end
 
     -- situation is active, but db killed it
-    if (self.currentSituationID) then
-        self.currentSituationID = nil;
+    if self.currentSituationID then
+        self.currentSituationID = nil
     end
 
     -- clear the options panel so that it reselects
     -- make sure that options panel selects a situation
-    if (Options) then
-        Options:ClearSelection();
-        Options:SelectSituation();
+    if Options then
+        Options:ClearSelection()
+        Options:SelectSituation()
     end
 
     -- present a menu that loads a set of defaults, if this is the profiles first run
-    if (profile.firstRun) then
-        if (firstDynamicCamLaunch) then
-            StaticPopup_Show("DYNAMICCAM_FIRST_RUN");
-            firstDynamicCamLaunch = false;
+    if profile.firstRun then
+        if firstDynamicCamLaunch then
+            StaticPopup_Show("DYNAMICCAM_FIRST_RUN")
+            firstDynamicCamLaunch = false
         else
-            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE");
+            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
         end
-        profile.firstRun = false;
+        profile.firstRun = false
     end
 
     -- start the addon back up
-    if (profile.enabled and not started) then
-        self:Startup();
+    if profile.enabled and not started then
+        self:Startup()
     end
 
     -- run all situations's advanced init script
     for id, situation in pairs(self.db.profile.situations) do
-        DC_RunScript(situation.executeOnInit, id);
+        DC_RunScript(situation.executeOnInit, id)
     end
 end
 
@@ -1703,11 +1705,11 @@ end
 -- CHAT COMMANDS --
 -------------------
 local function tokenize(str, delimitor)
-    local tokens = {};
+    local tokens = {}
     for token in str:gmatch(delimitor or "%S+") do
-        table.insert(tokens, token);
+        table.insert(tokens, token)
     end
-    return tokens;
+    return tokens
 end
 
 StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
@@ -1720,18 +1722,18 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnShow = function (self, data)
-        self.editBox:SetFocus();
+        self.editBox:SetFocus()
     end,
     OnAccept = function (self, data)
-        DynamicCam:CreateCustomSituation(self.editBox:GetText());
+        DynamicCam:CreateCustomSituation(self.editBox:GetText())
     end,
     EditBoxOnEnterPressed = function(self)
-        DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText());
-		self:GetParent():Hide();
-	end,
+        DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText())
+        self:GetParent():Hide()
+    end,
 }
 
-local exportString;
+local exportString
 StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
     text = "DynamicCam Export:",
     button1 = "Done!",
@@ -1741,125 +1743,125 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnShow = function (self, data)
-        self.editBox:SetText(exportString);
-        self.editBox:HighlightText();
+        self.editBox:SetText(exportString)
+        self.editBox:HighlightText()
     end,
     EditBoxOnEnterPressed = function(self)
-		self:GetParent():Hide();
-	end,
+        self:GetParent():Hide()
+    end,
 }
 
 function DynamicCam:OpenMenu(input)
-    if (not Options) then
-        Options = self.Options;
+    if not Options then
+        Options = self.Options
     end
 
-    Options:SelectSituation();
+    Options:SelectSituation()
 
     -- just open to the frame, double call because blizz bug
-    InterfaceOptionsFrame_OpenToCategory(Options.menu);
-    InterfaceOptionsFrame_OpenToCategory(Options.menu);
+    InterfaceOptionsFrame_OpenToCategory(Options.menu)
+    InterfaceOptionsFrame_OpenToCategory(Options.menu)
 end
 
 function DynamicCam:SaveViewCC(input)
-    local tokens = tokenize(input);
+    local tokens = tokenize(input)
 
-    local viewNum = tonumber(tokens[1]);
+    local viewNum = tonumber(tokens[1])
 
-    if (viewNum and viewNum <= 5 and viewNum > 1) then
-        SaveView(viewNum);
+    if viewNum and viewNum <= 5 and viewNum > 1 then
+        SaveView(viewNum)
     else
         self:Print("Improper view number provided.")
     end
 end
 
 function DynamicCam:ZoomInfoCC(input)
-    self:Print(string.format("Zoom level: %0.2f", GetCameraZoom()));
+    self:Print(string.format("Zoom level: %0.2f", GetCameraZoom()))
 end
 
 function DynamicCam:ZoomSlash(input)
-    local tokens = tokenize(input);
+    local tokens = tokenize(input)
 
-    local zoom = tonumber(tokens[1]);
-    local time = tonumber(tokens[2]);
-    local easingFuncName;
-    local easingFunc;
+    local zoom = tonumber(tokens[1])
+    local time = tonumber(tokens[2])
+    local easingFuncName
+    local easingFunc
 
-    if (not time) then
+    if not time then
         -- time not provided, maybe 2nd param is easingfunc?
-        easingFuncName = tokens[2];
+        easingFuncName = tokens[2]
     else
-        easingFuncName = tokens[3];
+        easingFuncName = tokens[3]
     end
 
     -- look up easing func
-    if (easingFuncName) then
-        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    if easingFuncName then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad
     end
 
-    if (zoom and (zoom <= 39 or zoom >= 0)) then
-        local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"));
-        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc);
+    if zoom and (zoom <= 39 or zoom >= 0) then
+        local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
+        LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc)
     end
 end
 
 function DynamicCam:PitchSlash(input)
-    local tokens = tokenize(input);
+    local tokens = tokenize(input)
 
-    local pitch = tonumber(tokens[1]);
-    local time = tonumber(tokens[2]);
-    local easingFuncName;
-    local easingFunc;
+    local pitch = tonumber(tokens[1])
+    local time = tonumber(tokens[2])
+    local easingFuncName
+    local easingFunc
 
-    if (not time) then
+    if not time then
         -- time not provided, maybe 2nd param is easingfunc?
-        easingFuncName = tokens[2];
+        easingFuncName = tokens[2]
     else
-        easingFuncName = tokens[3];
+        easingFuncName = tokens[3]
     end
 
     -- look up easing func
-    if (easingFuncName) then
-        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    if easingFuncName then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad
     end
 
-    if (pitch and (pitch <= 90 or pitch >= -90)) then
-        LibCamera:Pitch(pitch, time or 0.75, easingFunc);
+    if pitch and (pitch <= 90 or pitch >= -90) then
+        LibCamera:Pitch(pitch, time or 0.75, easingFunc)
     end
 end
 
 function DynamicCam:YawSlash(input)
-    local tokens = tokenize(input);
+    local tokens = tokenize(input)
 
-    local yaw = tonumber(tokens[1]);
-    local time = tonumber(tokens[2]);
-    local easingFuncName;
-    local easingFunc;
+    local yaw = tonumber(tokens[1])
+    local time = tonumber(tokens[2])
+    local easingFuncName
+    local easingFunc
 
-    if (not time) then
+    if not time then
         -- time not provided, maybe 2nd param is easingfunc?
-        easingFuncName = tokens[2];
+        easingFuncName = tokens[2]
     else
-        easingFuncName = tokens[3];
+        easingFuncName = tokens[3]
     end
 
     -- look up easing func
-    if (easingFuncName) then
-        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad;
+    if easingFuncName then
+        easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad
     end
 
-    if (yaw) then
-        LibCamera:Yaw(yaw, time or 0.75, easingFunc);
+    if yaw then
+        LibCamera:Yaw(yaw, time or 0.75, easingFunc)
     end
 end
 
 function DynamicCam:PopupCreateCustomProfile()
-    StaticPopup_Show("DYNAMICCAM_NEW_CUSTOM_SITUATION");
+    StaticPopup_Show("DYNAMICCAM_NEW_CUSTOM_SITUATION")
 end
 
 function DynamicCam:PopupExport(str)
-    exportString = str;
-    StaticPopup_Show("DYNAMICCAM_EXPORT");
+    exportString = str
+    StaticPopup_Show("DYNAMICCAM_EXPORT")
 end
 
 function DynamicCam:PopupExportProfile()
@@ -1872,12 +1874,12 @@ end
 -----------
 function DynamicCam:ResetCVars()
     for cvar, value in pairs(self.db.profile.defaultCvars) do
-        DC_SetCVar(cvar, GetCVarDefault(cvar));
+        DC_SetCVar(cvar, GetCVarDefault(cvar))
     end
 
-    ResetView(1);
-    ResetView(2);
-    ResetView(3);
-    ResetView(4);
-    ResetView(5);
+    ResetView(1)
+    ResetView(2)
+    ResetView(3)
+    ResetView(4)
+    ResetView(5)
 end
