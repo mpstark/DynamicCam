@@ -272,27 +272,6 @@ end)
 tinsert(UISpecialFrames, unfadeUIFrame:GetName())
 
 
------------------------
--- NAMEPLATE ZOOMING --
------------------------
-local nameplateRestore = {}
-local RAMP_TIME = .25
-local HYS = 3
-local SETTLE_TIME = .5
-local ERROR_MULT = 2.5
-local STOPPING_SPEED = 5
-
-local function restoreNameplates()
-    if not InCombatLockdown() then
-        for k,v in pairs(nameplateRestore) do
-            SetCVar(k, v)
-        end
-        nameplateRestore = {}
-    end
-end
-
-
-
 --------
 -- DB --
 --------
@@ -510,7 +489,7 @@ DynamicCam.defaults = {
                 name = "Hearth/Teleport",
                 priority = 20,
                 condition = [[for k,v in pairs(this.spells) do
-    if UnitCastingInfo("player") == GetSpellInfo(v) then
+    if GetSpellInfo(v) and GetSpellInfo(v) == UnitCastingInfo("player") then
         return true
     end
 end
@@ -1183,7 +1162,7 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
         if not curSituation or not curSituation.cameraCVars[cvar] then
             if cvar == "test_cameraOverShoulder" then
                 stopEasingShoulderOffset()
-                if not (GetCVar("test_cameraOverShoulder") == tostring(value)) then
+                if GetCVar("test_cameraOverShoulder") ~= tostring(value) then
                     easeShoulderOffset(value, 0.75)
                 end
             else
