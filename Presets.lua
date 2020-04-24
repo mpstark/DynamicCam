@@ -1,7 +1,7 @@
 -------------
 -- GLOBALS --
 -------------
-assert(DynamicCam);
+assert(DynamicCam)
 
 
 ------------
@@ -19,33 +19,33 @@ local presets = {
 function DynamicCam:LoadPreset(defaultName)
     -- if there is a preset with this name, then load it into the current profile
     if (presets[defaultName]) then
-        self:ImportIntoCurrentProfile(presets[defaultName].importString);
+        self:ImportIntoCurrentProfile(presets[defaultName].importString)
     end
 end
 
 function DynamicCam:GetPresets()
-    local presetList = {};
+    local presetList = {}
 
     -- load a table full of the name (the key) and what we want the entry to read
     for name, tbl in pairs(presets) do
-        local entry = string.format("%s (%s)", name, tbl.author);
-        presetList[name] = entry;
+        local entry = string.format("%s (%s)", name, tbl.author)
+        presetList[name] = entry
     end
 
-    return presetList;
+    return presetList
 end
 
 function DynamicCam:GetPresetDescriptions()
-    local descriptions = "";
-    local sep = "";
+    local descriptions = ""
+    local sep = ""
 
     -- load a table full of the name (the key) and what we want the entry to read
     for name, tbl in pairs(presets) do
-        local entry = string.format("%s|cFFFFFF00%s (%s):|r\n    %s", sep, name, tbl.author, tbl.description);
-        descriptions = descriptions..entry;
+        local entry = string.format("%s|cFFFFFF00%s (%s):|r\n    %s", sep, name, tbl.author, tbl.description)
+        descriptions = descriptions..entry
 
-        sep = "\n\n";
+        sep = "\n\n"
     end
 
-    return descriptions;
+    return descriptions
 end
