@@ -5,6 +5,8 @@
 ## SavedVariables: DynamicCamDB
 ## Notes: A more dynamic camera.
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
+## X-Curse-Project-ID: 101120
+
 
 embeds.xml
 
