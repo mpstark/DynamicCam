@@ -1,12 +1,12 @@
 ## Interface: 80300
-## Version: 1.0.0
+## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
 ## SavedVariables: DynamicCamDB
 ## Notes: A more dynamic camera.
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
 ## X-Curse-Project-ID: 101120
-
+## X-WoWI-ID: 25570
 
 embeds.xml
 
