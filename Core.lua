@@ -532,6 +532,7 @@ return false;]],
                   .. "222695,"  -- Dalaran Hearthstone
                   .. "224869,"  -- Teleport: Dalaran - Broken Isles
                   .. "227334,"  -- Flight Master's Whistle
+                  .. "278244,"  -- Greatfather Winter's Hearthstone
                   .. "281403,"  -- Teleport: Boralus
                   .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
