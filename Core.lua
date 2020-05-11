@@ -536,6 +536,7 @@ return false;]],
                   .. "281403,"  -- Teleport: Boralus
                   .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
+                  .. "312372,"  -- Return to Camp
                 .. "};",
                 executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
