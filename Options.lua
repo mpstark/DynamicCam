@@ -459,6 +459,64 @@ local settings = {
                     order = 5,
                     width = "full",
                 },
+                
+                shoulderOffsetZoomGroup = {
+                    type = 'group',
+                    name = "Adjust shoulder offset according to zoom level",
+                    order = 10,
+                    inline = true,
+                    args = {
+                        shoulderOffsetZoomEnabled = {
+                            type = 'toggle',
+                            name = "Enable",
+                            desc = "When enabled the Camera Shoulder Offset will gradually change towards zero as you zoom-in on your character.",
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.enabled = newValue
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 1,
+                        },
+                        shoulderOffsetZoomLowerBound = {
+                            type = 'range',
+                            name = "Zero when below:",
+                            desc = "When you are closer than this zoom level, the Camera Shoulder Offset will be zero.",
+                            min = 0,
+                            max = 39,
+                            step = 1,
+                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.lowerBound end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                if DynamicCam.db.profile.shoulderOffsetZoom.upperBound < newValue then
+                                    DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                end
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 2,
+                        },
+                        shoulderOffsetZoomUpperBound = {
+                            type = 'range',
+                            name = "Normal when above:",
+                            desc = "When you are further away than this zoom level, the Camera Shoulder Offset will have its normal value.",
+                            min = 0,
+                            max = 39,
+                            step = 1,
+                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.upperBound end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                if DynamicCam.db.profile.shoulderOffsetZoom.lowerBound > newValue then
+                                    DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                end
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 3,
+                        },
+                    },
+                },
+                
+                
                 targetLockGroup = {
                     type = 'group',
                     name = "Target Lock/Focus",
@@ -469,8 +527,7 @@ local settings = {
                             type = 'toggle',
                             name = "Focus Enemies",
                             desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
-                            get = function()
-                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
                             set = function(_, newValue)
                                 if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1
@@ -533,8 +590,7 @@ local settings = {
                             tristate = true,
                             name = "Focus On Interact",
                             desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
-                            get = function()
-                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
                             set = function(_, newValue)
                                 if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1

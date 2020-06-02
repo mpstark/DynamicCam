@@ -70,11 +70,6 @@ local situationEnvironments = {}
 local conditionExecutionCache = {}
 
 
--- Setting this flag will prevent ApplyDefaultCameraSettings() from setting
--- the shoulder offset instantaneously, because we rather want to ease-restore
--- it at the same speed as the camera zoom (see below).
-local exitingSituationFlag = false
-
 -- We use this to suppress situation entering easing after logging in!
 local easingAfterStartup = false
 
@@ -93,14 +88,13 @@ shoulderOffsetEasingFrame:SetScript("onUpdate", function(self, elapsed)
     -- which we need below to determine if easing is worthwhile.
     secondsPerFrame = elapsed
 
+    -- Notice that this also works when LibCamera:SetZoom() is called with duration 0!
     if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then return end
 
     -- TODO: Maybe we can also make cosFix a dependency of DC? Then we do not have
     -- to check every time but only once onLoad.
     -- local correctedOffset = DynamicCam.currentShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom()) * (cosFix.currentModelFactor) ? cosFix.currentModelFactor : 1
     local correctedOffset = DynamicCam.currentShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom())
-
-    -- print("shoulderOffsetEasingFrame", GetTime(), GetCameraZoom())
 
     -- Also check for nan (correctedOffset == correctedOffset).
     if correctedOffset and type(correctedOffset) == 'number' and correctedOffset == correctedOffset then
@@ -157,7 +151,7 @@ local function DC_SetCVar(cvar, setting)
 
     -- don't apply cvars if they're already set to the new value
     if GetCVar(cvar) ~= tostring(setting) then
-        DynamicCam:DebugPrint(cvar, setting)
+        -- DynamicCam:DebugPrint(cvar, setting)
         SetCVar(cvar, setting)
     end
 end
@@ -267,16 +261,14 @@ end
 -- For zoom levels in between, we want a gradual transition between the two above.
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
 
-    self:DebugPrint("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
+    -- self:DebugPrint("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-    -- TODO: Make DynamicCam option.
-    -- if not self.db.profile.shoulderOffsetZoom then
-        -- return 1
-    -- end
+    if not self.db.profile.shoulderOffsetZoom.enabled then
+        return 1
+    end
 
-    -- TODO: Make these optional as well.
-    local startDecrease = 8
-    local finishDecrease = 2
+    local startDecrease = self.db.profile.shoulderOffsetZoom.upperBound
+    local finishDecrease = self.db.profile.shoulderOffsetZoom.lowerBound
 
     if zoomLevel < finishDecrease then
         return 0
@@ -425,7 +417,13 @@ DynamicCam.defaults = {
         easingZoom = "InOutQuad",
         easingYaw = "InOutQuad",
         easingPitch = "InOutQuad",
-
+        
+        shoulderOffsetZoom = {
+            enabled = "true",
+            lowerBound = 2,
+            upperBound = 8,
+        },
+        
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = 1,
@@ -505,132 +503,126 @@ DynamicCam.defaults = {
             ["001"] = {
                 name = "City",
                 priority = 1,
-                condition = "return IsResting();",
+                condition = "return IsResting()",
                 events = {"PLAYER_UPDATE_RESTING"},
             },
             ["002"] = {
                 name = "City (Indoors)",
                 priority = 11,
-                condition = "return IsResting() and IsIndoors();",
+                condition = "return IsResting() and IsIndoors()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
             },
             ["004"] = {
                 name = "World",
                 priority = 0,
-                condition = "return not IsResting() and not IsInInstance();",
+                condition = "return not IsResting() and not IsInInstance()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
             },
             ["005"] = {
                 name = "World (Indoors)",
                 priority = 10,
-                condition = "return not IsResting() and not IsInInstance() and IsIndoors();",
+                condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["006"] = {
                 name = "World (Combat)",
                 priority = 50,
-                condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");",
+                condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["020"] = {
                 name = "Dungeon/Scenerio",
                 priority = 2,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\"));",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\")",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["021"] = {
                 name = "Dungeon/Scenerio (Outdoors)",
                 priority = 12,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and IsOutdoors();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\") and IsOutdoors()",
                 events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["023"] = {
                 name = "Dungeon/Scenerio (Combat, Boss)",
                 priority = 302,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["024"] = {
                 name = "Dungeon/Scenerio (Combat, Trash)",
                 priority = 202,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["030"] = {
                 name = "Raid",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["031"] = {
                 name = "Raid (Outdoors)",
                 priority = 13,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsOutdoors();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and IsOutdoors()",
                 events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["033"] = {
                 name = "Raid (Combat, Boss)",
                 priority = 303,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["034"] = {
                 name = "Raid (Combat, Trash)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["050"] = {
                 name = "Arena",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"arena\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["051"] = {
                 name = "Arena (Combat)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\") and UnitAffectingCombat(\"player\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"arena\" and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["060"] = {
                 name = "Battleground",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"pvp\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["061"] = {
                 name = "Battleground (Combat)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\") and UnitAffectingCombat(\"player\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"pvp\" and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["100"] = {
                 name = "Mounted",
                 priority = 100,
-                condition = "return IsMounted() and not UnitOnTaxi(\"player\");",
+                condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
                 events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
             },
             ["101"] = {
                 name = "Taxi",
                 priority = 1000,
-                condition = "return UnitOnTaxi(\"player\");",
+                condition = "return UnitOnTaxi(\"player\")",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
             },
             ["102"] = {
                 name = "Vehicle",
                 priority = 1000,
-                condition = "return UnitUsingVehicle(\"player\");",
+                condition = "return UnitUsingVehicle(\"player\")",
                 events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
             },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
-                condition = [[for k,v in pairs(this.spells) do
-    if GetSpellInfo(v) and GetSpellInfo(v) == UnitCastingInfo("player") then
-        return true
-    end
-end
-return false;]],
                 executeOnInit = "this.spells = {"
                   .. "556,"     -- Astral Recall
                   .. "3561,"    -- Teleport: Stormwind
@@ -675,21 +667,29 @@ return false;]],
                   .. "308742,"  -- Eternal Traveler's Hearthstone
                   .. "312372,"  -- Return to Camp
                 .. "};",
-                executeOnEnter = "local _, _, _, startTime, endTime = UnitCastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
+                executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo(\"player\")
+this.transitionTime = ((endTime - startTime)/1000) - .25
+]],
+                condition = [[for k,v in pairs(this.spells) do
+    if GetSpellInfo(v) and GetSpellInfo(v) == UnitCastingInfo("player") then
+        return true
+    end
+end
+return false]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
             },
             ["201"] = {
                 name = "Annoying Spells",
                 priority = 1000,
+                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};",
                 condition = [[for k,v in pairs(this.buffs) do
     local name = GetSpellInfo(v)
     if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
         return true
     end
 end
-return false;]],
+return false]],
                 events = {"UNIT_AURA"},
-                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};",
             },
             ["300"] = {
                 name = "NPC Interaction",
@@ -701,13 +701,13 @@ return false;]],
             ["301"] = {
                 name = "Mailbox",
                 priority = 20,
-                condition = "return (MailFrame and MailFrame:IsShown())",
+                condition = "return MailFrame and MailFrame:IsShown()",
                 events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"},
             },
             ["302"] = {
                 name = "Fishing",
                 priority = 20,
-                condition = "return (UnitChannelInfo(\"player\") == GetSpellInfo(7620))",
+                condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 delay = 2,
             },
@@ -1084,16 +1084,14 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
     -- load and run advanced script onExit
     DC_RunScript(situation.executeOnExit, situationID)
 
-    -- Setting this flag will prevent ApplyDefaultCameraSettings() from setting
-    -- the shoulder offset instantaneously, because we rather want to ease-restore
-    -- it at the same speed as the camera zoom (see below).
-    -- TODO: Why are you not doing this with an argument for ApplyDefaultCameraSettings()?
-    exitingSituationFlag = true
-    -- restore cvars to their default values
-    self:ApplyDefaultCameraSettings(newSituationID)
-    exitingSituationFlag = false
+    -- Restore cvars to their default values.
+    -- Setting the second argument (noShoulderOffsetChange) to true
+    -- prevents ApplyDefaultCameraSettings() from setting the shoulder
+    -- offset instantaneously, because we rather want to ease-restore
+    -- it at the same speed as the camera zoom.
+    self:ApplyDefaultCameraSettings(newSituationID, true)
 
-    -- restore view that is enabled
+    -- Restore view if there is one.
     if situation.view.enabled and situation.view.restoreView then
         gotoView(1, situation.view.instant)
 
@@ -1153,8 +1151,15 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
         end
     end
 
+    -- TODO: The zoom restoration is broken. It calculates the transition time as
+    -- far too fast. Furthermore, when changing between two situations (e.g. indoor<->outdoor)
+    -- only one of the two situations is considered to need restoring.
+    -- TODO: Fix it and make restoring zoom of situations an option, because people may prefer
+    -- to have the zoom reset upon entering a situation!
+    -- Restor zoom: "When entering a situation, apply the zoom from when you last exited this situation."
+    if false then
     -- restore zoom level if we saved one
-    if self:ShouldRestoreZoom(situationID, newSituationID) then
+    -- if self:ShouldRestoreZoom(situationID, newSituationID) then
         restoringZoom = true
 
         local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
@@ -1181,40 +1186,28 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
         self:DebugPrint("Restoring zoom level:", zoomLevel, "and shoulder offset:", newShoulderOffset, "with duration:", t);
 
-    else
 
-          -- Restore only test_cameraOverShoulder, because we skipped it by passing
-          -- exitingSituationFlag=true to ApplyDefaultCameraSettings() above.
+    -- If we have no new situation or the new situation has no shoulder offset set,
+    -- we have to set the default shoulder offset here, because we skipped it by setting
+    -- the noShoulderOffsetChange argument of ApplyDefaultCameraSettings() above.
+    elseif not newSituationID or
+           not self.db.profile.situations[newSituationID] or
+           not self.db.profile.situations[newSituationID].cameraCVars or
+           not self.db.profile.situations[newSituationID].cameraCVars.test_cameraOverShoulder then
 
-          -- But only restore test_cameraOverShoulder, if newSituationID has no shoulder offset.
-          if not newSituationID or
-             not self.db.profile.situations[newSituationID] or
-             not self.db.profile.situations[newSituationID].cameraCVars or
-             not self.db.profile.situations[newSituationID].cameraCVars.test_cameraOverShoulder then
+        -- Must get shoulder offset of newSituationID if any!
+        local newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
 
-              -- Must get shoulder offset of newSituationID if any!
-              local newShoulderOffset
-              local newSituation = self.db.profile.situations[newSituationID]
-              if newSituation and newSituation.cameraCVars.test_cameraOverShoulder then
-                  newShoulderOffset = newSituation.cameraCVars.test_cameraOverShoulder
-              else
-                  newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
-              end
+        -- Actually no idea, why DynamicCam uses 0.75 here as a default...
+        local t = 0.75
+        -- If we are setting a view, we want the shoulder offset change to be as fast as the view change!
+        if (situation.view.enabled and situation.view.restoreView) then
+            t = 0.5
+        end
 
+        easeShoulderOffset(newShoulderOffset, t)
 
-              -- Actually no idea, why DynamicCam uses 0.75 here as a default...
-              local t = 0.75
-              -- If we are setting a view, we want the shoulder offset change to be as fast as the view change!
-              if (situation.view.enabled and situation.view.restoreView) then
-                  t = 0.5
-              end
-
-              easeShoulderOffset(newShoulderOffset, t)
-
-              self:DebugPrint("Not restoring zoom level but shoulder offset: " .. newShoulderOffset);
-
-          end
-
+        self:DebugPrint("Not restoring zoom level but shoulder offset: " .. newShoulderOffset);
     end
 
     -- unhide UI
@@ -1376,7 +1369,7 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
+function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetChange)
 
     self:DebugPrint("ApplyDefaultCameraSettings", newSituationID, GetTime())
 
@@ -1404,7 +1397,7 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
             -- But when exiting a situation, we want to restore the shoulderOffset
             -- just as fast as the camera zoom, instead of setting it instantaneously here.
             -- Thus this flag can be set in ExitSituation() before calling ApplyDefaultCameraSettings().
-            if cvar ~= "test_cameraOverShoulder" or not exitingSituationFlag then
+            if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
                 DC_SetCVar(cvar, value)
             end
         end
@@ -1426,12 +1419,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
     if not newSituation then
         self:DebugPrint("Restoring because just exiting")
         return true
-    end
-
-    -- TODO: make a switch option for this.
-    -- "Never restore zoom when returing to a situation."
-    if true then
-      return false;
     end
 
     -- only restore zoom if returning to the same situation
@@ -1489,7 +1476,7 @@ end
 
 local function ReactiveZoom(zoomIn, increments, automated)
 
-    -- print("---------------> ReactiveZoom", zoomIn, increments, automated)
+    -- print("ReactiveZoom", zoomIn, increments, automated)
 
     increments = increments or 1
 
@@ -1630,7 +1617,7 @@ function DynamicCam:RegisterSituationEvents(situationID)
             if not events[event] then
                 events[event] = true
                 self:RegisterEvent(event, "EventHandler")
-                self:DebugPrint("Registered for event:", event)
+                -- self:DebugPrint("Registered for event:", event)
             end
         end
     end
