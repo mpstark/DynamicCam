@@ -44,17 +44,6 @@ DynamicCam = AceAddon:NewAddon("DynamicCam", "AceConsole-3.0", "AceEvent-3.0", "
 DynamicCam.currentSituationID = nil
 
 
--- Make libraries accessible from outside!
-DynamicCam.LibCamera = LibCamera
-DynamicCam.LibEasing = LibEasing
-
-
--- To allow zooming during shoulder offset easing, we must store the current
--- shoulder offset in a global variable that is changed by the easing process
--- and taken into account by the zoom functions.
--- It is also needed by CameraOverShoulderFix.
-DynamicCam.currentShoulderOffset = 0
-
 -- This flag is to activate the shoulderOffsetEasingFrame (see below).
 -- Furthermore, the info may be needed by CameraOverShoulderFix, such that it does not interfere.
 DynamicCam.easeShoulderOffsetInProgress = false
@@ -70,8 +59,19 @@ local situationEnvironments = {}
 local conditionExecutionCache = {}
 
 
--- We use this to suppress situation entering easing after logging in!
-local easingAfterStartup = false
+-- To allow zooming during shoulder offset easing, we must store the current
+-- shoulder offset in a global variable that is changed by the easing process
+-- and taken into account by the zoom functions.
+-- TODO: Is this needed by CameraOverShoulderFix?.
+local currentShoulderOffset = 0
+
+-- Forward declaration.
+local UpdateCurrentShoulderOffset
+local SetCorrectedShoulderOffset
+
+
+-- We use this to suppress situation entering easing at login!
+local enteredSituationAtLogin = false
 
 -- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
 -- This is more accurate than the game framerate, which is the average over several recent frames.
@@ -79,7 +79,7 @@ local secondsPerFrame = 1.0/GetFramerate()
 
 
 -- This frame applies the new shoulder offset while easing of zoom or shoulder offset is in progress.
--- The easing functions just modify the zoom or DynamicCam.currentShoulderOffset which are taken
+-- The easing functions just modify the zoom or currentShoulderOffset which are taken
 -- into account here.
 local shoulderOffsetEasingFrame = CreateFrame("Frame")
 shoulderOffsetEasingFrame:SetScript("onUpdate", function(self, elapsed)
@@ -89,17 +89,10 @@ shoulderOffsetEasingFrame:SetScript("onUpdate", function(self, elapsed)
     secondsPerFrame = elapsed
 
     -- Notice that this also works when LibCamera:SetZoom() is called with duration 0!
-    if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then return end
-
-    -- TODO: Maybe we can also make cosFix a dependency of DC? Then we do not have
-    -- to check every time but only once onLoad.
-    -- local correctedOffset = DynamicCam.currentShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom()) * (cosFix.currentModelFactor) ? cosFix.currentModelFactor : 1
-    local correctedOffset = DynamicCam.currentShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(GetCameraZoom())
-
-    -- Also check for nan (correctedOffset == correctedOffset).
-    if correctedOffset and type(correctedOffset) == 'number' and correctedOffset == correctedOffset then
-        SetCVar("test_cameraOverShoulder", correctedOffset)
+    if LibCamera:ZoomInProgress() or DynamicCam.easeShoulderOffsetInProgress then
+        SetCorrectedShoulderOffset(GetCameraZoom())
     end
+
 end)
 
 
@@ -146,11 +139,13 @@ local function DC_SetCVar(cvar, setting)
     end
 
     if cvar == "test_cameraOverShoulder" then
-        DynamicCam.currentShoulderOffset = setting
-    end
+        UpdateCurrentShoulderOffset(setting)
+        if not DynamicCam.easeShoulderOffsetInProgress then
+            SetCorrectedShoulderOffset(GetCameraZoom())
+        end
 
     -- don't apply cvars if they're already set to the new value
-    if GetCVar(cvar) ~= tostring(setting) then
+    elseif GetCVar(cvar) ~= tostring(setting) then
         -- DynamicCam:DebugPrint(cvar, setting)
         SetCVar(cvar, setting)
     end
@@ -189,13 +184,53 @@ end
 ----------------------
 -- SHOULDER OFFSET  --
 ----------------------
-local easeShoulderOffsetHandle
 
-local function setShoulderOffset(offset)
+-- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
+-- For zoom levels greater than startDecrease, we want the user set shoulder offset.
+-- For zoom levels in between, we want a gradual transition between the two above.
+local function GetShoulderOffsetZoomFactor(zoomLevel)
+    -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
+
+    if not DynamicCam.db.profile.shoulderOffsetZoom.enabled then
+        return 1
+    end
+
+    local startDecrease = DynamicCam.db.profile.shoulderOffsetZoom.upperBound
+    local finishDecrease = DynamicCam.db.profile.shoulderOffsetZoom.lowerBound
+
+    local zoomFactor = 1
+    if zoomLevel < finishDecrease then
+        zoomFactor = 0
+    elseif zoomLevel < startDecrease then
+        zoomFactor = (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
+    end
+
+    -- print("zoomFactor:", zoomFactor)
+    return zoomFactor
+end
+
+-- Forward declaration above...
+SetCorrectedShoulderOffset = function(cameraZoom)
+
+    local correctedShoulderOffset = currentShoulderOffset * GetShoulderOffsetZoomFactor(cameraZoom)
+    if cosFix then
+        correctedShoulderOffset = correctedShoulderOffset * cosFix.currentModelFactor
+    end
+
+    -- TODO: Why did we need this again?
+    -- Also checking for nan (correctedShoulderOffset == correctedShoulderOffset).
+    -- if correctedShoulderOffset and type(correctedShoulderOffset) == 'number' and correctedShoulderOffset == correctedShoulderOffset then
+    SetCVar("test_cameraOverShoulder", correctedShoulderOffset)
+
+end
+
+-- Forward declaration above...
+UpdateCurrentShoulderOffset = function(offset)
+    -- print("UpdateCurrentShoulderOffset", offset)
 
     -- If offset changes sign while mounted, cameraOverShoulderFix needs to update currentModelFactor!
     if cosFix and IsMounted() then
-        if (DynamicCam.currentShoulderOffset < 0 and offset >= 0) or (DynamicCam.currentShoulderOffset >= 0 and offset < 0) then
+        if (currentShoulderOffset < 0 and offset >= 0) or (currentShoulderOffset >= 0 and offset < 0) then
             local modelFactor = cosFix:CorrectShoulderOffset()
             -- TODO: Is -1 still a possible return value?
             if modelFactor ~= -1 then
@@ -203,9 +238,12 @@ local function setShoulderOffset(offset)
             end
         end
     end
-    
-    DynamicCam.currentShoulderOffset = offset
+
+    currentShoulderOffset = offset
 end
+
+
+local easeShoulderOffsetHandle
 
 local function stopEasingShoulderOffset()
     DynamicCam.easeShoulderOffsetInProgress = false
@@ -215,13 +253,20 @@ local function stopEasingShoulderOffset()
     end
 end
 
-local function easeShoulderOffset(newValue, duration, easingFunc, callback)
+local function EaseShoulderOffset(newValue, duration, easingFunc, callback)
+    print("EaseShoulderOffset", currentShoulderOffset, "->", newValue, duration)
+
     stopEasingShoulderOffset()
 
-    local oldValue = DynamicCam.currentShoulderOffset
-    DynamicCam:DebugPrint("test_cameraOverShoulder", oldValue, "->", newValue);
+    -- When the duration is 0, the easeShoulderOffsetInProgress = false callback will
+    -- be called before shoulderOffsetEasingFrame can set the new value. So we do it here!
+    -- A return below will happen, because UpdateCurrentShoulderOffset sets currentShoulderOffset = newVale.
+    if duration == 0 then
+        UpdateCurrentShoulderOffset(newValue)
+        SetCorrectedShoulderOffset(GetCameraZoom())
+    end
 
-    if oldValue == newValue then
+    if currentShoulderOffset == newValue then
         if callback then
             return callback()
         else
@@ -235,8 +280,8 @@ local function easeShoulderOffset(newValue, duration, easingFunc, callback)
     DynamicCam.easeShoulderOffsetInProgress = true
 
     easeShoulderOffsetHandle = LibEasing:Ease(
-        setShoulderOffset,
-        oldValue,
+        UpdateCurrentShoulderOffset,
+        currentShoulderOffset,
         newValue,
         duration,
         easingFunc,
@@ -248,40 +293,6 @@ local function easeShoulderOffset(newValue, duration, easingFunc, callback)
         end
     )
 end
-
-
-
-
-
-
-
-
--- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
--- For zoom levels greater than startDecrease, we want the user set shoulder offset.
--- For zoom levels in between, we want a gradual transition between the two above.
-function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
-
-    -- self:DebugPrint("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
-
-    if not self.db.profile.shoulderOffsetZoom.enabled then
-        return 1
-    end
-
-    local startDecrease = self.db.profile.shoulderOffsetZoom.upperBound
-    local finishDecrease = self.db.profile.shoulderOffsetZoom.lowerBound
-
-    if zoomLevel < finishDecrease then
-        return 0
-    elseif zoomLevel < startDecrease then
-        return (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
-    else
-        return 1
-    end
-end
-
-
-
-
 
 
 
@@ -417,13 +428,13 @@ DynamicCam.defaults = {
         easingZoom = "InOutQuad",
         easingYaw = "InOutQuad",
         easingPitch = "InOutQuad",
-        
+
         shoulderOffsetZoom = {
             enabled = "true",
             lowerBound = 2,
             upperBound = 8,
         },
-        
+
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = 1,
@@ -472,7 +483,7 @@ DynamicCam.defaults = {
                 executeOnEnter = "",
                 executeOnExit = "",
                 cameraActions = {
-                    transitionTime = .75,
+                    transitionTime = 0.75,
                     timeIsMax = true,
 
                     rotate = false,
@@ -666,8 +677,8 @@ DynamicCam.defaults = {
                   .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
                   .. "312372,"  -- Return to Camp
-                .. "};",
-                executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo(\"player\")
+                .. "}",
+                executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = ((endTime - startTime)/1000) - .25
 ]],
                 condition = [[for k,v in pairs(this.spells) do
@@ -681,7 +692,7 @@ return false]],
             ["201"] = {
                 name = "Annoying Spells",
                 priority = 1000,
-                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};",
+                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152}",
                 condition = [[for k,v in pairs(this.buffs) do
     local name = GetSpellInfo(v)
     if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
@@ -778,17 +789,20 @@ function DynamicCam:Startup()
 
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
     self:ScheduleTimer("ApplyDefaultCameraSettings", 0.1)
-    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 0.1)
-    self:ScheduleTimer("RegisterEvents", 0.1)
+    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 0.2)
+    self:ScheduleTimer("RegisterEvents", 0.3)
 
     -- turn on reactive zoom if it's enabled
     if self.db.profile.reactiveZoom.enabled then
         self:ReactiveZoomOn()
+    else
+        -- Must call this to prehook NonReactiveZoomIn/Out.
+        self:ReactiveZoomOff()
     end
 
     started = true
 
-    easingAfterStartup = false
+    enteredSituationAtLogin = false
 end
 
 function DynamicCam:Shutdown()
@@ -800,7 +814,7 @@ function DynamicCam:Shutdown()
 
     -- exit the current situation if in one
     if self.currentSituationID then
-        self:ExitSituation(self.currentSituationID)
+        self:ChangeSituation(self.currentSituationID, nil)
     end
 
     events = {}
@@ -828,11 +842,22 @@ end
 ----------------
 local delayTime
 local delayTimer
-local restoration = {}
+
+
+-- To store the last zoom when leaving a situation.
+local lastZoom = {}
+-- To store the previous situation when entering another situation.
+local lastSituation = {}
+-- Depending on the "Restore Zoom" setting, a user may want to always restore
+-- the last zoom when returning to a previous situation. Only for the "adaptive"
+-- setting (which is actually the original way DynamicCam did it) we also have
+-- to remember the last situation, because we only restore the zoom when returning
+-- to the same situation we came from.
+
 
 function DynamicCam:EvaluateSituations()
 
-    self:DebugPrint("EvaluateSituations", easingAfterStartup, GetTime())
+    self:DebugPrint("EvaluateSituations", enteredSituationAtLogin, GetTime())
 
     -- if we currently have timer running, kill it
     if evaluateTimer then
@@ -896,7 +921,7 @@ function DynamicCam:EvaluateSituations()
             if topSituation then
                 if topSituation ~= self.currentSituationID then
                     -- we want to swap and there is a situation to swap into, and it's not the current situation
-                    self:SetSituation(topSituation)
+                    self:ChangeSituation(self.currentSituationID, topSituation)
                 end
 
                 -- if we had a delay previously, make sure to reset it
@@ -904,151 +929,21 @@ function DynamicCam:EvaluateSituations()
             else
                 --none of the situations are active, leave the current situation
                 if self.currentSituationID then
-                    self:ExitSituation(self.currentSituationID)
+                    self:ChangeSituation(self.currentSituationID, nil)
                 end
             end
         end
     end
 
-    easingAfterStartup = true
+    enteredSituationAtLogin = true
 
-    self:DebugPrint("Finished EvaluateSituations", easingAfterStartup, GetTime())
+    -- print("Finished EvaluateSituations", enteredSituationAtLogin, GetTime())
 end
 
-function DynamicCam:SetSituation(situationID)
 
-    self:DebugPrint("SetSituation", situationID, GetTime())
-
-    local oldSituationID = self.currentSituationID
-    local restoringZoom
-
-    -- if currently in a situation, leave it
-    if self.currentSituationID then
-        restoringZoom = self:ExitSituation(self.currentSituationID, situationID)
-    end
-
-    -- go into the new situation
-    self:EnterSituation(situationID, oldSituationID, restoringZoom)
-end
-
-function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
-
-    self:DebugPrint("EnterSituation", easingAfterStartup, skipZoom, GetTime())
-
-    -- After reloading the UI we want to enter the current situation immediately!
-    local noEasing = false
-    if easingAfterStartup == false then
-        easingAfterStartup = true
-        noEasing = true
-    end
-
-
-    local situation = self.db.profile.situations[situationID]
-    local this = situationEnvironments[situationID].this
-
-    self:DebugPrint("Entering situation", situation.name)
-
-    -- load and run advanced script onEnter
-    DC_RunScript(situation.executeOnEnter, situationID)
-
-    self.currentSituationID = situationID
-
-    restoration[situationID] = {}
-    local a = situation.cameraActions
-
-    local transitionTime = a.transitionTime
-    if this.transitionTime then
-        transitionTime = this.transitionTime
-    end
-    -- min 10 frames
-    transitionTime = math.max(10.0/60.0, transitionTime)
-
-    -- set view settings
-    if situation.view.enabled then
-        if situation.view.restoreView then
-            SaveView(1)
-        end
-
-        gotoView(situation.view.viewNumber, situation.view.instant)
-    end
-
-    -- ZOOM --
-    if not skipZoom then
-        -- save old zoom level
-        local cameraZoom = GetCameraZoom()
-        restoration[situationID].zoom = round(cameraZoom, 1)
-        restoration[situationID].zoomSituation = oldSituationID
-
-        -- set zoom level
-        local newZoomLevel
-
-        if a.zoomSetting == "in" and cameraZoom > a.zoomValue then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "out" and cameraZoom < a.zoomValue then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "set" then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "range" then
-            if cameraZoom < a.zoomMin then
-                newZoomLevel = a.zoomMin
-            elseif cameraZoom > a.zoomMax then
-                newZoomLevel = a.zoomMax
-            end
-        end
-
-        -- actually do zoom
-        if newZoomLevel then
-            local difference = math.abs(newZoomLevel - cameraZoom)
-            local linearSpeed = difference / transitionTime
-            local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"))
-            local duration = transitionTime
-
-            -- if zoom speed is lower than current speed, then calculate a new transitionTime
-            if a.timeIsMax and linearSpeed < currentSpeed then
-                -- min time 10 frames
-                duration = math.max(10.0/60.0, difference / currentSpeed)
-            end
-
-            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration)
-
-            if noEasing then duration = 0 end
-
-            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom])
-        end
-
-        -- if we didn't adjust the zoom, then reset oldZoom
-        if not newZoomLevel then
-            restoration[situationID].zoom = nil
-            restoration[situationID].zoomSituation = nil
-        end
-    else
-        self:DebugPrint("Restoring zoom level, so skipping zoom action")
-    end
-
-    -- set all cvars
-    for cvar, value in pairs(situation.cameraCVars) do
-        if cvar == "test_cameraOverShoulder" then
-            -- When we are entering a view, there is no additional zoom for
-            -- the situation. We also want to ignore the transition time
-            -- but ease test_cameraOverShoulder as fast at the view change.
-            -- 0.5 seems to be good for that.
-            local shoulderTransitionTime = transitionTime
-            local oldSituation = self.db.profile.situations[oldSituationID]
-            if situation.view.enabled or (oldSituation and oldSituation.view.enabled and oldSituation.view.restoreView) then
-                shoulderTransitionTime = 0.5
-            end
-
-            if noEasing then
-                DC_SetCVar(cvar, value)
-            else
-                easeShoulderOffset(value, shoulderTransitionTime)
-            end
-        else
-            DC_SetCVar(cvar, value)
-        end
-    end
-
-    -- ROTATE --
+-- Start rotating when entering a situation.
+function DynamicCam:StartRotation(newSituation)
+    local a = newSituation.cameraActions
     if a.rotate then
         if a.rotateSetting == "continous" then
             LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime)
@@ -1062,47 +957,11 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             end
         end
     end
-
-    -- EXTRAS --
-    if situation.extras.hideUI then
-        fadeUI(situation.extras.hideUIFadeOpacity, math.min(0.5, transitionTime), situation.extras.actuallyHideUI)
-    end
-
-    self:SendMessage("DC_SITUATION_ENTERED")
 end
 
-function DynamicCam:ExitSituation(situationID, newSituationID)
-
-    LibCamera:StopZooming()
-
-    local restoringZoom
-    local situation = self.db.profile.situations[situationID]
-    self.currentSituationID = nil
-
-    self:DebugPrint("ExitSituation", situation.name, GetTime());
-
-    -- load and run advanced script onExit
-    DC_RunScript(situation.executeOnExit, situationID)
-
-    -- Restore cvars to their default values.
-    -- Setting the second argument (noShoulderOffsetChange) to true
-    -- prevents ApplyDefaultCameraSettings() from setting the shoulder
-    -- offset instantaneously, because we rather want to ease-restore
-    -- it at the same speed as the camera zoom.
-    self:ApplyDefaultCameraSettings(newSituationID, true)
-
-    -- Restore view if there is one.
-    if situation.view.enabled and situation.view.restoreView then
-        gotoView(1, situation.view.instant)
-
-        -- If we restore the view, we do not want the new situation
-        -- to put a different zoom on top.
-        restoringZoom = true
-    end
-
-    local a = situation.cameraActions
-
-    -- stop rotating if we started to
+-- Stop rotating when leaving a situation.
+function DynamicCam:StopRotation(oldSituation)
+    local a = oldSituation.cameraActions
     if a.rotate then
         if a.rotateSetting == "continous" then
             local yaw = LibCamera:StopYawing()
@@ -1150,77 +1009,231 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
             end
         end
     end
-
-    -- TODO: The zoom restoration is broken. It calculates the transition time as
-    -- far too fast. Furthermore, when changing between two situations (e.g. indoor<->outdoor)
-    -- only one of the two situations is considered to need restoring.
-    -- TODO: Fix it and make restoring zoom of situations an option, because people may prefer
-    -- to have the zoom reset upon entering a situation!
-    -- Restor zoom: "When entering a situation, apply the zoom from when you last exited this situation."
-    if false then
-    -- restore zoom level if we saved one
-    -- if self:ShouldRestoreZoom(situationID, newSituationID) then
-        restoringZoom = true
-
-        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
-        local t = math.max(10.0/60.0, math.min(defaultTime, .75))
-        local zoomLevel = restoration[situationID].zoom
-
-        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom])
-
-        -- Must get shoulder offset of newSituationID if any, else default.
-        local newShoulderOffset
-        local newSituation = self.db.profile.situations[newSituationID]
-        if newSituation and newSituation.cameraCVars.test_cameraOverShoulder then
-            newShoulderOffset = newSituation.cameraCVars.test_cameraOverShoulder
-        else
-            newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
-        end
-
-        -- If we are resetting a view, we want the shoulder offset change to be as fast as the view change!
-        if (situation.view.enabled and situation.view.restoreView) then
-            t = 0.5
-        end
-
-        easeShoulderOffset(newShoulderOffset, t, LibEasing[self.db.profile.easingZoom])
-
-        self:DebugPrint("Restoring zoom level:", zoomLevel, "and shoulder offset:", newShoulderOffset, "with duration:", t);
-
-
-    -- If we have no new situation or the new situation has no shoulder offset set,
-    -- we have to set the default shoulder offset here, because we skipped it by setting
-    -- the noShoulderOffsetChange argument of ApplyDefaultCameraSettings() above.
-    elseif not newSituationID or
-           not self.db.profile.situations[newSituationID] or
-           not self.db.profile.situations[newSituationID].cameraCVars or
-           not self.db.profile.situations[newSituationID].cameraCVars.test_cameraOverShoulder then
-
-        -- Must get shoulder offset of newSituationID if any!
-        local newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
-
-        -- Actually no idea, why DynamicCam uses 0.75 here as a default...
-        local t = 0.75
-        -- If we are setting a view, we want the shoulder offset change to be as fast as the view change!
-        if (situation.view.enabled and situation.view.restoreView) then
-            t = 0.5
-        end
-
-        easeShoulderOffset(newShoulderOffset, t)
-
-        self:DebugPrint("Not restoring zoom level but shoulder offset: " .. newShoulderOffset);
-    end
-
-    -- unhide UI
-    if situation.extras.hideUI then
-        unfadeUI(1, .5)
-    end
-
-    wipe(restoration[situationID])
-
-    self:SendMessage("DC_SITUATION_EXITED")
-
-    return restoringZoom
 end
+
+
+
+function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
+
+    print("ChangeSituation", oldSituationID, newSituationID, GetTime())
+
+    LibCamera:StopZooming()
+
+
+    -- When we are storing or setting a view, we shall not apply any zoom.
+    -- Restoring a view shall have higher priority than setting a new one.
+    -- We need to differentiate between the two to know which "instant" to take
+    -- into account below.
+    local restoringView = false
+    local settingView = false
+
+
+    -- Needed so often that we are setting these shortcuts for the whole function scope.
+    local oldSituation
+    local newSituation
+
+
+
+    -- If we are exiting another situation.
+    if oldSituationID then
+        -- Store last zoom level of this situation.
+        lastZoom[oldSituationID] = GetCameraZoom()
+        print("---> Storing zoom", lastZoom[oldSituationID], oldSituationID)
+
+
+        oldSituation = self.db.profile.situations[oldSituationID]
+
+        -- Stop rotating if applicable.
+        self:StopRotation(oldSituation)
+
+        -- Restore view if applicable.
+        if oldSituation.view.enabled and oldSituation.view.restoreView then
+            gotoView(1, oldSituation.view.instant)
+            restoringView = true
+        end
+
+        -- Load and run advanced script onExit.
+        DC_RunScript(oldSituation.executeOnExit, oldSituationID)
+
+        -- Unhide UI if applicable.
+        if oldSituation.extras.hideUI then
+            -- TODO: Take proper transition time?
+            unfadeUI(1, 0.5)
+        end
+
+        self:SendMessage("DC_SITUATION_EXITED")
+
+
+    -- If we are coming from the no-situation state.
+    elseif enteredSituationAtLogin then
+        lastZoom["default"] = GetCameraZoom()
+        print("---> Storing default zoom", lastZoom[oldSituationID], oldSituationID)
+    end
+
+
+
+    -- If we are entering a new situation.
+    if newSituationID then
+        -- Store the old situation as the new situation's last situation.
+        -- May also be nil in case of coming from the no-situation state.
+        -- (Needed for "adaptive restore", where we only restore when
+        -- returning to the same situation we came from.)
+        lastSituation[newSituationID] = oldSituationID
+
+        newSituation = self.db.profile.situations[newSituationID]
+
+        -- Start rotating if applicable.
+        self:StartRotation(newSituation)
+
+        -- Set view settings
+        -- (Restoring a view has a higher priority than setting a new one.)
+        if newSituation.view.enabled and not restoringView then
+            if newSituation.view.restoreView then SaveView(1) end
+            gotoView(newSituation.view.viewNumber, newSituation.view.instant)
+            settingView = true
+        end
+
+        -- Load and run advanced script onEnter.
+        DC_RunScript(newSituation.executeOnEnter, newSituationID)
+
+        -- Hide UI if applicable.
+        if newSituation.extras.hideUI then
+            -- TODO: Take proper transition time?
+            fadeUI(newSituation.extras.hideUIFadeOpacity, 0.5, newSituation.extras.actuallyHideUI)
+        end
+
+        self:SendMessage("DC_SITUATION_ENTERED")
+
+    -- If we are entering the no-situation state.
+    -- else
+
+    end
+
+
+
+    -- These values are needed for the actual transition.
+    local newZoomLevel
+    local newShoulderOffset
+    local transitionTime
+
+
+    -- ##### Determine newZoomLevel. #####
+    newZoomLevel = GetCameraZoom()
+
+    -- We only need to determine newZoomLevel if we are zooming.
+    if not restoringView and not settingView then
+
+        -- Check if we should restore a stored zoom level.
+        local shouldRestore, zoomLevel = self:ShouldRestoreZoom(oldSituationID, newSituationID)
+        if shouldRestore then
+            newZoomLevel = zoomLevel
+
+        -- Otherwise take the zoom level of the situation we are entering.
+        -- (There is no default zoom level for the no-situation case!)
+        elseif newSituationID then
+
+            local a = newSituation.cameraActions
+
+            if (a.zoomSetting == "set") or
+               (a.zoomSetting == "in"  and newZoomLevel > a.zoomValue) or
+               (a.zoomSetting == "out" and newZoomLevel < a.zoomValue) then
+
+                newZoomLevel = a.zoomValue
+
+            elseif a.zoomSetting == "range" then
+                if newZoomLevel < a.zoomMin then
+                    newZoomLevel = a.zoomMin
+                elseif newZoomLevel > a.zoomMax then
+                    newZoomLevel = a.zoomMax
+                end
+            end
+        end
+    end
+
+
+
+    -- ##### Determine newShoulderOffset. #####
+    if newSituation and newSituation.cameraCVars.test_cameraOverShoulder then
+        newShoulderOffset = newSituation.cameraCVars.test_cameraOverShoulder
+    else
+        newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
+    end
+
+
+
+    -- ##### Determine transitionTime. #####
+
+    -- After reloading the UI we want to enter the current situation immediately!
+    if not enteredSituationAtLogin then
+        transitionTime = 0
+
+    -- When restoring or setting a view, there is no additional zoom.
+    -- The shoulder offset transition should be as fast at the view change.
+    -- 0.5 seems to be good for non-instant gotoView.
+    -- Restoring a stored view has a greater priority than than setting a new view.
+    elseif restoringView then
+        -- If restoringView is true, we know there must be an oldSituationID.
+        if self.db.profile.situations[oldSituationID].view.instant then
+            transitionTime = 0
+        else
+            transitionTime = 0.5
+        end
+    elseif settingView then
+        -- If settingView is true, we know there must be a newSituationID.
+        if newSituation.view.instant then
+            transitionTime = 0
+        else
+            transitionTime = 0.5
+        end
+
+    -- If there is a transitionTime in the environment, it has maximum priority.
+    elseif newSituationID and situationEnvironments[newSituationID].this.transitionTime then
+        transitionTime = situationEnvironments[newSituationID].this.transitionTime
+
+    -- Otherwise the new situation's transition time is taken.
+    elseif newSituation and newSituation.cameraActions.transitionTime then
+        transitionTime = newSituation.cameraActions.transitionTime
+
+    -- Default is this "magic number"...
+    else
+        transitionTime = 0.75
+    end
+
+
+    -- If the "Don't slow" option is selected, we have to check
+    -- if actually a faster transition time is possible.
+    if transitionTime > 0 and newSituation and newSituation.cameraActions.timeIsMax then
+      local difference = math.abs(newZoomLevel - GetCameraZoom())
+      local linearSpeed = difference / transitionTime
+      local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"))
+      if linearSpeed < currentSpeed then
+          -- min time 10 frames
+          transitionTime = math.max(10*secondsPerFrame, difference / currentSpeed)
+      end
+    end
+
+
+    -- Start the actual easing.
+    LibCamera:SetZoom(newZoomLevel,       transitionTime, LibEasing[self.db.profile.easingZoom])
+    EaseShoulderOffset(newShoulderOffset, transitionTime, LibEasing[self.db.profile.easingZoom])
+
+
+    -- Set default values (possibly for new situation, may be nil).
+    self.currentSituationID = newSituationID
+    self:ApplyDefaultCameraSettings(newSituationID, true)
+
+    -- Set situation specific values.
+    -- (Except shoulder offset, which we are easing above.)
+    if newSituationID then
+        for cvar, value in pairs(newSituation.cameraCVars) do
+            if cvar ~= "test_cameraOverShoulder" then
+                DC_SetCVar(cvar, value)
+            end
+        end
+    end
+
+end
+
 
 function DynamicCam:GetSituationList()
     local situationList = {}
@@ -1349,7 +1362,7 @@ function DynamicCam:DeleteCustomSituation(situationID)
 
     -- if we're currently in this situation, exit it
     if self.currentSituationID == situationID then
-        self:ExitSituation(situationID)
+        self:ChangeSituation(situationID, nil)
     end
 
     -- delete the situation
@@ -1392,11 +1405,10 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetC
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if not curSituation or not curSituation.cameraCVars[cvar] then
-            
+
             -- ApplyDefaultCameraSettings() is called in the beginning of ExitSituation().
-            -- But when exiting a situation, we want to restore the shoulderOffset
-            -- just as fast as the camera zoom, instead of setting it instantaneously here.
-            -- Thus this flag can be set in ExitSituation() before calling ApplyDefaultCameraSettings().
+            -- But when exiting a situation, we want to ease-restore the shoulderOffset
+            -- instead of setting it instantaneously here.
             if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
                 DC_SetCVar(cvar, value)
             end
@@ -1406,53 +1418,86 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetC
     self:DebugPrint("Finished ApplyDefaultCameraSettings", newSituationID, GetTime())
 end
 
+
+-- Used by ChangeSituation() to determine if a stored zoom should
+-- be restored when returning to a situation.
 function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
-    -- don't restore if we don't have a saved zoom value
-    if not restoration[oldSituationID].zoom then
-        return false
-    end
+    print("Should Restore Zoom")
 
     local newSituation = self.db.profile.situations[newSituationID]
 
-    -- restore if we're just exiting a situation, but not going into a new one
+    -- Restore if we're just exiting a situation, and have a stored value for default.
     if not newSituation then
-        self:DebugPrint("Restoring because just exiting")
-        return true
+        if lastZoom["default"] then
+            print("Restoring saved zoom for default.", lastZoom["default"])
+            return true, lastZoom["default"]
+        else
+            print("Not restoring zoom because returning to default with no saved value.")
+            return false
+        end
     end
 
-    -- only restore zoom if returning to the same situation
-    if restoration[oldSituationID].zoomSituation ~= newSituationID then
-        return false
-    end
-
-    -- don't restore zoom if we're about to go into a view
+    -- Don't restore zoom if we're about to go into a view.
     if newSituation.view.enabled then
+        print("Not restoring zoom because entering a view.")
         return false
     end
 
-    -- restore zoom based on newSituation zoomSetting
-    if newSituation.cameraActions.zoomSetting == "off" then
-        -- don't restore zoom if the new situation doesn't zoom at all
+    -- Only restore zoom if returning to the same situation
+    if oldSituationID and lastSituation[oldSituationID] ~= newSituationID then
+        print("Not restoring zoom because this is not the situation we came from.")
         return false
-    elseif newSituation.cameraActions.zoomSetting == "set" then
-        -- don't restore zoom if the zoom is going to be setting the zoom anyways
+    end
+
+
+    local restoreZoom = lastZoom[newSituationID]
+    local a = newSituation.cameraActions
+
+    -- Don't restore if we don't have a saved zoom value.
+    if not restoreZoom then
+        print("Not restoring zoom because we have no saved value.")
         return false
-    elseif newSituation.cameraActions.zoomSetting == "range" then
-        --only restore zoom if zoom will be in the range
-        if newSituation.cameraActions.zoomMin <= restoration[oldSituationID].zoom + .5 and
-           newSituation.cameraActions.zoomMax >= restoration[oldSituationID].zoom - .5 then
-            return true
+    end
+
+
+    -- Restore zoom based on newSituation zoomSetting.
+    if a.zoomSetting == "off" then
+        print("Not restoring zoom because new situation has no zoom setting.")
+        return false
+    end
+
+    if a.zoomSetting == "set" then
+        print("Not restoring zoom because new situation has a fixed zoom setting.")
+        return false
+    end
+
+    if a.zoomSetting == "range" then
+        -- only restore zoom if zoom will be in the range
+        if a.zoomMin <= restoreZoom + .5 and
+           a.zoomMax >= restoreZoom - .5 then
+            return true, restoreZoom
+        else
+            return false
         end
-    elseif newSituation.cameraActions.zoomSetting == "in" then
-        -- only restore if restoration zoom will still be acceptable
-        if newSituation.cameraActions.zoomValue >= restoration[oldSituationID].zoom - .5 then
-            return true
+    end
+
+    if a.zoomSetting == "in" then
+        -- Only restore if the stored zoom level is smaller or equal to the situation value
+        -- and do not zoom out.
+        if a.zoomValue >= restoreZoom - .5 and GetCameraZoom() > restoreZoom then
+            return true, restoreZoom
+        else
+            print("Not restoring because saved value", restoreZoom, "is not smaller than zoom IN of situation.")
+            return false
         end
-    elseif newSituation.cameraActions.zoomSetting == "out" then
+    elseif a.zoomSetting == "out" then
         -- restore zoom if newSituation is zooming out and we would already be zooming out farther
-        if newSituation.cameraActions.zoomValue <= restoration[oldSituationID].zoom + .5 then
-            return true
+        if a.zoomValue <= restoreZoom + .5 and GetCameraZoom() < restoreZoom then
+            return true, restoreZoom
+        else
+            print("Not restoring because saved value", restoreZoom, "is not greater than zoom OUT of situation.")
+            return false
         end
     end
 
@@ -1461,12 +1506,62 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 end
 
 
+
+
+
+local oldCameraZoomIn = CameraZoomIn
+local oldCameraZoomOut = CameraZoomOut
+-----------------------
+-- NON-REACTIVE ZOOM --
+-----------------------
+local function NonReactiveZoomIn(increments, automated)
+    -- print("NonReactiveZoomIn", increments)
+
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
+
+    -- Stop zooming that might currently be in progress from a situation change.
+    LibCamera:StopZooming(true)
+
+    -- If we are currently in a shoulderOffsetEase,
+    -- shoulderOffsetEasingFrame will perform any necessary update.
+    -- Otherwise, we have to do it here.
+    if not DynamicCam.easeShoulderOffsetInProgress then
+      local targetZoom = math.max(0, GetCameraZoom() - increments)
+      SetCorrectedShoulderOffset(targetZoom)
+    end
+
+    return oldCameraZoomIn(increments, automated)
+end
+
+
+local function NonReactiveZoomOut(increments, automated)
+    -- print("NonReactiveZoomOut", increments)
+
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
+
+    -- Stop zooming that might currently be in progress from a situation change.
+    LibCamera:StopZooming(true)
+
+    -- If we are currently in a shoulderOffsetEase,
+    -- shoulderOffsetEasingFrame will perform any necessary update.
+    -- Otherwise, we have to do it here.
+    if not DynamicCam.easeShoulderOffsetInProgress then
+      local targetZoom = math.min(39, GetCameraZoom() + increments)
+      SetCorrectedShoulderOffset(targetZoom)
+    end
+
+    return oldCameraZoomOut(increments, automated)
+end
+
+
 -------------------
 -- REACTIVE ZOOM --
 -------------------
 local targetZoom
-local oldCameraZoomIn = CameraZoomIn
-local oldCameraZoomOut = CameraZoomOut
 
 local function clearTargetZoom(wasInterrupted)
     if not wasInterrupted then
@@ -1524,16 +1619,16 @@ local function ReactiveZoom(zoomIn, increments, automated)
         targetZoom = round(targetZoom, 1)
 
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
-        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")))
+        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom) / tonumber(GetCVar("cameraZoomSpeed")) )
 
 
-        -- print ("Want to get from", currentZoom, "to", targetZoom, "in", zoomTime, "with one frame being",  secondsPerFrame)
+        -- print ("Want to get from", currentZoom, "to", targetZoom, "in", zoomTime, "with one frame being", secondsPerFrame)
         if zoomTime < secondsPerFrame then
             -- print("No easing for you", zoomTime, secondsPerFrame)
             if zoomIn then
-                oldCameraZoomIn(increments, automated)
+                NonReactiveZoomIn(increments, automated)
             else
-                oldCameraZoomOut(increments, automated)
+                NonReactiveZoomOut(increments, automated)
             end
         else
             -- print("REACTIVE ZOOM start", GetTime())
@@ -1543,9 +1638,9 @@ local function ReactiveZoom(zoomIn, increments, automated)
 
     else
         if zoomIn then
-            oldCameraZoomIn(increments, automated)
+            NonReactiveZoomIn(increments, automated)
         else
-            oldCameraZoomOut(increments, automated)
+            NonReactiveZoomOut(increments, automated)
         end
     end
 end
@@ -1554,7 +1649,6 @@ local function ReactiveZoomIn(increments, automated)
     -- No idea, why WoW does in-out-in-out with increments 0
     -- after each mouse wheel turn.
     if increments == 0 then return end
-
     ReactiveZoom(true, increments, automated)
 end
 
@@ -1562,7 +1656,6 @@ local function ReactiveZoomOut(increments, automated)
     -- No idea, why WoW does in-out-in-out with increments 0
     -- after each mouse wheel turn.
     if increments == 0 then return end
-
     ReactiveZoom(false, increments, automated)
 end
 
@@ -1572,9 +1665,11 @@ function DynamicCam:ReactiveZoomOn()
 end
 
 function DynamicCam:ReactiveZoomOff()
-    CameraZoomIn = oldCameraZoomIn
-    CameraZoomOut = oldCameraZoomOut
+    CameraZoomIn = NonReactiveZoomIn
+    CameraZoomOut = NonReactiveZoomOut
 end
+
+
 
 
 ------------

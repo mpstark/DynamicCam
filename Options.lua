@@ -930,7 +930,7 @@ local situationOptions = {
                         timeIsMax = {
                             type = 'toggle',
                             name = "Don't Slow",
-                            desc = "Camera shouldn't be slowed down to match the transition time",
+                            desc = "Camera shouldn't be slowed down to match the transition time. Thus, the transition takes at most the time given here but is otherwise as fast as the set Camera Move Speed allows.",
                             get = function() return S.cameraActions.timeIsMax end,
                             set = function(_, newValue) S.cameraActions.timeIsMax = newValue; end,
                             order = 1,
