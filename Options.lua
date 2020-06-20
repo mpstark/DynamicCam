@@ -24,7 +24,7 @@ local welcomeMessage = [[Hello and welcome to DynamicCam!
 
 We're glad that you're here and we hope that you have fun with the addon.
 
-If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments or use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
+If you find a problem or want to make a suggestion, please, please leave a note in the Curse comments or use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
 
 Some handy slash commands:
     `/dynamiccam` or `/dc` will open this menu
@@ -194,15 +194,15 @@ local general = {
                     --width = "half",
                     order = 3,
                 },
-                debugMode = {
-                    type = 'toggle',
-                    name = "Debug",
-                    desc = "Print out debug messages to the chat window.",
-                    get = function() return DynamicCam.db.profile.debugMode; end,
-                    set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
-                    width = "half",
-                    order = 4,
-                },
+                -- debugMode = {
+                    -- type = 'toggle',
+                    -- name = "Debug",
+                    -- desc = "Print out debug messages to the chat window.",
+                    -- get = function() return DynamicCam.db.profile.debugMode; end,
+                    -- set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
+                    -- width = "half",
+                    -- order = 4,
+                -- },
 
             },
         },
@@ -459,7 +459,7 @@ local settings = {
                     order = 5,
                     width = "full",
                 },
-                
+
                 shoulderOffsetZoomGroup = {
                     type = 'group',
                     name = "Adjust shoulder offset according to zoom level",
@@ -515,8 +515,8 @@ local settings = {
                         },
                     },
                 },
-                
-                
+
+
                 targetLockGroup = {
                     type = 'group',
                     name = "Target Lock/Focus",
@@ -805,10 +805,31 @@ local settings = {
     },
 }
 local situationOptions = {
+    type = 'group',
     name = "Situation Options",
     handler = DynamicCam,
-    type = 'group',
     args = {
+        zoomRestoreSettingGroup = {
+            type = 'group',
+            name = "Restore Zoom",
+            order = 0,
+            inline = true,
+            args = {
+                zoomRestoreSettingDescription = {
+                    type = 'description',
+                    name = "When you leave a situation (or leave the default of no situation being active), the current zoom level is temporarily stored, such that it can be restored once you return to that situation. These are the options:\n\nNever: The zoom is never restored. I.e. when you enter a situation, no stored zoom is taken into account, but the zoom setting from the situation's options (if any) is applied.\n\nAlways: When entering a situation, the stored zoom (if any) is always restored.\n\nAdaptive: This only restores the zoom level under certain circumstances. E.g. only when returning to the same situation you came from or when the stored zoom fulfills the criteria of the situation's \"in\", \"out\" or \"range\" zoom settings.",
+                    order = 0,
+                },
+                zoomRestoreSetting = {
+                    type = 'select',
+                    name = "",
+                    get = function() return DynamicCam.db.profile.zoomRestoreSetting end,
+                    set = function(_, newValue) DynamicCam.db.profile.zoomRestoreSetting = newValue end,
+                    values = {["adaptive"] = "Adaptive", ["always"] = "Always", ["never"] = "Never"},
+                    order = 1,
+                },
+            },
+        },
         selectedSituation = {
             type = 'select',
             name = "Selected Situation",
