@@ -49,6 +49,10 @@ DynamicCam.currentSituationID = nil
 DynamicCam.easeShoulderOffsetInProgress = false
 
 
+-- Needed by CameraOverShoulderFix to know if a zoom easing is in progress.
+DynamicCam.LibCamera = LibCamera
+
+
 ------------
 -- LOCALS --
 ------------
@@ -64,7 +68,7 @@ local conditionExecutionCache = {}
 -- and taken into account by the zoom functions.
 -- This is also needed by CameraOverShoulderFix because when mounted, the compensation
 -- factor depends on whether the shoulder offset is positive or negative.
-DynamicCam.currentShoulderOffset = 01
+DynamicCam.currentShoulderOffset = 0
 
 -- Forward declaration.
 local UpdateCurrentShoulderOffset
@@ -189,7 +193,8 @@ end
 -- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
 -- For zoom levels greater than startDecrease, we want the user set shoulder offset.
 -- For zoom levels in between, we want a gradual transition between the two above.
-local function GetShoulderOffsetZoomFactor(zoomLevel)
+-- We also need access to this function for CameraOverShoulderFix.
+function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
     if not DynamicCam.db.profile.shoulderOffsetZoom.enabled then
@@ -210,9 +215,10 @@ local function GetShoulderOffsetZoomFactor(zoomLevel)
     return zoomFactor
 end
 
+
 -- Forward declaration above...
 SetCorrectedShoulderOffset = function(cameraZoom)
-    local correctedShoulderOffset = DynamicCam.currentShoulderOffset * GetShoulderOffsetZoomFactor(cameraZoom)
+    local correctedShoulderOffset = DynamicCam.currentShoulderOffset * DynamicCam:GetShoulderOffsetZoomFactor(cameraZoom)
     if cosFix then
         correctedShoulderOffset = correctedShoulderOffset * cosFix.currentModelFactor
     end
@@ -224,7 +230,7 @@ end
 UpdateCurrentShoulderOffset = function(offset)
     -- print("UpdateCurrentShoulderOffset", offset)
 
-    -- If offset changes sign while mounted, cameraOverShoulderFix needs to update currentModelFactor!
+    -- If offset changes sign while mounted, CameraOverShoulderFix needs to update currentModelFactor!
     if cosFix and IsMounted() then
         if (DynamicCam.currentShoulderOffset < 0 and offset >= 0)
         or (DynamicCam.currentShoulderOffset >= 0 and offset < 0) then
@@ -699,7 +705,7 @@ return false]],
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",        
+                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",
                 condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true;\n        break;\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
                 events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
                 delay = 0,
