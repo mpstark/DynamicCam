@@ -1017,7 +1017,7 @@ end
 
 
 -- Start rotating when entering a situation.
-function DynamicCam:StartRotation(newSituation)
+function DynamicCam:StartRotation(newSituation, transitionTime)
     local a = newSituation.cameraActions
     if a.rotate then
         if a.rotateSetting == "continous" then
@@ -1157,9 +1157,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
         newSituation = self.db.profile.situations[newSituationID]
 
-        -- Start rotating if applicable.
-        self:StartRotation(newSituation)
-
         -- Set view settings
         -- (Restoring a view has a higher priority than setting a new one.)
         if newSituation.view.enabled and not restoringView then
@@ -1249,6 +1246,10 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     if not enteredSituationAtLogin then
         transitionTime = 0
 
+    -- If there is a transitionTime in the environment, it has maximum priority.
+    elseif newSituationID and situationEnvironments[newSituationID].this.transitionTime then
+        transitionTime = situationEnvironments[newSituationID].this.transitionTime
+
     -- When restoring or setting a view, there is no additional zoom.
     -- The shoulder offset transition should be as fast at the view change.
     -- 0.5 seems to be good for non-instant gotoView.
@@ -1267,10 +1268,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         else
             transitionTime = 0.5
         end
-
-    -- If there is a transitionTime in the environment, it has maximum priority.
-    elseif newSituationID and situationEnvironments[newSituationID].this.transitionTime then
-        transitionTime = situationEnvironments[newSituationID].this.transitionTime
 
     -- Otherwise the new situation's transition time is taken.
     elseif newSituation and newSituation.cameraActions.transitionTime then
@@ -1306,7 +1303,11 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- Set situation specific values.
     -- (Except shoulder offset, which we are easing above.)
-    if newSituationID then
+    if newSituation then
+
+        -- Start rotating if applicable.
+        self:StartRotation(newSituation, transitionTime)
+
         for cvar, value in pairs(newSituation.cameraCVars) do
             if cvar ~= "test_cameraOverShoulder" then
                 DC_SetCVar(cvar, value)
