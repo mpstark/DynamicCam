@@ -44,6 +44,10 @@ DynamicCam = AceAddon:NewAddon("DynamicCam", "AceConsole-3.0", "AceEvent-3.0", "
 DynamicCam.currentSituationID = nil
 
 
+-- This flag is to activate the shoulderOffsetEasingFrame (see below).
+DynamicCam.easeShoulderOffsetInProgress = false
+
+
 ------------
 -- LOCALS --
 ------------
@@ -52,6 +56,45 @@ local Options
 local functionCache = {}
 local situationEnvironments = {}
 local conditionExecutionCache = {}
+
+
+-- To allow zooming during shoulder offset easing, we must store the current
+-- shoulder offset in a global variable that is changed by the easing process
+-- and taken into account by the zoom functions.
+DynamicCam.currentShoulderOffset = 01
+
+-- Forward declaration.
+local UpdateCurrentShoulderOffset
+local SetCorrectedShoulderOffset
+
+
+-- We use this to suppress situation entering easing at login!
+local enteredSituationAtLogin = false
+
+-- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
+-- This is more accurate than the game framerate, which is the average over several recent frames.
+local secondsPerFrame = 1.0/GetFramerate()
+
+
+-- This frame applies the new shoulder offset while easing of zoom or shoulder offset is in progress.
+-- The easing functions just modify the zoom or currentShoulderOffset which are taken
+-- into account here.
+local shoulderOffsetEasingFrame = CreateFrame("Frame")
+shoulderOffsetEasingFrame:SetScript("onUpdate", function(self, elapsed)
+
+    -- Using this frame also to log secondsPerFrame,
+    -- which we need below to determine if easing is worthwhile.
+    secondsPerFrame = elapsed
+
+    -- Notice that this also works when LibCamera:SetZoom() is called with duration 0!
+    if LibCamera:ZoomInProgress() or DynamicCam.easeShoulderOffsetInProgress then
+        SetCorrectedShoulderOffset(GetCameraZoom())
+    end
+
+end)
+
+
+
 
 local function DC_RunScript(script, situationID)
     if not script or script == "" then
@@ -93,9 +136,15 @@ local function DC_SetCVar(cvar, setting)
         return
     end
 
+    if cvar == "test_cameraOverShoulder" then
+        UpdateCurrentShoulderOffset(setting)
+        if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+            SetCorrectedShoulderOffset(GetCameraZoom())
+        end
+
     -- don't apply cvars if they're already set to the new value
-    if GetCVar(cvar) ~= tostring(setting) then
-        DynamicCam:DebugPrint(cvar, setting)
+    elseif GetCVar(cvar) ~= tostring(setting) then
+        -- print(cvar, setting)
         SetCVar(cvar, setting)
     end
 end
@@ -133,28 +182,93 @@ end
 ----------------------
 -- SHOULDER OFFSET  --
 ----------------------
-local easeShoulderOffsetHandle
 
-local function setShoulderOffset(offset)
-    if offset and type(offset) == 'number' then
-        SetCVar("test_cameraOverShoulder", offset)
+-- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
+-- For zoom levels greater than startDecrease, we want the user set shoulder offset.
+-- For zoom levels in between, we want a gradual transition between the two above.
+local function GetShoulderOffsetZoomFactor(zoomLevel)
+    -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
+
+    if not DynamicCam.db.profile.shoulderOffsetZoom.enabled then
+        return 1
     end
+
+    local startDecrease = DynamicCam.db.profile.shoulderOffsetZoom.upperBound
+    local finishDecrease = DynamicCam.db.profile.shoulderOffsetZoom.lowerBound
+
+    local zoomFactor = 1
+    if zoomLevel < finishDecrease then
+        zoomFactor = 0
+    elseif zoomLevel < startDecrease then
+        zoomFactor = (zoomLevel-finishDecrease) / (startDecrease-finishDecrease)
+    end
+
+    -- print("zoomFactor:", zoomFactor)
+    return zoomFactor
 end
 
+-- Forward declaration above...
+SetCorrectedShoulderOffset = function(cameraZoom)
+    local correctedShoulderOffset = DynamicCam.currentShoulderOffset * GetShoulderOffsetZoomFactor(cameraZoom)
+    SetCVar("test_cameraOverShoulder", correctedShoulderOffset)
+end
+
+-- Forward declaration above...
+UpdateCurrentShoulderOffset = function(offset)
+    -- print("UpdateCurrentShoulderOffset", offset)
+    DynamicCam.currentShoulderOffset = offset
+end
+
+
+local easeShoulderOffsetHandle
+
 local function stopEasingShoulderOffset()
+    DynamicCam.easeShoulderOffsetInProgress = false
     if easeShoulderOffsetHandle then
         LibEasing:StopEasing(easeShoulderOffsetHandle)
         easeShoulderOffsetHandle = nil
     end
 end
 
-local function easeShoulderOffset(endValue, duration, easingFunc)
+local function EaseShoulderOffset(newValue, duration, easingFunc, callback)
+    -- print("EaseShoulderOffset", DynamicCam.currentShoulderOffset, "->", newValue, duration)
+
     stopEasingShoulderOffset()
 
-    local oldOffest = tonumber(GetCVar("test_cameraOverShoulder"))
-    easeShoulderOffsetHandle = LibEasing:Ease(setShoulderOffset, oldOffest, endValue, duration, easingFunc)
-    DynamicCam:DebugPrint("test_cameraOverShoulder", oldOffest, "->", endValue)
+    -- When the duration is 0, the easeShoulderOffsetInProgress = false callback will
+    -- be called before shoulderOffsetEasingFrame can set the new value. So we do it here!
+    -- A return below will happen, because UpdateCurrentShoulderOffset sets currentShoulderOffset = newVale.
+    if duration == 0 then
+        UpdateCurrentShoulderOffset(newValue)
+        SetCorrectedShoulderOffset(GetCameraZoom())
+    end
+
+    if DynamicCam.currentShoulderOffset == newValue then
+        if callback then
+            return callback()
+        else
+            return
+        end
+    end
+
+    DynamicCam.easeShoulderOffsetInProgress = true
+
+    easeShoulderOffsetHandle = LibEasing:Ease(
+        UpdateCurrentShoulderOffset,
+        DynamicCam.currentShoulderOffset,
+        newValue,
+        duration,
+        easingFunc,
+        function()
+            DynamicCam.easeShoulderOffsetInProgress = false
+            if callback then
+                callback()
+            end
+        end
+    )
 end
+
+
 
 
 -------------
@@ -380,6 +494,12 @@ DynamicCam.defaults = {
         easingYaw = "InOutQuad",
         easingPitch = "InOutQuad",
 
+        shoulderOffsetZoom = {
+            enabled = "true",
+            lowerBound = 2,
+            upperBound = 8,
+        },
+
         reactiveZoom = {
             enabled = false,
             addIncrementsAlways = 1,
@@ -416,6 +536,7 @@ DynamicCam.defaults = {
             ["test_cameraDynamicPitchBaseFovPadDownScale"] = .25,
             ["test_cameraDynamicPitchSmartPivotCutoffDist"] = 10,
         },
+        zoomRestoreSetting = "adaptive",
         situations = {
             ["**"] = {
                 name = "",
@@ -428,7 +549,7 @@ DynamicCam.defaults = {
                 executeOnEnter = "",
                 executeOnExit = "",
                 cameraActions = {
-                    transitionTime = .75,
+                    transitionTime = 0.75,
                     timeIsMax = true,
 
                     rotate = false,
@@ -464,132 +585,126 @@ DynamicCam.defaults = {
             ["001"] = {
                 name = "City",
                 priority = 1,
-                condition = "return IsResting();",
+                condition = "return IsResting()",
                 events = {"PLAYER_UPDATE_RESTING"},
             },
             ["002"] = {
                 name = "City (Indoors)",
                 priority = 11,
-                condition = "return IsResting() and IsIndoors();",
+                condition = "return IsResting() and IsIndoors()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
             },
             ["004"] = {
                 name = "World",
                 priority = 0,
-                condition = "return not IsResting() and not IsInInstance();",
+                condition = "return not IsResting() and not IsInInstance()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
             },
             ["005"] = {
                 name = "World (Indoors)",
                 priority = 10,
-                condition = "return not IsResting() and not IsInInstance() and IsIndoors();",
+                condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["006"] = {
                 name = "World (Combat)",
                 priority = 50,
-                condition = "return not IsInInstance() and UnitAffectingCombat(\"player\");",
+                condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["020"] = {
                 name = "Dungeon/Scenerio",
                 priority = 2,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\"));",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\")",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["021"] = {
                 name = "Dungeon/Scenerio (Outdoors)",
                 priority = 12,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and IsOutdoors();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\") and IsOutdoors()",
                 events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["023"] = {
                 name = "Dungeon/Scenerio (Combat, Boss)",
                 priority = 302,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["024"] = {
                 name = "Dungeon/Scenerio (Combat, Trash)",
                 priority = 202,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["030"] = {
                 name = "Raid",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["031"] = {
                 name = "Raid (Outdoors)",
                 priority = 13,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and IsOutdoors();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and IsOutdoors()",
                 events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
             },
             ["033"] = {
                 name = "Raid (Combat, Boss)",
                 priority = 303,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["034"] = {
                 name = "Raid (Combat, Trash)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"raid\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress();",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"raid\" and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["050"] = {
                 name = "Arena",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"arena\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["051"] = {
                 name = "Arena (Combat)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"arena\") and UnitAffectingCombat(\"player\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"arena\" and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["060"] = {
                 name = "Battleground",
                 priority = 3,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"pvp\"",
                 events = {"ZONE_CHANGED_NEW_AREA"},
             },
             ["061"] = {
                 name = "Battleground (Combat)",
                 priority = 203,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and instanceType == \"pvp\") and UnitAffectingCombat(\"player\");",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and instanceType == \"pvp\" and UnitAffectingCombat(\"player\")",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
             },
             ["100"] = {
                 name = "Mounted",
                 priority = 100,
-                condition = "return IsMounted() and not UnitOnTaxi(\"player\");",
+                condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
                 events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
             },
             ["101"] = {
                 name = "Taxi",
                 priority = 1000,
-                condition = "return UnitOnTaxi(\"player\");",
+                condition = "return UnitOnTaxi(\"player\")",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
             },
             -- ["102"] = {
                 -- name = "Vehicle",
                 -- priority = 1000,
-                -- condition = "return UnitUsingVehicle(\"player\");",
+                -- condition = "return UnitUsingVehicle(\"player\")",
                 -- events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
             -- },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
-                condition = [[for k,v in pairs(this.spells) do
-    if GetSpellInfo(v) and GetSpellInfo(v) == CastingInfo("player") then
-        return true
-    end
-end
-return false;]],
                 executeOnInit = "this.spells = {"
                   .. "556,"     -- Astral Recall
                   .. "3561,"    -- Teleport: Stormwind
@@ -605,7 +720,7 @@ return false;]],
                   .. "35715,"   -- Teleport: Shattrath
                   .. "49358,"   -- Teleport: Stonard
                   .. "49359,"   -- Teleport: Theramore
-                  .. "50977,"   -- Death Gate 
+                  .. "50977,"   -- Death Gate
                   .. "53140,"   -- Teleport: Dalaran - Northrend
                   .. "54406,"   -- Teleport: Dalaran
                   .. "88342,"   -- Teleport: Tol Barad
@@ -628,46 +743,57 @@ return false;]],
                   .. "222695,"  -- Dalaran Hearthstone
                   .. "224869,"  -- Teleport: Dalaran - Broken Isles
                   .. "227334,"  -- Flight Master's Whistle
+                  .. "278244,"  -- Greatfather Winter's Hearthstone
                   .. "281403,"  -- Teleport: Boralus
                   .. "281404,"  -- Teleport: Dazar'alor
                   .. "308742,"  -- Eternal Traveler's Hearthstone
-                .. "};",
-                executeOnEnter = "local _, _, _, startTime, endTime = CastingInfo(\"player\");\nthis.transitionTime = ((endTime - startTime)/1000) - .25;",
+                  .. "312372,"  -- Return to Camp
+                .. "}",
+                executeOnEnter = [[local _, _, _, startTime, endTime = CastingInfo("player")
+this.transitionTime = ((endTime - startTime)/1000) - .25
+]],
+                condition = [[for k,v in pairs(this.spells) do
+    if GetSpellInfo(v) and GetSpellInfo(v) == CastingInfo("player") then
+        return true
+    end
+end
+return false]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
             },
             ["201"] = {
                 name = "Annoying Spells",
                 priority = 1000,
+                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152}",
                 condition = [[for k,v in pairs(this.buffs) do
     local name = GetSpellInfo(v)
-    if AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
+    if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
         return true
     end
 end
-return false;]],
+return false]],
                 events = {"UNIT_AURA"},
-                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152};",
             },
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
-                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED"},
-                -- "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"
-                delay = .5,
+                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",        
+                condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true;\n        break;\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
+                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED"},
+                -- "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"
+                delay = 0,
             },
             ["301"] = {
                 name = "Mailbox",
                 priority = 20,
-                condition = "return (MailFrame and MailFrame:IsShown())",
+                condition = "return MailFrame and MailFrame:IsShown()",
                 events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"},
             },
             ["302"] = {
                 name = "Fishing",
                 priority = 20,
-                condition = "return (ChannelInfo(\"player\") == GetSpellInfo(7620))",
+                condition = "return ChannelInfo(\"player\") == GetSpellInfo(7620)",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
-                delay = 2,
+                delay = 0,
             },
         },
     },
@@ -735,16 +861,21 @@ function DynamicCam:Startup()
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED")
 
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
-    self:ScheduleTimer("ApplyDefaultCameraSettings", 2.5)
-    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 3)
-    self:ScheduleTimer("RegisterEvents", 3)
+    self:ScheduleTimer("ApplyDefaultCameraSettings", 0.1)
+    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 0.2)
+    self:ScheduleTimer("RegisterEvents", 0.3)
 
     -- turn on reactive zoom if it's enabled
     if self.db.profile.reactiveZoom.enabled then
         self:ReactiveZoomOn()
+    else
+        -- Must call this to prehook NonReactiveZoomIn/Out.
+        self:ReactiveZoomOff()
     end
 
     started = true
+
+    enteredSituationAtLogin = false
 end
 
 function DynamicCam:Shutdown()
@@ -756,7 +887,7 @@ function DynamicCam:Shutdown()
 
     -- exit the current situation if in one
     if self.currentSituationID then
-        self:ExitSituation(self.currentSituationID)
+        self:ChangeSituation(self.currentSituationID, nil)
     end
 
     events = {}
@@ -772,11 +903,11 @@ function DynamicCam:Shutdown()
     started = false
 end
 
-function DynamicCam:DebugPrint(...)
-    if self.db.profile.debugMode then
-        self:Print(...)
-    end
-end
+-- function DynamicCam:DebugPrint(...)
+    -- if self.db.profile.debugMode then
+        -- self:Print(...)
+    -- end
+-- end
 
 
 ----------------
@@ -784,9 +915,23 @@ end
 ----------------
 local delayTime
 local delayTimer
-local restoration = {}
+
+
+-- To store the last zoom when leaving a situation.
+local lastZoom = {}
+-- To store the previous situation when entering another situation.
+local lastSituation = {}
+-- Depending on the "Restore Zoom" setting, a user may want to always restore
+-- the last zoom when returning to a previous situation. Only for the "adaptive"
+-- setting (which is actually the original way DynamicCam did it) we also have
+-- to remember the last situation, because we only restore the zoom when returning
+-- to the same situation we came from.
+
 
 function DynamicCam:EvaluateSituations()
+
+    -- print("EvaluateSituations", enteredSituationAtLogin, GetTime())
+
     -- if we currently have timer running, kill it
     if evaluateTimer then
         self:CancelTimer(evaluateTimer)
@@ -800,7 +945,7 @@ function DynamicCam:EvaluateSituations()
         -- go through all situations pick the best one
         for id, situation in pairs(self.db.profile.situations) do
             if situation.enabled then
-                -- evaluate the condition, if it checks out and the priority is larger then any other, set it
+                -- evaluate the condition, if it checks out and the priority is larger than any other, set it
                 local lastEvaluate = conditionExecutionCache[id]
                 local thisEvaluate = DC_RunScript(situation.condition, id)
                 conditionExecutionCache[id] = thisEvaluate
@@ -836,7 +981,7 @@ function DynamicCam:EvaluateSituations()
                     -- not yet cooling down, make sure to guarentee an evaluate, don't swap
                     delayTime = GetTime() + delay
                     delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER")
-                    self:DebugPrint("Not changing situation because of a delay")
+                    -- print("Not changing situation because of a delay")
                     swap = false
                 elseif delayTime > GetTime() then
                     -- still cooling down, don't swap
@@ -849,7 +994,7 @@ function DynamicCam:EvaluateSituations()
             if topSituation then
                 if topSituation ~= self.currentSituationID then
                     -- we want to swap and there is a situation to swap into, and it's not the current situation
-                    self:SetSituation(topSituation)
+                    self:ChangeSituation(self.currentSituationID, topSituation)
                 end
 
                 -- if we had a delay previously, make sure to reset it
@@ -857,128 +1002,21 @@ function DynamicCam:EvaluateSituations()
             else
                 --none of the situations are active, leave the current situation
                 if self.currentSituationID then
-                    self:ExitSituation(self.currentSituationID)
+                    self:ChangeSituation(self.currentSituationID, nil)
                 end
             end
         end
     end
+
+    enteredSituationAtLogin = true
+
+    -- print("Finished EvaluateSituations", enteredSituationAtLogin, GetTime())
 end
 
-function DynamicCam:SetSituation(situationID)
-    local oldSituationID = self.currentSituationID
-    local restoringZoom
 
-    -- if currently in a situation, leave it
-    if self.currentSituationID then
-        restoringZoom = self:ExitSituation(self.currentSituationID, situationID)
-    end
-
-    -- go into the new situation
-    self:EnterSituation(situationID, oldSituationID, restoringZoom)
-end
-
-function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
-    local situation = self.db.profile.situations[situationID]
-    local this = situationEnvironments[situationID].this
-
-    self:DebugPrint("Entering situation", situation.name)
-
-    -- load and run advanced script onEnter
-    DC_RunScript(situation.executeOnEnter, situationID)
-
-    self.currentSituationID = situationID
-
-    restoration[situationID] = {}
-    local a = situation.cameraActions
-
-    local transitionTime = a.transitionTime
-    if this.transitionTime then
-        transitionTime = this.transitionTime
-    end
-    -- min 10 frames
-    transitionTime = math.max(10.0/60.0, transitionTime)
-
-    -- set view settings
-    if situation.view.enabled then
-        if situation.view.restoreView then
-            SaveView(1)
-        end
-
-        gotoView(situation.view.viewNumber, situation.view.instant)
-    end
-
-    -- ZOOM --
-    if not skipZoom then
-        -- save old zoom level
-        local cameraZoom = GetCameraZoom()
-        restoration[situationID].zoom = round(cameraZoom, 1)
-        restoration[situationID].zoomSituation = oldSituationID
-
-        -- set zoom level
-        local newZoomLevel
-
-        if a.zoomSetting == "in" and cameraZoom > a.zoomValue then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "out" and cameraZoom < a.zoomValue then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "set" then
-            newZoomLevel = a.zoomValue
-        elseif a.zoomSetting == "range" then
-            if cameraZoom < a.zoomMin then
-                newZoomLevel = a.zoomMin
-            elseif cameraZoom > a.zoomMax then
-                newZoomLevel = a.zoomMax
-            end
-        elseif a.zoomSetting == "fit" then
-            local min = a.zoomMin
-            if a.zoomFitUseCurAsMin then
-                min = math.min(GetCameraZoom(), a.zoomMax)
-            end
-
-            fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate)
-        end
-
-        -- actually do zoom
-        if newZoomLevel then
-            local difference = math.abs(newZoomLevel - cameraZoom)
-            local linearSpeed = difference / transitionTime
-            local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"))
-            local duration = transitionTime
-
-            -- if zoom speed is lower than current speed, then calculate a new transitionTime
-            if a.timeIsMax and linearSpeed < currentSpeed then
-                -- min time 10 frames
-                duration = math.max(10.0/60.0, difference / currentSpeed)
-            end
-
-            self:DebugPrint("Setting zoom level because of situation entrance", newZoomLevel, duration)
-
-            LibCamera:SetZoom(newZoomLevel, duration, LibEasing[self.db.profile.easingZoom])
-        end
-
-        -- if we didn't adjust the zoom, then reset oldZoom
-        if not newZoomLevel and a.zoomSetting ~= "fit" then
-            restoration[situationID].zoom = nil
-            restoration[situationID].zoomSituation = nil
-        end
-    else
-        self:DebugPrint("Restoring zoom level, so skipping zoom action")
-    end
-
-    -- set all cvars
-    for cvar, value in pairs(situation.cameraCVars) do
-        if cvar == "test_cameraOverShoulder" then
-            -- ease shoulder offset over
-            stopEasingShoulderOffset()
-            if GetCVar("test_cameraOverShoulder") ~= tostring(value) then
-                easeShoulderOffset(value, transitionTime)
-            end
-        else
-            DC_SetCVar(cvar, value)
-        end
-    end
-
-    -- ROTATE --
+-- Start rotating when entering a situation.
+function DynamicCam:StartRotation(newSituation)
+    local a = newSituation.cameraActions
     if a.rotate then
         if a.rotateSetting == "continous" then
             LibCamera:BeginContinuousYaw(a.rotateSpeed, transitionTime)
@@ -992,43 +1030,18 @@ function DynamicCam:EnterSituation(situationID, oldSituationID, skipZoom)
             end
         end
     end
-
-    -- EXTRAS --
-    if situation.extras.hideUI then
-        fadeUI(situation.extras.hideUIFadeOpacity, math.min(0.5, transitionTime), situation.extras.actuallyHideUI)
-    end
-
-    self:SendMessage("DC_SITUATION_ENTERED")
 end
 
-function DynamicCam:ExitSituation(situationID, newSituationID)
-    local restoringZoom
-    local situation = self.db.profile.situations[situationID]
-    self.currentSituationID = nil
-
-    self:DebugPrint("Exiting situation "..situation.name)
-
-    -- load and run advanced script onExit
-    DC_RunScript(situation.executeOnExit, situationID)
-
-    -- restore cvars to their default values
-    self:ApplyDefaultCameraSettings(newSituationID)
-
-    -- restore view that is enabled
-    if situation.view.enabled and situation.view.restoreView then
-        gotoView(1, situation.view.instant)
-    end
-
-    local a = situation.cameraActions
-
-    -- stop rotating if we started to
+-- Stop rotating when leaving a situation.
+function DynamicCam:StopRotation(oldSituation)
+    local a = oldSituation.cameraActions
     if a.rotate then
         if a.rotateSetting == "continous" then
             local yaw = LibCamera:StopYawing()
 
             -- rotate back if we want to
             if a.rotateBack then
-                self:DebugPrint("Ended rotate, degrees rotated, yaw:", yaw)
+                -- print("Ended rotate, degrees rotated, yaw:", yaw)
                 if yaw then
                     local yawBack = yaw % 360
 
@@ -1047,7 +1060,7 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
 
                 -- rotate back if we want to
                 if a.rotateBack then
-                    self:DebugPrint("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch)
+                    -- print("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch)
                     if yaw then
                         LibCamera:Yaw(-yaw, 0.75, LibEasing[self.db.profile.easingYaw])
                     end
@@ -1069,33 +1082,238 @@ function DynamicCam:ExitSituation(situationID, newSituationID)
             end
         end
     end
-
-    -- restore zoom level if we saved one
-    if self:ShouldRestoreZoom(situationID, newSituationID) then
-        restoringZoom = true
-
-        local defaultTime = math.abs(restoration[situationID].zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
-        local t = math.max(10.0/60.0, math.min(defaultTime, .75))
-        local zoomLevel = restoration[situationID].zoom
-
-        self:DebugPrint("Restoring zoom level:", restoration[situationID].zoom, t)
-
-        LibCamera:SetZoom(zoomLevel, t, LibEasing[self.db.profile.easingZoom])
-    else
-        self:DebugPrint("Not restoring zoom level")
-    end
-
-    -- unhide UI
-    if situation.extras.hideUI then
-        unfadeUI(1, .5)
-    end
-
-    wipe(restoration[situationID])
-
-    self:SendMessage("DC_SITUATION_EXITED")
-
-    return restoringZoom
 end
+
+
+
+function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
+
+    -- print("ChangeSituation", oldSituationID, newSituationID, GetTime())
+
+    LibCamera:StopZooming()
+
+
+    -- When we are storing or setting a view, we shall not apply any zoom.
+    -- Restoring a view shall have higher priority than setting a new one.
+    -- We need to differentiate between the two to know which "instant" to take
+    -- into account below.
+    local restoringView = false
+    local settingView = false
+
+
+    -- Needed so often that we are setting these shortcuts for the whole function scope.
+    local oldSituation
+    local newSituation
+
+
+
+    -- If we are exiting another situation.
+    if oldSituationID then
+        -- Store last zoom level of this situation.
+        lastZoom[oldSituationID] = GetCameraZoom()
+        -- print("---> Storing zoom", lastZoom[oldSituationID], oldSituationID)
+
+
+        oldSituation = self.db.profile.situations[oldSituationID]
+
+        -- Stop rotating if applicable.
+        self:StopRotation(oldSituation)
+
+        -- Restore view if applicable.
+        if oldSituation.view.enabled and oldSituation.view.restoreView then
+            gotoView(1, oldSituation.view.instant)
+            restoringView = true
+        end
+
+        -- Load and run advanced script onExit.
+        DC_RunScript(oldSituation.executeOnExit, oldSituationID)
+
+        -- Unhide UI if applicable.
+        if oldSituation.extras.hideUI then
+            -- Use default transition time for UI fade.
+            unfadeUI(1, 0.5)
+        end
+
+        self:SendMessage("DC_SITUATION_EXITED")
+
+
+    -- If we are coming from the no-situation state.
+    elseif enteredSituationAtLogin then
+        lastZoom["default"] = GetCameraZoom()
+        -- print("---> Storing default zoom", lastZoom[oldSituationID], oldSituationID)
+    end
+
+
+
+    -- If we are entering a new situation.
+    if newSituationID then
+        -- Store the old situation as the new situation's last situation.
+        -- May also be nil in case of coming from the no-situation state.
+        -- (Needed for "adaptive restore", where we only restore when
+        -- returning to the same situation we came from.)
+        lastSituation[newSituationID] = oldSituationID
+
+        newSituation = self.db.profile.situations[newSituationID]
+
+        -- Start rotating if applicable.
+        self:StartRotation(newSituation)
+
+        -- Set view settings
+        -- (Restoring a view has a higher priority than setting a new one.)
+        if newSituation.view.enabled and not restoringView then
+            if newSituation.view.restoreView then SaveView(1) end
+            gotoView(newSituation.view.viewNumber, newSituation.view.instant)
+            settingView = true
+        end
+
+        -- Load and run advanced script onEnter.
+        DC_RunScript(newSituation.executeOnEnter, newSituationID)
+
+        -- Hide UI if applicable.
+        if newSituation.extras.hideUI then
+            -- Use default transition time for UI fade.
+            fadeUI(newSituation.extras.hideUIFadeOpacity, 0.5, newSituation.extras.actuallyHideUI)
+        end
+
+        self:SendMessage("DC_SITUATION_ENTERED")
+
+    -- If we are entering the no-situation state.
+    -- else
+
+    end
+
+
+
+    -- These values are needed for the actual transition.
+    local newZoomLevel
+    local newShoulderOffset
+    local transitionTime
+
+
+    -- ##### Determine newZoomLevel. #####
+    newZoomLevel = GetCameraZoom()
+
+    -- We only need to determine newZoomLevel if we are zooming.
+    if not restoringView and not settingView then
+
+        -- Check if we should restore a stored zoom level.
+        local shouldRestore, zoomLevel = self:ShouldRestoreZoom(oldSituationID, newSituationID)
+        if shouldRestore then
+            newZoomLevel = zoomLevel
+
+        -- Otherwise take the zoom level of the situation we are entering.
+        -- (There is no default zoom level for the no-situation case!)
+        elseif newSituationID then
+
+            local a = newSituation.cameraActions
+
+            if (a.zoomSetting == "set") or
+               (a.zoomSetting == "in"  and newZoomLevel > a.zoomValue) or
+               (a.zoomSetting == "out" and newZoomLevel < a.zoomValue) then
+
+                newZoomLevel = a.zoomValue
+
+            elseif a.zoomSetting == "range" then
+                if newZoomLevel < a.zoomMin then
+                    newZoomLevel = a.zoomMin
+                elseif newZoomLevel > a.zoomMax then
+                    newZoomLevel = a.zoomMax
+                end
+
+            elseif a.zoomSetting == "fit" then
+                local min = a.zoomMin
+                if a.zoomFitUseCurAsMin then
+                    min = math.min(GetCameraZoom(), a.zoomMax)
+                end
+                fitNameplate(min, a.zoomMax, a.zoomFitPosition, a.zoomFitContinous, a.zoomFitToggleNameplate)
+            end
+        end
+    end
+
+
+
+    -- ##### Determine newShoulderOffset. #####
+    if newSituation and newSituation.cameraCVars.test_cameraOverShoulder then
+        newShoulderOffset = newSituation.cameraCVars.test_cameraOverShoulder
+    else
+        newShoulderOffset = self.db.profile.defaultCvars.test_cameraOverShoulder
+    end
+
+
+
+    -- ##### Determine transitionTime. #####
+
+    -- After reloading the UI we want to enter the current situation immediately!
+    if not enteredSituationAtLogin then
+        transitionTime = 0
+
+    -- When restoring or setting a view, there is no additional zoom.
+    -- The shoulder offset transition should be as fast at the view change.
+    -- 0.5 seems to be good for non-instant gotoView.
+    -- Restoring a stored view has a greater priority than than setting a new view.
+    elseif restoringView then
+        -- If restoringView is true, we know there must be an oldSituationID.
+        if self.db.profile.situations[oldSituationID].view.instant then
+            transitionTime = 0
+        else
+            transitionTime = 0.5
+        end
+    elseif settingView then
+        -- If settingView is true, we know there must be a newSituationID.
+        if newSituation.view.instant then
+            transitionTime = 0
+        else
+            transitionTime = 0.5
+        end
+
+    -- If there is a transitionTime in the environment, it has maximum priority.
+    elseif newSituationID and situationEnvironments[newSituationID].this.transitionTime then
+        transitionTime = situationEnvironments[newSituationID].this.transitionTime
+
+    -- Otherwise the new situation's transition time is taken.
+    elseif newSituation and newSituation.cameraActions.transitionTime then
+        transitionTime = newSituation.cameraActions.transitionTime
+
+    -- Default is this "magic number"...
+    else
+        transitionTime = 0.75
+    end
+
+
+    -- If the "Don't slow" option is selected, we have to check
+    -- if actually a faster transition time is possible.
+    if transitionTime > 0 and newSituation and newSituation.cameraActions.timeIsMax then
+      local difference = math.abs(newZoomLevel - GetCameraZoom())
+      local linearSpeed = difference / transitionTime
+      local currentSpeed = tonumber(GetCVar("cameraZoomSpeed"))
+      if linearSpeed < currentSpeed then
+          -- min time 10 frames
+          transitionTime = math.max(10*secondsPerFrame, difference / currentSpeed)
+      end
+    end
+
+
+    -- Start the actual easing.
+    LibCamera:SetZoom(newZoomLevel,       transitionTime, LibEasing[self.db.profile.easingZoom])
+    EaseShoulderOffset(newShoulderOffset, transitionTime, LibEasing[self.db.profile.easingZoom])
+
+
+    -- Set default values (possibly for new situation, may be nil).
+    self.currentSituationID = newSituationID
+    self:ApplyDefaultCameraSettings(newSituationID, true)
+
+    -- Set situation specific values.
+    -- (Except shoulder offset, which we are easing above.)
+    if newSituationID then
+        for cvar, value in pairs(newSituation.cameraCVars) do
+            if cvar ~= "test_cameraOverShoulder" then
+                DC_SetCVar(cvar, value)
+            end
+        end
+    end
+
+end
+
 
 function DynamicCam:GetSituationList()
     local situationList = {}
@@ -1129,7 +1347,7 @@ end
 function DynamicCam:CopySituationInto(fromID, toID)
     -- make sure that both from and to are valid situationIDs
     if not fromID or not toID or fromID == toID or not self.db.profile.situations[fromID] or not self.db.profile.situations[toID] then
-        self:DebugPrint("CopySituationInto has invalid from or to!")
+        -- print("CopySituationInto has invalid from or to!")
         return
     end
 
@@ -1215,16 +1433,16 @@ end
 
 function DynamicCam:DeleteCustomSituation(situationID)
     if not self.db.profile.situations[situationID] then
-        self:DebugPrint("Cannot delete this situation since it doesn't exist", situationID)
+        -- print("Cannot delete this situation since it doesn't exist", situationID)
     end
 
     if not string.find(situationID, "custom") then
-        self:DebugPrint("Cannot delete a non-custom situation")
+        -- print("Cannot delete a non-custom situation")
     end
 
     -- if we're currently in this situation, exit it
     if self.currentSituationID == situationID then
-        self:ExitSituation(situationID)
+        self:ChangeSituation(situationID, nil)
     end
 
     -- delete the situation
@@ -1244,7 +1462,10 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
+function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetChange)
+
+    -- print("ApplyDefaultCameraSettings", newSituationID, GetTime())
+
     local curSituation = self.db.profile.situations[self.currentSituationID]
 
     if newSituationID then
@@ -1264,67 +1485,122 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID)
     -- apply default settings if the current situation isn't overriding them
     for cvar, value in pairs(self.db.profile.defaultCvars) do
         if not curSituation or not curSituation.cameraCVars[cvar] then
-            if cvar == "test_cameraOverShoulder" then
-                stopEasingShoulderOffset()
-                if GetCVar("test_cameraOverShoulder") ~= tostring(value) then
-                    easeShoulderOffset(value, 0.75)
-                end
-            else
+
+            -- ApplyDefaultCameraSettings() is called in the beginning of ExitSituation().
+            -- But when exiting a situation, we want to ease-restore the shoulderOffset
+            -- instead of setting it instantaneously here.
+            if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
                 DC_SetCVar(cvar, value)
             end
         end
     end
+
+    -- print("Finished ApplyDefaultCameraSettings", newSituationID, GetTime())
 end
 
+
+-- Used by ChangeSituation() to determine if a stored zoom should
+-- be restored when returning to a situation.
 function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
+
+    -- print("Should Restore Zoom")
+
+    if self.db.profile.zoomRestoreSetting == "never" then
+        -- print("Setting is never.")
+        return false
+    end
+
+
+    -- Restore if we're just exiting a situation, and have a stored value for default.
+    -- (This is the case for both "always" and "adaptive".)
+    if not newSituationID then
+        if lastZoom["default"] then
+            -- print("Restoring saved zoom for default.", lastZoom["default"])
+            return true, lastZoom["default"]
+        else
+            -- print("Not restoring zoom because returning to default with no saved value.")
+            return false
+        end
+    end
+
+
+    -- Don't restore if we don't have a saved zoom value.
+    -- (Also the case for both "always" and "adaptive".)
+    if not lastZoom[newSituationID] then
+        -- print("Not restoring zoom because we have no saved value for this situation.")
+        return false
+    end
+
+    -- From now on we know that we are entering a new situation and have a stored zoom.
+
     local newSituation = self.db.profile.situations[newSituationID]
-
-    -- don't restore if we don't have a saved zoom value
-    if not restoration[oldSituationID].zoom then
-        return false
-    end
-
-    -- restore if we're just exiting a situation, but not going into a new one
-    if not newSituation then
-        self:DebugPrint("Restoring because just exiting")
-        return true
-    end
-
-    -- only restore zoom if returning to the same situation
-    if restoration[oldSituationID].zoomSituation ~= newSituationID then
-        return false
-    end
-
-    -- don't restore zoom if we're about to go into a view
+    -- Don't restore zoom if we're about to go into a view.
     if newSituation.view.enabled then
+        -- print("Not restoring zoom because entering a view.")
         return false
     end
 
-    -- restore zoom based on newSituation zoomSetting
-    if newSituation.cameraActions.zoomSetting == "off" then
-        -- don't restore zoom if the new situation doesn't zoom at all
+
+    local restoreZoom = lastZoom[newSituationID]
+    if self.db.profile.zoomRestoreSetting == "always" then
+        -- print("Setting is always.")
+        return true, restoreZoom
+    end
+
+
+    -- The following are for the zoomRestoreSetting == "adaptive" setting.
+    -- print("Setting is adaptive.")
+
+    -- Only restore zoom if returning to the same situation
+    if oldSituationID and lastSituation[oldSituationID] ~= newSituationID then
+        -- print("Not restoring zoom because this is not the situation we came from.")
         return false
-    elseif newSituation.cameraActions.zoomSetting == "set" then
-        -- don't restore zoom if the zoom is going to be setting the zoom anyways
+    end
+
+
+    local a = newSituation.cameraActions
+    -- Restore zoom based on newSituation zoomSetting.
+    if a.zoomSetting == "off" then
+        -- print("Not restoring zoom because new situation has no zoom setting.")
         return false
-    elseif newSituation.cameraActions.zoomSetting == "fit" then
-        -- don't restore zoom to a zoom fit
+    end
+
+    if a.zoomSetting == "set" then
+        -- print("Not restoring zoom because new situation has a fixed zoom setting.")
         return false
-    elseif newSituation.cameraActions.zoomSetting == "range" then
-        --only restore zoom if zoom will be in the range
-        if newSituation.cameraActions.zoomMin <= restoration[oldSituationID].zoom + .5 and
-           newSituation.cameraActions.zoomMax >= restoration[oldSituationID].zoom - .5 then
-            return true
+    end
+
+    if a.zoomSetting == "fit" then
+        -- print("Not restoring zoom because new situation has a fit to nameplate zoom setting.")
+        return false
+    end
+
+    if a.zoomSetting == "range" then
+        -- only restore zoom if zoom will be in the range
+        if a.zoomMin <= restoreZoom + .5 and
+           a.zoomMax >= restoreZoom - .5 then
+            return true, restoreZoom
+        else
+            return false
         end
-    elseif newSituation.cameraActions.zoomSetting == "in" then
-        -- only restore if restoration zoom will still be acceptable
-        if newSituation.cameraActions.zoomValue >= restoration[oldSituationID].zoom - .5 then
-            return true
+    end
+
+    if a.zoomSetting == "in" then
+        -- Only restore if the stored zoom level is smaller or equal to the situation value
+        -- and do not zoom out.
+        if a.zoomValue >= restoreZoom - .5 and GetCameraZoom() > restoreZoom then
+            return true, restoreZoom
+        else
+            -- print("Not restoring because saved value", restoreZoom, "is not smaller than zoom IN of situation.")
+            return false
         end
-    elseif newSituation.cameraActions.zoomSetting == "out" then
+    elseif a.zoomSetting == "out" then
         -- restore zoom if newSituation is zooming out and we would already be zooming out farther
-        if newSituation.cameraActions.zoomValue <= restoration[oldSituationID].zoom + .5 then
-            return true
+        if a.zoomValue <= restoreZoom + .5 and GetCameraZoom() < restoreZoom then
+            return true, restoreZoom
+        else
+            -- print("Not restoring because saved value", restoreZoom, "is not greater than zoom OUT of situation.")
+            return false
         end
     end
 
@@ -1333,12 +1609,62 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 end
 
 
+
+
+
+local oldCameraZoomIn = CameraZoomIn
+local oldCameraZoomOut = CameraZoomOut
+-----------------------
+-- NON-REACTIVE ZOOM --
+-----------------------
+local function NonReactiveZoomIn(increments, automated)
+    -- print("NonReactiveZoomIn", increments)
+
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
+
+    -- Stop zooming that might currently be in progress from a situation change.
+    LibCamera:StopZooming(true)
+
+    -- If we are currently easing zoom or shoulder offset,
+    -- shoulderOffsetEasingFrame will perform any necessary update.
+    -- Otherwise, we have to do it here.
+    if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+      local targetZoom = math.max(0, GetCameraZoom() - increments)
+      SetCorrectedShoulderOffset(targetZoom)
+    end
+
+    return oldCameraZoomIn(increments, automated)
+end
+
+
+local function NonReactiveZoomOut(increments, automated)
+    -- print("NonReactiveZoomOut", increments)
+
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
+
+    -- Stop zooming that might currently be in progress from a situation change.
+    LibCamera:StopZooming(true)
+
+    -- If we are currently easing zoom or shoulder offset,
+    -- shoulderOffsetEasingFrame will perform any necessary update.
+    -- Otherwise, we have to do it here.
+    if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+      local targetZoom = math.min(39, GetCameraZoom() + increments)
+      SetCorrectedShoulderOffset(targetZoom)
+    end
+
+    return oldCameraZoomOut(increments, automated)
+end
+
+
 -------------------
 -- REACTIVE ZOOM --
 -------------------
 local targetZoom
-local oldCameraZoomIn = CameraZoomIn
-local oldCameraZoomOut = CameraZoomOut
 
 local function clearTargetZoom(wasInterrupted)
     if not wasInterrupted then
@@ -1347,6 +1673,9 @@ local function clearTargetZoom(wasInterrupted)
 end
 
 local function ReactiveZoom(zoomIn, increments, automated)
+
+    -- print("ReactiveZoom", zoomIn, increments, automated)
+
     increments = increments or 1
 
     if not automated and increments == 1 then
@@ -1370,18 +1699,9 @@ local function ReactiveZoom(zoomIn, increments, automated)
         end
 
         -- scale increments up
-        if increments == 1 then
-            if targetZoom then
-                local diff = math.abs(targetZoom - currentZoom)
-
-                if diff > incAddDifference then
-                    increments = increments + addIncrementsAlways + addIncrements
-                else
-                    increments = increments + addIncrementsAlways
-                end
-            else
-                increments = increments + addIncrementsAlways
-            end
+        increments = increments + addIncrementsAlways
+        if targetZoom and math.abs(targetZoom - currentZoom) > incAddDifference then
+            increments = increments + addIncrements
         end
 
         -- if there is already a target zoom, base off that one, or just use the current zoom
@@ -1402,23 +1722,43 @@ local function ReactiveZoom(zoomIn, increments, automated)
         targetZoom = round(targetZoom, 1)
 
         -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
-        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom)/tonumber(GetCVar("cameraZoomSpeed")))
+        local zoomTime = math.min(maxZoomTime, math.abs(targetZoom - currentZoom) / tonumber(GetCVar("cameraZoomSpeed")) )
 
-        LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom)
+
+        -- print ("Want to get from", currentZoom, "to", targetZoom, "in", zoomTime, "with one frame being", secondsPerFrame)
+        if zoomTime < secondsPerFrame then
+            -- print("No easing for you", zoomTime, secondsPerFrame)
+            if zoomIn then
+                NonReactiveZoomIn(increments, automated)
+            else
+                NonReactiveZoomOut(increments, automated)
+            end
+        else
+            -- print("REACTIVE ZOOM start", GetTime())
+            -- LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], function() clearTargetZoom() print("REACTIVE ZOOM end", GetTime()) end)
+            LibCamera:SetZoom(targetZoom, zoomTime, LibEasing[easingFunc], clearTargetZoom)
+        end
+
     else
         if zoomIn then
-            oldCameraZoomIn(increments, automated)
+            NonReactiveZoomIn(increments, automated)
         else
-            oldCameraZoomOut(increments, automated)
+            NonReactiveZoomOut(increments, automated)
         end
     end
 end
 
 local function ReactiveZoomIn(increments, automated)
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
     ReactiveZoom(true, increments, automated)
 end
 
 local function ReactiveZoomOut(increments, automated)
+    -- No idea, why WoW does in-out-in-out with increments 0
+    -- after each mouse wheel turn.
+    if increments == 0 then return end
     ReactiveZoom(false, increments, automated)
 end
 
@@ -1428,9 +1768,11 @@ function DynamicCam:ReactiveZoomOn()
 end
 
 function DynamicCam:ReactiveZoomOff()
-    CameraZoomIn = oldCameraZoomIn
-    CameraZoomOut = oldCameraZoomOut
+    CameraZoomIn = NonReactiveZoomIn
+    CameraZoomOut = NonReactiveZoomOut
 end
+
+
 
 
 ------------
@@ -1473,7 +1815,7 @@ function DynamicCam:RegisterSituationEvents(situationID)
             if not events[event] then
                 events[event] = true
                 self:RegisterEvent(event, "EventHandler")
-                -- self:DebugPrint("Registered for event:", event)
+                -- print("Registered for event:", event)
             end
         end
     end

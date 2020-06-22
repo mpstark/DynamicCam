@@ -24,7 +24,7 @@ local welcomeMessage = [[Hello and welcome to DynamicCam!
 
 We're glad that you're here and we hope that you have fun with the addon.
 
-If you find an problem or want to make a suggestion, please, please leave a note in the Curse comments or use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
+If you find a problem or want to make a suggestion, please, please leave a note in the Curse comments or use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
 
 Some handy slash commands:
     `/dynamiccam` or `/dc` will open this menu
@@ -194,15 +194,15 @@ local general = {
                     --width = "half",
                     order = 3,
                 },
-                debugMode = {
-                    type = 'toggle',
-                    name = "Debug",
-                    desc = "Print out debug messages to the chat window.",
-                    get = function() return DynamicCam.db.profile.debugMode; end,
-                    set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
-                    width = "half",
-                    order = 4,
-                },
+                -- debugMode = {
+                    -- type = 'toggle',
+                    -- name = "Debug",
+                    -- desc = "Print out debug messages to the chat window.",
+                    -- get = function() return DynamicCam.db.profile.debugMode; end,
+                    -- set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue; end,
+                    -- width = "half",
+                    -- order = 4,
+                -- },
 
             },
         },
@@ -437,8 +437,8 @@ local settings = {
                     name = "Camera Shoulder Offset",
                     desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
                     hidden = function() return (not DynamicCam.db.profile.actionCam) end,
-                    min = -5,
-                    max = 5,
+                    min = -15,
+                    max = 15,
                     step = .1,
                     get = function() return DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] end,
                     set = function(_, newValue) DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] = newValue; Options:SendMessage("DC_BASE_CAMERA_UPDATED"); end,
@@ -459,6 +459,61 @@ local settings = {
                     order = 5,
                     width = "full",
                 },
+                shoulderOffsetZoomGroup = {
+                    type = 'group',
+                    name = "Adjust shoulder offset according to zoom level",
+                    order = 10,
+                    inline = true,
+                    args = {
+                        shoulderOffsetZoomEnabled = {
+                            type = 'toggle',
+                            name = "Enable",
+                            desc = "When enabled the Camera Shoulder Offset will gradually change towards zero as you zoom-in on your character.",
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.enabled = newValue
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 1,
+                        },
+                        shoulderOffsetZoomLowerBound = {
+                            type = 'range',
+                            name = "Zero when below:",
+                            desc = "When you are closer than this zoom level, the Camera Shoulder Offset will be zero.",
+                            min = 0,
+                            max = 39,
+                            step = 1,
+                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.lowerBound end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                if DynamicCam.db.profile.shoulderOffsetZoom.upperBound < newValue then
+                                    DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                end
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 2,
+                        },
+                        shoulderOffsetZoomUpperBound = {
+                            type = 'range',
+                            name = "Normal when above:",
+                            desc = "When you are further away than this zoom level, the Camera Shoulder Offset will have its normal value.",
+                            min = 0,
+                            max = 39,
+                            step = 1,
+                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.upperBound end,
+                            set = function(_, newValue)
+                                DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                if DynamicCam.db.profile.shoulderOffsetZoom.lowerBound > newValue then
+                                    DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                end
+                                DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                            end,
+                            order = 3,
+                        },
+                    },
+                },
                 targetLockGroup = {
                     type = 'group',
                     name = "Target Lock/Focus",
@@ -469,8 +524,7 @@ local settings = {
                             type = 'toggle',
                             name = "Focus Enemies",
                             desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
-                            get = function()
-                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
+                            get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1) end,
                             set = function(_, newValue)
                                 if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1
@@ -533,8 +587,7 @@ local settings = {
                             tristate = true,
                             name = "Focus On Interact",
                             desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
-                            get = function()
-                                return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
+                            get = function() return (DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1) end,
                             set = function(_, newValue)
                                 if newValue then
                                     DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1
@@ -749,10 +802,31 @@ local settings = {
     },
 }
 local situationOptions = {
+    type = 'group',
     name = "Situation Options",
     handler = DynamicCam,
-    type = 'group',
     args = {
+        zoomRestoreSettingGroup = {
+            type = 'group',
+            name = "Restore Zoom",
+            order = 0,
+            inline = true,
+            args = {
+                zoomRestoreSettingDescription = {
+                    type = 'description',
+                    name = "When you leave a situation (or leave the default of no situation being active), the current zoom level is temporarily stored, such that it can be restored once you return to that situation. These are the options:\n\nNever: The zoom is never restored. I.e. when you enter a situation, no stored zoom is taken into account, but the zoom setting from the situation's options (if any) is applied.\n\nAlways: When entering a situation, the stored zoom (if any) is always restored.\n\nAdaptive: This only restores the zoom level under certain circumstances. E.g. only when returning to the same situation you came from or when the stored zoom fulfills the criteria of the situation's \"in\", \"out\" or \"range\" zoom settings.",
+                    order = 0,
+                },
+                zoomRestoreSetting = {
+                    type = 'select',
+                    name = "",
+                    get = function() return DynamicCam.db.profile.zoomRestoreSetting end,
+                    set = function(_, newValue) DynamicCam.db.profile.zoomRestoreSetting = newValue end,
+                    values = {["adaptive"] = "Adaptive", ["always"] = "Always", ["never"] = "Never"},
+                    order = 1,
+                },
+            },
+        },
         selectedSituation = {
             type = 'select',
             name = "Selected Situation",
@@ -874,7 +948,7 @@ local situationOptions = {
                         timeIsMax = {
                             type = 'toggle',
                             name = "Don't Slow",
-                            desc = "Camera shouldn't be slowed down to match the transition time",
+                            desc = "Camera shouldn't be slowed down to match the transition time. Thus, the transition takes at most the time given here but is otherwise as fast as the set Camera Move Speed allows.",
                             get = function() return S.cameraActions.timeIsMax end,
                             set = function(_, newValue) S.cameraActions.timeIsMax = newValue; end,
                             order = 1,
@@ -1100,10 +1174,8 @@ local situationOptions = {
                     name = "Shoulder Offset Value",
                     desc = "Positive is over right shoulder, negative is over left shoulder",
                     hidden = function() return (S.cameraCVars["test_cameraOverShoulder"] == nil) end,
-                    min = -10,
-                    max = 10,
-                    softMin = -5,
-                    softMax = 5,
+                    min = -15,
+                    max = 15,
                     step = .1,
                     get = function() return S.cameraCVars["test_cameraOverShoulder"] end,
                     set = function(_, newValue) S.cameraCVars["test_cameraOverShoulder"] = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
