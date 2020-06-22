@@ -61,7 +61,7 @@ local conditionExecutionCache = {}
 -- To allow zooming during shoulder offset easing, we must store the current
 -- shoulder offset in a global variable that is changed by the easing process
 -- and taken into account by the zoom functions.
-DynamicCam.currentShoulderOffset = 01
+DynamicCam.currentShoulderOffset = 0
 
 -- Forward declaration.
 local UpdateCurrentShoulderOffset
