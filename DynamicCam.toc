@@ -6,7 +6,7 @@
 ## Notes: A more dynamic camera.
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
 ## X-Curse-Project-ID: 101120
-## X-WoWI-ID: 25570
+## X-WoWI-ID: 25578
 
 embeds.xml
 
