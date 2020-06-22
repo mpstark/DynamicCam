@@ -699,9 +699,10 @@ return false]],
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                condition = "local unit = (UnitExists(\"questnpc\") and \"questnpc\") or (UnitExists(\"npc\") and \"npc\");\nreturn unit and (UnitIsUnit(unit, \"target\"));",
-                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
-                delay = .5,
+                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",        
+                condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true;\n        break;\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
+                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
+                delay = 0,
             },
             ["301"] = {
                 name = "Mailbox",
@@ -714,7 +715,7 @@ return false]],
                 priority = 20,
                 condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
-                delay = 2,
+                delay = 0,
             },
         },
     },
@@ -1425,14 +1426,6 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
     end
 
 
-    local newSituation = self.db.profile.situations[newSituationID]
-    -- Don't restore zoom if we're about to go into a view.
-    if newSituation.view.enabled then
-        -- print("Not restoring zoom because entering a view.")
-        return false
-    end
-
-
     -- Restore if we're just exiting a situation, and have a stored value for default.
     -- (This is the case for both "always" and "adaptive".)
     if not newSituationID then
@@ -1443,23 +1436,31 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
             -- print("Not restoring zoom because returning to default with no saved value.")
             return false
         end
-    -- Don't restore if we don't have a saved zoom value.
-    -- (Also the case for both "always" and "adaptive".)
-    else
-        if not lastZoom[newSituationID] then
-            -- print("Not restoring zoom because we have no saved value for this situation.")
-            return false
-        end
     end
 
 
+    -- Don't restore if we don't have a saved zoom value.
+    -- (Also the case for both "always" and "adaptive".)
+    if not lastZoom[newSituationID] then
+        -- print("Not restoring zoom because we have no saved value for this situation.")
+        return false
+    end
+
     -- From now on we know that we are entering a new situation and have a stored zoom.
+
+    local newSituation = self.db.profile.situations[newSituationID]
+    -- Don't restore zoom if we're about to go into a view.
+    if newSituation.view.enabled then
+        -- print("Not restoring zoom because entering a view.")
+        return false
+    end
+
+
     local restoreZoom = lastZoom[newSituationID]
     if self.db.profile.zoomRestoreSetting == "always" then
         -- print("Setting is always.")
         return true, restoreZoom
     end
-
 
 
     -- The following are for the zoomRestoreSetting == "adaptive" setting.

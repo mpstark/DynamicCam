@@ -459,7 +459,6 @@ local settings = {
                     order = 5,
                     width = "full",
                 },
-
                 shoulderOffsetZoomGroup = {
                     type = 'group',
                     name = "Adjust shoulder offset according to zoom level",
@@ -515,8 +514,6 @@ local settings = {
                         },
                     },
                 },
-
-
                 targetLockGroup = {
                     type = 'group',
                     name = "Target Lock/Focus",
