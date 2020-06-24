@@ -1100,7 +1100,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
             fadeUI(newSituation.extras.hideUIFadeOpacity, 0.5, newSituation.extras.actuallyHideUI)
         end
 
-        self:SendMessage("DC_SITUATION_ENTERED")
 
     -- If we are entering the no-situation state.
     -- else
@@ -1198,6 +1197,10 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     end
 
 
+    -- "Don't slow" should not be applied to the rotation speed.
+    local rotationTime = transitionTime
+
+
     -- If the "Don't slow" option is selected, we have to check
     -- if actually a faster transition time is possible.
     if transitionTime > 0 and newSituation and newSituation.cameraActions.timeIsMax then
@@ -1225,13 +1228,15 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     if newSituation then
 
         -- Start rotating if applicable.
-        self:StartRotation(newSituation, transitionTime)
+        self:StartRotation(newSituation, rotationTime)
 
         for cvar, value in pairs(newSituation.cameraCVars) do
             if cvar ~= "test_cameraOverShoulder" then
                 DC_SetCVar(cvar, value)
             end
         end
+        
+        self:SendMessage("DC_SITUATION_ENTERED")
     end
 
 end
@@ -1748,7 +1753,6 @@ end
 
 function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
     self:UpdateSituation(situationID)
-    self:EvaluateSituations()
 end
 
 function DynamicCam:DC_BASE_CAMERA_UPDATED(message)

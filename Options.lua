@@ -1661,6 +1661,8 @@ function Options:ClearSelection()
     S = nil
 end
 
+-- This function is needed to call SelectSituation() and
+-- ignore the "message" argument passed to ReselectSituation().
 function Options:ReselectSituation()
     self:SelectSituation()
 end
