@@ -706,7 +706,7 @@ return false]],
                 name = "NPC Interaction",
                 priority = 20,
                 executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",
-                condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true;\n        break;\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
+                condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true\n        break\n    end\nend\nreturn shown or (UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\"))",
                 events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
                 delay = 0,
             },
@@ -1235,7 +1235,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
                 DC_SetCVar(cvar, value)
             end
         end
-        
+
         self:SendMessage("DC_SITUATION_ENTERED")
     end
 
