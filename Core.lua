@@ -183,6 +183,17 @@ end
 -- SHOULDER OFFSET  --
 ----------------------
 
+-- For other Addons (like Narcissus) to temporarily disable
+-- "Adjust Shoulder offset according to zoom level" without
+-- having to change the user's permanent DynamicCam profile.
+local shoulderOffsetZoomTmpDisable = false
+function DynamicCam:BlockShoulderOffsetZoom()
+  shoulderOffsetZoomTmpDisable = true
+end
+function DynamicCam:AllowShoulderOffsetZoom()
+  shoulderOffsetZoomTmpDisable = false
+end
+
 -- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
 -- For zoom levels greater than startDecrease, we want the user set shoulder offset.
 -- For zoom levels in between, we want a gradual transition between the two above.
@@ -190,7 +201,7 @@ end
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-    if not DynamicCam.db.profile.shoulderOffsetZoom.enabled then
+    if not DynamicCam.db.profile.shoulderOffsetZoom.enabled or shoulderOffsetZoomTmpDisable then
         return 1
     end
 
