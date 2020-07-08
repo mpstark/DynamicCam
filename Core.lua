@@ -38,7 +38,7 @@ local ACTION_CAM_CVARS = {
 
 -- The transition time of SetView() is hard to predict.
 -- Use this for now.
-local SET_VIEW_TRANSITION_TIME = 0.6
+local SET_VIEW_TRANSITION_TIME = 0.5
 
 -------------
 -- GLOBALS --
@@ -73,7 +73,10 @@ local situationEnvironments = {}
 local conditionExecutionCache = {}
 
 
--- We have to set this after SetView()
+-- We have to be able to set this to nil whenever
+-- SetZoom() or SetView() happens. Otherwise, the
+-- next scroll wheel turn will scroll back
+-- to the last zoom position.
 local reactiveZoomTarget = nil
 
 -- When SetView() happens, the zoom level of the new view is
@@ -82,6 +85,11 @@ local reactiveZoomTarget = nil
 -- this may lead to a shoulder offset skip. Thus we have to make
 -- a virtual zoom ease for SET_VIEW_TRANSITION_TIME on this variable:
 local virtualCameraZoom = nil
+
+
+-- To evaluate situations one frame after an event is triggered
+-- (see EventHandler() and ShoulderOffsetEasingFunction()).
+local evaluateSituationsNextFrame = false
 
 
 -- Forward declaration.
@@ -104,6 +112,13 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
     -- Using this frame also to log secondsPerFrame,
     -- which we need below to determine if easing is worthwhile.
     secondsPerFrame = elapsed
+
+    -- Also use the frame to evaluate situations one frame after an event
+    -- is triggered (see EventHandler()). This way we are never too early.
+    if evaluateSituationsNextFrame then
+        evaluateSituationsNextFrame = false
+        DynamicCam:EvaluateSituations()
+    end
 
     -- Notice that this also works when LibCamera:SetZoom() is called with duration 0!
     if LibCamera:ZoomInProgress() or DynamicCam.easeShoulderOffsetInProgress then
@@ -189,6 +204,13 @@ end
 local function gotoView(view, instant)
     -- print("gotoView", view, instant)
 
+    -- View change overrides all zooming.
+    LibCamera:StopZooming()
+
+    -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
+    reactiveZoomTarget = nil
+
+
     local cameraZoomBefore = GetCameraZoom()
 
     -- if you call SetView twice, then it's instant
@@ -199,8 +221,6 @@ local function gotoView(view, instant)
 
     local cameraZoomAfter = GetCameraZoom()
     -- print("Going from", cameraZoomBefore, "to", cameraZoomAfter)
-
-    reactiveZoomTarget = cameraZoomAfter
 
     -- If "Adjust Shoulder offset according to zoom level" is activated,
     -- the shoulder offset will be instantaneously set according to the new
@@ -777,7 +797,7 @@ return false]],
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",
+                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionHouseFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",
                 condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true\n        break\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
                 events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE", "SHIPMENT_CRAFTER_OPENED", "SHIPMENT_CRAFTER_CLOSED"},
                 delay = 0,
@@ -805,7 +825,6 @@ return false]],
 ----------
 local started
 local events = {}
-local evaluateTimer
 
 function DynamicCam:OnInitialize()
     -- setup db
@@ -862,7 +881,7 @@ function DynamicCam:Startup()
 
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
     self:ScheduleTimer("ApplyDefaultCameraSettings", 0.1)
-    evaluateTimer = self:ScheduleTimer("EvaluateSituations", 0.2)
+    self:ScheduleTimer("EvaluateSituations", 0.2)
     self:ScheduleTimer("RegisterEvents", 0.3)
 
     -- turn on reactive zoom if it's enabled
@@ -879,11 +898,6 @@ function DynamicCam:Startup()
 end
 
 function DynamicCam:Shutdown()
-    -- kill the evaluate timer if it's running
-    if evaluateTimer then
-        self:CancelTimer(evaluateTimer)
-        evaluateTimer = nil
-    end
 
     -- exit the current situation if in one
     if self.currentSituationID then
@@ -931,12 +945,6 @@ local lastSituation = {}
 function DynamicCam:EvaluateSituations()
 
     -- print("EvaluateSituations", enteredSituationAtLogin, GetTime())
-
-    -- if we currently have timer running, kill it
-    if evaluateTimer then
-        self:CancelTimer(evaluateTimer)
-        evaluateTimer = nil
-    end
 
     if self.db.profile.enabled then
         local highestPriority = -100
@@ -1289,8 +1297,18 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
     -- Start the actual easing.
-    LibCamera:SetZoom(newZoomLevel,       transitionTime, LibEasing[self.db.profile.easingZoom])
-    EaseShoulderOffset(newShoulderOffset, transitionTime, LibEasing[self.db.profile.easingZoom])
+
+    local easeFunction = LibEasing[self.db.profile.easingZoom]
+    if settingView or restoringView then
+        easeFunction = LibEasing.Linear
+    else
+        -- We only need to zoom when not going into a view.
+        -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
+        reactiveZoomTarget = nil
+        LibCamera:SetZoom(newZoomLevel, transitionTime, easeFunction)
+    end
+
+    EaseShoulderOffset(newShoulderOffset, transitionTime, easeFunction)
 
 
     -- Set default values (possibly for new situation, may be nil).
@@ -1627,8 +1645,8 @@ local function NonReactiveZoomIn(increments, automated)
     -- shoulderOffsetEasingFrame will perform any necessary update.
     -- Otherwise, we have to do it here.
     if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
-      local targetZoom = math.max(0, GetCameraZoom() - increments)
-      SetCorrectedShoulderOffset(targetZoom)
+        local targetZoom = math.max(0, GetCameraZoom() - increments)
+        SetCorrectedShoulderOffset(targetZoom)
     end
 
     return oldCameraZoomIn(increments, automated)
@@ -1649,8 +1667,8 @@ local function NonReactiveZoomOut(increments, automated)
     -- shoulderOffsetEasingFrame will perform any necessary update.
     -- Otherwise, we have to do it here.
     if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
-      local targetZoom = math.min(39, GetCameraZoom() + increments)
-      SetCorrectedShoulderOffset(targetZoom)
+        local targetZoom = math.min(39, GetCameraZoom() + increments)
+        SetCorrectedShoulderOffset(targetZoom)
     end
 
     return oldCameraZoomOut(increments, automated)
@@ -1729,7 +1747,7 @@ local function ReactiveZoom(zoomIn, increments, automated)
             end
         else
             -- print("REACTIVE ZOOM start", GetTime())
-            -- LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], function() clearTargetZoom() print("REACTIVE ZOOM end", GetTime()) end)
+            -- LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], function(...) clearTargetZoom(...) print("REACTIVE ZOOM end", GetTime()) end)
             LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], clearTargetZoom)
         end
 
@@ -1772,26 +1790,14 @@ end
 ------------
 -- EVENTS --
 ------------
-local lastEvaluate
-local TIME_BEFORE_NEXT_EVALUATE = .1
-local EVENT_DOUBLE_TIME = .2
-
 function DynamicCam:EventHandler(event, possibleUnit, ...)
-    -- we don't want to evaluate too often, some of the events can be *very* spammy
-    if not lastEvaluate or (lastEvaluate and lastEvaluate + TIME_BEFORE_NEXT_EVALUATE < GetTime()) then
-        lastEvaluate = GetTime()
+    evaluateSituationsNextFrame = true
 
-        -- call the evaluate
-        self:EvaluateSituations()
-
-        -- double the event, since a lot of events happen before the condition turns out to be true
-        evaluateTimer = self:ScheduleTimer("EvaluateSituations", EVENT_DOUBLE_TIME)
-    else
-        -- we're delaying the call of evaluate situations until next evaluate
-        if not evaluateTimer then
-            evaluateTimer = self:ScheduleTimer("EvaluateSituations", TIME_BEFORE_NEXT_EVALUATE)
-        end
-    end
+    -- double the event, since a lot of events happen before the condition turns out to be true
+    -- Ludius (08.07.2020): I don't know if we actually still need this now that we are
+    -- always calling EvaluateSituations() in the next frame. But I am not willing to test this
+    -- now for all possible situations, so I leave it in.
+    self:ScheduleTimer(function() evaluateSituationsNextFrame = true end, 0.2)
 end
 
 function DynamicCam:RegisterEvents()
@@ -2136,6 +2142,9 @@ function DynamicCam:ZoomSlash(input)
 
     if zoom and (zoom <= 39 or zoom >= 0) then
         local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
+
+        -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
+        reactiveZoomTarget = nil
         LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc)
     end
 end
