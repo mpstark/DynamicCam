@@ -859,9 +859,9 @@ return false]],
             ["300"] = {
                 name = "NPC Interaction",
                 priority = 20,
-                executeOnInit = "this.frames = {\"GarrisonCapacitiveDisplayFrame\", \"BankFrame\", \"MerchantFrame\", \"GossipFrame\", \"ClassTrainerFrame\", \"QuestFrame\", \"AuctionFrame\", \"TabardFrame\", \"TaxiFrame\", \"PetStableFrame\", \"WardrobeFrame\", \"ImmersionFrame\", \"BagnonBankFrame1\"}",
+                executeOnInit = "this.frames = {\"BagnonBankFrame1\", \"BankFrame\", \"ClassTrainerFrame\", \"GossipFrame\", \"GuildRegistrarFrame\", \"ImmersionFrame\", \"MerchantFrame\", \"PetStableFrame\", \"QuestFrame\", \"TabardFrame\", \"AuctionFrame\", \"TaxiFrame\"}",
                 condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true\n        break\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
-                events = {"PLAYER_TARGET_CHANGED", "GOSSIP_SHOW", "GOSSIP_CLOSED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TAXIMAP_OPENED", "TAXIMAP_CLOSED", "PET_STABLE_SHOW", "PET_STABLE_CLOSED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MERCHANT_SHOW", "MERCHANT_CLOSED", "TRAINER_SHOW", "TRAINER_CLOSED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED"},
+                events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "CLOSE_TABARD_FRAME", "OPEN_TABARD_FRAME", "TRAINER_CLOSED", "TRAINER_SHOW", "TAXIMAP_OPENED", "TAXIMAP_CLOSED"},
                 delay = 0,
             },
             ["301"] = {
