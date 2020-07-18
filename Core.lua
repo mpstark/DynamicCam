@@ -467,21 +467,32 @@ local function easeUIAlpha(endValue, duration, easingFunc, callback)
     end
 end
 
-local function fadeUI(opacity, duration, hideUI)
+local function fadeUI(situationExtras, duration)
+
+    local opacity = situationExtras.hideUIFadeOpacity
+    local hideUI = situationExtras.actuallyHideUI
+    local keepMinimap = situationExtras.keepMinimap
+
     -- setup a callback that will hide the UI if given or hide the minimap if opacity is 0
     local callback = function()
-        if opacity == 0 and hideUI and UIParent:IsShown() and (not InCombatLockdown() or issecure()) then
+        if opacity > 0 then return end
+
+        if hideUI and UIParent:IsShown() and (not InCombatLockdown() or issecure()) then
             -- hide the UI, but make sure to make opacity 1 so that if escape is pressed, it is shown
             setUIAlpha(1)
             UIParent:Hide()
 
             combatSecureFrame.lastUIAlpha = opacity
             combatSecureFrame.hidUI = true
-        elseif opacity == 0 and Minimap:IsShown() then
+        elseif not keepMinimap and Minimap:IsShown() then
             -- hide the minimap
             Minimap:Hide()
             hidMinimap = true
         end
+    end
+
+    if keepMinimap then
+        MinimapCluster:SetIgnoreParentAlpha(true)
     end
 
     easeUIAlpha(opacity, duration, nil, callback)
@@ -489,7 +500,7 @@ end
 
 local function unfadeUI(opacity, duration)
     stopEasingUIAlpha()
-    easeUIAlpha(opacity, duration)
+    easeUIAlpha(opacity, duration, nil, function() MinimapCluster:SetIgnoreParentAlpha(false) end)
 end
 
 -- need to be able to clear the faded UI, use dummy frame that Show() on fade, which will cause esc to
@@ -596,8 +607,9 @@ DynamicCam.defaults = {
                 },
                 extras = {
                     hideUI = false,
-                    actuallyHideUI = true,
                     hideUIFadeOpacity = 0,
+                    actuallyHideUI = true,
+                    keepMinimap = false,
                 },
                 cameraCVars = {},
             },
@@ -1175,7 +1187,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- Hide UI if applicable.
         if newSituation.extras.hideUI then
             -- Use default transition time for UI fade.
-            fadeUI(newSituation.extras.hideUIFadeOpacity, 0.5, newSituation.extras.actuallyHideUI)
+            fadeUI(newSituation.extras, 0.5)
         end
 
 
