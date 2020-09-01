@@ -797,56 +797,31 @@ DynamicCam.defaults = {
                 condition = "return UnitOnTaxi(\"player\")",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
             },
+            ["103"] = {
+                name = "Druid Travel Form",
+                priority = 100,
+                executeOnInit = [[this.travelFormIds = {
+  [3] = true,  -- Travel
+  [4] = true,  -- Aquatic
+}]],
+                condition = "return this.travelFormIds[GetShapeshiftFormID(true)]",
+                events = {"UPDATE_SHAPESHIFT_FORM"},
+            },
             ["200"] = {
                 name = "Hearth/Teleport",
                 priority = 20,
-                executeOnInit = "this.spells = {"
-                  .. "556,"     -- Astral Recall
-                  .. "3561,"    -- Teleport: Stormwind
-                  .. "3562,"    -- Teleport: Ironforge
-                  .. "3563,"    -- Teleport: Undercity
-                  .. "3565,"    -- Teleport: Darnassus
-                  .. "3566,"    -- Teleport: Thunder Bluff
-                  .. "3567,"    -- Teleport: Orgrimmar
-                  .. "8690,"    -- Hearthstone
-                  .. "32271,"   -- Teleport: Exodar
-                  .. "32272,"   -- Teleport: Silvermoon
-                  .. "33690,"   -- Teleport: Shattrath
-                  .. "35715,"   -- Teleport: Shattrath
-                  .. "49358,"   -- Teleport: Stonard
-                  .. "49359,"   -- Teleport: Theramore
-                  .. "50977,"   -- Death Gate
-                  .. "53140,"   -- Teleport: Dalaran - Northrend
-                  .. "54406,"   -- Teleport: Dalaran
-                  .. "88342,"   -- Teleport: Tol Barad
-                  .. "88344,"   -- Teleport: Tol Barad
-                  .. "94719,"   -- The Innkeeper's Daughter
-                  .. "120145,"  -- Ancient Teleport: Dalaran
-                  .. "132621,"  -- Teleport: Vale of Eternal Blossoms
-                  .. "132627,"  -- Teleport: Vale of Eternal Blossoms
-                  .. "136508,"  -- Dark Portal
-                  .. "168487,"  -- Home Away from Home
-                  .. "168499,"  -- Home Away from Home
-                  .. "171253,"  -- Garrison Hearthstone
-                  .. "176242,"  -- Teleport: Warspear
-                  .. "176248,"  -- Teleport: Stormshield
-                  .. "189838,"  -- Teleport to Shipyard
-                  .. "192084,"  -- Jump to Skyhold
-                  .. "192085,"  -- Jump to Skyhold
-                  .. "193759,"  -- Teleport: Hall of the Guardian
-                  .. "216016,"  -- Jump to Skyhold
-                  .. "222695,"  -- Dalaran Hearthstone
-                  .. "224869,"  -- Teleport: Dalaran - Broken Isles
-                  .. "227334,"  -- Flight Master's Whistle
-                  .. "278244,"  -- Greatfather Winter's Hearthstone
-                  .. "281403,"  -- Teleport: Boralus
-                  .. "281404,"  -- Teleport: Dazar'alor
-                  .. "308742,"  -- Eternal Traveler's Hearthstone
-                  .. "312372,"  -- Return to Camp
-                .. "}",
+                executeOnInit = [[this.spells = {
+  556,     -- Astral Recall
+  3561,    -- Teleport: Stormwind
+  3562,    -- Teleport: Ironforge
+  3563,    -- Teleport: Undercity
+  3565,    -- Teleport: Darnassus
+  3566,    -- Teleport: Thunder Bluff
+  3567,    -- Teleport: Orgrimmar
+  8690,    -- Hearthstone
+}]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = CastingInfo("player")
-this.transitionTime = ((endTime - startTime)/1000) - .25
-]],
+this.transitionTime = ((endTime - startTime)/1000) - .25]],
                 condition = [[for k,v in pairs(this.spells) do
     if GetSpellInfo(v) and GetSpellInfo(v) == CastingInfo("player") then
         return true
@@ -870,7 +845,7 @@ return false]],
             },
             ["300"] = {
                 name = "NPC Interaction",
-                priority = 20,
+                priority = 110,
                 executeOnInit = "this.frames = {\"BagnonBankFrame1\", \"BankFrame\", \"ClassTrainerFrame\", \"GossipFrame\", \"GuildRegistrarFrame\", \"ImmersionFrame\", \"MerchantFrame\", \"PetStableFrame\", \"QuestFrame\", \"TabardFrame\", \"AuctionFrame\", \"TaxiFrame\"}",
                 condition = "local shown = false\nfor k, v in pairs(this.frames) do\n    if (_G[v] and _G[v]:IsShown()) then\n        shown = true\n        break\n    end\nend\nreturn shown and UnitExists(\"npc\") and UnitIsUnit(\"npc\", \"target\")",
                 events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "CLOSE_TABARD_FRAME", "OPEN_TABARD_FRAME", "TRAINER_CLOSED", "TRAINER_SHOW", "TAXIMAP_OPENED", "TAXIMAP_CLOSED"},
@@ -878,7 +853,7 @@ return false]],
             },
             ["301"] = {
                 name = "Mailbox",
-                priority = 20,
+                priority = 110,
                 condition = "return MailFrame and MailFrame:IsShown()",
                 events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"},
             },
@@ -887,6 +862,30 @@ return false]],
                 priority = 20,
                 condition = "return ChannelInfo(\"player\") == GetSpellInfo(7620)",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
+                delay = 0,
+            },
+            ["303"] = {
+                name = "AFK",
+                priority = 120,
+                condition = "return UnitIsAFK(\"player\")",
+                events = {"PLAYER_FLAGS_CHANGED"},
+                cameraActions = {
+                  ["transitionTime"] = 1,
+                  ["rotateSpeed"] = 3,
+                  ["zoomValue"] = 9,
+                  ["rotate"] = true,
+                  ["zoomSetting"] = "out",
+                },
+                extras = {
+                  ["hideUI"] = true,
+                },
+                cameraCVars = {
+                  ["test_cameraTargetFocusInteractEnable"] = 0,
+                  ["test_cameraHeadMovementStrength"] = 0,
+                  ["test_cameraTargetFocusEnemyEnable"] = 0,
+                  ["test_cameraOverShoulder"] = 0,
+                  ["test_cameraDynamicPitch"] = 0,
+                },
                 delay = 0,
             },
         },
