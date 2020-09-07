@@ -787,6 +787,11 @@ DynamicCam.defaults = {
   222695,  -- Dalaran Hearthstone
   224869,  -- Teleport: Dalaran - Broken Isles
   227334,  -- Flight Master's Whistle
+  225428,  -- Town Portal: Shala'nir
+  225434,  -- Town Portal: Sashj'tar
+  225435,  -- Town Portal: Kal'delar
+  225440,  -- Town Portal: Lian'tril
+  225436,  -- Town Portal: Faronaar
   231504,  -- [Tome of] Town Portal
   231505,  -- [Scroll of] Town Portal
   278244,  -- Greatfather Winter's Hearthstone
