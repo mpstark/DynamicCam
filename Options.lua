@@ -39,90 +39,6 @@ Some handy slash commands:
         Example:
             `/zoom 5 5 InOutQuint` will zoom to 5 over 5 seconds using InOutQuint as the easing function.
     ]]
--- local knownIssues =[[- ...
--- - ...
--- - ...]]
--- local changelog = {
--- [[Beta 4:
-    -- - Now powered by LibCamera-1.0, a library that I'm developing in conjuction with DynamicCam
-        -- - Rotation actions can now also pitch the camera up and down
-        -- - Zoom, Yaw, and Pitch are done frame-by-frame using easing (smoothing) formulas
-        -- - Uses industry standard easing formulas -- LibEasing-1.0 is a port of a Lua implementation
-        -- - No manipulation of CVars needed to 'trick' WoW's camera engine
-        -- - Accuracy of rotation actions far improved from previous implementation
-
-    -- - Settings sharing using clipboard-friendly strings
-        -- - Very much like WeakAura's export string option
-        -- - Export/Import a single situation or your entire profile
-
-    -- - Create new custom situations (Advanced)
-        -- - Some (in-game) Lua scripting needed
-        -- - Fully sharable using the new settings sharing system
-
-    -- - Fade UI replaces Hide UI
-        -- - UI fades out, and hides when it's done fading (hiding can be disabled)
-        -- - Fading can occur in combat, and looks nicer
-        -- - Hiding the UI is now securely done, and the UI is safely unhidden in combat
-        -- - Hitting escape will show the UI if it is hidden in this manner
-        -- - Can fade to a non-zero opacity (but obviously won't hide the UI then)
-
-    -- - Minor Changes/Fixes:
-        -- - Easily copy/paste settings from one situation to another
-        -- - Changes to the default conditions and new situations will now be automatically applied to profiles
-        -- - Rotation actions that rotate back are far improved
-        -- - Some database optimizations, lowered memory overhead a bit
-        -- - Situations with a delay should now work better in certain circumstances (thanks Tydfall!)
-        -- - Don't redundantly call SetCVar a lot
--- ]],
--- [[Beta 3:
-    -- - Forced database reset, there was just too much change on Blizzard's end.
-    -- - Update to 7.1 changes to CVars and the return of ActionCam!
-        -- - ActionCam features are DISABLED by default. Enable them in the options.
-    -- - Defaults have been updated a bit.
-    -- - Added "Reactive Zoom" option, which speeds up manual zooming when going quickly
-        -- - Keep in mind that Blizzard adjusted the default zoom speed to 20 for everyone
-        -- - There are several advanced options, toggle Advanced Mode to see them
-        -- - This option is off by default
-    -- - Some code cleanup
-    -- - Stay tuned for further updates!
--- ]],
--- [[Beta 2:
-    -- - New `/zoom #` slash command that will set the zoom level to that value
-    -- - Adjust Nameplate feature replaced by 'Toggle Nameplates' feature in "Zoom Fit Nameplates"
-        -- - This should show the nameplate only when it is being used
-    -- - A whole slew of advanced options has been added
-        -- - Can now execute custom scripts on situation Enter/Exit and Initialization
-            -- - Some of the defaults now use these and many of them have been cleaned up for readiblity
-        -- - You can now change the events that trigger a check of situations
-    -- - Several tweaks to the options panel
-        -- - Set View is an advanced mode option, as it's, well, for people that know what they're doing
-        -- - Many advanced options are now applied when the settings are applied
-        -- - Many tooltips have been changed to better reflect what things do
-    -- - Defaults:
-        -- - Added a updated defaults dialog that pops up on load if the defaults have been updated
-        -- - Added Fishing, Arena, and Battleground default situations
-        -- - Add several things to the Hearth/Teleport default situation like Innkeeper's Daughter, Admiral's Compass
-        -- - Hearth/Teleport situation now uses the cast time of the spell as the transitionTime
-            -- - this is just the start of what can be done with the advanced scripts
-    -- - Lots of little bugs squashed]],
--- [[Beta 1:
-    -- - FORCED DATABASE RESET!
-    -- - Event-based checking instead of polling -- large performance gain!
-    -- - Removed frame hiding functionality, but hiding entire UI still supported
-        -- - out-of-scope -- this is a camera addon
-        -- - problems regarding UI taint didn't help
-    -- - Changes to the current situation (right now only camera settings) will be applied instantly
-    -- - Changes to the camera settings will be applied instantly
-    -- - Nameplate fit has a new option; Entry Zoom as Min, which will basically make fit not zoom in
-    -- - Nameplate fit is more consistant and has a reduced delay (from 250ms instead of 500ms)
-    -- - Defaults:
-        -- - mounted situations now consolidated into a single situation
-        -- - Hearth/Teleport now tracks mage teleports (not portals) and Death Gate and Skyhold Jump
-    -- - Fixed some bugs:
-        -- - zoom restoration not working because of rounding issues or because of other zoom
-        -- - a situation's zoom wouldn't actually be applied if a zoom was already occuring
-        -- - nameplate settings should no longer cause taint]],
--- }
 
 local easingValues = {
     Linear = "Linear",
@@ -221,36 +137,6 @@ local general = {
                 },
             }
         },
-        -- knownIssuesGroup = {
-            -- type = 'group',
-            -- name = "Known Issues",
-            -- order = 5.5,
-            -- inline = true,
-            -- args = {
-                -- issues = {
-                    -- type = 'description',
-                    -- name = knownIssues,
-                    -- fontSize = "small",
-                    -- width = "full",
-                    -- order = 1,
-                -- },
-            -- }
-        -- },
-        -- changeLogGroup = {
-            -- type = 'group',
-            -- name = "Version Info",
-            -- order = 6,
-            -- inline = true,
-            -- args = {
-                -- changelog = {
-                    -- type = 'description',
-                    -- name = function() local l="" for k,v in ipairs(changelog) do l=l..v.."\n\n" end return l end,
-                    -- fontSize = "small",
-                    -- width = "full",
-                    -- order = 1,
-                -- },
-            -- }
-        -- },
     },
 }
 local settings = {
