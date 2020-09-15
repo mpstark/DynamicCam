@@ -13,6 +13,37 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0")
 ------------
 -- LOCALS --
 ------------
+local function ScriptEqual(customScript, defaultScript)
+    if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
+end
+
+
+local function EventsEqual(customEvents, defaultEvents)
+    local customEventsCheck = {}
+    local defaultEventsCheck = {}
+
+    for k, v in pairs(customEvents) do
+        customEventsCheck[v] = true
+    end
+
+    for k, v in pairs(defaultEvents) do
+        if not customEventsCheck[v] then
+            return false
+        end
+        defaultEventsCheck[v] = true
+    end
+
+    for k, v in pairs(customEvents) do
+        if not defaultEventsCheck[v] then
+            return false
+        end
+    end
+
+    return true
+end
+
+
+
 local Options = DynamicCam.Options
 local parent = DynamicCam
 local _
@@ -39,6 +70,7 @@ Some handy slash commands:
         Example:
             `/zoom 5 5 InOutQuint` will zoom to 5 over 5 seconds using InOutQuint as the easing function.
     ]]
+
 
 local easingValues = {
     Linear = "Linear",
@@ -1407,6 +1439,14 @@ local situationOptions = {
                     width = "double",
                     order = 1,
                 },
+                eventsDefault = {
+                    type = 'execute',
+                    name = "Restore default",
+                    desc = "Your 'Events' deviate from the default. Click here to restore it.",
+                    func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
+                    hidden = function() return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events) end,
+                    order = 3,
+                },
                 priority = {
                     type = 'input',
                     name = "Priority",
@@ -1431,39 +1471,71 @@ local situationOptions = {
                     desc = "When this situation should be activated.",
                     get = function() return S.condition end,
                     set = function(_, newValue) S.condition = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
-                    multiline = 4,
+                    multiline = 6,
                     width = "full",
                     order = 5,
                 },
-                init = {
+                conditionDefault = {
+                    type = 'execute',
+                    name = "Restore default",
+                    desc = "Your 'Condition' deviates from the default. Click here to restore it.",
+                    func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
+                    hidden = function() return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition) end,
+                    order = 6,
+                },
+                executeOnInit = {
                     type = 'input',
                     name = "Initialization Script",
                     desc = "Called when the situation is loaded and when it is modified.",
                     get = function() return S.executeOnInit end,
                     set = function(_, newValue) S.executeOnInit = newValue; Options:SendMessage("DC_SITUATION_UPDATED", SID) end,
-                    multiline = 4,
+                    multiline = 6,
                     width = "full",
                     order = 10,
                 },
-                onEnter = {
+                executeOnInitDefault = {
+                    type = 'execute',
+                    name = "Restore default",
+                    desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
+                    func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
+                    hidden = function() return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit) end,
+                    order = 11,
+                },
+                executeOnEnter = {
                     type = 'input',
                     name = "On Enter Script",
                     desc = "Called when the situation is selected as the active situation (before any thing else).",
                     get = function() return S.executeOnEnter end,
                     set = function(_, newValue) S.executeOnEnter = newValue end,
-                    multiline = 4,
+                    multiline = 6,
                     width = "full",
                     order = 20,
                 },
-                OnExit = {
+                executeOnEnterDefault = {
+                    type = 'execute',
+                    name = "Restore default",
+                    desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
+                    func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
+                    hidden = function() return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter) end,
+                    order = 21,
+                },
+                executeOnExit = {
                     type = 'input',
                     name = "On Exit Script",
                     desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
                     get = function() return S.executeOnExit end,
                     set = function(_, newValue) S.executeOnExit = newValue end,
-                    multiline = 4,
+                    multiline = 6,
                     width = "full",
                     order = 30,
+                },
+                executeOnExitDefault = {
+                    type = 'execute',
+                    name = "Restore default",
+                    desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
+                    func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
+                    hidden = function() return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit) end,
+                    order = 31,
                 },
             },
         },
