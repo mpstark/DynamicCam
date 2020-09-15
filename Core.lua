@@ -763,6 +763,7 @@ DynamicCam.defaults = {
   35715,   -- Teleport: Shattrath
   49358,   -- Teleport: Stonard
   49359,   -- Teleport: Theramore
+  49844,   -- Using Direbrew's Remote
   50977,   -- Death Gate
   53140,   -- Teleport: Dalaran - Northrend
   54406,   -- Teleport: Dalaran
@@ -774,6 +775,7 @@ DynamicCam.defaults = {
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
+  140295,  -- Kirin Tor Beacon
   168487,  -- Home Away from Home
   168499,  -- Home Away from Home
   171253,  -- Garrison Hearthstone
@@ -782,18 +784,25 @@ DynamicCam.defaults = {
   189838,  -- Teleport to Shipyard
   192084,  -- Jump to Skyhold
   192085,  -- Jump to Skyhold
+  193669,  -- Basic Dimensional Rifting
   193759,  -- Teleport: Hall of the Guardian
+  196079,  -- Recall (to the sanctuary of Frostwolf Keep)
+  196080,  -- Recall (to the sanctuary of Dun Baldar)
   216016,  -- Jump to Skyhold
   222695,  -- Dalaran Hearthstone
+  223805,  -- Advanced Dimensional Rifting
   224869,  -- Teleport: Dalaran - Broken Isles
-  227334,  -- Flight Master's Whistle
   225428,  -- Town Portal: Shala'nir
   225434,  -- Town Portal: Sashj'tar
   225435,  -- Town Portal: Kal'delar
   225440,  -- Town Portal: Lian'tril
   225436,  -- Town Portal: Faronaar
+  227334,  -- Flight Master's Whistle
   231504,  -- [Tome of] Town Portal
   231505,  -- [Scroll of] Town Portal
+  245173,  -- Portal: Black Temple
+  248906,  -- Vindicaar Teleport Beacon
+  262100,  -- Recall (to your Great Hall)
   278244,  -- Greatfather Winter's Hearthstone
   278559,  -- Headless Horseman's Hearthstone
   281403,  -- Teleport: Boralus
