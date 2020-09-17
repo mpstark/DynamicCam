@@ -1444,7 +1444,10 @@ local situationOptions = {
                     name = "Restore default",
                     desc = "Your 'Events' deviate from the default. Click here to restore it.",
                     func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
-                    hidden = function() return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events) end,
+                    hidden = function()
+                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                        return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
+                      end,
                     order = 3,
                 },
                 priority = {
@@ -1480,7 +1483,10 @@ local situationOptions = {
                     name = "Restore default",
                     desc = "Your 'Condition' deviates from the default. Click here to restore it.",
                     func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
-                    hidden = function() return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition) end,
+                    hidden = function()
+                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                        return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                      end,
                     order = 6,
                 },
                 executeOnInit = {
@@ -1498,7 +1504,10 @@ local situationOptions = {
                     name = "Restore default",
                     desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
                     func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
-                    hidden = function() return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit) end,
+                    hidden = function()
+                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                        return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
+                      end,
                     order = 11,
                 },
                 executeOnEnter = {
@@ -1516,7 +1525,10 @@ local situationOptions = {
                     name = "Restore default",
                     desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
                     func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
-                    hidden = function() return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter) end,
+                    hidden = function()
+                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                        return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
+                      end,
                     order = 21,
                 },
                 executeOnExit = {
@@ -1534,7 +1546,10 @@ local situationOptions = {
                     name = "Restore default",
                     desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
                     func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
-                    hidden = function() return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit) end,
+                    hidden = function()
+                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                        return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
+                      end,
                     order = 31,
                 },
             },
