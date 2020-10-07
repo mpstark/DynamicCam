@@ -104,6 +104,20 @@ local enteredSituationAtLogin = false
 local secondsPerFrame = 1.0/GetFramerate()
 
 
+
+-- For other Addons (like Narcissus) to temporarily disable
+-- "Adjust Shoulder offset according to zoom level" without
+-- having to change the user's permanent DynamicCam profile.
+local shoulderOffsetZoomTmpDisable = false
+function DynamicCam:BlockShoulderOffsetZoom()
+  shoulderOffsetZoomTmpDisable = true
+end
+function DynamicCam:AllowShoulderOffsetZoom()
+  shoulderOffsetZoomTmpDisable = false
+end
+
+
+
 -- This frame applies the new shoulder offset while easing of zoom or shoulder offset is in progress.
 -- The easing functions just modify the zoom or currentShoulderOffset which are taken
 -- into account here.
@@ -264,17 +278,6 @@ end
 ----------------------
 -- SHOULDER OFFSET  --
 ----------------------
-
--- For other Addons (like Narcissus) to temporarily disable
--- "Adjust Shoulder offset according to zoom level" without
--- having to change the user's permanent DynamicCam profile.
-local shoulderOffsetZoomTmpDisable = false
-function DynamicCam:BlockShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = true
-end
-function DynamicCam:AllowShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = false
-end
 
 -- For zoom levels smaller than finishDecrease, we already want a shoulder offset of 0.
 -- For zoom levels greater than startDecrease, we want the user set shoulder offset.
@@ -521,8 +524,8 @@ DynamicCam.defaults = {
         version = 0,
         firstRun = true,
 
+        -- TODO: Advanced or debug mode should not be part of the profile!!
         advanced = false,
-        debugMode = false,
         actionCam = true,
 
         easingZoom = "InOutQuad",
@@ -658,13 +661,13 @@ DynamicCam.defaults = {
             ["023"] = {
                 name = "Dungeon/Scenerio (Combat, Boss)",
                 priority = 302,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\") and UnitAffectingCombat(\"player\") and IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["024"] = {
                 name = "Dungeon/Scenerio (Combat, Trash)",
                 priority = 202,
-                condition = "local isInstance, instanceType = IsInInstance(); return (isInstance and (instanceType == \"party\" or instanceType == \"scenario\")) and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
+                condition = "local isInstance, instanceType = IsInInstance(); return isInstance and (instanceType == \"party\" or instanceType == \"scenario\") and UnitAffectingCombat(\"player\") and not IsEncounterInProgress()",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
             },
             ["030"] = {
@@ -1953,50 +1956,35 @@ end
 -- DATABASE --
 --------------
 local firstDynamicCamLaunch = false
-local upgradingFromOldVersion = false
 StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
-    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured.",
-    button1 = "Open Presets",
-    button2 = "Close",
+    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured. Scroll to the bottom of the Profile settings to find some presets.",
+    button1 = "OK",
+    button2 = "Cancel",
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.presets)
-        InterfaceOptionsFrame_OpenToCategory(Options.presets)
+        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
+        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
     end,
     OnCancel = function(_, reason)
     end,
 }
 
 StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
-    text = "The current DynamicCam profile is fresh and probably empty.\n\nWould you like to see available DynamicCam presets?",
-    button1 = "Open Presets",
-    button2 = "Close",
+    text = "The current DynamicCam profile is fresh and probably empty. Scroll to the bottom of the Profile settings to find some presets.",
+    button1 = "OK",
+    button2 = "Cancel",
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.presets)
-        InterfaceOptionsFrame_OpenToCategory(Options.presets)
+        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
+        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
     end,
     OnCancel = function(_, reason)
-    end,
-}
-
-StaticPopupDialogs["DYNAMICCAM_UPDATED"] = {
-    text = "DynamicCam has been updated, would you like to open the main menu?\n\nThere's a changelog right in there! (You may need to scroll down)",
-    button1 = "Open Menu",
-    button2 = "Close",
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
-    OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
     end,
 }
 
@@ -2006,12 +1994,6 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnProfileCopied", "RefreshConfig")
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig")
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown")
-
-    -- remove dbVersion, move to a per-profile version number
-    if self.db.global.dbVersion then
-        upgradingFromOldVersion = true
-        self.db.global.dbVersion = nil
-    end
 
     if not DynamicCamDB.profiles then
         firstDynamicCamLaunch = true
@@ -2034,10 +2016,6 @@ function DynamicCam:InitDatabase()
             self:ModernizeProfile(profile)
         end
 
-        -- show the updated popup
-        if upgradingFromOldVersion then
-            StaticPopup_Show("DYNAMICCAM_UPDATED")
-        end
     end
 end
 
@@ -2338,3 +2316,35 @@ function DynamicCam:ResetCVars()
     ResetView(4)
     ResetView(5)
 end
+
+
+
+
+
+
+
+
+
+-- For debugging.
+function DynamicCam:PrintTable(t, indent)
+  assert(type(t) == "table", "PrintTable() called for non-table!")
+
+  local indentString = ""
+  for i = 1, indent do
+    indentString = indentString .. "  "
+  end
+
+  for k, v in pairs(t) do
+    if type(v) ~= "table" then
+      print(indentString, k, "=", v)
+    else
+      print(indentString, k, "=")
+      print(indentString, "  {")
+      DynamicCam:PrintTable(v, indent + 2)
+      print(indentString, "  }")
+    end
+  end
+end
+
+
+

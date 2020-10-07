@@ -167,17 +167,14 @@ local function minimizeTable(tbl, base)
 end
 
 local function copyTable(src, dest)
-    if type(dest) ~= "table" then dest = {} end
-    if type(src) == "table" then
-        for k,v in pairs(src) do
-            if type(v) == "table" then
-                -- try to index the key first so that the metatable creates the defaults, if set, and use that table
-                v = copyTable(v, dest[k])
-            end
-            dest[k] = v
+    assert(type(src) == "table", "copyTable() called for non-table source!")
+    for k, v in pairs(src) do
+        if type(v) == "table" then
+            copyTable(v, dest[k])
+        else
+          dest[k] = v
         end
     end
-    return dest
 end
 
 
@@ -238,29 +235,32 @@ function DynamicCam:Import(importString)
         -- this is an imported situation
         if string.find(imported.situationID, "custom") then
             -- custom situation, so just create a new custom situation and bring everything into it
-            -- TODO: this is ugly, but effective
             local situation, situationID = self:CreateCustomSituation(imported.situation.name)
 
-            for key, value in pairs(imported.situation) do
-                if type(value) == 'table' then
-                    -- this only works because our table only has two levels
-                    -- a more robust solution would be better
-                    for k2, v2 in pairs(imported.situation[key]) do
-                        situation[key][k2] = imported.situation[key][k2]
-                    end
-                else
-                    situation[key] = imported.situation[key]
-                end
-            end
+            -- Set/override all settings defined by the imported situation.
+            copyTable(imported.situation, situation)
 
             self:SendMessage("DC_SITUATION_UPDATED", situationID)
             self:Print("Successfully imported custom situation", imported.situation.name)
-        else
-            -- not a custom situation, need to update the current situation
-            self:Print("TODO: This isn't a custom situation!")
 
-            -- self.db.profile.situations[situationID] = imported
-            -- self:SendMessage("DC_SITUATION_UPDATED", situationID)
+        else
+
+            local situationID = imported.situationID
+
+            -- not a custom situation, need to update the current situation
+            if not self.defaults.profile.situations[situationID] then
+                self:Print("You are trying to import a non-custom situation that does not exist.", imported.situation.name, situationID)
+            end
+
+            -- Restore default first.
+            copyTable(self.defaults.profile.situations["**"], self.db.profile.situations[situationID])
+            copyTable(self.defaults.profile.situations[situationID], self.db.profile.situations[situationID])
+
+            -- Set/override all settings defined by the imported situation.
+            copyTable(imported.situation, self.db.profile.situations[situationID])
+
+            self:SendMessage("DC_SITUATION_UPDATED", situationID)
+            self:Print("Successfully imported situation", imported.situation.name)
         end
     elseif imported.type == "DC_PROFILE" then
         local name = imported.name or "Imported"
@@ -290,7 +290,9 @@ function DynamicCam:ImportIntoCurrentProfile(importString)
 
         self:Shutdown()
 
+        -- Reset current profile to default.
         self.db:ResetProfile(nil, true)
+        -- Override all settings defined by the imported profile.
         copyTable(imported.profile, self.db.profile)
 
         self:Startup()
@@ -298,3 +300,4 @@ function DynamicCam:ImportIntoCurrentProfile(importString)
         self:Print("Successfully imported into current profile")
     end
 end
+

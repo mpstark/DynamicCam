@@ -44,9 +44,23 @@ function DynamicCam:GetPresets()
         local entry = string.format("%s (%s)", name, tbl.author)
         presetList[name] = entry
     end
-
     return presetList
 end
+
+
+function DynamicCam:GetPresetsSorting()
+    local presetSortingList = {}
+
+    local index = 1
+    -- load a table full of the name (the key) and what we want the entry to read
+    for name in pairs(presets) do
+        presetSortingList[index] = name
+        index = index + 1
+    end
+    return presetSortingList
+end
+
+
 
 function DynamicCam:GetPresetDescriptions()
     local descriptions = ""
@@ -54,9 +68,8 @@ function DynamicCam:GetPresetDescriptions()
 
     -- load a table full of the name (the key) and what we want the entry to read
     for name, tbl in pairs(presets) do
-        local entry = string.format("%s|cFFFFFF00%s (%s):|r\n    %s", sep, name, tbl.author, tbl.description)
+        local entry = string.format("%s|cFFFFFF00%s (%s):|r\n%s", sep, name, tbl.author, tbl.description)
         descriptions = descriptions..entry
-
         sep = "\n\n"
     end
 
