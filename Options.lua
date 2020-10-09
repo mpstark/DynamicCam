@@ -104,21 +104,31 @@ local easingValues = {
     OutInCirc = "Out/In Circular",
 }
 
+
+
+
+
+
+
+
 local general = {
-    name = "DynamicCam",
+    type = "group",
+    name = "General",
+    order = 1,
     handler = DynamicCam,
-    type = 'group',
     args = {
         general = {
-            type = 'group',
-            name = "General",
+            type = "group",
+            name = "Non situation specific settings",
             order = 1,
             inline = true,
             args = {
                 enable = {
-                    type = 'toggle',
+                    type = "toggle",
                     name = "Enable",
                     desc = "If the addon is enabled.",
+                    order = 1,
+                    width = 1,
                     get = "IsEnabled",
                     set = function(_, newValue)
                             if not newValue then
@@ -127,52 +137,41 @@ local general = {
                                 DynamicCam:Enable()
                             end
                         end,
-                    order = 1,
-                    width = 1,
                 },
                 actionCam = {
                     type = 'toggle',
                     name = "Use ActionCam",
                     desc = "Enables ActionCam features in DynamicCam.\n\nActionCam is an experimental set of features that Blizzard has included in the game for advanced users and these features may cause some motion sickness.\n\nEnabling this feature disables the standard Blizzard reset notification.",
+                    order = 2,
+                    width = 1,
                     get = function() return DynamicCam.db.profile.actionCam end,
                     set = function(_, newValue)
                             DynamicCam.db.profile.actionCam = newValue
                             Options:SendMessage("DC_SITUATION_UPDATED", SID)
                         end,
-                    width = 1,
-                    order = 2,
                 },
                 advanced = {
                     type = 'toggle',
                     name = "Advanced Mode",
                     desc = "If you would like to see advanced options, like editing the Lua conditions of situations.",
-                    get = function() return DynamicCam.db.profile.advanced end,
-                    set = function(_, newValue) DynamicCam.db.profile.advanced = newValue end,
-                    width = 1,
                     order = 3,
+                    width = 1,
+                    get = function() return DynamicCam.db.profile.advanced end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.advanced = newValue
+                        end,
                 },
-                -- debugMode = {
-                    -- type = 'toggle',
-                    -- name = "Debug",
-                    -- desc = "Print out debug messages to the chat window.",
-                    -- get = function() return DynamicCam.db.profile.debugMode end,
-                    -- set = function(_, newValue) DynamicCam.db.profile.debugMode = newValue end,
-                    -- width = "half",
-                    -- order = 4,
-                -- },
-
             },
         },
         messageGroup = {
             type = 'group',
             name = "Welcome!",
-            order = 5,
+            order = 2,
             inline = true,
             args = {
                 message = {
                     type = 'description',
                     name = welcomeMessage,
-                    order = 1,
                 },
             }
         },
@@ -180,9 +179,10 @@ local general = {
 }
 
 local settings = {
-    name = "Settings",
-    handler = DynamicCam,
     type = 'group',
+    name = "Settings",
+    order = 2,
+    handler = DynamicCam,
     args = {
         reactiveZoom = {
             type = 'group',
@@ -784,9 +784,10 @@ local settings = {
 }
 
 
-local situationOptions = {
+local situationSettings = {
     type = 'group',
     name = "Situation Options",
+    order = 3,
     handler = DynamicCam,
     args = {
         zoomRestoreSettingGroup = {
@@ -1681,18 +1682,17 @@ local situationOptions = {
 
 
 
-
-
 local profileSettings = {
+    type = 'group',
     name = "Profiles",
     handler = DynamicCam,
-    type = 'group',
+    order = 4,
+    childGroups = "tab",
     args = {
 
         exportGroup = {
-            name = "Export currently active profile",
             type = 'group',
-            inline = true,
+            name = "Export currently active profile",
             order = 1000,
             args = {
                 helpText = {
@@ -1728,9 +1728,8 @@ local profileSettings = {
         },
         
         presetGroup = {
-            name = "Profile presets",
             type = 'group',
-            inline = true,
+            name = "Profile presets",
             order = 1010,
             args = {
                 description = {
@@ -1750,10 +1749,10 @@ local profileSettings = {
                     order = 2,
                 },
                 presetDescriptions = {
-                    name = "Descriptions",
                     type = 'group',
-                    inline = true,
+                    name = "Descriptions",
                     order = 3,
+                    inline = true,
                     args = {
                         description = {
                             type = 'description',
@@ -1769,16 +1768,10 @@ local profileSettings = {
 
 
 
-
-
-
-
-
 local import = {
-    name = "Import profiles or situations",
     type = 'group',
-    inline = true,
-    order = 2,
+    name = "Import",
+    order = 5,
     args = {
         helpText = {
             type = 'description',
@@ -1797,6 +1790,9 @@ local import = {
         },
     },
 }
+
+
+
 
 
 
@@ -1860,21 +1856,25 @@ end
 
 function Options:RegisterMenus()
     -- setup menu
-    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", general)
-    self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
-
-    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Settings", settings)
-    self.settings = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Settings", "Settings", "DynamicCam")
-
-    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Situations", situationOptions)
-    self.situtations = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Situations", "Situations", "DynamicCam")
-
+    
+    -- Add profile managing here, such that we can have export below it.
     profileSettings.args["settings"] = LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db)
-    profileSettings.args["settings"]["inline"] = true
     profileSettings.args["settings"]["name"] = "Manage profiles"
-    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Profiles", profileSettings)
-    self.profiles = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Profiles", "Profiles", "DynamicCam")
-        
-    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam Import", import)
-    self.import = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam Import", "Import", "DynamicCam")
+    
+    local allOptions = allOptions or {
+        name = "DynamicCam",
+        type = "group",
+        childGroups = "tab",
+        args = {
+            generalTab = general,
+            settingsTab = settings,
+            situationSettingsTab = situationSettings,
+            profileSettingsTab = profileSettings,
+            importTab = import,
+        }
+    }
+    
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
+    self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
+    
 end

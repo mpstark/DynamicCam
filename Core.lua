@@ -1957,7 +1957,7 @@ end
 --------------
 local firstDynamicCamLaunch = false
 StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
-    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured. Scroll to the bottom of the Profile settings to find some presets.",
+    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
     button1 = "OK",
     button2 = "Cancel",
     timeout = 0,
@@ -1965,15 +1965,15 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
-        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
     end,
     OnCancel = function(_, reason)
     end,
 }
 
 StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
-    text = "The current DynamicCam profile is fresh and probably empty. Scroll to the bottom of the Profile settings to find some presets.",
+    text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
     button1 = "OK",
     button2 = "Cancel",
     timeout = 0,
@@ -1981,8 +1981,8 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
-        InterfaceOptionsFrame_OpenToCategory(Options.profiles)
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
+        InterfaceOptionsFrame_OpenToCategory(Options.menu)
     end,
     OnCancel = function(_, reason)
     end,
