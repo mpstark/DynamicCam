@@ -374,10 +374,10 @@ RegisterStateDriver(combatSecureFrame, "dc_combat_state", "[combat] combat; [noc
 combatSecureFrame:SetAttribute("_onstate-dc_combat_state", [[ -- arguments: self, stateid, newstate
     if newstate == "combat" then
         if self.hidUI then
-            setUIAlpha(combatSecureFrame.lastUIAlpha)
+            setUIAlpha(self.lastUIAlpha)
             UIParent:Show()
 
-            combatSecureFrame.lastUIAlpha = nil
+            self.lastUIAlpha = nil
             self.hidUI = nil
         end
     end
@@ -1876,13 +1876,18 @@ end
 -- EVENTS --
 ------------
 function DynamicCam:EventHandler(event, possibleUnit, ...)
+    -- When entering combat, we have to act now.
+    -- Otherwise, we might not be able to call protected functions like UIParent:Show().
+    if event == "PLAYER_REGEN_DISABLED" then
+        DynamicCam:EvaluateSituations()
+    end
+
     evaluateSituationsNextFrame = true
 
     -- double the event, since a lot of events happen before the condition turns out to be true
-    -- Ludius (08.07.2020): I don't know if we actually still need this now that we are
-    -- always calling EvaluateSituations() in the next frame. But I am not willing to test this
-    -- now for all possible situations, so I leave it in.
-    self:ScheduleTimer(function() evaluateSituationsNextFrame = true end, 0.2)
+    -- Ludius (17.10.2020): Probably not needed any more now that we are
+    -- calling EvaluateSituations() in the next frame..
+    -- self:ScheduleTimer(function() evaluateSituationsNextFrame = true end, 0.2)
 end
 
 function DynamicCam:RegisterEvents()
