@@ -1907,9 +1907,9 @@ function DynamicCam:EventHandler(event)
     -- Otherwise, we might not be able to call protected functions like UIParent:Show().
     if event == "PLAYER_REGEN_DISABLED" then
         DynamicCam:EvaluateSituations()
+    else
+        evaluateSituationsNextFrame = true
     end
-
-    evaluateSituationsNextFrame = true
 
     -- double the event, since a lot of events happen before the condition turns out to be true
     -- Ludius (17.10.2020): Probably not needed any more now that we are
