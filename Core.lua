@@ -115,11 +115,9 @@ end
 -- into account here.
 local function ShoulderOffsetEasingFunction(self, elapsed)
 
-
     -- Also using this frame also to log secondsPerFrame,
     -- which we need below to determine if easing is worthwhile.
     secondsPerFrame = elapsed
-
 
     -- Also using the frame to evaluate situations one frame after an event
     -- is triggered (see EventHandler()). This way we are never too early.
@@ -127,7 +125,6 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
         evaluateSituationsNextFrame = false
         DynamicCam:EvaluateSituations()
     end
-
 
     -- When we are going into a view, the zoom level of the new view is returned
     -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
@@ -509,13 +506,8 @@ tinsert(UISpecialFrames, unfadeUIFrame:GetName())
 --------
 DynamicCam.defaults = {
     profile = {
-        enabled = true,
         version = 0,
         firstRun = true,
-
-        -- TODO: Advanced or debug mode should not be part of the profile!!
-        advanced = false,
-        actionCam = true,
 
         easingZoom = "InOutQuad",
         easingYaw = "InOutQuad",
@@ -528,16 +520,21 @@ DynamicCam.defaults = {
         },
 
         reactiveZoom = {
-            enabled = false,
+            enabled = true,
             addIncrementsAlways = 1,
-            addIncrements = 3,
-            maxZoomTime = .25,
-            incAddDifference = 4,
+            addIncrements = 2.5,
+            incAddDifference = 1.2,
+            maxZoomTime = 0.1,
             easingFunc = "OutQuad",
         },
         standardCvars = {
-            ["cameraZoomSpeed"] = 20,
+            ["cameraZoomSpeed"] = 50,
             ["cameraDistanceMaxZoomFactor"] = 2.6,
+
+            ["cameraYawMoveSpeed"] = 70,
+            ["cameraPitchMoveSpeed"] = 50,
+            
+
 
             ["test_cameraOverShoulder"] = 0,
 
@@ -992,7 +989,7 @@ function DynamicCam:Startup()
 
 
     -- TODO: For coding
-    -- C_Timer.After(0, self.OpenMenu)
+    C_Timer.After(0, self.OpenMenu)
 
 end
 
