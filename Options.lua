@@ -117,52 +117,6 @@ local general = {
     order = 1,
     handler = DynamicCam,
     args = {
-        general = {
-            type = "group",
-            name = "Non situation specific settings",
-            order = 1,
-            inline = true,
-            args = {
-                enable = {
-                    type = "toggle",
-                    name = "Enable",
-                    desc = "If the addon is enabled.",
-                    order = 1,
-                    width = 1,
-                    get = "IsEnabled",
-                    set = function(_, newValue)
-                            if not newValue then
-                                DynamicCam:Disable()
-                            else
-                                DynamicCam:Enable()
-                            end
-                        end,
-                },
-                actionCam = {
-                    type = 'toggle',
-                    name = "Use ActionCam",
-                    desc = "Enables ActionCam features in DynamicCam.\n\nActionCam is an experimental set of features that Blizzard has included in the game for advanced users and these features may cause some motion sickness.\n\nEnabling this feature disables the standard Blizzard reset notification.",
-                    order = 2,
-                    width = 1,
-                    get = function() return DynamicCam.db.profile.actionCam end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.actionCam = newValue
-                            Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                        end,
-                },
-                advanced = {
-                    type = 'toggle',
-                    name = "Advanced Mode",
-                    desc = "If you would like to see advanced options, like editing the Lua conditions of situations.",
-                    order = 3,
-                    width = 1,
-                    get = function() return DynamicCam.db.profile.advanced end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.advanced = newValue
-                        end,
-                },
-            },
-        },
         messageGroup = {
             type = 'group',
             name = "Welcome!",
@@ -175,621 +129,7 @@ local general = {
                 },
             }
         },
-    },
-}
 
-local settings = {
-    type = 'group',
-    name = "Settings",
-    order = 2,
-    handler = DynamicCam,
-    args = {
-        reactiveZoom = {
-            type = 'group',
-            name = "Reactive Zoom",
-            order = 1,
-            inline = true,
-            args = {
-                reactiveZoomEnabled = {
-                    type = 'toggle',
-                    name = "Enabled",
-                    desc = "Speed up zoom when manually zooming in quickly.",
-                    get = function() return DynamicCam.db.profile.reactiveZoom.enabled end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.reactiveZoom.enabled = newValue
-
-                            -- actually turn it on
-                            if newValue then
-                                DynamicCam:ReactiveZoomOn()
-                            else
-                                DynamicCam:ReactiveZoomOff()
-                            end
-                        end,
-                    order = 1,
-                },
-                reactiveZoomAdvanced = {
-                    type = 'group',
-                    name = "Reactive Zoom Options (Advanced)",
-                    hidden = function() return not DynamicCam.db.profile.advanced or not DynamicCam.db.profile.reactiveZoom.enabled end,
-                    order = 2,
-                    inline = true,
-                    args = {
-                        maxZoomTime = {
-                            type = 'range',
-                            name = "Max Manual Zoom Time",
-                            desc = "The most time that the camera will take to adjust to a manually set zoom.",
-                            min = .1,
-                            max = 2,
-                            step = .05,
-                            get = function() return DynamicCam.db.profile.reactiveZoom.maxZoomTime end,
-                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.maxZoomTime = newValue end,
-                            order = 2,
-                            width = "full",
-                        },
-                        addIncrementsAlways = {
-                            type = 'range',
-                            name = "Zoom Increments",
-                            desc = "The amount of distance that the camera should travel for each \'tick\' of the mousewheel.",
-                            min = 1,
-                            max = 5,
-                            step = .25,
-                            get = function() return DynamicCam.db.profile.reactiveZoom.addIncrementsAlways + 1 end,
-                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.addIncrementsAlways = newValue - 1 end,
-                            order = 3,
-                        },
-                        addIncrements = {
-                            type = 'range',
-                            name = "Additional Increments",
-                            desc = "When manually zooming quickly, add this amount of additional increments per \'tick\' of the mousewheel.",
-                            min = 0,
-                            max = 5,
-                            step = .25,
-                            get = function() return DynamicCam.db.profile.reactiveZoom.addIncrements end,
-                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.addIncrements = newValue; end,
-                            order = 4,
-                        },
-                        incAddDifference = {
-                            type = 'range',
-                            name = "Zooming Quickly (Difference)",
-                            desc = "The amount of ground that the camera needs to make up before it is considered to be moving quickly. Higher is harder to achieve.",
-                            min = 2,
-                            max = 5,
-                            step = .5,
-                            get = function() return DynamicCam.db.profile.reactiveZoom.incAddDifference end,
-                            set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.incAddDifference = newValue end,
-                            order = 5,
-                        },
-                        -- This is not working reliably. Especially the zoom when not set to default.
-                        -- So we hide this for now.
-                        -- easingFunc = {
-                            -- type = 'select',
-                            -- name = "Easing Function",
-                            -- desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
-                            -- hidden = true,
-                            -- get = function() return DynamicCam.db.profile.reactiveZoom.easingFunc end,
-                            -- set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
-                            -- values = easingValues,
-                            -- width = "full",
-                            -- order = 6,
-                        -- },
-                    },
-                },
-            },
-        },
-        -- This is not working reliably. Especially the zoom when not set to default.
-        -- So we hide this for now.
-        -- defaultEasing = {
-            -- type = 'group',
-            -- name = "Default Easing Functions (Advanced)",
-            -- hidden = function() return not DynamicCam.db.profile.advanced end,
-            -- order = 2,
-            -- inline = true,
-            -- args = {
-                -- easingZoom = {
-                    -- type = 'select',
-                    -- name = "Zoom Easing",
-                    -- desc = "Which easing function to use for zoom.",
-                    -- get = function() return DynamicCam.db.profile.easingZoom end,
-                    -- set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
-                    -- values = easingValues,
-                    -- order = 1,
-                -- },
-                -- easingYaw = {
-                    -- type = 'select',
-                    -- name = "Yaw Easing",
-                    -- desc = "Which easing function to use for yaw.",
-                    -- get = function() return DynamicCam.db.profile.easingYaw end,
-                    -- set = function(_, newValue) DynamicCam.db.profile.easingYaw = newValue end,
-                    -- values = easingValues,
-                    -- order = 2,
-                -- },
-                -- easingPitch = {
-                    -- type = 'select',
-                    -- name = "Pitch Easing",
-                    -- desc = "Which easing function to use for pitch.",
-                    -- get = function() return DynamicCam.db.profile.easingPitch end,
-                    -- set = function(_, newValue) DynamicCam.db.profile.easingPitch = newValue end,
-                    -- values = easingValues,
-                    -- order = 3,
-                -- },
-            -- },
-        -- },
-        defaultCvars = {
-            type = 'group',
-            name = "Default Camera Settings",
-            order = 3,
-            inline = true,
-            args = {
-                description = {
-                    type = 'description',
-                    name = "Settings here are only applied if the currently active situation doesn't modify the settings. Think of these settings as the \"fallback\".\n",
-                    hidden = function() return not DynamicCam.db.profile.actionCam end,
-                    order = 0,
-                },
-                cameraDistanceMaxFactor = {
-                    type = 'range',
-                    name = "Camera Max Distance",
-                    desc = "How far away from your character the camera can get.",
-                    min = 15,
-                    max = 39,
-                    step = .5,
-                    get = function() return 15 * DynamicCam.db.profile.defaultCvars["cameraDistanceMaxZoomFactor"] end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.defaultCvars["cameraDistanceMaxZoomFactor"] = newValue/15
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    order = 2,
-                    width = "full",
-                },
-                cameraZoomSpeed = {
-                    type = 'range',
-                    name = "Camera Move Speed",
-                    desc = "How fast the camera can zoom in/out.",
-                    min = 1,
-                    max = 50,
-                    step = .5,
-                    get = function() return DynamicCam.db.profile.defaultCvars["cameraZoomSpeed"] end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.defaultCvars["cameraZoomSpeed"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    order = 3,
-                    width = "full",
-                },
-                cameraOverShoulder = {
-                    type = 'range',
-                    name = "Camera Shoulder Offset",
-                    desc = "Moves the camera left or right from your character, negative values are to the left, postive to the right",
-                    hidden = function() return not DynamicCam.db.profile.actionCam end,
-                    min = -15,
-                    max = 15,
-                    step = .1,
-                    get = function() return DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.defaultCvars["test_cameraOverShoulder"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    order = 4,
-                    width = "full",
-                },
-                cameraHeadMovementStrength = {
-                    type = 'range',
-                    name = "Head Movement Strength",
-                    desc = "If above 0, the camera will move to follow your character's head movements, tracking it forward, back, left and right. The strength controls how much it follows the head.\n\nThis can cause some nausea if you are prone to motion sickness.",
-                    hidden = function() return not DynamicCam.db.profile.actionCam end,
-                    min = 0,
-                    max = 100,
-                    softMax = 2,
-                    step = .5,
-                    get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStrength"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    order = 5,
-                    width = "full",
-                },
-                shoulderOffsetZoomGroup = {
-                    type = 'group',
-                    name = "Adjust shoulder offset according to zoom level",
-                    hidden = function() return not DynamicCam.db.profile.actionCam end,
-                    order = 10,
-                    inline = true,
-                    args = {
-                        shoulderOffsetZoomEnabled = {
-                            type = 'toggle',
-                            name = "Enable",
-                            desc = "When enabled the Camera Shoulder Offset will gradually change towards zero as you zoom-in on your character.",
-                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.shoulderOffsetZoom.enabled = newValue
-                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
-                                end,
-                            order = 1,
-                        },
-                        shoulderOffsetZoomLowerBound = {
-                            type = 'range',
-                            name = "Zero when below:",
-                            desc = "When you are closer than this zoom level, the Camera Shoulder Offset will be zero.",
-                            min = 0,
-                            max = 39,
-                            step = 1,
-                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
-                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.lowerBound end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
-                                    if DynamicCam.db.profile.shoulderOffsetZoom.upperBound < newValue then
-                                        DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
-                                    end
-                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
-                                end,
-                            order = 2,
-                        },
-                        shoulderOffsetZoomUpperBound = {
-                            type = 'range',
-                            name = "Normal when above:",
-                            desc = "When you are further away than this zoom level, the Camera Shoulder Offset will have its normal value.",
-                            min = 0,
-                            max = 39,
-                            step = 1,
-                            hidden = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
-                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.upperBound end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
-                                    if DynamicCam.db.profile.shoulderOffsetZoom.lowerBound > newValue then
-                                        DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
-                                    end
-                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
-                                end,
-                            order = 3,
-                        },
-                    },
-                },
-                targetLockGroup = {
-                    type = 'group',
-                    name = "Target Lock/Focus",
-                    order = 50,
-                    inline = true,
-                    args = {
-                        targetLockEnemies = {
-                            type = 'toggle',
-                            name = "Focus Enemies",
-                            desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 1 end,
-                            set = function(_, newValue)
-                                    if newValue then
-                                        DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 1
-                                    else
-                                        DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] = 0
-                                    end
-
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 1,
-                        },
-                        targetLockEnemiesPitch = {
-                            type = 'range',
-                            name = "Focus Enemy Pitch Strength (Advanced)",
-                            desc = "",
-                            min = 0,
-                            max = 1,
-                            step = .05,
-                            hidden = function()
-                                    return not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"]
-                                        or DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
-                                end,
-                            get = function()
-                                    return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"]
-                                        or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch"))
-                                end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            width = "full",
-                            order = 2,
-                        },
-                        targetLockEnemiesYaw = {
-                            type = 'range',
-                            name = "Focus Enemy Yaw Strength (Advanced)",
-                            desc = "",
-                            min = 0,
-                            max = 1,
-                            step = .05,
-                            hidden = function()
-                                    return not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"]
-                                        or DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
-                                end,
-                            get = function()
-                                    return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"]
-                                        or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw"))
-                                end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            width = "full",
-                            order = 3,
-                        },
-                        targetLockInteractables = {
-                            type = 'toggle',
-                            tristate = true,
-                            name = "Focus On Interact",
-                            desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 1 end,
-                            set = function(_, newValue)
-                                    if newValue then
-                                        DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 1
-                                    else
-                                        DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] = 0
-                                    end
-
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 11,
-                        },
-                        targetLockInteractPitch = {
-                            type = 'range',
-                            name = "Focus Interact Pitch Strength (Advanced)",
-                            desc = "",
-                            min = 0,
-                            max = 1,
-                            step = .05,
-                            hidden = function()
-                                    return not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"]
-                                        or DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
-                                end,
-                            get = function()
-                                    return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"]
-                                        or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch"))
-                                end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            width = "full",
-                            order = 12,
-                        },
-                        targetLockInteractYaw = {
-                            type = 'range',
-                            name = "Focus Interact Yaw Strength (Advanced)",
-                            desc = "",
-                            min = 0,
-                            max = 1,
-                            step = .05,
-                            hidden = function()
-                                    return not DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"]
-                                        or DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
-                                end,
-                            get = function()
-                                    return DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"]
-                                        or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw"))
-                                end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            width = "full",
-                            order = 13,
-                        },
-                    },
-                },
-                dynamicPitchAdvanced = {
-                    type = 'group',
-                    name = "Dynamic Pitch Settings (Advanced)",
-                    order = 102,
-                    inline = true,
-                    hidden = function() return not DynamicCam.db.profile.advanced or not DynamicCam.db.profile.actionCam end,
-                    args = {
-                        cameraDynamicPitch = {
-                            type = 'toggle',
-                            name = "Dynamic Pitch",
-                            desc = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character.",
-                            hidden = function() return not DynamicCam.db.profile.actionCam end,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] == 1 end,
-                            set = function(_, newValue)
-                                    if newValue then
-                                        DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 1
-                                    else
-                                        DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitch"] = 0
-                                    end
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            width = "full",
-                            order = 0,
-                        },
-                        baseFovPad = {
-                            type = 'range',
-                            name = "Base FOV Pad",
-                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.",
-                            min = .01,
-                            max = 1,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPad"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPad"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 1,
-                        },
-                        baseFovPadFlying = {
-                            type = 'range',
-                            name = "Base FOV Pad (Flying)",
-                            desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.\n\nThis is presumbly for when you are flying.",
-                            min = .01,
-                            max = 1,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPadFlying"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPadFlying"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 2,
-                        },
-                        baseFovPadDownScale = {
-                            type = 'range',
-                            name = "Base FOV Pad Downscale",
-                            desc = "Likely a multiplier for how much pitch is applied. Higher values allow the character to be 'further' down the screen.",
-                            min = .0,
-                            max = 1,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPadDownScale"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchBaseFovPadDownScale"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 3,
-                        },
-                        smartPivotCutoffDist = {
-                            type = 'range',
-                            name = "Smart Pivot Cutoff Distance",
-                            -- Thanks to Jordaldo for providing this tooltip info.
-                            -- https://github.com/Mpstark/DynamicCam/issues/14
-                            desc = "Defines the distance that the camera has to be inside of for the ground collision to either bring the camera closer to the character's feet as the camera collides with the ground, or to simply pivot on the spot of camera-to-ground collision.",
-                            min = 0,
-                            max = 100,
-                            softMin = 0,
-                            softMax = 39,
-                            step = .5,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 4,
-                        },
-                    },
-                },
-                headTrackingAdvanced = {
-                    type = 'group',
-                    name = "Head Tracking Settings (Advanced)",
-                    order = 103,
-                    hidden = function() return not DynamicCam.db.profile.advanced or not DynamicCam.db.profile.actionCam end,
-                    inline = true,
-                    args = {
-                        rangeScale = {
-                            type = 'range',
-                            name = "Range Scale",
-                            desc = "Higher this scale is, the farther away the camera can be away from the character while still maintaining head movement.",
-                            min = 0,
-                            max = 50,
-                            step = .5,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementRangeScale"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementRangeScale"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 1,
-                        },
-                        movingStrength = {
-                            type = 'range',
-                            name = "Moving Strength",
-                            desc = "Probably a multiplier.\n\nHard max at 50, adjust using editbox.",
-                            min = 0,
-                            softMax = 2,
-                            max = 50,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementMovingStrength"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementMovingStrength"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 2,
-                        },
-                        standingStrength = {
-                            type = 'range',
-                            name = "Standing Strength",
-                            desc = "Probably a multiplier.\n\nHard max at 50, adjust using editbox.",
-                            min = 0,
-                            softMax = 2,
-                            max = 50,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStandingStrength"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStandingStrength"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 3,
-                        },
-                        movingDampRate = {
-                            type = 'range',
-                            name = "Moving Damp Rate",
-                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
-                            min = 0.01,
-                            softMin = 1,
-                            max = 50,
-                            step = 1,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementMovingDampRate"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementMovingDampRate"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 4,
-                        },
-                        standingDampRate = {
-                            type = 'range',
-                            name = "Standing Damp Rate",
-                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
-                            min = 0.01,
-                            softMin = 1,
-                            max = 50,
-                            step = 1,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStandingDampRate"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementStandingDampRate"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 5,
-                        },
-                        firstPersonDampRate = {
-                            type = 'range',
-                            name = "1st Person Damp Rate",
-                            desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
-                            min = 0.01,
-                            softMin = 1,
-                            max = 50,
-                            step = 1,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementFirstPersonDampRate"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementFirstPersonDampRate"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 6,
-                        },
-                        deadZone = {
-                            type = 'range',
-                            name = "Dead Zone",
-                            desc = "No concrete description yet.\n\nHard max at 50, use editbox to change.",
-                            min = 0,
-                            softMax = 1,
-                            max = 50,
-                            step = .01,
-                            get = function() return DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementDeadZone"] end,
-                            set = function(_, newValue)
-                                    DynamicCam.db.profile.defaultCvars["test_cameraHeadMovementDeadZone"] = newValue
-                                    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                end,
-                            order = 7,
-                            width = "full"
-                        },
-                    },
-                },
-            },
-        },
-    },
-}
-
-
-local situationSettings = {
-    type = 'group',
-    name = "Situation Options",
-    order = 3,
-    handler = DynamicCam,
-    args = {
         zoomRestoreSettingGroup = {
             type = 'group',
             name = "Restore Zoom",
@@ -804,13 +144,862 @@ local situationSettings = {
                 zoomRestoreSetting = {
                     type = 'select',
                     name = "",
+                    order = 1,
                     get = function() return DynamicCam.db.profile.zoomRestoreSetting end,
                     set = function(_, newValue) DynamicCam.db.profile.zoomRestoreSetting = newValue end,
                     values = {["adaptive"] = "Adaptive", ["always"] = "Always", ["never"] = "Never"},
-                    order = 1,
                 },
             },
         },
+
+    },
+}
+
+local settings = {
+
+    type = 'group',
+    name = "Standard Settings",
+    order = 2,
+    args = {
+
+        zoomGroup = {
+            type = 'group',
+            name = "Mouse Zooming",
+            order = 1,
+            args = {
+
+                cameraDistanceMaxFactor = {
+                    type = 'range',
+                    name = "Maximum Camera Distance",
+                    desc = "How many yards the camera can zoom away from your character.\n|cff909090(cVar: cameraDistanceMaxZoomFactor)|r",
+                    order = 1,
+                    width = "full",
+                    min = 15,
+                    max = 39,
+                    step = .5,
+                    get = function()
+                              return 15 * DynamicCam.db.profile.standardCvars["cameraDistanceMaxZoomFactor"]
+                          end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.standardCvars["cameraDistanceMaxZoomFactor"] = newValue/15
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank1 = {
+                    type = 'description',
+                    name = " ",
+                    order = 1.1,
+                },
+
+                cameraZoomSpeed = {
+                    type = 'range',
+                    name = "Camera Zoom Speed",
+                    desc = "How fast the camera can zoom.\n|cff909090(cVar: cameraZoomSpeed)|r",
+                    order = 2,
+                    width = "full",
+                    min = 1,
+                    max = 50,
+                    step = .5,
+                    get = function()
+                              return DynamicCam.db.profile.standardCvars["cameraZoomSpeed"]
+                          end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.standardCvars["cameraZoomSpeed"] = newValue
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank2 = {
+                    type = 'description',
+                    name = " ",
+                    order = 2.1,
+                },
+
+                addIncrementsAlways = {
+                    type = 'range',
+                    name = "Zoom Increments",
+                    desc = "How many yards the camera should travel for each \'tick\' of the mouse wheel.",
+                    order = 3,
+                    width = "full",
+                    min = .05,
+                    max = 10,
+                    step = .05,
+                    get = function()
+                              return DynamicCam.db.profile.reactiveZoom.addIncrementsAlways + 1
+                          end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.reactiveZoom.addIncrementsAlways = newValue - 1
+                          end,
+                },
+                blank3 = {
+                    type = 'description',
+                    name = "\n\n",
+                    order = 3.1,
+                },
+
+                reactiveZoomToggle = {
+                    type = 'toggle',
+                    name = "Use Reactive Zoom",
+                    order = 4,
+                    get = function() return DynamicCam.db.profile.reactiveZoom.enabled end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.reactiveZoom.enabled = newValue
+
+                              -- actually turn it on
+                              if newValue then
+                                  DynamicCam:ReactiveZoomOn()
+                              else
+                                  DynamicCam:ReactiveZoomOff()
+                              end
+                          end,
+                },
+
+                reactiveZoomGroup = {
+                    type = 'group',
+                    name = "",
+                    disabled = function() return not DynamicCam.db.profile.reactiveZoom.enabled end,
+                    order = 5,
+                    inline = true,
+                    args = {
+
+                        addIncrements = {
+                            type = 'range',
+                            name = "Quick-Zoom Additional Increments",
+                            desc = "How many yards per mouse wheel tick should be added when quick-zooming.",
+                            order = 1,
+                            width = "full",
+                            min = 0,
+                            max = 10,
+                            step = .1,
+                            get = function()
+                                      return DynamicCam.db.profile.reactiveZoom.addIncrements
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.reactiveZoom.addIncrements = newValue
+                                  end,
+                        },
+                        blank1 = {
+                            type = 'description',
+                            name = " ",
+                            order = 1.1,
+                        },
+
+                        incAddDifference = {
+                            type = 'range',
+                            name = "Quick-Zoom Enter Threshold",
+                            desc = "How many yards the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" have to be apart to enter quick-zooming.",
+                            order = 2,
+                            width = "full",
+                            min = .1,
+                            max = 5,
+                            step = .1,
+                            get = function()
+                                      return DynamicCam.db.profile.reactiveZoom.incAddDifference
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.reactiveZoom.incAddDifference = newValue
+                                  end,
+                        },
+                        blank2 = {
+                            type = 'description',
+                            name = " ",
+                            order = 2.1,
+                        },
+
+                        maxZoomTime = {
+                            type = 'range',
+                            name = "Maximum Zoom Time",
+                            desc = "The maximum time the camera should take to make \"Actual Zoom Value\" equal to \"Reactive Zoom Target\".",
+                            order = 3,
+                            width = "full",
+                            min = .1,
+                            max = 5,
+                            step = .05,
+                            get = function()
+                                      return DynamicCam.db.profile.reactiveZoom.maxZoomTime
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.reactiveZoom.maxZoomTime = newValue
+                                  end,
+                        },
+                        blank3 = {
+                            type = 'description',
+                            name = "\n\n",
+                            order = 3.1,
+                        },
+
+
+                        -- This is not working reliably. Especially the zoom when not set to default.
+                        -- So we hide this for now.
+                        -- easingFunc = {
+                            -- type = 'select',
+                            -- name = "Easing Function",
+                            -- desc = "Which easing function to use. It is highly recommended to use an \'Out\'-type function!",
+                            -- hidden = true,
+                            -- get = function() return DynamicCam.db.profile.reactiveZoom.easingFunc end,
+                            -- set = function(_, newValue) DynamicCam.db.profile.reactiveZoom.easingFunc = newValue; end,
+                            -- values = easingValues,
+                            -- width = "full",
+                            -- order = 6,
+                        -- },
+
+                    },
+                },
+
+                reactiveZoomDescriptionGroup = {
+                    type = 'group',
+                    name = "Help",
+                    order = 6,
+                    inline = true,
+                    args = {
+
+                        export = {
+                            type = 'execute',
+                            name = "Toggle Visual Aid",
+                            func = function() parent:ToggleRZVA() end,
+                            order = 1,
+                            width = "full",
+                        },
+                        blank1 = {
+                            type = 'description',
+                            name = " ",
+                            order = 1.1,
+                        },
+
+                        reactiveZoomDescription = {
+                            type = 'description',
+                            name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\". While \"Reactive Zoom Target\" is further away from \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a good feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by dragging it.\n\n",
+                            order = 2,
+                        },
+                    },
+                },
+            },
+        },
+
+        mouseLookGroup = {
+            type = 'group',
+            name = "Mouse Looking",
+            order = 2,
+            args = {
+
+                cameraYawMoveSpeed = {
+                    type = 'range',
+                    name = "Horizontal Sensitivity",
+                    desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090(cVar: cameraYawMoveSpeed)|r",
+                    order = 1,
+                    width = "full",
+                    min = 1,
+                    max = 360,
+                    step = 1,
+                    get = function()
+                              return DynamicCam.db.profile.standardCvars["cameraYawMoveSpeed"]
+                          end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.standardCvars["cameraYawMoveSpeed"] = newValue
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank1 = {
+                    type = 'description',
+                    name = " ",
+                    order = 1.1,
+                },
+
+                cameraPitchMoveSpeed = {
+                    type = 'range',
+                    name = "Vertical Sensitivity",
+                    desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090(cVar: cameraPitchMoveSpeed)|r",
+                    order = 2,
+                    width = "full",
+                    min = 1,
+                    max = 360,
+                    step = 1,
+                    get = function()
+                              return DynamicCam.db.profile.standardCvars["cameraPitchMoveSpeed"]
+                          end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.standardCvars["cameraPitchMoveSpeed"] = newValue
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank2 = {
+                    type = 'description',
+                    name = "\n\n",
+                    order = 2.1,
+                },
+
+                mouseLookDescriptionGroup = {
+                    type = 'group',
+                    name = "Help",
+                    order = 3,
+                    inline = true,
+                    args = {
+
+                        yawPitchDescription = {
+                            type = 'description',
+                            name = "With these settings you can control how much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\n",
+                        },
+                    },
+                },
+            },
+        },
+
+
+
+        shoulderOffsetGroup = {
+            type = 'group',
+            name = "Horizontal Offset",
+            order = 3,
+            args = {
+
+                cameraOverShoulderGroup = {
+                    type = 'group',
+                    name = "Camera Over Shoulder Offset",
+                    order = 1,
+                    inline = true,
+                    args = {
+
+                        cameraOverShoulderDescription = {
+                            type = 'description',
+                            name = "Positions the camera left or right from your character.\n|cff909090(cVar: test_cameraOverShoulder)|r\n\nWhen you are selecting your character, WoW automatically switches to an offset of zero. There is nothing we can do about that.\n\nFurthermore, WoW strangely produces a different offest effect depending on the player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
+                            order = 0,
+                        },
+
+                        cameraOverShoulder = {
+                            type = 'range',
+                            name = "",
+                            order = 1,
+                            width = "full",
+                            min = -15,
+                            max = 15,
+                            step = .1,
+                            get = function()
+                                      return DynamicCam.db.profile.standardCvars["test_cameraOverShoulder"]
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.standardCvars["test_cameraOverShoulder"] = newValue
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                    },
+                },
+                blank1 = {
+                    type = 'description',
+                    name = " ",
+                    order = 1.1,
+                },
+
+                shoulderOffsetZoomGroup = {
+                    type = 'group',
+                    name = "Adjust shoulder offset according to zoom level",
+                    order = 2,
+                    inline = true,
+                    args = {
+                        
+
+                        shoulderOffsetZoomEnabled = {
+                            type = 'toggle',
+                            name = "Enable",
+                            order = 1,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            set = function(_, newValue)
+                                    DynamicCam.db.profile.shoulderOffsetZoom.enabled = newValue
+                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                end,
+
+                        },
+                        shoulderOffsetZoomLowerBound = {
+                            type = 'range',
+                            name = "Zero when below:",
+                            order = 2,
+                            width = "full",
+                            desc = "When you are closer than this zoom level, the offset has reached zero.",
+                            min = 0.8,
+                            max = 39,
+                            step = .1,
+                            disabled = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.lowerBound end,
+                            set = function(_, newValue)
+                                    DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                    if DynamicCam.db.profile.shoulderOffsetZoom.upperBound < newValue then
+                                        DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                    end
+                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                end,
+
+                        },
+                        blank2 = {
+                            type = 'description',
+                            name = " ",
+                            order = 2.1,
+                        },
+                        
+                        shoulderOffsetZoomUpperBound = {
+                            type = 'range',
+                            name = "Normal when above:",
+                            order = 3,
+                            width = "full",
+                            desc = "When you are further away than this zoom level, the offset has reached its setup value.",
+                            min = 0.8,
+                            max = 39,
+                            step = .1,
+                            disabled = function() return not DynamicCam.db.profile.shoulderOffsetZoom.enabled end,
+                            get = function() return DynamicCam.db.profile.shoulderOffsetZoom.upperBound end,
+                            set = function(_, newValue)
+                                    DynamicCam.db.profile.shoulderOffsetZoom.upperBound = newValue
+                                    if DynamicCam.db.profile.shoulderOffsetZoom.lowerBound > newValue then
+                                        DynamicCam.db.profile.shoulderOffsetZoom.lowerBound = newValue
+                                    end
+                                    DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                end,
+
+                        },
+                        
+                        blank3 = {
+                            type = 'description',
+                            name = " ",
+                            order = 3.1,
+                        },
+                        
+                        shoulderOffsetZoomDescription = {
+                            type = 'description',
+                            name = "Enabling this will make the shoulder offset gradually change from its setup value towards zero as you zoom-in on your character. The two sliders define between what zoom levels this shoulder offset transition takes place.\n\n",
+                            order = 4,
+                        },
+                        
+                        
+                    },
+                },
+            },
+        },
+
+
+        dynamicPitchGroup = {
+            type = 'group',
+            name = "Vertical Pitch",
+            order = 4,
+            args = {
+            
+                blank0 = {
+                    type = 'description',
+                    name = " ",
+                    order = 0,
+                },
+                cameraDynamicPitch = {
+                    type = 'toggle',
+                    name = "Enable",
+                    order = 1,
+                    width = "full",
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 1 end,
+                    set = function(_, newValue)
+                              if newValue then
+                                  DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] = 1
+                              else
+                                  DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] = 0
+                              end
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank1 = {
+                    type = 'description',
+                    name = " ",
+                    order = 1.1,
+                },
+                
+                baseFovPad = {
+                    type = 'range',
+                    name = "Base FOV Pad",
+                    desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.",
+                    order = 2,
+                    width = "full",
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    min = .01,
+                    max = 1,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPad"] end,
+                    set = function(_, newValue)
+                              DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPad"] = newValue
+                              Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                          end,
+                },
+                blank2 = {
+                    type = 'description',
+                    name = " ",
+                    order = 2.1,
+                },
+                
+
+                baseFovPadFlying = {
+                    type = 'range',
+                    name = "Base FOV Pad (Flying)",
+                    desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.\n\nThis is presumbly for when you are flying.",
+                    order = 3,
+                    width = "full",
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    min = .01,
+                    max = 1,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadFlying"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadFlying"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                },
+                blank3 = {
+                    type = 'description',
+                    name = "\n\n",
+                    order = 3.1,
+                },
+                
+                
+                baseFovPadDownScale = {
+                    type = 'range',
+                    name = "Base FOV Pad Downscale",
+                    desc = "Likely a multiplier for how much pitch is applied. Higher values allow the character to be 'further' down the screen.",
+                    order = 4,
+                    width = "full",
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    min = .0,
+                    max = 1,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadDownScale"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadDownScale"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                },
+                blank4 = {
+                    type = 'description',
+                    name = " ",
+                    order = 4.1,
+                },
+                
+                smartPivotCutoffDist = {
+                    type = 'range',
+                    name = "Smart Pivot Cutoff Distance",
+                    -- Thanks to Jordaldo for providing this tooltip info.
+                    -- https://github.com/Mpstark/DynamicCam/issues/14
+                    desc = "Defines the distance that the camera has to be inside of for the ground collision to either bring the camera closer to the character's feet as the camera collides with the ground, or to simply pivot on the spot of camera-to-ground collision.",
+                    order = 5,
+                    width = "full",
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    min = 0,
+                    max = 100,
+                    softMin = 0,
+                    softMax = 39,
+                    step = .5,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                },
+                blank5 = {
+                    type = 'description',
+                    name = " ",
+                    order = 5.1,
+                },
+                
+                
+                
+                
+                mouseLookDescriptionGroup = {
+                    type = 'group',
+                    name = "Help",
+                    order = 6,
+                    inline = true,
+                    args = {
+
+                        yawPitchDescription = {
+                            type = 'description',
+                            name = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character..\n\n",
+                        },
+                    },
+                },
+                
+
+                
+            },
+        },
+
+
+
+
+
+        targetLockGroup = {
+            type = 'group',
+            name = "Target Lock/Focus",
+            order = 5,
+            args = {
+                targetLockEnemies = {
+                    type = 'toggle',
+                    name = "Focus Enemies",
+                    desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 1 end,
+                    set = function(_, newValue)
+                            if newValue then
+                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 1
+                            else
+                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 0
+                            end
+
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 1,
+                },
+                targetLockEnemiesPitch = {
+                    type = 'range',
+                    name = "Focus Enemy Pitch Strength",
+                    desc = "",
+                    min = 0,
+                    max = 1,
+                    step = .05,
+                    hidden = function()
+                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"]
+                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0
+                        end,
+                    get = function()
+                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"]
+                                or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch"))
+                        end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    width = "full",
+                    order = 2,
+                },
+                targetLockEnemiesYaw = {
+                    type = 'range',
+                    name = "Focus Enemy Yaw Strength",
+                    desc = "",
+                    min = 0,
+                    max = 1,
+                    step = .05,
+                    hidden = function()
+                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"]
+                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0
+                        end,
+                    get = function()
+                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw"))
+                        end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    width = "full",
+                    order = 3,
+                },
+                targetLockInteractables = {
+                    type = 'toggle',
+                    tristate = true,
+                    name = "Focus On Interact",
+                    desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 1 end,
+                    set = function(_, newValue)
+                            if newValue then
+                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 1
+                            else
+                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 0
+                            end
+
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 11,
+                },
+                targetLockInteractPitch = {
+                    type = 'range',
+                    name = "Focus Interact Pitch Strength",
+                    desc = "",
+                    min = 0,
+                    max = 1,
+                    step = .05,
+                    hidden = function()
+                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"]
+                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0
+                        end,
+                    get = function()
+                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"]
+                                or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch"))
+                        end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    width = "full",
+                    order = 12,
+                },
+                targetLockInteractYaw = {
+                    type = 'range',
+                    name = "Focus Interact Yaw Strength",
+                    desc = "",
+                    min = 0,
+                    max = 1,
+                    step = .05,
+                    hidden = function()
+                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"]
+                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0
+                        end,
+                    get = function()
+                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"]
+                                or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw"))
+                        end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    width = "full",
+                    order = 13,
+                },
+            },
+        },
+
+        headTracking = {
+            type = 'group',
+            name = "Head Tracking",
+            order = 6,
+            args = {
+
+
+                cameraHeadMovementStrength = {
+                    type = 'range',
+                    name = "Head Movement Strength",
+                    order = 0,
+                    desc = "If above 0, the camera will move to follow your character's head movements, tracking it forward, back, left and right. The strength controls how much it follows the head.\n\nThis can cause some nausea if you are prone to motion sickness.",
+                    min = 0,
+                    max = 100,
+                    softMax = 2,
+                    step = .5,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStrength"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStrength"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+
+                    width = "full",
+                },
+
+
+
+                rangeScale = {
+                    type = 'range',
+                    name = "Range Scale",
+                    desc = "Higher this scale is, the farther away the camera can be away from the character while still maintaining head movement.",
+                    min = 0,
+                    max = 50,
+                    step = .5,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementRangeScale"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementRangeScale"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 1,
+                },
+                movingStrength = {
+                    type = 'range',
+                    name = "Moving Strength",
+                    desc = "Probably a multiplier.\n\nHard max at 50, adjust using editbox.",
+                    min = 0,
+                    softMax = 2,
+                    max = 50,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingStrength"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingStrength"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 2,
+                },
+                standingStrength = {
+                    type = 'range',
+                    name = "Standing Strength",
+                    desc = "Probably a multiplier.\n\nHard max at 50, adjust using editbox.",
+                    min = 0,
+                    softMax = 2,
+                    max = 50,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStandingStrength"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStandingStrength"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 3,
+                },
+                movingDampRate = {
+                    type = 'range',
+                    name = "Moving Damp Rate",
+                    desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
+                    min = 0.01,
+                    softMin = 1,
+                    max = 50,
+                    step = 1,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingDampRate"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingDampRate"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 4,
+                },
+                standingDampRate = {
+                    type = 'range',
+                    name = "Standing Damp Rate",
+                    desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
+                    min = 0.01,
+                    softMin = 1,
+                    max = 50,
+                    step = 1,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStandingDampRate"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementStandingDampRate"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 5,
+                },
+                firstPersonDampRate = {
+                    type = 'range',
+                    name = "1st Person Damp Rate",
+                    desc = "Higher values seems to 'loosen' the spring and make head movement more apparent.\n\nHard min at ~0.01, adjust using editbox.",
+                    min = 0.01,
+                    softMin = 1,
+                    max = 50,
+                    step = 1,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementFirstPersonDampRate"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementFirstPersonDampRate"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 6,
+                },
+                deadZone = {
+                    type = 'range',
+                    name = "Dead Zone",
+                    desc = "No concrete description yet.\n\nHard max at 50, use editbox to change.",
+                    min = 0,
+                    softMax = 1,
+                    max = 50,
+                    step = .01,
+                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementDeadZone"] end,
+                    set = function(_, newValue)
+                            DynamicCam.db.profile.standardCvars["test_cameraHeadMovementDeadZone"] = newValue
+                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        end,
+                    order = 7,
+                    width = "full"
+                },
+            },
+        },
+    },
+
+}
+
+
+local situationSettings = {
+    type = 'group',
+    name = "Situation Options",
+    order = 3,
+    handler = DynamicCam,
+    args = {
+
         selectedSituation = {
             type = 'select',
             name = "Selected Situation",
@@ -826,9 +1015,8 @@ local situationSettings = {
         },
         newSituation = {
             type = 'execute',
-            name = "New Custom Situation (Advanced)",
+            name = "New Custom Situation",
             desc = "Create a new custom situation.",
-            hidden = function() return not DynamicCam.db.profile.advanced end,
             func = function() DynamicCam:PopupCreateCustomProfile() end,
             order = 1.5,
             width = "full",
@@ -875,7 +1063,7 @@ local situationSettings = {
             type = 'execute',
             name = "Export",
             desc = "If you want to share the settings of this situation with others you can export it into a text string. Use the \"Import\" section of the DynamicCam settings to import strings you have received from others.",
-            hidden = function() return not S or not DynamicCam.db.profile.advanced end,
+            hidden = function() return not S end,
             func = function() parent:PopupExport(parent:ExportSituation(SID)) end,
             order = 7,
             width = "half",
@@ -924,19 +1112,20 @@ local situationSettings = {
                 },
                 view = {
                     type = 'toggle',
-                    name = "Set View (Advanced)",
+                    name = "Set View",
                     desc = "When this situation is activated (and only then), the selected view will be set",
-                    hidden = function() return not S or (not DynamicCam.db.profile.advanced and not S.view.enabled) end,
+                    hidden = function() return not S or not S.view.enabled end,
                     get = function() return S.view.enabled end,
                     set = function(_, newValue) S.view.enabled = newValue end,
                     order = 3,
                 },
                 transitionTime = {
                     type = 'group',
-                    name = "Transition Time (Advanced)",
+                    name = "Transition Time",
                     order = 5,
-                    hidden = function() return not DynamicCam.db.profile.advanced
-                                            or (S.cameraActions.zoomSetting == "off" and not S.cameraActions.rotate and not S.view.enabled)
+                    hidden = function() return S.cameraActions.zoomSetting == "off" and
+                                               not S.cameraActions.rotate and
+                                               not S.view.enabled
                         end,
                     inline = true,
                     args = {
@@ -1031,7 +1220,7 @@ local situationSettings = {
                             desc = "How the camera should react to this situation with regards to rotating",
                             get = function() return S.cameraActions.rotateSetting end,
                             set = function(_, newValue) S.cameraActions.rotateSetting = newValue end,
-                            values = {["continous"] = "Continously", ["degrees"] = "By Degrees",},
+                            values = {["continuous"] = "Continuously", ["degrees"] = "By Degrees",},
                             order = 1,
                         },
                         rotateSpeed = {
@@ -1042,7 +1231,7 @@ local situationSettings = {
                             max = 900,
                             softMin = -90,
                             softMax = 90,
-                            hidden = function() return S.cameraActions.rotateSetting ~= "continous" end,
+                            hidden = function() return S.cameraActions.rotateSetting ~= "continuous" end,
                             step = 1,
                             get = function() return S.cameraActions.rotateSpeed end,
                             set = function(_, newValue) S.cameraActions.rotateSpeed = newValue end,
@@ -1057,7 +1246,7 @@ local situationSettings = {
                             max = 1440,
                             softMin = -360,
                             softMax = 360,
-                            hidden = function() return S.cameraActions.rotateSetting == "continous" end,
+                            hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
                             step = 5,
                             get = function() return S.cameraActions.yawDegrees end,
                             set = function(_, newValue) S.cameraActions.yawDegrees = newValue end,
@@ -1069,7 +1258,7 @@ local situationSettings = {
                             desc = "Number of degrees to pitch (up and down)",
                             min = -90,
                             max = 90,
-                            -- hidden = function() return S.cameraActions.rotateSetting == "continous" end,
+                            -- hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
                             step = 5,
                             get = function() return S.cameraActions.pitchDegrees end,
                             set = function(_, newValue) S.cameraActions.pitchDegrees = newValue end,
@@ -1129,7 +1318,7 @@ local situationSettings = {
             name = "Camera Settings",
             order = 20,
             inline = true,
-            hidden = function() return not S or not DynamicCam.db.profile.actionCam end,
+            hidden = function() return not S end,
             disabled = function() return not S.enabled end,
             args = {
                 overShoulderToggle = {
@@ -1259,7 +1448,7 @@ local situationSettings = {
                         },
                         targetLockEnemiesPitch = {
                             type = 'range',
-                            name = "Focus Enemy Pitch Strength (Advanced)",
+                            name = "Focus Enemy Pitch Strength",
                             desc = "",
                             min = 0,
                             max = 1,
@@ -1267,7 +1456,6 @@ local situationSettings = {
                             hidden = function()
                                     return not S.cameraCVars["test_cameraTargetFocusEnemyEnable"]
                                         or S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
                                 end,
                             get = function()
                                     return S.cameraCVars["test_cameraTargetFocusEnemyStrengthPitch"]
@@ -1282,7 +1470,7 @@ local situationSettings = {
                         },
                         targetLockEnemiesYaw = {
                             type = 'range',
-                            name = "Focus Enemy Yaw Strength (Advanced)",
+                            name = "Focus Enemy Yaw Strength",
                             desc = "",
                             min = 0,
                             max = 1,
@@ -1290,7 +1478,6 @@ local situationSettings = {
                             hidden = function()
                                     return not S.cameraCVars["test_cameraTargetFocusEnemyEnable"]
                                         or S.cameraCVars["test_cameraTargetFocusEnemyEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
                                 end,
                             get = function()
                                     return S.cameraCVars["test_cameraTargetFocusEnemyStrengthYaw"]
@@ -1330,7 +1517,7 @@ local situationSettings = {
                         },
                         targetLockInteractPitch = {
                             type = 'range',
-                            name = "Focus Interact Pitch Strength (Advanced)",
+                            name = "Focus Interact Pitch Strength",
                             desc = "",
                             min = 0,
                             max = 1,
@@ -1338,7 +1525,6 @@ local situationSettings = {
                             hidden = function()
                                     return not S.cameraCVars["test_cameraTargetFocusInteractEnable"]
                                         or S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
                                 end,
                             get = function()
                                     return S.cameraCVars["test_cameraTargetFocusInteractStrengthPitch"]
@@ -1353,7 +1539,7 @@ local situationSettings = {
                         },
                         targetLockInteractYaw = {
                             type = 'range',
-                            name = "Focus Interact Yaw Strength (Advanced)",
+                            name = "Focus Interact Yaw Strength",
                             desc = "",
                             min = 0,
                             max = 1,
@@ -1361,7 +1547,6 @@ local situationSettings = {
                             hidden = function()
                                     return not S.cameraCVars["test_cameraTargetFocusInteractEnable"]
                                         or S.cameraCVars["test_cameraTargetFocusInteractEnable"] == 0
-                                        or not DynamicCam.db.profile.advanced
                                 end,
                             get = function()
                                     return S.cameraCVars["test_cameraTargetFocusInteractStrengthYaw"]
@@ -1376,27 +1561,14 @@ local situationSettings = {
                         },
                     },
                 },
-                advancedDivider = {
-                    type = 'header',
-                    name = "Advanced",
-                    order = 100,
-                    hidden = function()
-                            return not DynamicCam.db.profile.advanced
-                                or (
-                                        (not S.cameraCVars["test_cameraDynamicPitch"] or S.cameraCVars["test_cameraDynamicPitch"] == 0)
-                                    and (not S.cameraCVars["test_cameraHeadMovementStrength"] or S.cameraCVars["test_cameraHeadMovementStrength"] == 0)
-                                )
-                        end,
-                },
-                dynamicPitchAdvanced = {
+                dynamicPitch = {
                     type = 'group',
-                    name = "Dynamic Pitch Settings (Advanced)",
+                    name = "Dynamic Pitch Settings",
                     order = 102,
                     inline = true,
                     hidden = function()
                             return not S.cameraCVars["test_cameraDynamicPitch"]
                                 or S.cameraCVars["test_cameraDynamicPitch"] == 0
-                                or not DynamicCam.db.profile.advanced
                         end,
                     args = {
                         baseFovPad = {
@@ -1521,12 +1693,12 @@ local situationSettings = {
                 },
             },
         },
-        advanced = {
+        triggers = {
             type = 'group',
-            name = "Advanced",
+            name = "Triggers",
             order = 100,
             inline = true,
-            hidden = function() return not S or not DynamicCam.db.profile.advanced end,
+            hidden = function() return not S end,
             disabled = function() return not S.enabled end,
             args = {
                 events = {
@@ -1726,7 +1898,7 @@ local profileSettings = {
                 },
             },
         },
-        
+
         presetGroup = {
             type = 'group',
             name = "Profile presets",
@@ -1856,12 +2028,12 @@ end
 
 function Options:RegisterMenus()
     -- setup menu
-    
+
     -- Add profile managing here, such that we can have export below it.
     profileSettings.args["settings"] = LibStub("AceDBOptions-3.0"):GetOptionsTable(parent.db)
     profileSettings.args["settings"]["name"] = "Manage profiles"
-    
-    local allOptions = allOptions or {
+
+    local allOptions = {
         name = "DynamicCam",
         type = "group",
         childGroups = "tab",
@@ -1873,8 +2045,71 @@ function Options:RegisterMenus()
             importTab = import,
         }
     }
-    
+
     LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
     self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
-    
+
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- This is not working reliably. Especially the zoom when not set to default.
+        -- So we hide this for now.
+        -- defaultEasing = {
+            -- type = 'group',
+            -- name = "Default Easing Functions",
+            -- order = 2,
+            -- inline = true,
+            -- args = {
+                -- easingZoom = {
+                    -- type = 'select',
+                    -- name = "Zoom Easing",
+                    -- desc = "Which easing function to use for zoom.",
+                    -- get = function() return DynamicCam.db.profile.easingZoom end,
+                    -- set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
+                    -- values = easingValues,
+                    -- order = 1,
+                -- },
+                -- easingYaw = {
+                    -- type = 'select',
+                    -- name = "Yaw Easing",
+                    -- desc = "Which easing function to use for yaw.",
+                    -- get = function() return DynamicCam.db.profile.easingYaw end,
+                    -- set = function(_, newValue) DynamicCam.db.profile.easingYaw = newValue end,
+                    -- values = easingValues,
+                    -- order = 2,
+                -- },
+                -- easingPitch = {
+                    -- type = 'select',
+                    -- name = "Pitch Easing",
+                    -- desc = "Which easing function to use for pitch.",
+                    -- get = function() return DynamicCam.db.profile.easingPitch end,
+                    -- set = function(_, newValue) DynamicCam.db.profile.easingPitch = newValue end,
+                    -- values = easingValues,
+                    -- order = 3,
+                -- },
+            -- },
+        -- },
+
+
+
