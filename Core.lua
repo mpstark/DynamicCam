@@ -53,8 +53,13 @@ local OldCameraZoomOut = CameraZoomOut
 
 
 -- This is WoW's mimimum third person zoom, before going into first person perspective.
-local minZoomTransparent = 0.823
-local minZoomOpaque = 0.96
+local minZoomOpaque = 1.091
+
+--- Got this on PTR (?):
+-- local minZoomOpaque = 0.96
+-- local minZoomTransparent = 0.823
+
+
 
 -- To indicate if a non-reactive zoom is in progress.
 local nonReactiveZoomStarted = false
@@ -533,7 +538,6 @@ DynamicCam.defaults = {
 
             ["cameraYawMoveSpeed"] = 70,
             ["cameraPitchMoveSpeed"] = 50,
-            
 
 
             ["test_cameraOverShoulder"] = 0,
@@ -1731,16 +1735,16 @@ local function NonReactiveZoom(zoomIn, increments)
     else
 
         if zoomIn then
-            if GetCameraZoom() - increments < minZoomTransparent then
-                local distanceToMinZoom = GetCameraZoom() - minZoomTransparent
+            if GetCameraZoom() - increments < minZoomOpaque then
+                local distanceToMinZoom = GetCameraZoom() - minZoomOpaque
                 -- OldCameraZoomIn/OldCameraZoomOut do not accept increments smaller than 0.05.
                 if distanceToMinZoom > 0.05 then
                     increments = distanceToMinZoom
                 end
             end
         else
-            if GetCameraZoom() < minZoomTransparent and GetCameraZoom() + increments > minZoomTransparent then
-                local distanceToMinZoom = minZoomTransparent - GetCameraZoom()
+            if GetCameraZoom() < minZoomOpaque and GetCameraZoom() + increments > minZoomOpaque then
+                local distanceToMinZoom = minZoomOpaque - GetCameraZoom()
                 -- OldCameraZoomIn/OldCameraZoomOut do not accept increments smaller than 0.05.
                 if distanceToMinZoom > 0.05 then
                     increments = distanceToMinZoom
@@ -1826,10 +1830,10 @@ local function ReactiveZoom(zoomIn, increments)
 
         if zoomIn then
 
-            if reactiveZoomTarget - increments < minZoomTransparent then
+            if reactiveZoomTarget - increments < minZoomOpaque then
                 -- Always stop at closest third person zoom before going to first person.
-                if reactiveZoomTarget > minZoomTransparent then
-                    reactiveZoomTarget = minZoomTransparent
+                if reactiveZoomTarget > minZoomOpaque then
+                    reactiveZoomTarget = minZoomOpaque
                 else
                     reactiveZoomTarget = 0
                 end
@@ -1841,8 +1845,8 @@ local function ReactiveZoom(zoomIn, increments)
 
             -- From first person go directly into closest third person.
 
-            if reactiveZoomTarget < minZoomTransparent then
-                reactiveZoomTarget = minZoomTransparent
+            if reactiveZoomTarget < minZoomOpaque then
+                reactiveZoomTarget = minZoomOpaque
             else
                 reactiveZoomTarget = math.min(39, reactiveZoomTarget + increments)
             end

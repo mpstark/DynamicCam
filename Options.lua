@@ -171,7 +171,7 @@ local settings = {
                 cameraDistanceMaxFactor = {
                     type = 'range',
                     name = "Maximum Camera Distance",
-                    desc = "How many yards the camera can zoom away from your character.\n|cff909090(cVar: cameraDistanceMaxZoomFactor)|r",
+                    desc = "How many yards the camera can zoom away from your character.\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
                     order = 1,
                     width = "full",
                     min = 15,
@@ -194,7 +194,7 @@ local settings = {
                 cameraZoomSpeed = {
                     type = 'range',
                     name = "Camera Zoom Speed",
-                    desc = "How fast the camera can zoom.\n|cff909090(cVar: cameraZoomSpeed)|r",
+                    desc = "How fast the camera can zoom.\n|cff909090cvar: cameraZoomSpeed|r",
                     order = 2,
                     width = "full",
                     min = 1,
@@ -367,7 +367,7 @@ local settings = {
 
                         reactiveZoomDescription = {
                             type = 'description',
-                            name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\". While \"Reactive Zoom Target\" is further away from \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a good feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by dragging it.\n\n",
+                            name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\". While \"Reactive Zoom Target\" is further away from \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a good feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by dragging it.",
                             order = 2,
                         },
                     },
@@ -384,7 +384,7 @@ local settings = {
                 cameraYawMoveSpeed = {
                     type = 'range',
                     name = "Horizontal Sensitivity",
-                    desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090(cVar: cameraYawMoveSpeed)|r",
+                    desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090cvar: cameraYawMoveSpeed|r",
                     order = 1,
                     width = "full",
                     min = 1,
@@ -407,7 +407,7 @@ local settings = {
                 cameraPitchMoveSpeed = {
                     type = 'range',
                     name = "Vertical Sensitivity",
-                    desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090(cVar: cameraPitchMoveSpeed)|r",
+                    desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090cvar: cameraPitchMoveSpeed|r",
                     order = 2,
                     width = "full",
                     min = 1,
@@ -436,7 +436,7 @@ local settings = {
 
                         yawPitchDescription = {
                             type = 'description',
-                            name = "With these settings you can control how much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\n",
+                            name = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\n",
                         },
                     },
                 },
@@ -460,7 +460,7 @@ local settings = {
 
                         cameraOverShoulderDescription = {
                             type = 'description',
-                            name = "Positions the camera left or right from your character.\n|cff909090(cVar: test_cameraOverShoulder)|r\n\nWhen you are selecting your character, WoW automatically switches to an offset of zero. There is nothing we can do about that.\n\nFurthermore, WoW strangely produces a different offest effect depending on the player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
+                            name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about that. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
                             order = 0,
                         },
 
@@ -494,7 +494,7 @@ local settings = {
                     order = 2,
                     inline = true,
                     args = {
-                        
+
 
                         shoulderOffsetZoomEnabled = {
                             type = 'toggle',
@@ -512,7 +512,7 @@ local settings = {
                             name = "Zero when below:",
                             order = 2,
                             width = "full",
-                            desc = "When you are closer than this zoom level, the offset has reached zero.",
+                            desc = "When the camera is closer than this zoom level, the offset has reached zero.",
                             min = 0.8,
                             max = 39,
                             step = .1,
@@ -532,13 +532,13 @@ local settings = {
                             name = " ",
                             order = 2.1,
                         },
-                        
+
                         shoulderOffsetZoomUpperBound = {
                             type = 'range',
-                            name = "Normal when above:",
+                            name = "Set value when above:",
                             order = 3,
                             width = "full",
-                            desc = "When you are further away than this zoom level, the offset has reached its setup value.",
+                            desc = "When the camera is further away than this zoom level, the offset has reached its set value.",
                             min = 0.8,
                             max = 39,
                             step = .1,
@@ -553,32 +553,32 @@ local settings = {
                                 end,
 
                         },
-                        
+
                         blank3 = {
                             type = 'description',
                             name = " ",
                             order = 3.1,
                         },
-                        
+
                         shoulderOffsetZoomDescription = {
                             type = 'description',
-                            name = "Enabling this will make the shoulder offset gradually change from its setup value towards zero as you zoom-in on your character. The two sliders define between what zoom levels this shoulder offset transition takes place.\n\n",
+                            name = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place.",
                             order = 4,
                         },
-                        
-                        
+
+
                     },
                 },
             },
         },
 
 
-        dynamicPitchGroup = {
+        pitchGroup = {
             type = 'group',
             name = "Vertical Pitch",
             order = 4,
             args = {
-            
+
                 blank0 = {
                     type = 'description',
                     name = " ",
@@ -589,6 +589,7 @@ local settings = {
                     name = "Enable",
                     order = 1,
                     width = "full",
+                    desc = "|cff909090cvar: test_cameraDynamicPitch|r",
                     get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 1 end,
                     set = function(_, newValue)
                               if newValue then
@@ -604,18 +605,20 @@ local settings = {
                     name = " ",
                     order = 1.1,
                 },
-                
+
                 baseFovPad = {
                     type = 'range',
-                    name = "Base FOV Pad",
-                    desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.",
+                    name = "Pitch (on ground)",
                     order = 2,
                     width = "full",
-                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
-                    min = .01,
-                    max = 1,
+                    desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPad|r",
+                    min = 0,
+                    max = 0.99,
                     step = .01,
-                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPad"] end,
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    get = function()
+                              return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPad"]
+                          end,
                     set = function(_, newValue)
                               DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPad"] = newValue
                               Options:SendMessage("DC_BASE_CAMERA_UPDATED")
@@ -626,18 +629,17 @@ local settings = {
                     name = " ",
                     order = 2.1,
                 },
-                
 
                 baseFovPadFlying = {
                     type = 'range',
-                    name = "Base FOV Pad (Flying)",
-                    desc = "This seems to adjust how far the camera is pitched up or down.\n\nSmaller values pitch up away from the ground while larger values pitch down towards the ground.\n\nThis is presumbly for when you are flying.",
+                    name = "Pitch (flying)",
                     order = 3,
                     width = "full",
-                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
-                    min = .01,
+                    desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadFlying|r",
+                    min = 0,
                     max = 1,
                     step = .01,
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
                     get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadFlying"] end,
                     set = function(_, newValue)
                             DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadFlying"] = newValue
@@ -649,18 +651,17 @@ local settings = {
                     name = "\n\n",
                     order = 3.1,
                 },
-                
-                
+
                 baseFovPadDownScale = {
                     type = 'range',
-                    name = "Base FOV Pad Downscale",
-                    desc = "Likely a multiplier for how much pitch is applied. Higher values allow the character to be 'further' down the screen.",
+                    name = "Down Scale",
                     order = 4,
                     width = "full",
-                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
-                    min = .0,
+                    desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadDownScale|r",
+                    min = 0,
                     max = 1,
                     step = .01,
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
                     get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadDownScale"] end,
                     set = function(_, newValue)
                             DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchBaseFovPadDownScale"] = newValue
@@ -669,24 +670,22 @@ local settings = {
                 },
                 blank4 = {
                     type = 'description',
-                    name = " ",
+                    name = "\n\n",
                     order = 4.1,
                 },
-                
+
                 smartPivotCutoffDist = {
                     type = 'range',
                     name = "Smart Pivot Cutoff Distance",
-                    -- Thanks to Jordaldo for providing this tooltip info.
-                    -- https://github.com/Mpstark/DynamicCam/issues/14
-                    desc = "Defines the distance that the camera has to be inside of for the ground collision to either bring the camera closer to the character's feet as the camera collides with the ground, or to simply pivot on the spot of camera-to-ground collision.",
                     order = 5,
                     width = "full",
-                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
+                    desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
                     min = 0,
                     max = 100,
                     softMin = 0,
                     softMax = 39,
                     step = .5,
+                    disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitch"] == 0 end,
                     get = function() return DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] end,
                     set = function(_, newValue)
                             DynamicCam.db.profile.standardCvars["test_cameraDynamicPitchSmartPivotCutoffDist"] = newValue
@@ -698,30 +697,22 @@ local settings = {
                     name = " ",
                     order = 5.1,
                 },
-                
-                
-                
-                
-                mouseLookDescriptionGroup = {
+
+                pitchDescriptionGroup = {
                     type = 'group',
                     name = "Help",
                     order = 6,
                     inline = true,
                     args = {
 
-                        yawPitchDescription = {
+                        pitchDescription = {
                             type = 'description',
-                            name = "The camera will adjust the camera's pitch (the angle at which the camera looks at your character in the up/down direction) according to the current zoom level.\n\nAngles the camera up while farther away from the character and down coming towards your character..\n\n",
+                            name = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs a pitch up on the spot of the camera-to-ground collision. An alternative is that the camera move closer to your character's feet while performing this pitch up. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n",
                         },
                     },
                 },
-                
-
-                
             },
         },
-
-
 
 
 
@@ -995,7 +986,7 @@ local settings = {
 
 local situationSettings = {
     type = 'group',
-    name = "Situation Options",
+    name = "Situational Settings",
     order = 3,
     handler = DynamicCam,
     args = {
