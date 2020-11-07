@@ -460,7 +460,7 @@ local settings = {
 
                         cameraOverShoulderDescription = {
                             type = 'description',
-                            name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about that. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
+                            name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
                             order = 0,
                         },
 
@@ -509,7 +509,7 @@ local settings = {
                         },
                         shoulderOffsetZoomLowerBound = {
                             type = 'range',
-                            name = "Zero when below:",
+                            name = "No offset when below this zoom level:",
                             order = 2,
                             width = "full",
                             desc = "When the camera is closer than this zoom level, the offset has reached zero.",
@@ -535,7 +535,7 @@ local settings = {
 
                         shoulderOffsetZoomUpperBound = {
                             type = 'range',
-                            name = "Set value when above:",
+                            name = "Real offset when above this zoom level:",
                             order = 3,
                             width = "full",
                             desc = "When the camera is further away than this zoom level, the offset has reached its set value.",
@@ -881,7 +881,7 @@ local settings = {
 
                         targetFocusDescription = {
                             type = 'description',
-                            name = "If enabled, the camera automatically tries to bring the enemy or interaction target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the  the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you leave the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable when talking to another NPCs: only the first transition is smooth, the following are immediate.",
+                            name = "If enabled, the camera automatically tries to bring the enemy or interaction target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the  the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you leave the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable when talking to another NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\" is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you really need it and in which NPC interactions are unlikely (like Combat).",
                         },
                     },
                 },
