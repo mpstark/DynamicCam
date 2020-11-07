@@ -164,7 +164,7 @@ local settings = {
 
         zoomGroup = {
             type = 'group',
-            name = "Mouse Zooming",
+            name = "Mouse Zoom",
             order = 1,
             args = {
 
@@ -377,13 +377,13 @@ local settings = {
 
         mouseLookGroup = {
             type = 'group',
-            name = "Mouse Looking",
+            name = "Mouse Look",
             order = 2,
             args = {
 
                 cameraYawMoveSpeed = {
                     type = 'range',
-                    name = "Horizontal Sensitivity",
+                    name = "Horizontal Speed",
                     desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090cvar: cameraYawMoveSpeed|r",
                     order = 1,
                     width = "full",
@@ -406,7 +406,7 @@ local settings = {
 
                 cameraPitchMoveSpeed = {
                     type = 'range',
-                    name = "Vertical Sensitivity",
+                    name = "Vertical Speed",
                     desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090cvar: cameraPitchMoveSpeed|r",
                     order = 2,
                     width = "full",
@@ -436,7 +436,7 @@ local settings = {
 
                         yawPitchDescription = {
                             type = 'description',
-                            name = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\n",
+                            name = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\nThe \"Mouse Look Speed\" slider of WoW's default interface settings controls horizontal and vertical speed at the same time: automatically setting horizontal speed to 2 x vertical speed. DynamicCam overrides this and allows you a more customized setup.",
                         },
                     },
                 },
@@ -707,7 +707,7 @@ local settings = {
 
                         pitchDescription = {
                             type = 'description',
-                            name = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs a pitch up on the spot of the camera-to-ground collision. An alternative is that the camera move closer to your character's feet while performing this pitch up. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n",
+                            name = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs a pitch up on the spot of the camera-to-ground collision. An alternative is that the camera move closer to your character's feet while performing this pitch up. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n",
                         },
                     },
                 },
@@ -716,132 +716,179 @@ local settings = {
 
 
 
-        targetLockGroup = {
+        targetFocusGroup = {
             type = 'group',
-            name = "Target Lock/Focus",
+            name = "Target Focus",
             order = 5,
             args = {
-                targetLockEnemies = {
-                    type = 'toggle',
-                    name = "Focus Enemies",
-                    desc = "Lock/focus enemies. This includes both dead enemies, and targets that have gone offscreen.\n\nA gray checkbox means that the default will be used instead.",
-                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 1 end,
-                    set = function(_, newValue)
-                            if newValue then
-                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 1
-                            else
-                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 0
-                            end
-
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
+            
+                targetFocusEnemiesGroup = {
+                    type = 'group',
+                    name = "Enemy Target",
                     order = 1,
-                },
-                targetLockEnemiesPitch = {
-                    type = 'range',
-                    name = "Focus Enemy Pitch Strength",
-                    desc = "",
-                    min = 0,
-                    max = 1,
-                    step = .05,
-                    hidden = function()
-                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"]
-                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0
-                        end,
-                    get = function()
-                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"]
-                                or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch"))
-                        end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    width = "full",
-                    order = 2,
-                },
-                targetLockEnemiesYaw = {
-                    type = 'range',
-                    name = "Focus Enemy Yaw Strength",
-                    desc = "",
-                    min = 0,
-                    max = 1,
-                    step = .05,
-                    hidden = function()
-                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"]
-                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0
-                        end,
-                    get = function()
-                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"]
-                                or tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw"))
-                        end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    width = "full",
-                    order = 3,
-                },
-                targetLockInteractables = {
-                    type = 'toggle',
-                    tristate = true,
-                    name = "Focus On Interact",
-                    desc = "Lock/focus NPCs in interactions\n\nA gray checkbox means that the default will be used instead.",
-                    get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 1 end,
-                    set = function(_, newValue)
-                            if newValue then
-                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 1
-                            else
-                                DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 0
-                            end
+                    inline = true,
+                    args = {
 
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    order = 11,
+                        targetFocusEnemyEnable = {
+                            type = 'toggle',
+                            name = "Enable",
+                            order = 1,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyEnable|r",
+                            get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 1 end,
+                            set = function(_, newValue)
+                                      if newValue then
+                                          DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 1
+                                      else
+                                          DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] = 0
+                                      end
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+
+                        targetFocusEnemyStrengthYaw = {
+                            type = 'range',
+                            name = "Horizontal Strength",
+                            order = 2,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthYaw|r",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0 end,
+                            get = function()
+                                      return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"]
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                        blank2 = {
+                            type = 'description',
+                            name = " ",
+                            order = 2.1,
+                        },
+
+                        targetFocusEnemyStrengthPitch = {
+                            type = 'range',
+                            name = "Vertical Strength",
+                            order = 3,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthPitch|r",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyEnable"] == 0 end,
+                            get = function()
+                                    return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"] end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.standardCvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                        
+
+                    },
                 },
-                targetLockInteractPitch = {
-                    type = 'range',
-                    name = "Focus Interact Pitch Strength",
-                    desc = "",
-                    min = 0,
-                    max = 1,
-                    step = .05,
-                    hidden = function()
-                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"]
-                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0
-                        end,
-                    get = function()
-                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"]
-                                or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch"))
-                        end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    width = "full",
-                    order = 12,
+                blank1 = {
+                    type = 'description',
+                    name = " ",
+                    order = 1.1,
                 },
-                targetLockInteractYaw = {
-                    type = 'range',
-                    name = "Focus Interact Yaw Strength",
-                    desc = "",
-                    min = 0,
-                    max = 1,
-                    step = .05,
-                    hidden = function()
-                            return not DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"]
-                                or DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0
-                        end,
-                    get = function()
-                            return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"]
-                                or tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw"))
-                        end,
-                    set = function(_, newValue)
-                            DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue
-                            Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                        end,
-                    width = "full",
-                    order = 13,
+            
+            
+                targetFocusNPCsGroup = {
+                    type = 'group',
+                    name = "Interaction Target (NPCs)",
+                    order = 2,
+                    inline = true,
+                    args = {
+
+                        targetFocusInteractEnable = {
+                            type = 'toggle',
+                            name = "Enable",
+                            order = 1,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nInteractEnable|r",
+                            get = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 1 end,
+                            set = function(_, newValue)
+                                      if newValue then
+                                          DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 1
+                                      else
+                                          DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] = 0
+                                      end
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                        
+                        targetFocusInteractStrengthYaw = {
+                            type = 'range',
+                            name = "Horizontal Strength",
+                            order = 2,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthYaw|r",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0 end,
+                            get = function()
+                                      return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"]
+                                  end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                        blank2 = {
+                            type = 'description',
+                            name = " ",
+                            order = 2.1,
+                        },
+
+                        targetFocusInteractStrengthPitch = {
+                            type = 'range',
+                            name = "Vertical Strength",
+                            order = 3,
+                            width = "full",
+                            desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthPitch|r",
+                            min = 0,
+                            max = 1,
+                            step = .05,
+                            disabled = function() return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractEnable"] == 0 end,
+                            get = function()
+                                    return DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"] end,
+                            set = function(_, newValue)
+                                      DynamicCam.db.profile.standardCvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue
+                                      Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                                  end,
+                        },
+                        
+                    },
                 },
+                blank2 = {
+                    type = 'description',
+                    name = " ",
+                    order = 2.1,
+                },
+            
+                targetFocusDescriptionGroup = {
+                    type = 'group',
+                    name = "Help",
+                    order = 3,
+                    inline = true,
+                    args = {
+
+                        targetFocusDescription = {
+                            type = 'description',
+                            name = "If enabled, the camera automatically tries to bring the enemy or interaction target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the  the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you leave the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable when talking to another NPCs: only the first transition is smooth, the following are immediate.",
+                        },
+                    },
+                },
+    
+                
+                
+                
             },
         },
 
@@ -2046,13 +2093,20 @@ end
 
 
 
+C_Timer.After(1, function()
 
+  InterfaceOptionsMousePanelMouseLookSpeedSlider:Disable()
+  InterfaceOptionsMousePanelMouseLookSpeedSlider:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText("Overridden by the \"Mouse Look\" settings\nof your Addon DynamicCam!")
+  end)
+  InterfaceOptionsMousePanelMouseLookSpeedSlider:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+  end)
+  
+  
 
-
-
-
-
-
+end)
 
 
 
