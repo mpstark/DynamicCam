@@ -53,7 +53,7 @@ local OldCameraZoomOut = CameraZoomOut
 
 
 -- This is WoW's mimimum third person zoom, before going into first person perspective.
-local minZoomOpaque = 1.091
+local minZoomTransparent = 1.091
 
 --- Got this on PTR (?):
 -- local minZoomOpaque = 0.96
@@ -306,8 +306,11 @@ SetCorrectedShoulderOffset = function(cameraZoom)
         correctedShoulderOffset = correctedShoulderOffset * cosFix.currentModelFactor
     end
 
-    -- print("SetCVar test_cameraOverShoulder", correctedShoulderOffset)
-    SetCVar("test_cameraOverShoulder", correctedShoulderOffset)
+    correctedShoulderOffset = round(correctedShoulderOffset, 10)
+    if tonumber(GetCVar("test_cameraOverShoulder")) ~= correctedShoulderOffset then
+        -- print("SetCVar test_cameraOverShoulder", correctedShoulderOffset)
+        SetCVar("test_cameraOverShoulder", correctedShoulderOffset)
+    end
 end
 
 -- Forward declaration above...
@@ -521,7 +524,7 @@ DynamicCam.defaults = {
         shoulderOffsetZoom = {
             enabled = "true",
             lowerBound = 2,
-            upperBound = 8,
+            upperBound = 7,
         },
 
         reactiveZoom = {
@@ -533,38 +536,41 @@ DynamicCam.defaults = {
             easingFunc = "OutQuad",
         },
         standardCvars = {
-            ["cameraZoomSpeed"] = 50,
-            ["cameraDistanceMaxZoomFactor"] = 2.6,
-
-            ["cameraYawMoveSpeed"] = 70,
-            ["cameraPitchMoveSpeed"] = 50,
+            ["cameraDistanceMaxZoomFactor"] = GetCVarDefault("cameraDistanceMaxZoomFactor"),
+            ["cameraZoomSpeed"] = GetCVarDefault("cameraZoomSpeed"),
 
 
-            ["test_cameraOverShoulder"] = 0,
+            ["cameraYawMoveSpeed"] = GetCVarDefault("cameraYawMoveSpeed"),
+            ["cameraPitchMoveSpeed"] = GetCVarDefault("cameraPitchMoveSpeed"),
 
-            ["test_cameraTargetFocusEnemyEnable"] = 0,
-            ["test_cameraTargetFocusEnemyStrengthPitch"] = 0.4,
-            ["test_cameraTargetFocusEnemyStrengthYaw"] = 0.5,
-            ["test_cameraTargetFocusInteractEnable"] = 0,
-            ["test_cameraTargetFocusInteractStrengthPitch"] = 0.75,
-            ["test_cameraTargetFocusInteractStrengthYaw"] = 1.0,
+            ["test_cameraOverShoulder"] = GetCVarDefault("test_cameraOverShoulder"),
 
-            ["test_cameraHeadMovementStrength"] = 0,
-            ["test_cameraHeadMovementRangeScale"] = 5,
-            ["test_cameraHeadMovementMovingStrength"] = 0.5,
-            ["test_cameraHeadMovementStandingStrength"] = 0.3,
-            ["test_cameraHeadMovementMovingDampRate"] = 10,
-            ["test_cameraHeadMovementStandingDampRate"] = 10,
-            ["test_cameraHeadMovementFirstPersonDampRate"] = 20,
-            ["test_cameraHeadMovementDeadZone"] = 0.015,
+            ["test_cameraDynamicPitch"] = GetCVarDefault("test_cameraDynamicPitch"),
+            ["test_cameraDynamicPitchBaseFovPad"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPad"),
+            ["test_cameraDynamicPitchBaseFovPadFlying"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPadFlying"),
+            ["test_cameraDynamicPitchBaseFovPadDownScale"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPadDownScale"),
+            ["test_cameraDynamicPitchSmartPivotCutoffDist"] = GetCVarDefault("test_cameraDynamicPitchSmartPivotCutoffDist"),
 
-            ["test_cameraDynamicPitch"] = 0,
-            ["test_cameraDynamicPitchBaseFovPad"] = .35,
-            ["test_cameraDynamicPitchBaseFovPadFlying"] = .75,
-            ["test_cameraDynamicPitchBaseFovPadDownScale"] = .25,
-            ["test_cameraDynamicPitchSmartPivotCutoffDist"] = 10,
+            ["test_cameraTargetFocusEnemyEnable"] = GetCVarDefault("test_cameraTargetFocusEnemyEnable"),
+            ["test_cameraTargetFocusEnemyStrengthYaw"] = GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw"),
+            ["test_cameraTargetFocusEnemyStrengthPitch"] = GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch"),
+            ["test_cameraTargetFocusInteractEnable"] = GetCVarDefault("test_cameraTargetFocusInteractEnable"),
+            ["test_cameraTargetFocusInteractStrengthYaw"] = GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw"),
+            ["test_cameraTargetFocusInteractStrengthPitch"] = GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch"),
+
+            ["test_cameraHeadMovementStrength"] = GetCVarDefault("test_cameraHeadMovementStrength"),
+            ["test_cameraHeadMovementStandingStrength"] = GetCVarDefault("test_cameraHeadMovementStandingStrength"),
+            ["test_cameraHeadMovementStandingDampRate"] = GetCVarDefault("test_cameraHeadMovementStandingDampRate"),
+            ["test_cameraHeadMovementMovingStrength"] = GetCVarDefault("test_cameraHeadMovementMovingStrength"),
+            ["test_cameraHeadMovementMovingDampRate"] = GetCVarDefault("test_cameraHeadMovementMovingDampRate"),
+            ["test_cameraHeadMovementFirstPersonDampRate"] = GetCVarDefault("test_cameraHeadMovementFirstPersonDampRate"),
+            ["test_cameraHeadMovementRangeScale"] = GetCVarDefault("test_cameraHeadMovementRangeScale"),
+            ["test_cameraHeadMovementDeadZone"] = GetCVarDefault("test_cameraHeadMovementDeadZone"),
+
         },
+
         zoomRestoreSetting = "adaptive",
+
         situations = {
             ["**"] = {
                 name = "",
@@ -992,8 +998,11 @@ function DynamicCam:Startup()
     enteredSituationAtLogin = false
 
 
-    -- TODO: For coding
-    C_Timer.After(0, self.OpenMenu)
+    SetCVar("CameraKeepCharacterCentered", 0)
+
+
+    -- For coding
+    -- C_Timer.After(0, self.OpenMenu)
 
 end
 
@@ -1735,16 +1744,16 @@ local function NonReactiveZoom(zoomIn, increments)
     else
 
         if zoomIn then
-            if GetCameraZoom() - increments < minZoomOpaque then
-                local distanceToMinZoom = GetCameraZoom() - minZoomOpaque
+            if GetCameraZoom() - increments < minZoomTransparent then
+                local distanceToMinZoom = GetCameraZoom() - minZoomTransparent
                 -- OldCameraZoomIn/OldCameraZoomOut do not accept increments smaller than 0.05.
                 if distanceToMinZoom > 0.05 then
                     increments = distanceToMinZoom
                 end
             end
         else
-            if GetCameraZoom() < minZoomOpaque and GetCameraZoom() + increments > minZoomOpaque then
-                local distanceToMinZoom = minZoomOpaque - GetCameraZoom()
+            if GetCameraZoom() < minZoomTransparent and GetCameraZoom() + increments > minZoomTransparent then
+                local distanceToMinZoom = minZoomTransparent - GetCameraZoom()
                 -- OldCameraZoomIn/OldCameraZoomOut do not accept increments smaller than 0.05.
                 if distanceToMinZoom > 0.05 then
                     increments = distanceToMinZoom
@@ -1784,7 +1793,7 @@ end
 -- REACTIVE ZOOM --
 -------------------
 
-local function clearTargetZoom(wasInterrupted)
+local function clearZoomTarget(wasInterrupted)
     if not wasInterrupted then
         reactiveZoomTarget = nil
     end
@@ -1830,10 +1839,10 @@ local function ReactiveZoom(zoomIn, increments)
 
         if zoomIn then
 
-            if reactiveZoomTarget - increments < minZoomOpaque then
+            if reactiveZoomTarget - increments < minZoomTransparent then
                 -- Always stop at closest third person zoom before going to first person.
-                if reactiveZoomTarget > minZoomOpaque then
-                    reactiveZoomTarget = minZoomOpaque
+                if reactiveZoomTarget > minZoomTransparent then
+                    reactiveZoomTarget = minZoomTransparent
                 else
                     reactiveZoomTarget = 0
                 end
@@ -1845,10 +1854,11 @@ local function ReactiveZoom(zoomIn, increments)
 
             -- From first person go directly into closest third person.
 
-            if reactiveZoomTarget < minZoomOpaque then
-                reactiveZoomTarget = minZoomOpaque
+            if reactiveZoomTarget < minZoomTransparent then
+                reactiveZoomTarget = minZoomTransparent
             else
-                reactiveZoomTarget = math.min(39, reactiveZoomTarget + increments)
+
+                reactiveZoomTarget = math.min(GetCVar("cameraDistanceMaxZoomFactor")*15, reactiveZoomTarget + increments)
             end
 
         end
@@ -1874,8 +1884,8 @@ local function ReactiveZoom(zoomIn, increments)
             end
         else
             -- print("REACTIVE ZOOM start", GetTime())
-            -- LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], function(...) clearTargetZoom(...) print("REACTIVE ZOOM end", GetTime()) end)
-            LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], clearTargetZoom)
+            -- LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], function(...) clearZoomTarget(...) print("REACTIVE ZOOM end", GetTime()) end)
+            LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], clearZoomTarget)
         end
 
     else
@@ -2573,16 +2583,6 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
     end
 
 end)
-
-
-
-
-
-
-
-
-
-
 
 
 
