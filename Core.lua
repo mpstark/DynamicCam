@@ -52,22 +52,25 @@ local OldCameraZoomIn = CameraZoomIn
 local OldCameraZoomOut = CameraZoomOut
 
 
--- This is WoW's mimimum third person zoom, before going into first person perspective.
-local minZoomNormal = 0.761
-local minZoomNormalOpaque = 0.94
 
+-- The mimimal third person zoom value depends on the current model.
 local minZoomMounted = 1.5
 
+local modelFrame = CreateFrame("PlayerModel")
+local function GetModelId()
+    modelFrame:SetUnit("player")
+    return modelFrame:GetModelFileID()
+end
 local function GetMinZoom()
   if IsMounted() then
-    return minZoomMounted, minZoomMounted
+    return minZoomMounted
   else
-    return minZoomNormal, minZoomNormalOpaque
+    return minZoomValues[GetModelId()]
   end
-
 end
 
-
+-- Set to true when zooming out from first person, such that the next zoom is stored as min value.
+local storeMinZoom = false
 
 
 -- To indicate if a non-reactive zoom is in progress.
@@ -967,6 +970,12 @@ function DynamicCam:OnInitialize()
     -- Disable the ActionCam warning message.
     UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
 
+
+    -- The real minimal zoom values are kept in a SaveVariable.
+    if not minZoomValues then
+        minZoomValues = {}
+    end
+
 end
 
 function DynamicCam:OnEnable()
@@ -1775,6 +1784,12 @@ end
 local function NonReactiveZoomOut(increments)
     -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
     if increments == 0 then return end
+
+    if storeMinZoom then
+        -- print("User zoomed out beyond min value. Interrupting store process.")
+        storeMinZoom = false
+    end
+
     NonReactiveZoom(false, increments)
 end
 
@@ -1805,7 +1820,17 @@ local function ReactiveZoom(zoomIn, increments)
         local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference
         local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc
 
-        -- if we've change directions, make sure to reset
+
+        -- scale increments up
+        increments = increments + addIncrementsAlways
+
+        if reactiveZoomTarget and math.abs(reactiveZoomTarget - currentZoom) > incAddDifference then
+            increments = increments + addIncrements
+        end
+
+
+
+        -- if we've changed directions, make sure to reset
         if zoomIn then
             if reactiveZoomTarget and reactiveZoomTarget > currentZoom then
                 reactiveZoomTarget = nil
@@ -1816,67 +1841,55 @@ local function ReactiveZoom(zoomIn, increments)
             end
         end
 
-
-        -- scale increments up
-        increments = increments + addIncrementsAlways
-
-
-        if reactiveZoomTarget and math.abs(reactiveZoomTarget - currentZoom) > incAddDifference then
-            increments = increments + addIncrements
-        end
-
-
         -- if there is already a target zoom, base off that one, or just use the current zoom
         reactiveZoomTarget = reactiveZoomTarget or currentZoom
 
-        local minZoom, minZoomOpaque = GetMinZoom()
+
+        -- Always stop at closest third person zoom level.
+        local minZoom = GetMinZoom() or 1.5
 
         if zoomIn then
 
-            -- Always stop at closest third person zoom before going to first person.
-
-            local newReactiveZoomTarget = reactiveZoomTarget - increments
-
-            if newReactiveZoomTarget < minZoom then
+            if reactiveZoomTarget - increments < minZoom then
 
                 if reactiveZoomTarget > minZoom then
-
                     -- print("go to minZoom", minZoom)
-
-                    newReactiveZoomTarget = minZoom
+                    reactiveZoomTarget = minZoom
 
                     -- Also update the increments if we need to make a NonReactiveZoom below,
                     -- in case of "zoomTime < secondsPerFrame".
-                    local distanceToMinZoom = GetCameraZoom() - minZoom
-                    -- OldCameraZoomIn/OldCameraZoomOut do not accept increments smaller than 0.05.
-                    if distanceToMinZoom > 0.05 then
-                        increments = distanceToMinZoom
-                    end
-
+                    increments = currentZoom - minZoom
                 else
-
                     -- print("go to 0")
-                    newReactiveZoomTarget = 0
+                    reactiveZoomTarget = 0
 
                     -- No need to update increments because any zoom target below minZoom
                     -- will result in 0 automatically.
                 end
 
-                reactiveZoomTarget = math.max(0, newReactiveZoomTarget)
+            else
+                reactiveZoomTarget = math.max(0, reactiveZoomTarget - increments)
             end
 
+
+        -- zoom out
         else
 
             -- From first person go directly into closest third person.
-
-            if reactiveZoomTarget < minZoom then
-                -- print("Giving this to NonReactiveZoomOut", reactiveZoomTarget, minZoom)
+            if currentZoom == 0 then
+                -- print("Giving this to non-reactive zoom")
                 NonReactiveZoomOut(0.05)
+
+                -- When this zoom is finished, store the minimal zoom distance,
+                -- such that we can also use it while zooming in.
+                if not IsMounted() then
+                    storeMinZoom = true
+                end
+
                 return
             else
                 reactiveZoomTarget = math.min(GetCVar("cameraDistanceMaxZoomFactor")*15, reactiveZoomTarget + increments)
             end
-
         end
 
 
@@ -1927,6 +1940,12 @@ end
 local function ReactiveZoomOut(increments)
     -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
     if increments == 0 then return end
+
+    if storeMinZoom then
+        -- print("User zoomed out beyond min value. Interrupting store process.")
+        storeMinZoom = false
+    end
+
     ReactiveZoom(false, increments)
 end
 
@@ -2378,27 +2397,35 @@ end
 
 
 -- This is needed to correct reactiveZoomTarget in case the target is missed.
-local lastZoomValue = GetCameraZoom()
+local lastZoom = GetCameraZoom()
 local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
 reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
 
     if not DynamicCam.db.profile.reactiveZoom.enabled then return end
 
-    if nonReactiveZoomStarted and nonReactiveZoomStartValue ~= GetCameraZoom() then
+    local currentZoom = GetCameraZoom()
+
+    if nonReactiveZoomStarted and nonReactiveZoomStartValue ~= currentZoom then
         -- print("NonReactiveZoom just Started", nonReactiveZoomStartValue, GetTime())
         nonReactiveZoomInProgress = true
         nonReactiveZoomStarted = false
-    elseif nonReactiveZoomInProgress and lastZoomValue == GetCameraZoom() then
+    elseif nonReactiveZoomInProgress and lastZoom == currentZoom then
         -- print("NonReactiveZoom finished", GetTime())
         nonReactiveZoomInProgress = false
     end
 
-    if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= GetCameraZoom() then
-      -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", GetCameraZoom(), GetTime())
-      reactiveZoomTarget = GetCameraZoom()
+    if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= currentZoom then
+      -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", currentZoom, GetTime())
+      reactiveZoomTarget = currentZoom
+
+      if storeMinZoom then
+          -- print("Storing", currentZoom, "for", GetModelId())
+          minZoomValues[GetModelId()] = currentZoom
+          storeMinZoom = false
+      end
     end
 
-    lastZoomValue = GetCameraZoom()
+    lastZoom = currentZoom
 end)
 
 
@@ -2605,6 +2632,11 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
     end
 
 end)
+
+
+
+
+
 
 
 

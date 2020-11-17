@@ -5,7 +5,7 @@
 ## Notes: A more dynamic camera.
 
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
-## SavedVariables: DynamicCamDB
+## SavedVariables: DynamicCamDB, minZoomValues
 
 ## X-Curse-Project-ID: 101120
 ## X-WoWI-ID: 25570
