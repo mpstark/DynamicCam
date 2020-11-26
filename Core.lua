@@ -811,7 +811,6 @@ DynamicCam.defaults = {
   227334,  -- Flight Master's Whistle
   231504,  -- [Tome of] Town Portal
   231505,  -- [Scroll of] Town Portal
-  245173,  -- Portal: Black Temple
   248906,  -- Vindicaar Teleport Beacon
   262100,  -- Recall (to your Great Hall)
   278244,  -- Greatfather Winter's Hearthstone
@@ -827,7 +826,11 @@ DynamicCam.defaults = {
   308742,  -- Eternal Traveler's Hearthstone
   312372,  -- Return to Camp
   326064,  -- Night Fae Hearthstone
+  335671,  -- Scroll of Teleport: Theater of Pain
   340200,  -- Necrolord Hearthstone
+  340767,  -- Chromie's Teleportation Scroll  
+  344587,  -- Teleport: Oribos
+
 }]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = ((endTime - startTime)/1000) - .25]],
