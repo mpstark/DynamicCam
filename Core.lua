@@ -785,6 +785,7 @@ DynamicCam.defaults = {
   192084,  -- Jump to Skyhold
   192085,  -- Jump to Skyhold
   193669,  -- Basic Dimensional Rifting
+  193753,  -- Dreamwalk
   193759,  -- Teleport: Hall of the Guardian
   196079,  -- Recall (to the sanctuary of Frostwolf Keep)
   196080,  -- Recall (to the sanctuary of Dun Baldar)
