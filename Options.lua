@@ -2169,7 +2169,7 @@ function Options:SelectSituation(selectMe)
         end
     end
 
-    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam Situations")
+    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
 end
 
 function Options:RegisterMenus()
