@@ -1315,7 +1315,9 @@ local situationOptions = {
                         smartPivotCutoffDist = {
                             type = 'range',
                             name = "Smart Pivot Cutoff Distance",
-                            desc = "No idea what this actually does",
+                            -- Thanks to Jordaldo for providing this tooltip info.
+                            -- https://github.com/Mpstark/DynamicCam/issues/14
+                            desc = "Defines the distance that the camera has to be inside of for the ground collision to either bring the camera closer to the character's feet as the camera collides with the ground, or to simply pivot on the spot of camera-to-ground collision.",
                             min = 0,
                             max = 100,
                             softMin = 0,
