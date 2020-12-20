@@ -166,23 +166,23 @@ local function CreateSettingsTab(description)
         name = "Standard Settings",
         order = 2,
         args = {
-        
+
             help = {
                 type = 'description',
                 name = function()
                           local text = "These standard settings are applied when either no situation is active or when the active situation has no own settings set up to override the standard settings."
-                          
+
                           if SID == DynamicCam.currentSituationID then
                               text = text .. "|cFF00FF00 You are currently in the situation \"" .. S.name .. "\". If this is overriding a standard setting, you will not see the effect of changing the respective standard setting right now.|r"
                           end
-                          
+
                           return text .. "\n\n"
-                    
+
                        end,
                 order = 0,
             },
-        
-        
+
+
 
             zoomGroup = {
                 type = 'group',
@@ -933,7 +933,7 @@ local function CreateSettingsTab(description)
                     },
 
 
-                    
+
                     standingStrength = {
                         type = 'range',
                         order = 3,
@@ -1023,7 +1023,7 @@ local function CreateSettingsTab(description)
                                   -- Real minimum is 0.01, but makes the slider look odd.
                                   if DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingDampRate"] == 0.01 then
                                       return 0
-                                  else   
+                                  else
                                       return DynamicCam.db.profile.standardCvars["test_cameraHeadMovementMovingDampRate"]
                                   end
                               end,
@@ -2200,13 +2200,6 @@ end
 
 
 
-
-
-
-
-
-
-
 C_Timer.After(1, function()
 
 
@@ -2221,16 +2214,8 @@ C_Timer.After(1, function()
     end)
 
 
-    -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
 
-    -- Place a tooltip warning.
-    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
-        GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore automatically prevented.")
-    end)
-    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
+    -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
 
     -- Automatically undo forbidden cvar changes.
     hooksecurefunc("SetCVar", function(cvar, value)
@@ -2239,20 +2224,134 @@ C_Timer.After(1, function()
         end
     end)
 
-    -- Automatically set the drop down list to the appropriate value.
-    hooksecurefunc("UIDropDownMenu_SetSelectedValue", function(menu, value)
-        if menu == InterfaceOptionsAccessibilityPanelMotionSicknessDropdown then
-            -- print(value)
-            -- print(GetCVar("CameraKeepCharacterCentered"), GetCVar("CameraReduceUnexpectedMovement"))
-            if value == 1 then
-                UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 4);
-            elseif value == 3 then
-                UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 2);
+
+    -- Hide the original motion sickness drop down.
+    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:Hide()
+
+    -- Replace it with my own copy, such that there will be no taint.
+    local cameraKeepCharacterCentered = "CameraKeepCharacterCentered";
+    local cameraReduceUnexpectedMovement = "CameraReduceUnexpectedMovement";
+    local motionSicknessOptions = {
+        {
+            text = MOTION_SICKNESS_NONE,
+            [cameraKeepCharacterCentered] = "0",
+            [cameraReduceUnexpectedMovement] = "0"
+        },
+        {
+            text = MOTION_SICKNESS_REDUCE_CAMERA_MOTION,
+            [cameraKeepCharacterCentered] = "0",
+            [cameraReduceUnexpectedMovement] = "1"
+        },
+        {
+            text = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r",
+            [cameraKeepCharacterCentered] = "1",
+            [cameraReduceUnexpectedMovement] = "0"
+        },
+        {
+            text = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r",
+            [cameraKeepCharacterCentered] = "1",
+            [cameraReduceUnexpectedMovement] = "1"
+        },
+    }
+    local function GetMotionSicknessSelected()
+        local SelectedcameraKeepCharacterCentered = GetCVar(cameraKeepCharacterCentered)
+        local SelectedcameraReduceUnexpectedMovement = GetCVar(cameraReduceUnexpectedMovement)
+        
+        for option, cvars in pairs(motionSicknessOptions) do
+            if ( cvars[cameraKeepCharacterCentered] == SelectedcameraKeepCharacterCentered and cvars[cameraReduceUnexpectedMovement] == SelectedcameraReduceUnexpectedMovement ) then
+                return option;
             end
         end
+    end
+
+
+    local MyMotionSicknessDropdown = CreateFrame("Frame", "MyMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
+    MyMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelOverrideFadeOut, "BOTTOMLEFT", 90, -8)
+    -- Use in place of dropDown:SetWidth.
+    -- (Could not find where the original takes its width from, but 130 seems to be it.)
+    UIDropDownMenu_SetWidth(MyMotionSicknessDropdown, 130)
+    MyMotionSicknessDropdown.label = MyMotionSicknessDropdown:CreateFontString("MyMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
+    MyMotionSicknessDropdown.label:SetPoint("RIGHT", MyMotionSicknessDropdown, "LEFT")
+    MyMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
+
+    local function MyMotionSicknessDropdown_Initialize()
+
+      local selectedValue = UIDropDownMenu_GetSelectedValue(MyMotionSicknessDropdown)
+
+      local info = UIDropDownMenu_CreateInfo()
+
+      -- Called when this option is selected.
+      info.func = function(self)
+          -- Try to set the cvars. They will be rectified by the cvar hook above.
+          BlizzardOptionsPanel_SetCVarSafe(cameraKeepCharacterCentered, motionSicknessOptions[self.value][cameraKeepCharacterCentered])
+          BlizzardOptionsPanel_SetCVarSafe(cameraReduceUnexpectedMovement, motionSicknessOptions[self.value][cameraReduceUnexpectedMovement])
+          -- Then set the selected item accordingly.
+          MyMotionSicknessDropdown.value = GetMotionSicknessSelected()
+          UIDropDownMenu_SetSelectedValue(MyMotionSicknessDropdown, MyMotionSicknessDropdown.value)
+        end
+
+      for k, v in ipairs(motionSicknessOptions) do
+          info.text = v.text
+          info.value = k
+          info.checked = k == selectedValue
+          UIDropDownMenu_AddButton(info)
+      end
+
+    end
+
+
+    UIDropDownMenu_Initialize(MyMotionSicknessDropdown, MyMotionSicknessDropdown_Initialize)
+    MyMotionSicknessDropdown.value = GetMotionSicknessSelected()
+    UIDropDownMenu_SetSelectedValue(MyMotionSicknessDropdown, MyMotionSicknessDropdown.value)
+
+
+    -- Place a tooltip warning.
+    MyMotionSicknessDropdown:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
+        GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.")
+    end)
+    MyMotionSicknessDropdown:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
     end)
 
 end)
+
+
+
+
+
+
+
+
+
+function DynamicCam:GetSituationList()
+    local situationList = {}
+
+    for id, situation in pairs(self.db.profile.situations) do
+        local prefix = ""
+        local suffix = ""
+        local customPrefix = ""
+
+        if self.currentSituationID == id then
+            prefix = "|cFF00FF00"
+            suffix = "|r"
+        elseif not situation.enabled then
+            prefix = "|cFF808A87"
+            suffix = "|r"
+        elseif conditionExecutionCache[id] then
+            prefix = "|cFF63B8FF"
+            suffix = "|r"
+        end
+
+        if string.find(id, "custom") then
+            customPrefix = "Custom: "
+        end
+
+        situationList[id] = prefix..customPrefix..situation.name..suffix
+    end
+
+    return situationList
+end
 
 
 

@@ -16,7 +16,12 @@
 
 embeds.xml
 
+
+
 Core.lua
+
+DefaultSettings.lua
+
 Sharing.lua
 Presets.lua
 Options.lua
