@@ -41,6 +41,10 @@ DynamicCam.LibCamera = LibCamera
 -- factor depends on whether the shoulder offset is positive or negative.
 DynamicCam.currentShoulderOffset = 0
 
+
+DynamicCam.conditionExecutionCache = {}
+
+
 ------------
 -- LOCALS --
 ------------
@@ -48,7 +52,7 @@ local _
 local Options
 local functionCache = {}
 local situationEnvironments = {}
-local conditionExecutionCache = {}
+
 
 
 
@@ -603,7 +607,7 @@ function DynamicCam:Startup()
 
 
     -- For coding
-    -- C_Timer.After(0, self.OpenMenu)
+    C_Timer.After(0, self.OpenMenu)
 
 end
 
@@ -663,9 +667,9 @@ function DynamicCam:EvaluateSituations()
     for id, situation in pairs(self.db.profile.situations) do
         if situation.enabled then
             -- evaluate the condition, if it checks out and the priority is larger than any other, set it
-            local lastEvaluate = conditionExecutionCache[id]
+            local lastEvaluate = self.conditionExecutionCache[id]
             local thisEvaluate = DC_RunScript(situation.condition, id)
-            conditionExecutionCache[id] = thisEvaluate
+            self.conditionExecutionCache[id] = thisEvaluate
 
             if thisEvaluate then
                 -- the condition is true
@@ -1043,34 +1047,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 end
 
 
-function DynamicCam:GetSituationList()
-    local situationList = {}
-
-    for id, situation in pairs(self.db.profile.situations) do
-        local prefix = ""
-        local suffix = ""
-        local customPrefix = ""
-
-        if self.currentSituationID == id then
-            prefix = "|cFF00FF00"
-            suffix = "|r"
-        elseif not situation.enabled then
-            prefix = "|cFF808A87"
-            suffix = "|r"
-        elseif conditionExecutionCache[id] then
-            prefix = "|cFF63B8FF"
-            suffix = "|r"
-        end
-
-        if string.find(id, "custom") then
-            customPrefix = "Custom: "
-        end
-
-        situationList[id] = prefix..customPrefix..situation.name..suffix
-    end
-
-    return situationList
-end
 
 function DynamicCam:CopySituationInto(fromID, toID)
     -- make sure that both from and to are valid situationIDs

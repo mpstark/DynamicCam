@@ -2202,7 +2202,6 @@ end
 
 C_Timer.After(1, function()
 
-
     -- Disable the standard UI's mouse look slider.
     InterfaceOptionsMousePanelMouseLookSpeedSlider:Disable()
     InterfaceOptionsMousePanelMouseLookSpeedSlider:SetScript("OnEnter", function(self)
@@ -2338,7 +2337,7 @@ function DynamicCam:GetSituationList()
         elseif not situation.enabled then
             prefix = "|cFF808A87"
             suffix = "|r"
-        elseif conditionExecutionCache[id] then
+        elseif self.conditionExecutionCache[id] then
             prefix = "|cFF63B8FF"
             suffix = "|r"
         end

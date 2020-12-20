@@ -25,10 +25,10 @@ DynamicCam.defaults = {
             maxZoomTime = 0.1,
             easingFunc = "OutQuad",
         },
+
         standardCvars = {
             ["cameraDistanceMaxZoomFactor"] = GetCVarDefault("cameraDistanceMaxZoomFactor"),
             ["cameraZoomSpeed"] = GetCVarDefault("cameraZoomSpeed"),
-
 
             ["cameraYawMoveSpeed"] = GetCVarDefault("cameraYawMoveSpeed"),
             ["cameraPitchMoveSpeed"] = GetCVarDefault("cameraPitchMoveSpeed"),
@@ -59,8 +59,10 @@ DynamicCam.defaults = {
 
         },
 
+
         zoomRestoreSetting = "adaptive",
 
+        enableSituations = true,
 
         situations = {
 
@@ -68,17 +70,17 @@ DynamicCam.defaults = {
             ["**"] = {
                 name = "",
                 enabled = true,
-                
+
                 executeOnInit = "",
-                
+
                 priority = 0,
                 events = {},
-                
+
                 condition = "return false",
-                
+
                 executeOnEnter = "",
                 executeOnExit = "",
-                
+
                 delay = 0,
 
                 cameraActions = {
@@ -97,14 +99,14 @@ DynamicCam.defaults = {
                     zoomMin = 5,
                     zoomMax = 15,
                 },
-                
-                
+
                 view = {
                     enabled = false,
                     viewNumber = 5,
                     restoreView = false,
                     instant = false,
                 },
+
                 extras = {
                     hideUI = false,
                     hideUIFadeOpacity = 0,
@@ -113,8 +115,8 @@ DynamicCam.defaults = {
                 },
                 cameraCVars = {},
             },
-            
-            
+
+
             ["001"] = {
                 name = "City",
                 events = {"PLAYER_UPDATE_RESTING"},
@@ -132,7 +134,7 @@ DynamicCam.defaults = {
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
                 priority = 0,
                 condition = "return not IsResting() and not IsInInstance()",
-                
+
             },
             ["005"] = {
                 name = "World (Indoors)",
@@ -214,7 +216,7 @@ return isInstance and instanceType == "arena"]],
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
                 priority = 203,
                 condition = [[local isInstance, instanceType = IsInInstance()
-return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]], 
+return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]],
             },
             ["060"] = {
                 name = "Battleground",
@@ -223,7 +225,7 @@ return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]
                 condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp"]],
             },
-            
+
             ["061"] = {
                 name = "Battleground (Combat)",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
@@ -231,28 +233,28 @@ return isInstance and instanceType == "pvp"]],
                 condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
             },
-            
+
             ["100"] = {
                 name = "Mounted",
                 events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
                 priority = 100,
                 condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
             },
-            
+
             ["101"] = {
                 name = "Taxi",
                 events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
                 priority = 1000,
                 condition = "return UnitOnTaxi(\"player\")",
             },
-            
+
             ["102"] = {
                 name = "Vehicle",
                 events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
                 priority = 1000,
                 condition = "return UnitUsingVehicle(\"player\")",
             },
-            
+
             ["103"] = {
                 name = "Druid Travel Form",
                 executeOnInit = [[this.travelFormIds = {
@@ -265,7 +267,7 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
                 priority = 100,
                 condition = "return this.travelFormIds[GetShapeshiftFormID(true)]",
             },
-            
+
             ["200"] = {
                 name = "Hearth/Teleport",
                 executeOnInit = [[this.spells = {
@@ -338,7 +340,7 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
   326064,  -- Night Fae Hearthstone
   335671,  -- Scroll of Teleport: Theater of Pain
   340200,  -- Necrolord Hearthstone
-  340767,  -- Chromie's Teleportation Scroll  
+  340767,  -- Chromie's Teleportation Scroll
   344587,  -- Teleport: Oribos
 
 }]],
@@ -353,7 +355,7 @@ return false]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = (endTime - startTime)/1000]],
             },
-            
+
             ["201"] = {
                 name = "Annoying Spells",
                 executeOnInit = "this.buffs = {46924, 51690, 188499, 210152}",
@@ -367,7 +369,7 @@ this.transitionTime = (endTime - startTime)/1000]],
 end
 return false]],
             },
-            
+
             ["300"] = {
                 name = "NPC Interaction",
                 executeOnInit = [[this.frames = {"BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "AuctionHouseFrame", "GarrisonCapacitiveDisplayFrame", "WardrobeFrame"}
@@ -414,21 +416,21 @@ for k, v in pairs(this.frames) do
 end
 return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
             },
-            
+
             ["301"] = {
                 name = "Mailbox",
                 events = {"MAIL_CLOSED", "MAIL_SHOW", "GOSSIP_CLOSED"},
                 priority = 110,
                 condition = "return MailFrame and MailFrame:IsShown()",
             },
-            
+
             ["302"] = {
                 name = "Fishing",
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 priority = 20,
                 condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
             },
-            
+
             ["303"] = {
                 name = "AFK",
                 events = {"PLAYER_FLAGS_CHANGED"},
