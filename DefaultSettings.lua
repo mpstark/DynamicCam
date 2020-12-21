@@ -4,70 +4,78 @@ local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
 
 DynamicCam.defaults = {
     profile = {
+
+        -- Global settings.
         version = 2,
         firstRun = true,
 
-        easingZoom = "InOutQuad",
-        easingYaw = "InOutQuad",
-        easingPitch = "InOutQuad",
-
-        shoulderOffsetZoom = {
-            enabled = "true",
-            lowerBound = 2,
-            upperBound = 7,
-        },
-
-        reactiveZoom = {
-            enabled = true,
-            addIncrementsAlways = 1,
-            addIncrements = 2.5,
-            incAddDifference = 1.2,
-            maxZoomTime = 0.1,
-            easingFunc = "OutQuad",
-        },
-
-        standardCvars = {
-            ["cameraDistanceMaxZoomFactor"] = GetCVarDefault("cameraDistanceMaxZoomFactor"),
-            ["cameraZoomSpeed"] = GetCVarDefault("cameraZoomSpeed"),
-
-            ["cameraYawMoveSpeed"] = GetCVarDefault("cameraYawMoveSpeed"),
-            ["cameraPitchMoveSpeed"] = GetCVarDefault("cameraPitchMoveSpeed"),
-
-            ["test_cameraOverShoulder"] = GetCVarDefault("test_cameraOverShoulder"),
-
-            ["test_cameraDynamicPitch"] = GetCVarDefault("test_cameraDynamicPitch"),
-            ["test_cameraDynamicPitchBaseFovPad"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPad"),
-            ["test_cameraDynamicPitchBaseFovPadFlying"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPadFlying"),
-            ["test_cameraDynamicPitchBaseFovPadDownScale"] = GetCVarDefault("test_cameraDynamicPitchBaseFovPadDownScale"),
-            ["test_cameraDynamicPitchSmartPivotCutoffDist"] = GetCVarDefault("test_cameraDynamicPitchSmartPivotCutoffDist"),
-
-            ["test_cameraTargetFocusEnemyEnable"] = GetCVarDefault("test_cameraTargetFocusEnemyEnable"),
-            ["test_cameraTargetFocusEnemyStrengthYaw"] = GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw"),
-            ["test_cameraTargetFocusEnemyStrengthPitch"] = GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch"),
-            ["test_cameraTargetFocusInteractEnable"] = GetCVarDefault("test_cameraTargetFocusInteractEnable"),
-            ["test_cameraTargetFocusInteractStrengthYaw"] = GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw"),
-            ["test_cameraTargetFocusInteractStrengthPitch"] = GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch"),
-
-            ["test_cameraHeadMovementStrength"] = GetCVarDefault("test_cameraHeadMovementStrength"),
-            ["test_cameraHeadMovementStandingStrength"] = GetCVarDefault("test_cameraHeadMovementStandingStrength"),
-            ["test_cameraHeadMovementStandingDampRate"] = GetCVarDefault("test_cameraHeadMovementStandingDampRate"),
-            ["test_cameraHeadMovementMovingStrength"] = GetCVarDefault("test_cameraHeadMovementMovingStrength"),
-            ["test_cameraHeadMovementMovingDampRate"] = GetCVarDefault("test_cameraHeadMovementMovingDampRate"),
-            ["test_cameraHeadMovementFirstPersonDampRate"] = GetCVarDefault("test_cameraHeadMovementFirstPersonDampRate"),
-            ["test_cameraHeadMovementRangeScale"] = GetCVarDefault("test_cameraHeadMovementRangeScale"),
-            ["test_cameraHeadMovementDeadZone"] = GetCVarDefault("test_cameraHeadMovementDeadZone"),
-
-        },
-
-
+        enableSituations = true,
         zoomRestoreSetting = "adaptive",
 
-        enableSituations = true,
+
+        -- Standard settings (for when no situation is overriding them).
+        standardSettings = {
+
+            reactiveZoomEnabled = true,
+            reactiveZoomAddIncrementsAlways = 1,
+            reactiveZoomAddIncrements = 2.5,
+            reactiveZoomIncAddDifference = 1.2,
+            reactiveZoomMaxZoomTime = 0.1,
+
+
+            shoulderOffsetZoomEnabled = false,
+            shoulderOffsetZoomLowerBound = 2,
+            shoulderOffsetZoomUpperBound = 7,
+
+            -- cvars
+            cvars = {
+                cameraDistanceMaxZoomFactor = tonumber(GetCVarDefault("cameraDistanceMaxZoomFactor")),
+                cameraZoomSpeed = tonumber(GetCVarDefault("cameraZoomSpeed")),
+
+                cameraYawMoveSpeed = tonumber(GetCVarDefault("cameraYawMoveSpeed")),
+                cameraPitchMoveSpeed = tonumber(GetCVarDefault("cameraPitchMoveSpeed")),
+
+                test_cameraOverShoulder = tonumber(GetCVarDefault("test_cameraOverShoulder")),
+
+                test_cameraDynamicPitch = tonumber(GetCVarDefault("test_cameraDynamicPitch")),
+                test_cameraDynamicPitchBaseFovPad = tonumber(GetCVarDefault("test_cameraDynamicPitchBaseFovPad")),
+                test_cameraDynamicPitchBaseFovPadFlying = tonumber(GetCVarDefault("test_cameraDynamicPitchBaseFovPadFlying")),
+                test_cameraDynamicPitchBaseFovPadDownScale = tonumber(GetCVarDefault("test_cameraDynamicPitchBaseFovPadDownScale")),
+                test_cameraDynamicPitchSmartPivotCutoffDist = tonumber(GetCVarDefault("test_cameraDynamicPitchSmartPivotCutoffDist")),
+
+                test_cameraTargetFocusEnemyEnable = tonumber(GetCVarDefault("test_cameraTargetFocusEnemyEnable")),
+                test_cameraTargetFocusEnemyStrengthYaw = tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthYaw")),
+                test_cameraTargetFocusEnemyStrengthPitch = tonumber(GetCVarDefault("test_cameraTargetFocusEnemyStrengthPitch")),
+                test_cameraTargetFocusInteractEnable = tonumber(GetCVarDefault("test_cameraTargetFocusInteractEnable")),
+                test_cameraTargetFocusInteractStrengthYaw = tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthYaw")),
+                test_cameraTargetFocusInteractStrengthPitch = tonumber(GetCVarDefault("test_cameraTargetFocusInteractStrengthPitch")),
+
+                test_cameraHeadMovementStrength = tonumber(GetCVarDefault("test_cameraHeadMovementStrength")),
+                test_cameraHeadMovementStandingStrength = tonumber(GetCVarDefault("test_cameraHeadMovementStandingStrength")),
+                test_cameraHeadMovementStandingDampRate = tonumber(GetCVarDefault("test_cameraHeadMovementStandingDampRate")),
+                test_cameraHeadMovementMovingStrength = tonumber(GetCVarDefault("test_cameraHeadMovementMovingStrength")),
+                test_cameraHeadMovementMovingDampRate = tonumber(GetCVarDefault("test_cameraHeadMovementMovingDampRate")),
+                test_cameraHeadMovementFirstPersonDampRate = tonumber(GetCVarDefault("test_cameraHeadMovementFirstPersonDampRate")),
+                test_cameraHeadMovementRangeScale = tonumber(GetCVarDefault("test_cameraHeadMovementRangeScale")),
+                test_cameraHeadMovementDeadZone = tonumber(GetCVarDefault("test_cameraHeadMovementDeadZone")),
+            },
+
+            -- Currently not changeable through UI.
+            reactiveZoomEasingFunc = "OutQuad",
+            easingZoom = "InOutQuad",
+            easingYaw = "InOutQuad",
+            easingPitch = "InOutQuad",
+
+        },
+
+
+
 
         situations = {
 
             -- Default for new situation.
             ["**"] = {
+
                 name = "",
                 enabled = true,
 
@@ -113,7 +121,11 @@ DynamicCam.defaults = {
                     actuallyHideUI = true,
                     keepMinimap = false,
                 },
-                cameraCVars = {},
+
+
+                situationSettings = {
+                    cvars = {},
+                },
             },
 
 

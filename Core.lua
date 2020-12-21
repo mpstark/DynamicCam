@@ -249,7 +249,7 @@ local function gotoView(view, instant)
     -- If "Adjust Shoulder offset according to zoom level" is activated,
     -- the shoulder offset will be instantaneously set according to the new
     -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-    if DynamicCam.db.profile.shoulderOffsetZoom.enabled and not shoulderOffsetZoomTmpDisable then
+    if DynamicCam:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
         DynamicCam.easeShoulderOffsetInProgress = true
         virtualCameraZoom = cameraZoomBefore
 
@@ -297,12 +297,12 @@ end
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-    if not DynamicCam.db.profile.shoulderOffsetZoom.enabled or shoulderOffsetZoomTmpDisable then
+    if not self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomEnabled") or shoulderOffsetZoomTmpDisable then
         return 1
     end
 
-    local startDecrease = DynamicCam.db.profile.shoulderOffsetZoom.upperBound
-    local finishDecrease = DynamicCam.db.profile.shoulderOffsetZoom.lowerBound
+    local startDecrease = self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomUpperBound")
+    local finishDecrease = self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomLowerBound")
 
     local zoomFactor = 1
     if zoomLevel < finishDecrease then
@@ -586,12 +586,12 @@ function DynamicCam:Startup()
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED")
 
     -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
-    self:ScheduleTimer("ApplyDefaultCameraSettings", 0.1)
+    self:ScheduleTimer("ApplySettings", 0.1)
     self:ScheduleTimer("EvaluateSituations", 0.2)
     self:ScheduleTimer("RegisterEvents", 0.3)
 
     -- turn on reactive zoom if it's enabled
-    if self.db.profile.reactiveZoom.enabled then
+    if self:GetSettingsTableValue(self.currentSituationID, "reactiveZoomEnabled") then
         self:ReactiveZoomOn()
     else
         -- Must call this to prehook NonReactiveZoomIn/Out.
@@ -623,7 +623,7 @@ function DynamicCam:Shutdown()
     self:UnregisterAllMessages()
 
     -- apply default settings
-    self:ApplyDefaultCameraSettings()
+    self:ApplySettings()
 
     -- turn off reactiveZoom
     self:ReactiveZoomOff()
@@ -860,7 +860,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- If we are coming from the no-situation state.
     elseif enteredSituationAtLogin then
-        lastZoom["default"] = GetCameraZoom()
+        lastZoom["no-situation"] = GetCameraZoom()
         -- print("---> Storing default zoom", lastZoom[oldSituationID], oldSituationID)
     end
 
@@ -943,10 +943,10 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
     -- ##### Determine newShoulderOffset. #####
-    if newSituation and newSituation.cameraCVars.test_cameraOverShoulder then
-        newShoulderOffset = newSituation.cameraCVars.test_cameraOverShoulder
+    if newSituation and newSituation.situationSettings.cvars.test_cameraOverShoulder then
+        newShoulderOffset = newSituation.situationSettings.cvars.test_cameraOverShoulder
     else
-        newShoulderOffset = self.db.profile.standardCvars.test_cameraOverShoulder
+        newShoulderOffset = self.db.profile.standardSettings.cvars.test_cameraOverShoulder
     end
 
 
@@ -1026,7 +1026,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- Set default values (possibly for new situation, may be nil).
     self.currentSituationID = newSituationID
-    self:ApplyDefaultCameraSettings(newSituationID, true)
+    self:ApplySettings(newSituationID, true)
 
     -- Set situation specific values.
     -- (Except shoulder offset, which we are easing above.)
@@ -1035,7 +1035,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- Start rotating if applicable.
         self:StartRotation(newSituation, rotationTime)
 
-        for cvar, value in pairs(newSituation.cameraCVars) do
+        for cvar, value in pairs(newSituation.situationSettings.cvars) do
             if cvar ~= "test_cameraOverShoulder" then
                 DC_SetCVar(cvar, value)
             end
@@ -1077,9 +1077,9 @@ function DynamicCam:CopySituationInto(fromID, toID)
         to.extras[key] = from.extras[key]
     end
 
-    to.cameraCVars = {}
-    for key, value in pairs(from.cameraCVars) do
-        to.cameraCVars[key] = from.cameraCVars[key]
+    to.situationSettings.cvars = {}
+    for key, value in pairs(from.situationSettings.cvars) do
+        to.situationSettings.cvars[key] = from.situationSettings.cvars[key]
     end
 
     self:SendMessage("DC_SITUATION_UPDATED", toID)
@@ -1089,10 +1089,10 @@ function DynamicCam:UpdateSituation(situationID)
     local situation = self.db.profile.situations[situationID]
     if situation and situationID == self.currentSituationID then
         -- apply cvars
-        for cvar, value in pairs(situation.cameraCVars) do
+        for cvar, value in pairs(situation.situationSettings.cvars) do
             DC_SetCVar(cvar, value)
         end
-        self:ApplyDefaultCameraSettings()
+        self:ApplySettings()
     end
     DC_RunScript(situation.executeOnInit, situationID)
     self:RegisterSituationEvents(situationID)
@@ -1166,9 +1166,9 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetChange)
+function DynamicCam:ApplySettings(newSituationID, noShoulderOffsetChange)
 
-    -- print("ApplyDefaultCameraSettings", newSituationID, GetTime())
+    -- print("ApplySettings", newSituationID, self.currentSituationID, noShoulderOffsetChange)
 
     local curSituation = self.db.profile.situations[self.currentSituationID]
 
@@ -1177,19 +1177,29 @@ function DynamicCam:ApplyDefaultCameraSettings(newSituationID, noShoulderOffsetC
     end
 
     -- apply default settings if the current situation isn't overriding them
-    for cvar, value in pairs(self.db.profile.standardCvars) do
-        if not curSituation or not curSituation.cameraCVars[cvar] then
+    for cvar, value in pairs(self.db.profile.standardSettings.cvars) do
 
-            -- ApplyDefaultCameraSettings() is called in the beginning of ExitSituation().
-            -- But when exiting a situation, we want to ease-restore the shoulderOffset
-            -- instead of setting it instantaneously here.
-            if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
-                DC_SetCVar(cvar, value)
-            end
+        if curSituation and curSituation.situationSettings.cvars[cvar] then
+            value = curSituation.situationSettings.cvars[cvar]
+        end
+
+        -- ApplySettings() is called in the beginning of ExitSituation().
+        -- But when exiting a situation, we want to ease-restore the shoulderOffset
+        -- instead of setting it instantaneously here.
+        if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
+            DC_SetCVar(cvar, value)
         end
     end
 
-    -- print("Finished ApplyDefaultCameraSettings", newSituationID, GetTime())
+
+    -- Set reactive zoom.
+    if self:GetSettingsTableValue(self.currentSituationID, "reactiveZoomEnabled") then
+        self:ReactiveZoomOn()
+    else
+        self:ReactiveZoomOff()
+    end
+
+    -- print("Finished ApplySettings", newSituationID, GetTime())
 end
 
 
@@ -1208,11 +1218,11 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
     -- Restore if we're just exiting a situation, and have a stored value for default.
     -- (This is the case for both "always" and "adaptive".)
     if not newSituationID then
-        if lastZoom["default"] then
-            -- print("Restoring saved zoom for default.", lastZoom["default"])
-            return true, lastZoom["default"]
+        if lastZoom["no-situation"] then
+            -- print("Restoring saved zoom for no-situation.", lastZoom["no-situation"])
+            return true, lastZoom["no-situation"]
         else
-            -- print("Not restoring zoom because returning to default with no saved value.")
+            -- print("Not restoring zoom because returning to no-situation with no saved value.")
             return false
         end
     end
@@ -1315,8 +1325,8 @@ local function NonReactiveZoom(zoomIn, increments)
     LibCamera:StopZooming(true)
 
     -- If we are not using this from within ReactiveZoom, we can also use the increment multiplier here.
-    if not DynamicCam.db.profile.reactiveZoom.enabled then
-        increments = increments + DynamicCam.db.profile.reactiveZoom.addIncrementsAlways
+    if not DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
+        increments = increments + DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
 
     else
         -- This is needed to correct reactiveZoomTarget in case the target is missed.
@@ -1373,11 +1383,11 @@ local function ReactiveZoom(zoomIn, increments)
     if increments == 1 then
         local currentZoom = GetCameraZoom()
 
-        local addIncrementsAlways = DynamicCam.db.profile.reactiveZoom.addIncrementsAlways
-        local addIncrements = DynamicCam.db.profile.reactiveZoom.addIncrements
-        local maxZoomTime = DynamicCam.db.profile.reactiveZoom.maxZoomTime
-        local incAddDifference = DynamicCam.db.profile.reactiveZoom.incAddDifference
-        local easingFunc = DynamicCam.db.profile.reactiveZoom.easingFunc
+        local addIncrementsAlways = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
+        local addIncrements = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrements")
+        local maxZoomTime = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomMaxZoomTime")
+        local incAddDifference = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomIncAddDifference")
+        local easingFunc = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEasingFunc")
 
 
         -- scale increments up
@@ -1510,6 +1520,8 @@ end
 
 
 function DynamicCam:ReactiveZoomOn()
+    -- print("ReactiveZoomOn()")
+
     CameraZoomIn = ReactiveZoomIn
     CameraZoomOut = ReactiveZoomOut
 
@@ -1517,6 +1529,8 @@ function DynamicCam:ReactiveZoomOn()
 end
 
 function DynamicCam:ReactiveZoomOff()
+    -- print("ReactiveZoomOff()")
+
     CameraZoomIn = NonReactiveZoomIn
     CameraZoomOut = NonReactiveZoomOut
 
@@ -1578,7 +1592,7 @@ function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
 end
 
 function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
-    self:ApplyDefaultCameraSettings()
+    self:ApplySettings()
 end
 
 
@@ -1618,6 +1632,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     end,
 }
 
+
 function DynamicCam:InitDatabase()
     self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true)
     self.db.RegisterCallback(self, "OnProfileChanged", "RefreshConfig")
@@ -1625,28 +1640,33 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnProfileReset", "RefreshConfig")
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown")
 
-    if not DynamicCamDB.profiles then
-        firstDynamicCamLaunch = true
-    else
+
+
+    -- if not DynamicCamDB.profiles then
+        -- firstDynamicCamLaunch = true
+    -- else
+
         -- reset db if we've got a really old version
-        local veryOldVersion = false
-        for profileName, profile in pairs(DynamicCamDB.profiles) do
-            if profile.standardCvars and profile.standardCvars["cameraovershoulder"] then
-                veryOldVersion = true
-            end
-        end
+        -- local veryOldVersion = false
+        -- for profileName, profile in pairs(DynamicCamDB.profiles) do
+            -- if profile.standardSettings.cvars and profile.standardSettings.cvars["cameraovershoulder"] then
+                -- veryOldVersion = true
+            -- end
+        -- end
 
-        if veryOldVersion then
-            self:Print("Detected very old version, resetting DB, sorry about that!")
-            self.db:ResetDB()
-        end
+        -- if veryOldVersion then
+            -- self:Print("Detected very old version, resetting DB, sorry about that!")
+            -- self.db:ResetDB()
+        -- end
 
-        -- modernize each profile
-        for profileName, profile in pairs(DynamicCamDB.profiles) do
-            self:ModernizeProfile(profile)
-        end
+        -- -- modernize each profile
+        -- for profileName, profile in pairs(DynamicCamDB.profiles) do
+            -- self:ModernizeProfile(profile)
+        -- end
 
-    end
+    -- end
+
+
 end
 
 function DynamicCam:ModernizeProfile(profile)
@@ -1657,8 +1677,8 @@ function DynamicCam:ModernizeProfile(profile)
     local startVersion = profile.version
 
     if profile.version == 1 then
-        if profile.standardCvars and profile.standardCvars["test_cameraLockedTargetFocusing"] ~= nil then
-            profile.standardCvars["test_cameraLockedTargetFocusing"] = nil
+        if profile.standardSettings.cvars and profile.standardSettings.cvars["test_cameraLockedTargetFocusing"] ~= nil then
+            profile.standardSettings.cvars["test_cameraLockedTargetFocusing"] = nil
         end
 
         upgradingFromOldVersion = true
@@ -1686,15 +1706,15 @@ function DynamicCam:ModernizeSituation(situation, version)
         -- update targetlock features
         if situation.targetLock then
             if situation.targetLock.enabled then
-                if not situation.cameraCVars then
-                    situation.cameraCVars = {}
+                if not situation.situationSettings.cvars then
+                    situation.situationSettings.cvars = {}
                 end
 
                 if situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false then
-                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
-                    situation.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
+                    situation.situationSettings.cvars["test_cameraTargetFocusEnemyEnable"] = 1
+                    situation.situationSettings.cvars["test_cameraTargetFocusInteractEnable"] = 1
                 else
-                    situation.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
+                    situation.situationSettings.cvars["test_cameraTargetFocusEnemyEnable"] = 1
                 end
             end
 
@@ -1758,6 +1778,7 @@ function DynamicCam:RefreshConfig()
         DC_RunScript(situation.executeOnInit, id)
     end
 end
+
 
 
 -------------------
@@ -1936,7 +1957,7 @@ end
 -- CVARS --
 -----------
 function DynamicCam:ResetCVars()
-    for cvar, value in pairs(self.db.profile.standardCvars) do
+    for cvar, value in pairs(self.db.profile.standardSettings.cvars) do
         DC_SetCVar(cvar, GetCVarDefault(cvar))
     end
 
@@ -1960,7 +1981,9 @@ local lastZoom = GetCameraZoom()
 local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
 reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
 
-    if not DynamicCam.db.profile.reactiveZoom.enabled then return end
+
+
+    if not DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
 
     local currentZoom = GetCameraZoom()
 
@@ -2139,7 +2162,7 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
     rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
 
 
-    if DynamicCam.db.profile.reactiveZoom.enabled then
+    if DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
 
         if not rzvaFrame.rzt:IsShown() then
             rzvaFrame.rzt:Show()
