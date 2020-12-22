@@ -136,7 +136,7 @@ DynamicCam.defaults = {
                 condition = "return IsResting()",
             },
             ["002"] = {
-                name = "City (Indoors)",
+                name = "City - Indoors",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
                 priority = 11,
                 condition = "return IsResting() and IsIndoors()",
@@ -149,13 +149,13 @@ DynamicCam.defaults = {
 
             },
             ["005"] = {
-                name = "World (Indoors)",
+                name = "World - Indoors",
                 events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
                 priority = 10,
                 condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
             },
             ["006"] = {
-                name = "World (Combat)",
+                name = "World - Combat",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
                 priority = 50,
                 condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
@@ -196,21 +196,21 @@ return isInstance and (instanceType == "party" or instanceType == "scenario") an
 return isInstance and instanceType == "raid"]],
             },
             ["031"] = {
-                name = "Raid (Outdoors)",
+                name = "Raid - Outdoors",
                 events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
                 priority = 13,
                 condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and IsOutdoors()]],
             },
             ["033"] = {
-                name = "Raid (Combat, Boss)",
+                name = "Raid - Combat - Boss",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
                 priority = 303,
                 condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and IsEncounterInProgress()]],
             },
             ["034"] = {
-                name = "Raid (Combat, Trash)",
+                name = "Raid - Combat - Trash",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
                 priority = 203,
                 condition = [[local isInstance, instanceType = IsInInstance()
@@ -224,7 +224,7 @@ return isInstance and instanceType == "raid" and UnitAffectingCombat("player") a
 return isInstance and instanceType == "arena"]],
             },
             ["051"] = {
-                name = "Arena (Combat)",
+                name = "Arena - Combat",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
                 priority = 203,
                 condition = [[local isInstance, instanceType = IsInInstance()
@@ -239,7 +239,7 @@ return isInstance and instanceType == "pvp"]],
             },
 
             ["061"] = {
-                name = "Battleground (Combat)",
+                name = "Battleground - Combat",
                 events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
                 priority = 203,
                 condition = [[local isInstance, instanceType = IsInInstance()

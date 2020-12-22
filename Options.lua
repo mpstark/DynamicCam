@@ -220,7 +220,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                           else
 
-                              local text = "These situation settings are applied when a situation is active and overrides the standard settings."
+                              local text = "These situation settings are applied when a situation is active and override the standard settings."
                               return text .. "\n\n"
 
                           end
@@ -1154,7 +1154,7 @@ local function CreateSituationSettingsTab(tabOrder)
                         SID = newValue
                     end,
                 values = function() return DynamicCam:GetSituationList() end,
-                width = 2.5,
+                width = 2.3,
                 order = 1,
             },
 
@@ -1179,7 +1179,7 @@ local function CreateSituationSettingsTab(tabOrder)
                             Options:SendMessage("DC_SITUATION_DISABLED")
                         end
                     end,
-                width = 0.8,
+                width = 0.7,
                 order = 2,
             },
 
@@ -1194,16 +1194,18 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 2,
 
                 args = {
+                
+                
+                    transitionGroup = {
 
-
-                    cameraActions = {
                         type = "group",
-                        name = "Camera Actions",
-                        order = 10,
-                        hidden = function() return not S end,
-                        disabled = function() return not S.enabled end,
+                        name = "View Transition",
+                        order = 1,
+
                         args = {
-                            zoom = {
+                
+
+                            zoomToggle = {
                                 type = "toggle",
                                 name = "Zoom",
                                 desc = "Set a zoom level when this situation is activated",
@@ -1217,181 +1219,88 @@ local function CreateSituationSettingsTab(tabOrder)
                                     end,
                                 order = 1,
                             },
-                            rotate = {
-                                type = "toggle",
-                                name = "Rotate (Pitch/Yaw)",
-                                desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
-                                get = function() return S.cameraActions.rotate end,
-                                set = function(_, newValue)
-                                        S.cameraActions.rotate = newValue
-                                        LibCamera:StopRotating()
-                                    end,
+                            
+                            zoomSetting = {
+                                type = "select",
+                                name = "Zoom Setting",
+                                desc = "How the camera should react to this situation with regards to zoom. Choose between:\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
+                                get = function() return S.cameraActions.zoomSetting end,
+                                set = function(_, newValue) S.cameraActions.zoomSetting = newValue end,
+                                values = {["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
+                                order = 1,
+                            },
+                            zoomValue = {
+                                type = "range",
+                                name = "Zoom Value",
+                                desc = "The zoom value to set",
+                                hidden = function() return S.cameraActions.zoomSetting == "range" end,
+                                min = 0,
+                                max = 39,
+                                step = .5,
+                                get = function() return S.cameraActions.zoomValue end,
+                                set = function(_, newValue) S.cameraActions.zoomValue = newValue end,
+                                order = 2,
+                                width = "double",
+                            },
+                            zoomMin = {
+                                type = "range",
+                                name = "Zoom Min",
+                                desc = "The min zoom value to set",
+                                hidden = function() return S.cameraActions.zoomSetting ~= "range" end,
+                                min = 0,
+                                max = 39,
+                                step = .5,
+                                get = function() return S.cameraActions.zoomMin end,
+                                set = function(_, newValue) S.cameraActions.zoomMin = newValue end,
+                                order = 3,
+                            },
+                            zoomMax = {
+                                type = "range",
+                                name = "Zoom Max",
+                                desc = "The max zoom value to set",
+                                hidden = function() return S.cameraActions.zoomSetting ~= "range" end,
+                                min = 0,
+                                max = 39,
+                                step = .5,
+                                get = function() return S.cameraActions.zoomMax end,
+                                set = function(_, newValue) S.cameraActions.zoomMax = newValue end,
+                                order = 4,
+                            },
+                            
+                            
+                            transitionTime = {
+                                type = "range",
+                                name = "Time",
+                                desc = "The time that it takes to transition to this situation",
+                                min = .1,
+                                max = 10,
+                                softMax = 5,
+                                step = .05,
+                                get = function() return S.cameraActions.transitionTime end,
+                                set = function(_, newValue) S.cameraActions.transitionTime = newValue end,
+                                width = "double",
                                 order = 2,
                             },
+                            timeIsMax = {
+                                type = "toggle",
+                                name = "Don't Slow",
+                                desc = "Camera shouldn't be slowed down to match the transition time. Thus, the transition takes at most the time given here but is otherwise as fast as the set Camera Move Speed allows.",
+                                get = function() return S.cameraActions.timeIsMax end,
+                                set = function(_, newValue) S.cameraActions.timeIsMax = newValue end,
+                                order = 1,
+                            },
+                            
+                            
+                            
                             view = {
                                 type = "toggle",
                                 name = "Set View",
                                 desc = "When this situation is activated (and only then), the selected view will be set",
-                                hidden = function() return not S or not S.view.enabled end,
                                 get = function() return S.view.enabled end,
                                 set = function(_, newValue) S.view.enabled = newValue end,
                                 order = 3,
                             },
-                            transitionTime = {
-                                type = "group",
-                                name = "Transition Time",
-                                order = 5,
-                                hidden = function() return S.cameraActions.zoomSetting == "off" and
-                                                           not S.cameraActions.rotate and
-                                                           not S.view.enabled
-                                    end,
-                                inline = true,
-                                args = {
-                                    transitionTime = {
-                                        type = "range",
-                                        name = "Time",
-                                        desc = "The time that it takes to transition to this situation",
-                                        min = .1,
-                                        max = 10,
-                                        softMax = 5,
-                                        step = .05,
-                                        get = function() return S.cameraActions.transitionTime end,
-                                        set = function(_, newValue) S.cameraActions.transitionTime = newValue end,
-                                        width = "double",
-                                        order = 2,
-                                    },
-                                    timeIsMax = {
-                                        type = "toggle",
-                                        name = "Don't Slow",
-                                        desc = "Camera shouldn't be slowed down to match the transition time. Thus, the transition takes at most the time given here but is otherwise as fast as the set Camera Move Speed allows.",
-                                        get = function() return S.cameraActions.timeIsMax end,
-                                        set = function(_, newValue) S.cameraActions.timeIsMax = newValue end,
-                                        order = 1,
-                                    },
-                                },
-                            },
-                            zoomSettings = {
-                                type = "group",
-                                name = "Zoom Settings",
-                                order = 10,
-                                hidden = function() return S.cameraActions.zoomSetting == "off" end,
-                                inline = true,
-                                args = {
-                                    zoomSetting = {
-                                        type = "select",
-                                        name = "Zoom Setting",
-                                        desc = "How the camera should react to this situation with regards to zoom. Choose between:\n\nZoom In To: Zoom in to selected distance for this situation, will not zoom out.\n\nZoom Out To: Zoom out to selected distance for this situation, will not zoom in.\n\nZoom Range: Zoom in if past the maximum value, zoom out if past the minimum value.\n\nZoom Set To: Set the zoom to this value.",
-                                        get = function() return S.cameraActions.zoomSetting end,
-                                        set = function(_, newValue) S.cameraActions.zoomSetting = newValue end,
-                                        values = {["in"] = "Zoom In To", ["out"] = "Zoom Out To", ["set"] = "Zoom Set To", ["range"] = "Zoom Range"},
-                                        order = 1,
-                                    },
-                                    zoomValue = {
-                                        type = "range",
-                                        name = "Zoom Value",
-                                        desc = "The zoom value to set",
-                                        hidden = function() return S.cameraActions.zoomSetting == "range" end,
-                                        min = 0,
-                                        max = 39,
-                                        step = .5,
-                                        get = function() return S.cameraActions.zoomValue end,
-                                        set = function(_, newValue) S.cameraActions.zoomValue = newValue end,
-                                        order = 2,
-                                        width = "double",
-                                    },
-                                    zoomMin = {
-                                        type = "range",
-                                        name = "Zoom Min",
-                                        desc = "The min zoom value to set",
-                                        hidden = function() return S.cameraActions.zoomSetting ~= "range" end,
-                                        min = 0,
-                                        max = 39,
-                                        step = .5,
-                                        get = function() return S.cameraActions.zoomMin end,
-                                        set = function(_, newValue) S.cameraActions.zoomMin = newValue end,
-                                        order = 3,
-                                    },
-                                    zoomMax = {
-                                        type = "range",
-                                        name = "Zoom Max",
-                                        desc = "The max zoom value to set",
-                                        hidden = function() return S.cameraActions.zoomSetting ~= "range" end,
-                                        min = 0,
-                                        max = 39,
-                                        step = .5,
-                                        get = function() return S.cameraActions.zoomMax end,
-                                        set = function(_, newValue) S.cameraActions.zoomMax = newValue end,
-                                        order = 4,
-                                    },
-                                },
-                            },
-                            rotateSettings = {
-                                type = "group",
-                                name = "Rotate Settings",
-                                order = 30,
-                                inline = true,
-                                hidden = function() return not S.cameraActions.rotate end,
-                                args = {
-                                    rotateSetting = {
-                                        type = "select",
-                                        name = "Rotate Setting",
-                                        desc = "How the camera should react to this situation with regards to rotating",
-                                        get = function() return S.cameraActions.rotateSetting end,
-                                        set = function(_, newValue) S.cameraActions.rotateSetting = newValue end,
-                                        values = {["continuous"] = "Continuously", ["degrees"] = "By Degrees",},
-                                        order = 1,
-                                    },
-                                    rotateSpeed = {
-                                        type = "range",
-                                        name = "Speed",
-                                        desc = "Speed at which to rotate, in degrees/second",
-                                        min = -900,
-                                        max = 900,
-                                        softMin = -90,
-                                        softMax = 90,
-                                        hidden = function() return S.cameraActions.rotateSetting ~= "continuous" end,
-                                        step = 1,
-                                        get = function() return S.cameraActions.rotateSpeed end,
-                                        set = function(_, newValue) S.cameraActions.rotateSpeed = newValue end,
-                                        order = 2,
-                                        width = "double",
-                                    },
-                                    yawDegrees = {
-                                        type = "range",
-                                        name = "Yaw (-Left/Right+)",
-                                        desc = "Number of degrees to yaw (left and right)",
-                                        min = -1400,
-                                        max = 1440,
-                                        softMin = -360,
-                                        softMax = 360,
-                                        hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
-                                        step = 5,
-                                        get = function() return S.cameraActions.yawDegrees end,
-                                        set = function(_, newValue) S.cameraActions.yawDegrees = newValue end,
-                                        order = 2,
-                                    },
-                                    pitchDegrees = {
-                                        type = "range",
-                                        name = "Pitch (-Down/Up+)",
-                                        desc = "Number of degrees to pitch (up and down)",
-                                        min = -90,
-                                        max = 90,
-                                        -- hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
-                                        step = 5,
-                                        get = function() return S.cameraActions.pitchDegrees end,
-                                        set = function(_, newValue) S.cameraActions.pitchDegrees = newValue end,
-                                        order = 3,
-                                    },
-                                    rotateBack = {
-                                        type = "toggle",
-                                        name = "Rotate Back",
-                                        desc = "When the situation ends, try to rotate back to the original position.",
-                                        get = function() return S.cameraActions.rotateBack end,
-                                        set = function(_, newValue) S.cameraActions.rotateBack = newValue end,
-                                        order = 4,
-                                    },
-                                },
-                            },
+                            
                             viewSettings = {
                                 type = "group",
                                 name = "View Settings",
@@ -1428,18 +1337,102 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "half",
                                     },
                                 },
+
+                            },
+                            
+                            
+                            
+                        },
+                        
+                    },
+
+
+                    
+                    
+                    rotateSettings = {
+                        type = "group",
+                        name = "Rotation",
+                        order = 4,
+
+                        args = {
+                        
+                            rotateToggle = {
+                                type = "toggle",
+                                name = "Rotate (Pitch/Yaw)",
+                                desc = "Start rotating the camera when this situation is activated (and stop when it's done)",
+                                get = function() return S.cameraActions.rotate end,
+                                set = function(_, newValue)
+                                        S.cameraActions.rotate = newValue
+                                        LibCamera:StopRotating()
+                                    end,
+                                order = 1,
+                            },
+                        
+                            rotateSetting = {
+                                type = "select",
+                                name = "Rotate Setting",
+                                desc = "How the camera should react to this situation with regards to rotating",
+                                get = function() return S.cameraActions.rotateSetting end,
+                                set = function(_, newValue) S.cameraActions.rotateSetting = newValue end,
+                                values = {["continuous"] = "Continuously", ["degrees"] = "By Degrees",},
+                                order = 1,
+                            },
+                            rotateSpeed = {
+                                type = "range",
+                                name = "Speed",
+                                desc = "Speed at which to rotate, in degrees/second",
+                                min = -900,
+                                max = 900,
+                                softMin = -90,
+                                softMax = 90,
+                                hidden = function() return S.cameraActions.rotateSetting ~= "continuous" end,
+                                step = 1,
+                                get = function() return S.cameraActions.rotateSpeed end,
+                                set = function(_, newValue) S.cameraActions.rotateSpeed = newValue end,
+                                order = 2,
+                                width = "double",
+                            },
+                            yawDegrees = {
+                                type = "range",
+                                name = "Yaw (-Left/Right+)",
+                                desc = "Number of degrees to yaw (left and right)",
+                                min = -1400,
+                                max = 1440,
+                                softMin = -360,
+                                softMax = 360,
+                                hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
+                                step = 5,
+                                get = function() return S.cameraActions.yawDegrees end,
+                                set = function(_, newValue) S.cameraActions.yawDegrees = newValue end,
+                                order = 2,
+                            },
+                            pitchDegrees = {
+                                type = "range",
+                                name = "Pitch (-Down/Up+)",
+                                desc = "Number of degrees to pitch (up and down)",
+                                min = -90,
+                                max = 90,
+                                -- hidden = function() return S.cameraActions.rotateSetting == "continuous" end,
+                                step = 5,
+                                get = function() return S.cameraActions.pitchDegrees end,
+                                set = function(_, newValue) S.cameraActions.pitchDegrees = newValue end,
+                                order = 3,
+                            },
+                            rotateBack = {
+                                type = "toggle",
+                                name = "Rotate Back",
+                                desc = "When the situation ends, try to rotate back to the original position.",
+                                get = function() return S.cameraActions.rotateBack end,
+                                set = function(_, newValue) S.cameraActions.rotateBack = newValue end,
+                                order = 4,
                             },
                         },
                     },
 
-
-
                     extraActions = {
                         type = "group",
-                        name = "Extra Actions",
+                        name = "Fade UI",
                         order = 30,
-                        hidden = function() return not S end,
-                        disabled = function() return not S.enabled end,
                         args = {
                             fadeUI = {
                                 type = "toggle",
@@ -1483,177 +1476,185 @@ local function CreateSituationSettingsTab(tabOrder)
                     },
 
 
-                    triggers = {
-                        type = "group",
-                        name = "Triggers",
-                        order = 100,
-                        hidden = function() return not S end,
-                        disabled = function() return not S.enabled end,
-                        args = {
-                            events = {
-                                type = "input",
-                                name = "Events",
-                                desc = "",
-                                get = function() return table.concat(S.events, ", ") end,
-                                set = function(_, newValue)
-                                        if newValue == "" then
-                                            S.events = {}
-                                        else
-                                            newValue = string.gsub(newValue, "%s+", "")
-                                            S.events = {strsplit(",", newValue)}
-                                        end
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                width = "double",
-                                order = 1,
-                            },
-                            eventsDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'Events' deviate from the default. Click here to restore it.",
-                                func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
-                                  end,
-                                order = 3,
-                            },
-                            priority = {
-                                type = "input",
-                                name = "Priority",
-                                desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
-                                get = function() return ""..S.priority end,
-                                set = function(_, newValue)
-                                        if tonumber(newValue) then
-                                            S.priority = tonumber(newValue)
-                                        end
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                width = "half",
-                                order = 1,
-                            },
-                            delay = {
-                                type = "input",
-                                name = "Delay",
-                                desc = "How long to delay exiting this situation",
-                                get = function() return ""..S.delay end,
-                                set = function(_, newValue)
-                                        if tonumber(newValue) then
-                                            S.delay = tonumber(newValue)
-                                        end
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                width = "half",
-                                order = 2,
-                            },
-                            condition = {
-                                type = "input",
-                                name = "Condition",
-                                desc = "When this situation should be activated.",
-                                get = function() return S.condition end,
-                                set = function(_, newValue)
-                                        S.condition = newValue
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                multiline = 6,
-                                width = "full",
-                                order = 5,
-                            },
-                            conditionDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'Condition' deviates from the default. Click here to restore it.",
-                                func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
-                                  end,
-                                order = 6,
-                            },
-                            executeOnInit = {
-                                type = "input",
-                                name = "Initialization Script",
-                                desc = "Called when the situation is loaded and when it is modified.",
-                                get = function() return S.executeOnInit end,
-                                set = function(_, newValue)
-                                        S.executeOnInit = newValue
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                multiline = 6,
-                                width = "full",
-                                order = 10,
-                            },
-                            executeOnInitDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
-                                func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
-                                  end,
-                                order = 11,
-                            },
-                            executeOnEnter = {
-                                type = "input",
-                                name = "On Enter Script",
-                                desc = "Called when the situation is selected as the active situation (before any thing else).",
-                                get = function() return S.executeOnEnter end,
-                                set = function(_, newValue) S.executeOnEnter = newValue end,
-                                multiline = 6,
-                                width = "full",
-                                order = 20,
-                            },
-                            executeOnEnterDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
-                                func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
-                                  end,
-                                order = 21,
-                            },
-                            executeOnExit = {
-                                type = "input",
-                                name = "On Exit Script",
-                                desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
-                                get = function() return S.executeOnExit end,
-                                set = function(_, newValue) S.executeOnExit = newValue end,
-                                multiline = 6,
-                                width = "full",
-                                order = 30,
-                            },
-                            executeOnExitDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
-                                func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
-                                  end,
-                                order = 31,
-                            },
-                        },
-                    },
-
-
-
-
-
 
                 },
 
             },
 
 
+
+            situationTriggers = {
+
+                type = "group",
+                name = "Situation Triggers",
+                order = 3,
+
+                args = {
+                
+                
+                    events = {
+                        type = "input",
+                        name = "Events",
+                        desc = "",
+                        get = function() return table.concat(S.events, ", ") end,
+                        set = function(_, newValue)
+                                if newValue == "" then
+                                    S.events = {}
+                                else
+                                    newValue = string.gsub(newValue, "%s+", "")
+                                    S.events = {strsplit(",", newValue)}
+                                end
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                            end,
+                        width = "double",
+                        order = 1,
+                    },
+                    
+                    
+                    
+                    
+                    eventsDefault = {
+                        type = "execute",
+                        name = "Restore default",
+                        desc = "Your 'Events' deviate from the default. Click here to restore it.",
+                        func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
+                        hidden = function()
+                            if not DynamicCam.defaults.profile.situations[SID] then return true end
+                            return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
+                          end,
+                        order = 3,
+                    },
+                    priority = {
+                        type = "input",
+                        name = "Priority",
+                        desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
+                        get = function() return ""..S.priority end,
+                        set = function(_, newValue)
+                                if tonumber(newValue) then
+                                    S.priority = tonumber(newValue)
+                                end
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                            end,
+                        width = "half",
+                        order = 1,
+                    },
+                    delay = {
+                        type = "input",
+                        name = "Delay",
+                        desc = "How long to delay exiting this situation",
+                        get = function() return ""..S.delay end,
+                        set = function(_, newValue)
+                                if tonumber(newValue) then
+                                    S.delay = tonumber(newValue)
+                                end
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                            end,
+                        width = "half",
+                        order = 2,
+                    },
+                    condition = {
+                        type = "input",
+                        name = "Condition",
+                        desc = "When this situation should be activated.",
+                        get = function() return S.condition end,
+                        set = function(_, newValue)
+                                S.condition = newValue
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                            end,
+                        multiline = 6,
+                        width = "full",
+                        order = 5,
+                    },
+                    conditionDefault = {
+                        type = "execute",
+                        name = "Restore default",
+                        desc = "Your 'Condition' deviates from the default. Click here to restore it.",
+                        func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
+                        hidden = function()
+                            if not DynamicCam.defaults.profile.situations[SID] then return true end
+                            return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                          end,
+                        order = 6,
+                    },
+                    executeOnInit = {
+                        type = "input",
+                        name = "Initialization Script",
+                        desc = "Called when the situation is loaded and when it is modified.",
+                        get = function() return S.executeOnInit end,
+                        set = function(_, newValue)
+                                S.executeOnInit = newValue
+                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                            end,
+                        multiline = 6,
+                        width = "full",
+                        order = 10,
+                    },
+                    executeOnInitDefault = {
+                        type = "execute",
+                        name = "Restore default",
+                        desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
+                        func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
+                        hidden = function()
+                            if not DynamicCam.defaults.profile.situations[SID] then return true end
+                            return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
+                          end,
+                        order = 11,
+                    },
+                    executeOnEnter = {
+                        type = "input",
+                        name = "On Enter Script",
+                        desc = "Called when the situation is selected as the active situation (before any thing else).",
+                        get = function() return S.executeOnEnter end,
+                        set = function(_, newValue) S.executeOnEnter = newValue end,
+                        multiline = 6,
+                        width = "full",
+                        order = 20,
+                    },
+                    executeOnEnterDefault = {
+                        type = "execute",
+                        name = "Restore default",
+                        desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
+                        func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
+                        hidden = function()
+                            if not DynamicCam.defaults.profile.situations[SID] then return true end
+                            return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
+                          end,
+                        order = 21,
+                    },
+                    executeOnExit = {
+                        type = "input",
+                        name = "On Exit Script",
+                        desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
+                        get = function() return S.executeOnExit end,
+                        set = function(_, newValue) S.executeOnExit = newValue end,
+                        multiline = 6,
+                        width = "full",
+                        order = 30,
+                    },
+                    executeOnExitDefault = {
+                        type = "execute",
+                        name = "Restore default",
+                        desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
+                        func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
+                        hidden = function()
+                            if not DynamicCam.defaults.profile.situations[SID] then return true end
+                            return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
+                          end,
+                        order = 31,
+                    },
+                
+                
+                },
+                
+            },
+
+
+
             customImport = {
 
                 type = "group",
                 name = "Custom / Import",
-                order = 3,
+                order = 4,
 
                 args = {
 
@@ -1945,7 +1946,7 @@ function DynamicCam:GetSituationList()
             customPrefix = "Custom: "
         end
 
-        situationList[id] = prefix..customPrefix..situation.name..suffix
+        situationList[id] = prefix..customPrefix..situation.name.." [Priority: "..situation.priority.."]"..suffix
     end
 
     return situationList
