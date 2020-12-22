@@ -249,7 +249,7 @@ local function gotoView(view, instant)
     -- If "Adjust Shoulder offset according to zoom level" is activated,
     -- the shoulder offset will be instantaneously set according to the new
     -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-    if DynamicCam:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
+    if DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
         DynamicCam.easeShoulderOffsetInProgress = true
         virtualCameraZoom = cameraZoomBefore
 
@@ -2064,6 +2064,14 @@ function DynamicCam:ToggleRZVA()
         rzvaFrame:SetScript("OnDragStart", rzvaFrame.StartMoving)
         rzvaFrame:SetScript("OnDragStop", rzvaFrame.StopMovingOrSizing)
         rzvaFrame:SetClampedToScreen(true)
+        
+        -- Closes with right button.
+        rzvaFrame:SetScript("OnMouseDown", function(self, button)
+            if button == "RightButton" then
+                self:Hide()
+            end
+        end)
+        
 
         rzvaFrame:SetWidth(rzvaWidth)
         rzvaFrame:SetHeight(rzvaHeight)
