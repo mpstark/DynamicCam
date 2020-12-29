@@ -13,6 +13,11 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0")
 ------------
 -- LOCALS --
 ------------
+local function round(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
+end
+
 local function ScriptEqual(customScript, defaultScript)
     if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
 end
@@ -169,15 +174,18 @@ end
 
 -- For the get functions of the options: if a situation has no setting,
 -- we want to show the standard value.
-function DynamicCam:GetSettingsTableValue(situationId, index1, index2)
+function DynamicCam:GetSettingsValue(situationId, index1, index2)
 
     -- Is this a request for a standard or situation setting?
     local settingsTable = self:GetSettingsTable(situationId)
 
     -- Is this a request for the cvars sub table?
     if index1 == "cvars" and index2 then
+        -- Is there a user setting?
         if settingsTable.cvars[index2] ~= nil then
             return settingsTable.cvars[index2]
+        -- If there is none, this must have been an unset situation setting,
+        -- so we are returning the standard setting.
         else
             return self.db.profile.standardSettings.cvars[index2]
         end
@@ -191,41 +199,131 @@ function DynamicCam:GetSettingsTableValue(situationId, index1, index2)
 end
 
 
+function DynamicCam:GetSettingsDefault(index1, index2)
+    -- Is this a request for the cvars sub table?
+    if index1 == "cvars" and index2 then
+        return self.defaults.profile.standardSettings.cvars[index2]
+    else
+        return self.defaults.profile.standardSettings[index1]
+    end
+end
+
+
+function DynamicCam:SetSettingsValue(newValue, situationId, index1, index2)
+    -- Is this a request for a standard or situation setting?
+    local settingsTable = self:GetSettingsTable(situationId)
+
+    -- Is this a request for the cvars sub table?
+    if index1 == "cvars" and index2 then
+        settingsTable.cvars[index2] = newValue
+    else
+        settingsTable[index1] = newValue
+    end
+
+    Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+end
+
+function DynamicCam:SetSettingsDefault(situationId, index1, index2)
+    -- Is this a request for a standard or situation setting?
+    local settingsTable = self:GetSettingsTable(situationId)
+
+    -- Is this a request for the cvars sub table?
+    if index1 == "cvars" and index2 then
+        settingsTable.cvars[index2] = self.defaults.profile.standardSettings.cvars[index2]
+    else
+        settingsTable[index1] = self.defaults.profile.standardSettings[index1]
+    end
+end
+
+
+
+local function CreateSliderResetButton(order, forSituations, index1, index2, tooltipDefaultValue, extraHideConditions)
+
+  -- We allow to pass the tooltipDefaultValue as an extra argument, because for some
+  -- settings the slider value is a transformation of the cvar.
+  if tooltipDefaultValue == nil then
+      tooltipDefaultValue = DynamicCam:GetSettingsDefault(index1, index2)
+  end
+
+  -- If the button is within a group, we want to disable it when the group is disabled.
+  -- There seems to be no way to check this so we have to do it like this.
+  local function CheckExtraHide()
+      if extraHideConditions then
+          for _, v in pairs(extraHideConditions) do
+              local extraHideIndex1, extraHideIndex2, hideCondition = unpack(v)
+              if DynamicCam:GetSettingsValue(forSituations and SID, extraHideIndex1, extraHideIndex2) == hideCondition then
+                  return true
+              end
+          end
+      end
+      return false
+  end
+
+  return {
+      type = "execute",
+      -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
+      name = "Reset",
+      image = "Interface\\Transmogrify\\Transmogrify",
+      imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+      imageWidth = 25/1.5,
+      imageHeight = 24/1.5,
+      desc = "Reset to default: " .. tooltipDefaultValue .."\nThis is just the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+      order = order,
+      width = 0.25,
+      func =
+          function()
+              DynamicCam:SetSettingsDefault(forSituations and SID, index1, index2)
+          end,
+      disabled =
+          function()
+              return CheckExtraHide() or (DynamicCam:GetSettingsValue(forSituations and SID, index1, index2) == DynamicCam:GetSettingsDefault(index1, index2))
+          end,
+  }
+end
+
+
 
 local function CreateSettingsTab(tabOrder, forSituations)
+
+    -- For the situation settings the area is a little smaller.
+    local sliderWidth = 1.9
+    if forSituations then
+        sliderWidth = 1.75
+    end
 
     return {
 
         type = "group",
-        name = function()
-                   if not forSituations then return "Standard Settings"
-                   else return "Situation Settings" end
-               end,
+        name =
+            function()
+                if not forSituations then return "Standard Settings"
+                else return "Situation Settings" end
+            end,
         order = tabOrder,
         args = {
 
             help = {
                 type = "description",
-                name = function()
+                name =
+                    function()
+                        if not forSituations then
 
-                          if not forSituations then
+                            local text = "These standard settings are applied when either no situation is active or when the active situation has no own settings set up to override the standard settings."
 
-                              local text = "These standard settings are applied when either no situation is active or when the active situation has no own settings set up to override the standard settings."
+                            if SID == DynamicCam.currentSituationID then
+                                text = text .. "|cFF00FF00 You are currently in the situation \"" .. S.name .. "\". If this is overriding a standard setting, you will not see the effect of changing the respective standard setting right now.|r"
+                            end
 
-                              if SID == DynamicCam.currentSituationID then
-                                  text = text .. "|cFF00FF00 You are currently in the situation \"" .. S.name .. "\". If this is overriding a standard setting, you will not see the effect of changing the respective standard setting right now.|r"
-                              end
+                            return text .. "\n\n"
 
-                              return text .. "\n\n"
+                        else
 
-                          else
+                            local text = "These situation settings are applied when a situation is active and override the standard settings."
+                            return text .. "\n\n"
 
-                              local text = "These situation settings are applied when a situation is active and override the standard settings."
-                              return text .. "\n\n"
+                        end
 
-                          end
-
-                       end,
+                    end,
                 order = 0,
             },
 
@@ -241,76 +339,91 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         name = "Maximum Camera Distance",
                         desc = "How many yards the camera can zoom away from your character.\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
                         order = 1,
-                        width = "full",
+                        width = sliderWidth,
                         min = 15,
                         max = 39,
                         step = 0.5,
-                        get = function() return 15 * DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "cameraDistanceMaxZoomFactor") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["cameraDistanceMaxZoomFactor"] = newValue/15
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "cameraDistanceMaxZoomFactor") * 15
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue/15, forSituations and SID, "cvars", "cameraDistanceMaxZoomFactor")
+                            end,
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
+                    cameraDistanceMaxFactorReset =
+                        CreateSliderResetButton(1.1, forSituations, "cvars", "cameraDistanceMaxZoomFactor",
+                                                  DynamicCam:GetSettingsDefault("cvars", "cameraDistanceMaxZoomFactor") * 15),
+                    blank1 = {type = "description", name = " ", order = 1.2, },
 
                     cameraZoomSpeed = {
                         type = "range",
                         name = "Camera Zoom Speed",
                         desc = "How fast the camera can zoom.\n|cff909090cvar: cameraZoomSpeed|r",
                         order = 2,
-                        width = "full",
+                        width = sliderWidth,
                         min = 1,
                         max = 50,
                         step = 0.5,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "cameraZoomSpeed") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["cameraZoomSpeed"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "cameraZoomSpeed")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "cameraZoomSpeed")
+                            end,
                     },
-                    blank2 = {
-                        type = "description",
-                        name = " ",
-                        order = 2.1,
-                    },
+                    cameraZoomSpeedReset =
+                        CreateSliderResetButton(2.1, forSituations, "cvars", "cameraZoomSpeed"),
+                    blank2 = {type = "description", name = " ", order = 2.2, },
 
                     addIncrementsAlways = {
                         type = "range",
                         name = "Zoom Increments",
                         desc = "How many yards the camera should travel for each \'tick\' of the mouse wheel.",
                         order = 3,
-                        width = "full",
+                        width = sliderWidth,
                         min = 0.05,
                         max = 10,
                         step = 0.05,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomAddIncrementsAlways") + 1 end,
-                        set = function(_, newValue) DynamicCam:GetSettingsTable(forSituations and SID).reactiveZoomAddIncrementsAlways = newValue - 1 end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomAddIncrementsAlways") + 1
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue - 1, forSituations and SID, "reactiveZoomAddIncrementsAlways")
+                            end,
                     },
-                    blank3 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 3.1,
-                    },
+                    addIncrementsAlwaysReset =
+                        CreateSliderResetButton(3.1, forSituations, "reactiveZoomAddIncrementsAlways", nil,
+                                                  DynamicCam:GetSettingsDefault("reactiveZoomAddIncrementsAlways") + 1),
+                    blank3 = {type = "description", name = "\n\n", order = 3.2, },
+
 
                     reactiveZoomToggle = {
                         type = "toggle",
                         name = "Use Reactive Zoom",
                         order = 4,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomEnabled") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).reactiveZoomEnabled = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomEnabled")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "reactiveZoomEnabled")
+                            end,
                     },
 
                     reactiveZoomGroup = {
                         type = "group",
                         name = "",
-                        disabled = function() return not DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomEnabled") end,
+                        disabled =
+                            function()
+                                return not DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomEnabled")
+                            end,
                         order = 5,
                         inline = true,
                         args = {
@@ -320,54 +433,72 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 name = "Quick-Zoom Additional Increments",
                                 desc = "How many yards per mouse wheel tick should be added when quick-zooming.",
                                 order = 1,
-                                width = "full",
+                                width = sliderWidth,
                                 min = 0,
                                 max = 10,
                                 step = 0.1,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomAddIncrements") end,
-                                set = function(_, newValue) DynamicCam:GetSettingsTable(forSituations and SID).reactiveZoomAddIncrements = newValue end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomAddIncrements")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "reactiveZoomAddIncrements")
+                                    end,
                             },
-                            blank1 = {
-                                type = "description",
-                                name = " ",
-                                order = 1.1,
-                            },
+                            addIncrementsReset =
+                                CreateSliderResetButton(1.1, forSituations, "reactiveZoomAddIncrements", nil,
+                                                          nil,
+                                                          {{"reactiveZoomEnabled", nil, false}}),
+                            blank1 = {type = "description", name = " ", order = 1.2, },
 
                             incAddDifference = {
                                 type = "range",
                                 name = "Quick-Zoom Enter Threshold",
                                 desc = "How many yards the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" have to be apart to enter quick-zooming.",
                                 order = 2,
-                                width = "full",
+                                width = sliderWidth,
                                 min = 0.1,
                                 max = 5,
                                 step = 0.1,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomIncAddDifference") end,
-                                set = function(_, newValue) DynamicCam:GetSettingsTable(forSituations and SID).reactiveZoomIncAddDifference = newValue end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomIncAddDifference")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "reactiveZoomIncAddDifference")
+                                    end,
                             },
-                            blank2 = {
-                                type = "description",
-                                name = " ",
-                                order = 2.1,
-                            },
+                            incAddDifferenceReset =
+                                CreateSliderResetButton(2.1, forSituations, "reactiveZoomIncAddDifference", nil,
+                                                          nil,
+                                                          {{"reactiveZoomEnabled", nil, false}}),
+                            blank2 = {type = "description", name = " ", order = 2.2, },
 
                             maxZoomTime = {
                                 type = "range",
                                 name = "Maximum Zoom Time",
                                 desc = "The maximum time the camera should take to make \"Actual Zoom Value\" equal to \"Reactive Zoom Target\".",
                                 order = 3,
-                                width = "full",
+                                width = sliderWidth,
                                 min = 0.1,
                                 max = 5,
                                 step = 0.05,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "reactiveZoomMaxZoomTime") end,
-                                set = function(_, newValue) DynamicCam:GetSettingsTable(forSituations and SID).reactiveZoomMaxZoomTime = newValue end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "reactiveZoomMaxZoomTime")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "reactiveZoomMaxZoomTime")
+                                    end,
                             },
-                            blank3 = {
-                                type = "description",
-                                name = "\n\n",
-                                order = 3.1,
-                            },
+                            maxZoomTimeReset =
+                                CreateSliderResetButton(3.1, forSituations, "reactiveZoomMaxZoomTime", nil,
+                                                          nil,
+                                                          {{"reactiveZoomEnabled", nil, false}}),
+                            blank3 = {type = "description", name = "\n\n", order = 3.2, },
 
                         },
                     },
@@ -386,11 +517,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 order = 1,
                                 width = "full",
                             },
-                            blank1 = {
-                                type = "description",
-                                name = " ",
-                                order = 1.1,
-                            },
+                            blank1 = {type = "description", name = " ", order = 1.1, },
 
                             reactiveZoomDescription = {
                                 type = "description",
@@ -414,42 +541,44 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         name = "Horizontal Speed",
                         desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090cvar: cameraYawMoveSpeed|r",
                         order = 1,
-                        width = "full",
+                        width = sliderWidth + 0.1,
                         min = 1,
                         max = 360,
                         step = 1,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "cameraYawMoveSpeed") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["cameraYawMoveSpeed"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "cameraYawMoveSpeed")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "cameraYawMoveSpeed")
+                            end,
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
+                    cameraYawMoveSpeedReset =
+                        CreateSliderResetButton(1.1, forSituations, "cvars", "cameraYawMoveSpeed"),
+                    blank1 = {type = "description", name = " ", order = 1.2, },
 
                     cameraPitchMoveSpeed = {
                         type = "range",
                         name = "Vertical Speed",
                         desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090cvar: cameraPitchMoveSpeed|r",
                         order = 2,
-                        width = "full",
+                        width = sliderWidth + 0.1,
                         min = 1,
                         max = 360,
                         step = 1,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "cameraPitchMoveSpeed") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["cameraPitchMoveSpeed"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "cameraPitchMoveSpeed")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "cameraPitchMoveSpeed")
+                            end,
                     },
-                    blank2 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 2.1,
-                    },
+                    cameraPitchMoveSpeedReset =
+                        CreateSliderResetButton(2.1, forSituations, "cvars", "cameraPitchMoveSpeed"),
+                    blank2 = {type = "description", name = "\n\n", order = 2.2, },
 
                     mouseLookDescriptionGroup = {
                         type = "group",
@@ -491,23 +620,24 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "range",
                                 name = "",
                                 order = 1,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 min = -15,
                                 max = 15,
                                 step = 0.1,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraOverShoulder") end,
-                                set = function(_, newValue)
-                                          DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraOverShoulder"] = newValue
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraOverShoulder")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraOverShoulder")
+                                    end,
                             },
+                            cameraOverShoulderReset =
+                                CreateSliderResetButton(1.1, forSituations, "cvars", "test_cameraOverShoulder"),
                         },
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
+                    blank1 = {type = "description", name = " ", order = 1.1, },
 
                     shoulderOffsetZoomGroup = {
                         type = "group",
@@ -516,18 +646,47 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         inline = true,
                         args = {
 
-
                             shoulderOffsetZoomEnabled = {
                                 type = "toggle",
                                 name = "Enable",
                                 order = 1,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "shoulderOffsetZoomEnabled") end,
-                                set = function(_, newValue)
-                                        DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomEnabled = newValue
-                                        DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
                                     end,
-
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomEnabled")
+                                        -- DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                    end,
                             },
+                            blank1 = {type = "description", name = " ", width = sliderWidth - 1.15, order = 1.1, },
+                            -- Make a custom reset button, because we need to reset both values at once.
+                            shoulderOffsetZoomReset = {
+                                type = "execute",
+                                name = "Reset",
+                                image = "Interface\\Transmogrify\\Transmogrify",
+                                imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                imageWidth = 25/1.5,
+                                imageHeight = 24/1.5,
+                                desc = "Reset to defaults: " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .." and " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\nThis is just the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+                                order = 1.2,
+                                width = 0.25,
+                                func =
+                                    function()
+                                        DynamicCam:SetSettingsDefault(forSituations and SID, "shoulderOffsetZoomLowerBound")
+                                        DynamicCam:SetSettingsDefault(forSituations and SID, "shoulderOffsetZoomUpperBound")
+                                    end,
+                                disabled =
+                                    function()
+                                        return
+                                        (DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound") == DynamicCam:GetSettingsDefault( "shoulderOffsetZoomLowerBound")
+                                        and
+                                        DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound") == DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound"))
+                                        or not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
+                                    end,
+                            },
+
                             shoulderOffsetZoomLowerBound = {
                                 type = "range",
                                 name = "No offset when below this zoom level:",
@@ -537,22 +696,23 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 min = 0.8,
                                 max = 39,
                                 step = 0.1,
-                                disabled = function() return not DynamicCam:GetSettingsTableValue(forSituations and SID, "shoulderOffsetZoomEnabled") end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "shoulderOffsetZoomLowerBound") end,
-                                set = function(_, newValue)
-                                        DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomLowerBound = newValue
-                                        if DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomUpperBound < newValue then
-                                            DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomUpperBound = newValue
-                                        end
-                                        DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                disabled =
+                                    function()
+                                        return not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
                                     end,
-
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomLowerBound")
+                                        if DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound") < newValue then
+                                            DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomUpperBound")
+                                        end
+                                    end,
                             },
-                            blank2 = {
-                                type = "description",
-                                name = " ",
-                                order = 2.1,
-                            },
+                            blank2 = {type = "description", name = " ", order = 2.2, },
 
                             shoulderOffsetZoomUpperBound = {
                                 type = "range",
@@ -563,30 +723,29 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 min = 0.8,
                                 max = 39,
                                 step = 0.1,
-                                disabled = function() return not DynamicCam:GetSettingsTableValue(forSituations and SID, "shoulderOffsetZoomEnabled") end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "shoulderOffsetZoomUpperBound") end,
-                                set = function(_, newValue)
-                                        DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomUpperBound = newValue
-                                        if DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomLowerBound > newValue then
-                                            DynamicCam:GetSettingsTable(forSituations and SID).shoulderOffsetZoomLowerBound = newValue
-                                        end
-                                        DynamicCam:ZoomSlash(GetCameraZoom() .. " " .. 0)
+                                disabled =
+                                    function()
+                                        return not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
                                     end,
-
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomUpperBound")
+                                        if DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound") > newValue then
+                                            DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomLowerBound")
+                                        end
+                                    end,
                             },
-
-                            blank3 = {
-                                type = "description",
-                                name = " ",
-                                order = 3.1,
-                            },
+                            blank3 = {type = "description", name = " ", order = 3.1, },
 
                             shoulderOffsetZoomDescription = {
                                 type = "description",
                                 name = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place.",
                                 order = 4,
                             },
-
 
                         },
                     },
@@ -606,111 +765,134 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         order = 1,
                         width = "full",
                         desc = "|cff909090cvar: test_cameraDynamicPitch|r",
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 1 end,
-                        set = function(_, newValue)
-                                  if newValue then
-                                      DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitch"] = 1
-                                  else
-                                      DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitch"] = 0
-                                  end
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 1
+                            end,
+                        set =
+                            function(_, newValue)
+                                if newValue then
+                                    DynamicCam:SetSettingsValue(1, forSituations and SID, "cvars", "test_cameraDynamicPitch")
+                                else
+                                    DynamicCam:SetSettingsValue(0, forSituations and SID, "cvars", "test_cameraDynamicPitch")
+                                end
+                            end,
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
+                    blank1 = {type = "description", name = " ", order = 1.1, },
 
                     baseFovPad = {
                         type = "range",
                         name = "Pitch (on ground)",
                         order = 2,
-                        width = "full",
+                        width = sliderWidth,
                         desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPad|r",
                         min = 0,
                         max = 0.99,
                         step = 0.01,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPad") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitchBaseFovPad"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPad")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPad")
+                            end,
                     },
-                    blank2 = {
-                        type = "description",
-                        name = " ",
-                        order = 2.1,
-                    },
+                    baseFovPadReset =
+                        CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPad",
+                                                  nil,
+                                                  {{"cvars", "test_cameraDynamicPitch", 0}}),
+                    blank2 = {type = "description", name = " ", order = 2.2, },
 
                     baseFovPadFlying = {
                         type = "range",
                         name = "Pitch (flying)",
                         order = 3,
-                        width = "full",
+                        width = sliderWidth,
                         desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadFlying|r",
                         min = 0,
                         max = 1,
                         step = 0.01,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadFlying") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitchBaseFovPadFlying"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadFlying")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadFlying")
+                            end,
                     },
-                    blank3 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 3.1,
-                    },
+                    baseFovPadFlyingReset =
+                        CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadFlying",
+                                                  nil,
+                                                  {{"cvars", "test_cameraDynamicPitch", 0}}),
+                    blank3 = {type = "description", name = "\n\n", order = 3.2, },
 
                     baseFovPadDownScale = {
                         type = "range",
                         name = "Down Scale",
                         order = 4,
-                        width = "full",
+                        width = sliderWidth,
                         desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadDownScale|r",
                         min = 0,
                         max = 1,
                         step = 0.01,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale") end,
-                        set = function(_, newValue)
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitchBaseFovPadDownScale"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale")
+                            end,
                     },
-                    blank4 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 4.1,
-                    },
+                    baseFovPadDownScaleReset =
+                        CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale",
+                                                  nil,
+                                                  {{"cvars", "test_cameraDynamicPitch", 0}}),
+                    blank4 = {type = "description", name = "\n\n", order = 4.2, },
 
                     smartPivotCutoffDist = {
                         type = "range",
                         name = "Smart Pivot Cutoff Distance",
                         order = 5,
-                        width = "full",
+                        width = sliderWidth,
                         desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
                         min = 0,
                         max = 100,
                         softMin = 0,
                         softMax = 39,
                         step = 0.5,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist") end,
-                        set = function(_, newValue)
-                                DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraDynamicPitchSmartPivotCutoffDist"] = newValue
-                                Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist")
                             end,
                     },
-                    blank5 = {
-                        type = "description",
-                        name = " ",
-                        order = 5.1,
-                    },
+                    smartPivotCutoffDistReset =
+                        CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist",
+                                                  nil,
+                                                  {{"cvars", "test_cameraDynamicPitch", 0}}),
+                    blank5 = {type = "description", name = " ", order = 5.2, },
 
                     pitchDescriptionGroup = {
                         type = "group",
@@ -748,65 +930,77 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 order = 1,
                                 width = "full",
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyEnable|r",
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 1 end,
-                                set = function(_, newValue)
-                                          if newValue then
-                                              DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusEnemyEnable"] = 1
-                                          else
-                                              DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusEnemyEnable"] = 0
-                                          end
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 1
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        if newValue then
+                                            DynamicCam:SetSettingsValue(1, forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable")
+                                        else
+                                            DynamicCam:SetSettingsValue(0, forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable")
+                                        end
+                                    end,
                             },
 
                             targetFocusEnemyStrengthYaw = {
                                 type = "range",
                                 name = "Horizontal Strength",
                                 order = 2,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthYaw|r",
                                 min = 0,
                                 max = 1,
                                 step = 0.05,
-                                disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0 end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthYaw") end,
-                                set = function(_, newValue)
-                                          DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusEnemyStrengthYaw"] = newValue
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                disabled =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                                    end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthYaw")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthYaw")
+                                    end,
                             },
-                            blank2 = {
-                                type = "description",
-                                name = " ",
-                                order = 2.1,
-                            },
+                            targetFocusEnemyStrengthYawReset =
+                                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthYaw",
+                                                          nil,
+                                                          {{"cvars", "test_cameraTargetFocusEnemyEnable", 0}}),
+                            blank2 = {type = "description", name = " ", order = 2.2, },
 
                             targetFocusEnemyStrengthPitch = {
                                 type = "range",
                                 name = "Vertical Strength",
                                 order = 3,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthPitch|r",
                                 min = 0,
                                 max = 1,
                                 step = 0.05,
-                                disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0 end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthPitch") end,
-                                set = function(_, newValue)
-                                          DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusEnemyStrengthPitch"] = newValue
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                disabled =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                                    end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthPitch")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraTargetFocusEnemyStrengthPitch")
+                                    end,
                             },
-
-
+                            targetFocusEnemyStrengthPitchReset =
+                                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthPitch",
+                                                          nil,
+                                                          {{"cvars", "test_cameraTargetFocusEnemyEnable", 0}}),
                         },
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
-
+                    blank1 = {type = "description", name = " ", order = 1.1,},
 
                     targetFocusNPCsGroup = {
                         type = "group",
@@ -819,65 +1013,80 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "toggle",
                                 name = "Enable",
                                 order = 1,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nInteractEnable|r",
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 1 end,
-                                set = function(_, newValue)
-                                          if newValue then
-                                              DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusInteractEnable"] = 1
-                                          else
-                                              DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusInteractEnable"] = 0
-                                          end
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 1
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        if newValue then
+                                            DynamicCam:SetSettingsValue(1, forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable")
+                                        else
+                                            DynamicCam:SetSettingsValue(0, forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable")
+                                        end
+                                    end,
                             },
 
                             targetFocusInteractStrengthYaw = {
                                 type = "range",
                                 name = "Horizontal Strength",
                                 order = 2,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthYaw|r",
                                 min = 0,
                                 max = 1,
                                 step = 0.05,
-                                disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0 end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthYaw") end,
-                                set = function(_, newValue)
-                                          DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusInteractStrengthYaw"] = newValue
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                disabled =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                                    end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthYaw")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthYaw")
+                                    end,
                             },
-                            blank2 = {
-                                type = "description",
-                                name = " ",
-                                order = 2.1,
-                            },
+                            targetFocusInteractStrengthYawReset =
+                                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthYaw",
+                                                          nil,
+                                                          {{"cvars", "test_cameraTargetFocusInteractEnable", 0}}),
+                            blank2 = {type = "description", name = " ", order = 2.2, },
 
                             targetFocusInteractStrengthPitch = {
                                 type = "range",
                                 name = "Vertical Strength",
                                 order = 3,
-                                width = "full",
+                                width = sliderWidth - 0.15,
                                 desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthPitch|r",
                                 min = 0,
                                 max = 1,
                                 step = 0.05,
-                                disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0 end,
-                                get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthPitch") end,
-                                set = function(_, newValue)
-                                          DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraTargetFocusInteractStrengthPitch"] = newValue
-                                          Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                                      end,
+                                disabled =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                                    end,
+                                get =
+                                    function()
+                                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthPitch")
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraTargetFocusInteractStrengthPitch")
+                                    end,
                             },
-
+                            targetFocusInteractStrengthPitchReset =
+                                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthPitch",
+                                                          nil,
+                                                          {{"cvars", "test_cameraTargetFocusInteractEnable", 0}}),
                         },
                     },
-                    blank2 = {
-                        type = "description",
-                        name = " ",
-                        order = 2.1,
-                    },
+
+                    blank2 = {type = "description", name = " ", order = 2.1, },
 
                     targetFocusDescriptionGroup = {
                         type = "group",
@@ -894,7 +1103,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 },
             },
 
-
             headTracking = {
                 type = "group",
                 name = "Head Tracking",
@@ -905,211 +1113,245 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         type = "toggle",
                         name = "Enable",
                         order = 1,
-                        width = "full",
+                        width = sliderWidth - 0.15,
                         desc = "|cff909090cvar: test_cameraHeadMovement\nStrength\n\nThis could also be used as a continuous value between 0 and 1, but it is just multiplied with StandingStrength and MovingStrength respectively. So there is really no need for another slider.|r",
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 1 end,
-                        set = function(_, newValue)
-                                  if newValue then
-                                      DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementStrength"] = 1
-                                  else
-                                      DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementStrength"] = 0
-                                  end
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 1
+                            end,
+                        set =
+                            function(_, newValue)
+                                if newValue then
+                                    DynamicCam:SetSettingsValue(1, forSituations and SID, "cvars", "test_cameraHeadMovementStrength")
+                                else
+                                    DynamicCam:SetSettingsValue(0, forSituations and SID, "cvars", "test_cameraHeadMovementStrength")
+                                end
+                            end,
                     },
-                    blank1 = {
-                        type = "description",
-                        name = " ",
-                        order = 1.1,
-                    },
-
-
+                    blank1 = {type = "description", name = " ", order = 1.1, },
 
                     standingStrength = {
                         type = "range",
-                        order = 3,
-                        width = "full",
+                        order = 2,
+                        width = sliderWidth,
                         name = "Strength (standing)",
                         desc = "|cff909090cvar: test_cameraHeadMovement\nStandingStrength|r",
                         min = 0,
                         max = 1,   -- No effect above 1.
                         step = 0.01,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingStrength") end,
-                        set = function(_, newValue)
-                                DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementStandingStrength"] = newValue
-                                Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingStrength")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementStandingStrength")
                             end,
                     },
-                    blank3 = {
-                        type = "description",
-                        name = " ",
-                        order = 3.1,
-                    },
+                    standingStrengthReset =
+                        CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraHeadMovementStandingStrength",
+                                                  nil,
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank2 = {type = "description", name = " ", order = 2.2, },
+
                     standingDampRate = {
                         type = "range",
-                        order = 4,
-                        width = "full",
+                        order = 3,
+                        width = sliderWidth,
                         name = "Inertia (standing)",
                         desc = "|cff909090cvar: test_cameraHeadMovement\nStandingDampRate|r",
                         min = 0,
                         max = 20,
                         step = 0.05,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function()
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate") == 0.01 then
-                                      return 0
-                                  else
-                                      return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
-                                  end
-                              end,
-                        set = function(_, newValue)
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if newValue == 0 then newValue = 0.01 end
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementStandingDampRate"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate") == 0.01 then
+                                    return 0
+                                else
+                                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
+                                end
+                            end,
+                        set =
+                            function(_, newValue)
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if newValue == 0 then newValue = 0.01 end
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
+                            end,
                     },
-                    blank4 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 4.1,
-                    },
-
-
+                    standingDampRateReset =
+                        CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraHeadMovementStandingDampRate",
+                                                  nil,
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank3 = {type = "description", name = "\n\n", order = 3.2, },
 
                     movingStrength = {
                         type = "range",
-                        order = 5,
-                        width = "full",
+                        order = 4,
+                        width = sliderWidth,
                         name = "Strength (moving)",
                         desc = "|cff909090cvar: test_cameraHeadMovement\nMovingStrength|r",
                         min = 0,
                         max = 1,   -- No effect above 1.
                         step = 0.01,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingStrength") end,
-                        set = function(_, newValue)
-                                DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementMovingStrength"] = newValue
-                                Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingStrength")
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementMovingStrength")
                             end,
                     },
-                    blank5 = {
-                        type = "description",
-                        name = " ",
-                        order = 5.1,
-                    },
+                    movingStrengthReset =
+                        CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraHeadMovementMovingStrength",
+                                                  nil,
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank5 = {type = "description", name = " ", order = 4.2, },
+
                     movingDampRate = {
                         type = "range",
-                        order = 6,
-                        width = "full",
+                        order = 5,
+                        width = sliderWidth,
                         name = "Inertia (moving)",
                         desc = "|cff909090cvar: test_cameraHeadMovement\nMovingDampRate|r",
                         min = 0,
                         max = 20,
                         step = 0.05,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function()
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate") == 0.01 then
-                                      return 0
-                                  else
-                                      return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
-                                  end
-                              end,
-                        set = function(_, newValue)
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if newValue == 0 then newValue = 0.01 end
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementMovingDampRate"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate") == 0.01 then
+                                    return 0
+                                else
+                                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
+                                end
+                            end,
+                        set =
+                            function(_, newValue)
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if newValue == 0 then newValue = 0.01 end
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
+                            end,
                     },
-                    blank6 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 6.1,
-                    },
-
-
+                    movingDampRateReset =
+                        CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraHeadMovementMovingDampRate",
+                                                  nil,
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank5 = {type = "description", name = "\n\n", order = 5.2, },
 
                     firstPersonDampRate = {
                         type = "range",
-                        order = 7,
-                        width = "full",
+                        order = 6,
+                        width = sliderWidth,
                         name = "Inertia (first person)",
                         desc = "|cff909090cvar: test_cameraHeadMovement\nFirstPersonDampRate|r",
                         min = 0,
                         max = 20,
                         step = 0.05,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function()
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate") == 0.01 then
-                                      return 0
-                                  else
-                                      return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
-                                  end
-                              end,
-                        set = function(_, newValue)
-                                  -- Real minimum is 0.01, but makes the slider look odd.
-                                  if newValue == 0 then newValue = 0.01 end
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementFirstPersonDampRate"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate") == 0.01 then
+                                    return 0
+                                else
+                                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
+                                end
+                            end,
+                        set =
+                            function(_, newValue)
+                                -- Real minimum is 0.01, but makes the slider look odd.
+                                if newValue == 0 then newValue = 0.01 end
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
+                            end,
                     },
-                    blank7 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 7.1,
-                    },
-
+                    firstPersonDampRateReset =
+                        CreateSliderResetButton(6.1, forSituations, "cvars", "test_cameraHeadMovementFirstPersonDampRate",
+                                                  nil,
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank6 = {type = "description", name = "\n\n", order = 6.2, },
 
                     rangeScale = {
                         type = "range",
-                        order = 8,
-                        width = "full",
+                        order = 7,
+                        width = sliderWidth,
                         name = "Range Scale",
                         desc = "Camera distance beyond which head tracking is reduced or disabled. (See explanation below.)\n|cff909090cvar: test_cameraHeadMovement\nRangeScale (slider value transformed)|r",
                         min = 0,
                         max = 117,
                         step = 0.5,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function() return (DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementRangeScale")  * 3.25) + 0.1625 end,
-                        set = function(_, newValue)
-                                  newValue = (newValue - 0.1625) / 3.25
-                                  DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementRangeScale"] = newValue
-                                  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
-                              end,
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                return (DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementRangeScale")  * 3.25) + 0.1625
+                            end,
+                        set =
+                            function(_, newValue)
+                                newValue = (newValue - 0.1625) / 3.25
+                                DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementRangeScale")
+                            end,
                     },
-                    blank8 = {
-                        type = "description",
-                        name = "\n\n",
-                        order = 8.1,
-                    },
+                    rangeScaleReset =
+                        CreateSliderResetButton(7.1, forSituations, "cvars", "test_cameraHeadMovementRangeScale",
+                                                  round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2),
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
+                    blank7 = {type = "description", name = "\n\n", order = 7.2, },
 
                     deadZone = {
                         type = "range",
-                        order = 9,
-                        width = "full",
+                        order = 8,
+                        width = sliderWidth,
                         name = "Dead Zone",
                         desc = "Radius of head movement not affecting the camera. (See explanation below.)\n|cff909090cvar: test_cameraHeadMovement\nDeadZone (slider value / 10)|r\n|cffe00000Requires /reload to come into effect!|r",
                         min = 0,
                         max = 10,
                         step = 0.05,
-                        disabled = function() return DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 end,
-                        get = function() return 10 * DynamicCam:GetSettingsTableValue(forSituations and SID, "cvars", "test_cameraHeadMovementDeadZone") end,
-                        set = function(_, newValue)
-                                DynamicCam:GetSettingsTable(forSituations and SID).cvars["test_cameraHeadMovementDeadZone"] = newValue / 10
-                                Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+                        disabled =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                            end,
+                        get =
+                            function()
+                                return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementDeadZone") * 10
+                            end,
+                        set =
+                            function(_, newValue)
+                                DynamicCam:SetSettingsValue(newValue / 10, forSituations and SID, "cvars", "test_cameraHeadMovementDeadZone")
                             end,
                     },
+                    deadZoneReset =
+                        CreateSliderResetButton(8.1, forSituations, "cvars", "test_cameraHeadMovementDeadZone",
+                                                  round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2),
+                                                  {{"cvars", "test_cameraHeadMovementStrength", 0}}),
 
 
                     headTrackingDescriptionGroup = {
                         type = "group",
                         name = "Help",
-                        order = 10,
+                        order = 9,
                         inline = true,
                         args = {
                             headTrackingDescription = {
@@ -1194,8 +1436,8 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 2,
 
                 args = {
-                
-                
+
+
                     transitionGroup = {
 
                         type = "group",
@@ -1203,7 +1445,7 @@ local function CreateSituationSettingsTab(tabOrder)
                         order = 1,
 
                         args = {
-                
+
 
                             zoomToggle = {
                                 type = "toggle",
@@ -1219,7 +1461,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                     end,
                                 order = 1,
                             },
-                            
+
                             zoomSetting = {
                                 type = "select",
                                 name = "Zoom Setting",
@@ -1266,8 +1508,8 @@ local function CreateSituationSettingsTab(tabOrder)
                                 set = function(_, newValue) S.cameraActions.zoomMax = newValue end,
                                 order = 4,
                             },
-                            
-                            
+
+
                             transitionTime = {
                                 type = "range",
                                 name = "Time",
@@ -1289,9 +1531,9 @@ local function CreateSituationSettingsTab(tabOrder)
                                 set = function(_, newValue) S.cameraActions.timeIsMax = newValue end,
                                 order = 1,
                             },
-                            
-                            
-                            
+
+
+
                             view = {
                                 type = "toggle",
                                 name = "Set View",
@@ -1300,7 +1542,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                 set = function(_, newValue) S.view.enabled = newValue end,
                                 order = 3,
                             },
-                            
+
                             viewSettings = {
                                 type = "group",
                                 name = "View Settings",
@@ -1339,23 +1581,23 @@ local function CreateSituationSettingsTab(tabOrder)
                                 },
 
                             },
-                            
-                            
-                            
+
+
+
                         },
-                        
+
                     },
 
 
-                    
-                    
+
+
                     rotateSettings = {
                         type = "group",
                         name = "Rotation",
                         order = 4,
 
                         args = {
-                        
+
                             rotateToggle = {
                                 type = "toggle",
                                 name = "Rotate (Pitch/Yaw)",
@@ -1367,7 +1609,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                     end,
                                 order = 1,
                             },
-                        
+
                             rotateSetting = {
                                 type = "select",
                                 name = "Rotate Setting",
@@ -1490,8 +1732,8 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 3,
 
                 args = {
-                
-                
+
+
                     events = {
                         type = "input",
                         name = "Events",
@@ -1509,10 +1751,10 @@ local function CreateSituationSettingsTab(tabOrder)
                         width = "double",
                         order = 1,
                     },
-                    
-                    
-                    
-                    
+
+
+
+
                     eventsDefault = {
                         type = "execute",
                         name = "Restore default",
@@ -1642,10 +1884,10 @@ local function CreateSituationSettingsTab(tabOrder)
                           end,
                         order = 31,
                     },
-                
-                
+
+
                 },
-                
+
             },
 
 
@@ -1960,6 +2202,326 @@ end
 
 
 
+
+-- Needed to make my own copy of UIDropDownMenu_AddButton() to avoid spreadin of taint...
+-- https://www.wowinterface.com/forums/showthread.php?p=337966#post337966
+local function MyUIDropDownMenu_AddButton(info, level)
+
+	if ( not level ) then
+		level = 1;
+	end
+
+	local listFrame = _G["DropDownList"..level];
+	local index = listFrame and (listFrame.numButtons + 1) or 1;
+	local width;
+
+  -- Ludius: Cannot do this because UIDropDownMenuDelegate is local to UIDropDownMenu.lua
+  --         but it does not seem to hurt when I remove it...
+	-- UIDropDownMenuDelegate:SetAttribute("createframes-level", level);
+	-- UIDropDownMenuDelegate:SetAttribute("createframes-index", index);
+	-- UIDropDownMenuDelegate:SetAttribute("createframes", true);
+
+	listFrame = listFrame or _G["DropDownList"..level];
+	local listFrameName = listFrame:GetName();
+
+	-- Set the number of buttons in the listframe
+	listFrame.numButtons = index;
+
+	local button = _G[listFrameName.."Button"..index];
+	local normalText = _G[button:GetName().."NormalText"];
+	local icon = _G[button:GetName().."Icon"];
+	-- This button is used to capture the mouse OnEnter/OnLeave events if the dropdown button is disabled, since a disabled button doesn't receive any events
+	-- This is used specifically for drop down menu time outs
+	local invisibleButton = _G[button:GetName().."InvisibleButton"];
+
+	-- Default settings
+	button:SetDisabledFontObject(GameFontDisableSmallLeft);
+	invisibleButton:Hide();
+	button:Enable();
+
+	-- If not clickable then disable the button and set it white
+	if ( info.notClickable ) then
+		info.disabled = true;
+		button:SetDisabledFontObject(GameFontHighlightSmallLeft);
+	end
+
+	-- Set the text color and disable it if its a title
+	if ( info.isTitle ) then
+		info.disabled = true;
+		button:SetDisabledFontObject(GameFontNormalSmallLeft);
+	end
+
+	-- Disable the button if disabled and turn off the color code
+	if ( info.disabled ) then
+		button:Disable();
+		invisibleButton:Show();
+		info.colorCode = nil;
+	end
+
+	-- If there is a color for a disabled line, set it
+	if( info.disablecolor ) then
+		info.colorCode = info.disablecolor;
+	end
+
+	-- Configure button
+	if ( info.text ) then
+		-- look for inline color code this is only if the button is enabled
+		if ( info.colorCode ) then
+			button:SetText(info.colorCode..info.text.."|r");
+		else
+			button:SetText(info.text);
+		end
+
+		-- Set icon
+		if ( info.icon or info.mouseOverIcon ) then
+			icon:SetSize(16,16);
+			icon:SetTexture(info.icon);
+			icon:ClearAllPoints();
+			icon:SetPoint("RIGHT");
+
+			if ( info.tCoordLeft ) then
+				icon:SetTexCoord(info.tCoordLeft, info.tCoordRight, info.tCoordTop, info.tCoordBottom);
+			else
+				icon:SetTexCoord(0, 1, 0, 1);
+			end
+			icon:Show();
+		else
+			icon:Hide();
+		end
+
+		-- Check to see if there is a replacement font
+		if ( info.fontObject ) then
+			button:SetNormalFontObject(info.fontObject);
+			button:SetHighlightFontObject(info.fontObject);
+		else
+			button:SetNormalFontObject(GameFontHighlightSmallLeft);
+			button:SetHighlightFontObject(GameFontHighlightSmallLeft);
+		end
+	else
+		button:SetText("");
+		icon:Hide();
+	end
+
+	button.iconOnly = nil;
+	button.icon = nil;
+	button.iconInfo = nil;
+
+	if (info.iconInfo) then
+		icon.tFitDropDownSizeX = info.iconInfo.tFitDropDownSizeX;
+	else
+		icon.tFitDropDownSizeX = nil;
+	end
+	if (info.iconOnly and info.icon) then
+		button.iconOnly = true;
+		button.icon = info.icon;
+		button.iconInfo = info.iconInfo;
+
+		UIDropDownMenu_SetIconImage(icon, info.icon, info.iconInfo);
+		icon:ClearAllPoints();
+		icon:SetPoint("LEFT");
+	end
+
+	-- Pass through attributes
+	button.func = info.func;
+	button.funcOnEnter = info.funcOnEnter;
+	button.funcOnLeave = info.funcOnLeave;
+	button.owner = info.owner;
+	button.hasOpacity = info.hasOpacity;
+	button.opacity = info.opacity;
+	button.opacityFunc = info.opacityFunc;
+	button.cancelFunc = info.cancelFunc;
+	button.swatchFunc = info.swatchFunc;
+	button.keepShownOnClick = info.keepShownOnClick;
+	button.tooltipTitle = info.tooltipTitle;
+	button.tooltipText = info.tooltipText;
+	button.tooltipInstruction = info.tooltipInstruction;
+	button.tooltipWarning = info.tooltipWarning;
+	button.arg1 = info.arg1;
+	button.arg2 = info.arg2;
+	button.hasArrow = info.hasArrow;
+	button.hasColorSwatch = info.hasColorSwatch;
+	button.notCheckable = info.notCheckable;
+	button.menuList = info.menuList;
+	button.tooltipWhileDisabled = info.tooltipWhileDisabled;
+	button.noTooltipWhileEnabled = info.noTooltipWhileEnabled;
+	button.tooltipOnButton = info.tooltipOnButton;
+	button.noClickSound = info.noClickSound;
+	button.padding = info.padding;
+	button.icon = info.icon;
+	button.mouseOverIcon = info.mouseOverIcon;
+	button.ignoreAsMenuSelection = info.ignoreAsMenuSelection;
+
+	if ( info.value ) then
+		button.value = info.value;
+	elseif ( info.text ) then
+		button.value = info.text;
+	else
+		button.value = nil;
+	end
+
+	local expandArrow = _G[listFrameName.."Button"..index.."ExpandArrow"];
+	expandArrow:SetShown(info.hasArrow);
+	expandArrow:SetEnabled(not info.disabled);
+
+	-- If not checkable move everything over to the left to fill in the gap where the check would be
+	local xPos = 5;
+	local yPos = -((button:GetID() - 1) * UIDROPDOWNMENU_BUTTON_HEIGHT) - UIDROPDOWNMENU_BORDER_HEIGHT;
+	local displayInfo = normalText;
+	if (info.iconOnly) then
+		displayInfo = icon;
+	end
+
+	displayInfo:ClearAllPoints();
+	if ( info.notCheckable ) then
+		if ( info.justifyH and info.justifyH == "CENTER" ) then
+			displayInfo:SetPoint("CENTER", button, "CENTER", -7, 0);
+		else
+			displayInfo:SetPoint("LEFT", button, "LEFT", 0, 0);
+		end
+		xPos = xPos + 10;
+
+	else
+		xPos = xPos + 12;
+		displayInfo:SetPoint("LEFT", button, "LEFT", 20, 0);
+	end
+
+	-- Adjust offset if displayMode is menu
+	local frame = UIDROPDOWNMENU_OPEN_MENU;
+	if ( frame and frame.displayMode == "MENU" ) then
+		if ( not info.notCheckable ) then
+			xPos = xPos - 6;
+		end
+	end
+
+	-- If no open frame then set the frame to the currently initialized frame
+	frame = frame or UIDROPDOWNMENU_INIT_MENU;
+
+	if ( info.leftPadding ) then
+		xPos = xPos + info.leftPadding;
+	end
+	button:SetPoint("TOPLEFT", button:GetParent(), "TOPLEFT", xPos, yPos);
+
+	-- See if button is selected by id or name
+	if ( frame ) then
+		if ( UIDropDownMenu_GetSelectedName(frame) ) then
+			if ( button:GetText() == UIDropDownMenu_GetSelectedName(frame) ) then
+				info.checked = 1;
+			end
+		elseif ( UIDropDownMenu_GetSelectedID(frame) ) then
+			if ( button:GetID() == UIDropDownMenu_GetSelectedID(frame) ) then
+				info.checked = 1;
+			end
+		elseif ( UIDropDownMenu_GetSelectedValue(frame) ) then
+			if ( button.value == UIDropDownMenu_GetSelectedValue(frame) ) then
+				info.checked = 1;
+			end
+		end
+	end
+
+	if not info.notCheckable then
+		local check = _G[listFrameName.."Button"..index.."Check"];
+		local uncheck = _G[listFrameName.."Button"..index.."UnCheck"];
+		if ( info.disabled ) then
+			check:SetDesaturated(true);
+			check:SetAlpha(0.5);
+			uncheck:SetDesaturated(true);
+			uncheck:SetAlpha(0.5);
+		else
+			check:SetDesaturated(false);
+			check:SetAlpha(1);
+			uncheck:SetDesaturated(false);
+			uncheck:SetAlpha(1);
+		end
+
+		if info.customCheckIconAtlas or info.customCheckIconTexture then
+			check:SetTexCoord(0, 1, 0, 1);
+			uncheck:SetTexCoord(0, 1, 0, 1);
+
+			if info.customCheckIconAtlas then
+				check:SetAtlas(info.customCheckIconAtlas);
+				uncheck:SetAtlas(info.customUncheckIconAtlas or info.customCheckIconAtlas);
+			else
+				check:SetTexture(info.customCheckIconTexture);
+				uncheck:SetTexture(info.customUncheckIconTexture or info.customCheckIconTexture);
+			end
+		elseif info.isNotRadio then
+			check:SetTexCoord(0.0, 0.5, 0.0, 0.5);
+			check:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
+			uncheck:SetTexCoord(0.5, 1.0, 0.0, 0.5);
+			uncheck:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
+		else
+			check:SetTexCoord(0.0, 0.5, 0.5, 1.0);
+			check:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
+			uncheck:SetTexCoord(0.5, 1.0, 0.5, 1.0);
+			uncheck:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
+		end
+
+		-- Checked can be a function now
+		local checked = info.checked;
+		if ( type(checked) == "function" ) then
+			checked = checked(button);
+		end
+
+		-- Show the check if checked
+		if ( checked ) then
+			button:LockHighlight();
+			check:Show();
+			uncheck:Hide();
+		else
+			button:UnlockHighlight();
+			check:Hide();
+			uncheck:Show();
+		end
+	else
+		_G[listFrameName.."Button"..index.."Check"]:Hide();
+		_G[listFrameName.."Button"..index.."UnCheck"]:Hide();
+	end
+
+  -- Ludius: This lead to spreading of taint:
+	-- button.checked = info.checked;
+
+	-- If has a colorswatch, show it and vertex color it
+	local colorSwatch = _G[listFrameName.."Button"..index.."ColorSwatch"];
+	if ( info.hasColorSwatch ) then
+		_G["DropDownList"..level.."Button"..index.."ColorSwatch"].Color:SetVertexColor(info.r, info.g, info.b);
+		button.r = info.r;
+		button.g = info.g;
+		button.b = info.b;
+		colorSwatch:Show();
+	else
+		colorSwatch:Hide();
+	end
+
+	UIDropDownMenu_CheckAddCustomFrame(listFrame, button, info);
+
+	button:SetShown(button.customFrame == nil);
+
+	button.minWidth = info.minWidth;
+
+	width = max(UIDropDownMenu_GetButtonWidth(button), info.minWidth or 0);
+	--Set maximum button width
+	if ( width > listFrame.maxWidth ) then
+		listFrame.maxWidth = width;
+	end
+
+	-- Set the height of the listframe
+	listFrame:SetHeight((index * UIDROPDOWNMENU_BUTTON_HEIGHT) + (UIDROPDOWNMENU_BORDER_HEIGHT * 2));
+end
+
+
+
+
+
+
+
+-- Automatically undo forbidden cvar changes.
+hooksecurefunc("SetCVar", function(cvar, value)
+    if cvar == "CameraKeepCharacterCentered" and value == "1" then
+        SetCVar("CameraKeepCharacterCentered", 0)
+    end
+end)
+
+-- Wait some time to be on the safe side...
 C_Timer.After(1, function()
 
     -- Disable the standard UI's mouse look slider.
@@ -1975,14 +2537,6 @@ C_Timer.After(1, function()
 
 
     -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
-
-    -- Automatically undo forbidden cvar changes.
-    hooksecurefunc("SetCVar", function(cvar, value)
-        if cvar == "CameraKeepCharacterCentered" and value == "1" then
-            SetCVar("CameraKeepCharacterCentered", 0)
-        end
-    end)
-
 
     -- Hide the original motion sickness drop down.
     InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:Hide()
@@ -2053,13 +2607,16 @@ C_Timer.After(1, function()
           info.text = v.text
           info.value = k
           info.checked = k == selectedValue
-          UIDropDownMenu_AddButton(info)
+          -- UIDropDownMenu_AddButton(info)
+
+          MyUIDropDownMenu_AddButton(info)
       end
 
     end
 
 
     UIDropDownMenu_Initialize(MyMotionSicknessDropdown, MyMotionSicknessDropdown_Initialize)
+
     MyMotionSicknessDropdown.value = GetMotionSicknessSelected()
     UIDropDownMenu_SetSelectedValue(MyMotionSicknessDropdown, MyMotionSicknessDropdown.value)
 

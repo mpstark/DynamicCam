@@ -23,7 +23,7 @@ DynamicCam.defaults = {
             reactiveZoomMaxZoomTime = 0.1,
 
 
-            shoulderOffsetZoomEnabled = false,
+            shoulderOffsetZoomEnabled = true,
             shoulderOffsetZoomLowerBound = 2,
             shoulderOffsetZoomUpperBound = 7,
 

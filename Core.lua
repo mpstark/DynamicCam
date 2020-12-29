@@ -249,7 +249,7 @@ local function gotoView(view, instant)
     -- If "Adjust Shoulder offset according to zoom level" is activated,
     -- the shoulder offset will be instantaneously set according to the new
     -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-    if DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
+    if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
         DynamicCam.easeShoulderOffsetInProgress = true
         virtualCameraZoom = cameraZoomBefore
 
@@ -297,12 +297,12 @@ end
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
     -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-    if not self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomEnabled") or shoulderOffsetZoomTmpDisable then
+    if not self:GetSettingsValue(self.currentSituationID, "shoulderOffsetZoomEnabled") or shoulderOffsetZoomTmpDisable then
         return 1
     end
 
-    local startDecrease = self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomUpperBound")
-    local finishDecrease = self:GetSettingsTableValue(self.currentSituationID, "shoulderOffsetZoomLowerBound")
+    local startDecrease = self:GetSettingsValue(self.currentSituationID, "shoulderOffsetZoomUpperBound")
+    local finishDecrease = self:GetSettingsValue(self.currentSituationID, "shoulderOffsetZoomLowerBound")
 
     local zoomFactor = 1
     if zoomLevel < finishDecrease then
@@ -591,7 +591,7 @@ function DynamicCam:Startup()
     self:ScheduleTimer("RegisterEvents", 0.3)
 
     -- turn on reactive zoom if it's enabled
-    if self:GetSettingsTableValue(self.currentSituationID, "reactiveZoomEnabled") then
+    if self:GetSettingsValue(self.currentSituationID, "reactiveZoomEnabled") then
         self:ReactiveZoomOn()
     else
         -- Must call this to prehook NonReactiveZoomIn/Out.
@@ -1193,7 +1193,7 @@ function DynamicCam:ApplySettings(newSituationID, noShoulderOffsetChange)
 
 
     -- Set reactive zoom.
-    if self:GetSettingsTableValue(self.currentSituationID, "reactiveZoomEnabled") then
+    if self:GetSettingsValue(self.currentSituationID, "reactiveZoomEnabled") then
         self:ReactiveZoomOn()
     else
         self:ReactiveZoomOff()
@@ -1325,8 +1325,8 @@ local function NonReactiveZoom(zoomIn, increments)
     LibCamera:StopZooming(true)
 
     -- If we are not using this from within ReactiveZoom, we can also use the increment multiplier here.
-    if not DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
-        increments = increments + DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
+    if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
+        increments = increments + DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
 
     else
         -- This is needed to correct reactiveZoomTarget in case the target is missed.
@@ -1383,11 +1383,11 @@ local function ReactiveZoom(zoomIn, increments)
     if increments == 1 then
         local currentZoom = GetCameraZoom()
 
-        local addIncrementsAlways = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
-        local addIncrements = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrements")
-        local maxZoomTime = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomMaxZoomTime")
-        local incAddDifference = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomIncAddDifference")
-        local easingFunc = DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEasingFunc")
+        local addIncrementsAlways = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
+        local addIncrements = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrements")
+        local maxZoomTime = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomMaxZoomTime")
+        local incAddDifference = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomIncAddDifference")
+        local easingFunc = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEasingFunc")
 
 
         -- scale increments up
@@ -1983,7 +1983,7 @@ reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
 
 
 
-    if not DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
+    if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
 
     local currentZoom = GetCameraZoom()
 
@@ -2064,14 +2064,14 @@ function DynamicCam:ToggleRZVA()
         rzvaFrame:SetScript("OnDragStart", rzvaFrame.StartMoving)
         rzvaFrame:SetScript("OnDragStop", rzvaFrame.StopMovingOrSizing)
         rzvaFrame:SetClampedToScreen(true)
-        
+
         -- Closes with right button.
         rzvaFrame:SetScript("OnMouseDown", function(self, button)
             if button == "RightButton" then
                 self:Hide()
             end
         end)
-        
+
 
         rzvaFrame:SetWidth(rzvaWidth)
         rzvaFrame:SetHeight(rzvaHeight)
@@ -2170,7 +2170,7 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
     rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
 
 
-    if DynamicCam:GetSettingsTableValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
+    if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
 
         if not rzvaFrame.rzt:IsShown() then
             rzvaFrame.rzt:Show()
