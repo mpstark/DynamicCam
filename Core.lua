@@ -1199,6 +1199,12 @@ function DynamicCam:ApplySettings(newSituationID, noShoulderOffsetChange)
         self:ReactiveZoomOff()
     end
 
+
+    if not LibCamera:IsZooming() then
+        -- This is necessary to see the effect of changing the camera distance without having to manually zoom.
+        self:ZoomSlash(GetCameraZoom() .. " " .. 0)
+    end
+
     -- print("Finished ApplySettings", newSituationID, GetTime())
 end
 
@@ -1521,6 +1527,10 @@ end
 
 function DynamicCam:ReactiveZoomOn()
     -- print("ReactiveZoomOn()")
+    if CameraZoomIn == ReactiveZoomIn then
+        -- print("already on")
+        return
+    end
 
     CameraZoomIn = ReactiveZoomIn
     CameraZoomOut = ReactiveZoomOut
@@ -1530,6 +1540,10 @@ end
 
 function DynamicCam:ReactiveZoomOff()
     -- print("ReactiveZoomOff()")
+    if CameraZoomIn == NonReactiveZoomIn then
+        -- print("already off")
+        return
+    end
 
     CameraZoomIn = NonReactiveZoomIn
     CameraZoomOut = NonReactiveZoomOut
