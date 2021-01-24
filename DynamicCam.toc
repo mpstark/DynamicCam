@@ -4,7 +4,7 @@
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
 
-## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress
+## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, Bartender4, GW2_UI
 ## SavedVariables: DynamicCamDB, minZoomValues
 
 ## X-Curse-Project-ID: 101120
@@ -17,9 +17,9 @@
 embeds.xml
 
 
-
 Core.lua
 
+UiHideModule.lua
 DefaultSettings.lua
 
 Sharing.lua

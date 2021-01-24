@@ -2,6 +2,74 @@ local folderName = ...
 local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
 
 
+
+
+DynamicCam.situationDefaults = {
+
+    enabled = true,
+
+    situationSettings = {
+        cvars = {},
+    },
+
+    changeZoom = {
+        zoomEnabled = false,
+        zoomTransitionTime = 1,
+        zoomType = "set",
+        zoomValue = 10,
+        zoomMin = 5,
+        zoomMax = 15,
+    },
+     
+    changeView = {
+        viewEnabled = false,
+        viewNumber = 5,
+        viewRestore = false,
+        viewInstant = false,
+    },
+
+    rotation = {
+        rotationEnabled = false,
+        rotationType = "continuous",
+        
+        rotationTime = 1,
+        rotationSpeed = 10,
+        
+        yawDegrees = 0,
+        pitchDegrees = 0,
+        
+        rotateBack = true,
+        rotateBackTime = 1,
+    },
+
+    hideUI = {
+        enabled = false,
+        togglePreview = false,
+        fadeOpacity = 0.5,
+        fadeOutTime = 1,
+        fadeInTime = 1,
+        
+        -- trulyHide = true,
+        -- keepMinimap = false,
+    },
+
+
+    executeOnInit = "",
+
+    priority = 0,
+    events = {},
+
+    condition = "return false",
+
+    executeOnEnter = "",
+    executeOnExit = "",
+
+    delay = 0,
+}
+
+
+
+
 DynamicCam.defaults = {
     profile = {
 
@@ -69,65 +137,7 @@ DynamicCam.defaults = {
         },
 
 
-
-
         situations = {
-
-            -- Default for new situation.
-            ["**"] = {
-
-                name = "",
-                enabled = true,
-
-                executeOnInit = "",
-
-                priority = 0,
-                events = {},
-
-                condition = "return false",
-
-                executeOnEnter = "",
-                executeOnExit = "",
-
-                delay = 0,
-
-                cameraActions = {
-                    transitionTime = 0.75,
-                    timeIsMax = true,
-
-                    rotate = false,
-                    rotateSetting = "continuous",
-                    rotateSpeed = 20,
-                    yawDegrees = 0,
-                    pitchDegrees = 0,
-                    rotateBack = false,
-
-                    zoomSetting = "off",
-                    zoomValue = 10,
-                    zoomMin = 5,
-                    zoomMax = 15,
-                },
-
-                view = {
-                    enabled = false,
-                    viewNumber = 5,
-                    restoreView = false,
-                    instant = false,
-                },
-
-                extras = {
-                    hideUI = false,
-                    hideUIFadeOpacity = 0,
-                    actuallyHideUI = true,
-                    keepMinimap = false,
-                },
-
-
-                situationSettings = {
-                    cvars = {},
-                },
-            },
-
 
             ["001"] = {
                 name = "City",
@@ -283,28 +293,28 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
             ["200"] = {
                 name = "Hearth/Teleport",
                 executeOnInit = [[this.spells = {
-  556,     -- Astral Recall
-  3561,    -- Teleport: Stormwind
-  3562,    -- Teleport: Ironforge
-  3563,    -- Teleport: Undercity
-  3565,    -- Teleport: Darnassus
-  3566,    -- Teleport: Thunder Bluff
-  3567,    -- Teleport: Orgrimmar
-  8690,    -- Hearthstone
-  32271,   -- Teleport: Exodar
-  32272,   -- Teleport: Silvermoon
-  33690,   -- Teleport: Shattrath
-  35715,   -- Teleport: Shattrath
-  49358,   -- Teleport: Stonard
-  49359,   -- Teleport: Theramore
-  49844,   -- Using Direbrew's Remote
-  50977,   -- Death Gate
-  53140,   -- Teleport: Dalaran - Northrend
-  54406,   -- Teleport: Dalaran
-  75136,   -- Ethereal Portal
-  88342,   -- Teleport: Tol Barad
-  88344,   -- Teleport: Tol Barad
-  94719,   -- The Innkeeper's Daughter
+     556,  -- Astral Recall
+    3561,  -- Teleport: Stormwind
+    3562,  -- Teleport: Ironforge
+    3563,  -- Teleport: Undercity
+    3565,  -- Teleport: Darnassus
+    3566,  -- Teleport: Thunder Bluff
+    3567,  -- Teleport: Orgrimmar
+    8690,  -- Hearthstone
+   32271,  -- Teleport: Exodar
+   32272,  -- Teleport: Silvermoon
+   33690,  -- Teleport: Shattrath
+   35715,  -- Teleport: Shattrath
+   49358,  -- Teleport: Stonard
+   49359,  -- Teleport: Theramore
+   49844,  -- Using Direbrew's Remote
+   50977,  -- Death Gate
+   53140,  -- Teleport: Dalaran - Northrend
+   54406,  -- Teleport: Dalaran
+   75136,  -- Ethereal Portal
+   88342,  -- Teleport: Tol Barad
+   88344,  -- Teleport: Tol Barad
+   94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
@@ -349,12 +359,15 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
   298068,  -- Holographic Digitalization Hearthstone
   308742,  -- Eternal Traveler's Hearthstone
   312372,  -- Return to Camp
+  325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
   335671,  -- Scroll of Teleport: Theater of Pain
   340200,  -- Necrolord Hearthstone
   340767,  -- Chromie's Teleportation Scroll
+  342122,  -- Venthyr Sinstone
   344587,  -- Teleport: Oribos
-
+  345393,  -- Kyrian Hearthstone
+  
 }]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 priority = 20,
@@ -449,7 +462,27 @@ return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
                 priority = 120,
                 condition = "return UnitIsAFK(\"player\")",
             },
-
+            
+            ["310"] = {
+                name = "Pet Battle",
+                events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
+                priority = 130,
+                condition = "return C_PetBattles.IsInBattle()",
+            },
+            
         },
     },
 }
+
+
+-- Copy the defaults into each situation.
+for _, situation in pairs(DynamicCam.defaults.profile.situations) do
+    for k, v in pairs(DynamicCam.situationDefaults) do
+        -- But only if the situation does not have a custom setting.
+        if not situation[k] then
+            situation[k] = v
+        end
+    end
+end
+
+
