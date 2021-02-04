@@ -367,6 +367,11 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
   342122,  -- Venthyr Sinstone
   344587,  -- Teleport: Oribos
   345393,  -- Kyrian Hearthstone
+  346167,  -- Attendant's Pocket Portal: Bastion
+  346168,  -- Attendant's Pocket Portal: Oribos
+  346170,  -- Attendant's Pocket Portal: Ardenweald
+  346171,  -- Attendant's Pocket Portal: Maldraxxus
+  346173,  -- Attendant's Pocket Portal: Revendreth
   
 }]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},

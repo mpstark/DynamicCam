@@ -227,7 +227,7 @@ end
 
 local function gotoView(view, instant)
     -- print("gotoView", view, instant)
-    
+
     if not view then return end
 
     -- View change overrides all zooming.
@@ -434,12 +434,12 @@ end
 
 -- If entering combat while frames are faded to 0 *and hidden*,
 -- we have to show the hidden frames again, because Show() is
--- not allowed for protected frames during combat. 
+-- not allowed for protected frames during combat.
 local enterCombatFrame = CreateFrame("Frame")
 enterCombatFrame:RegisterEvent("PLAYER_REGEN_DISABLED") -- Entering combat.
 enterCombatFrame:SetScript("OnEvent", function()
     -- print("enterCombatFrame")
-    Addon.ShowUI(IEF_Config, 0, true)
+    Addon.ShowUI(0, true)
 end)
 
 -- If UIParent is visbile and we somehow missed to show the frames again, we do it here!
@@ -447,7 +447,7 @@ local emergencyFrame = CreateFrame("Frame")
 emergencyFrame:SetScript("onUpdate", function(...)
   if UIParent:GetAlpha() == 1 and Addon.uiHiddenTime > 0 and Addon.uiHiddenTime < GetTime() then
     -- print("Emergency show")
-    Addon.ShowUI(IEF_Config, 0, false)
+    Addon.ShowUI(0, false)
   end
 end)
 
@@ -515,22 +515,28 @@ end)
 
 function DynamicCam:FadeOutUI(fadeOutTime, settings)
 
-    print("FadeOutUI", fadeOutTime)
+    -- print("FadeOutUI", fadeOutTime)
 
     -- If we are starting to fade-out while a fade-in was still in progress,
-    -- we use the fade-in's target alpha as the original alpha.
+    -- we are not updating ludius_alphaBeforeFadeOut.
+    -- Because ludius_alphaBeforeFadeOut is only set to nil after a fade-in is complete.
     if UIParent.ludius_alphaBeforeFadeOut == nil then
       UIParent.ludius_alphaBeforeFadeOut = UIParent:GetAlpha()
-      print("Remembering", UIParent.ludius_alphaBeforeFadeOut)
+      -- print("Remembering", UIParent.ludius_alphaBeforeFadeOut)
     end
 
+    UIFrameFadeRemoveFrame(UIParent)
     UIFrameFadeOut(UIParent, fadeOutTime, UIParent:GetAlpha(), settings.fadeOpacity)
+
+
+    -- Use the UiHideModule to keep configured frames and properly hide the others.
+    Addon:HideUI(config, fadeOutTime)
 
 end
 
 function DynamicCam:FadeInUI(fadeInTime, settings)
 
-    print("FadeInUI", fadeInTime)
+    -- print("FadeInUI", fadeInTime)
 
     if UIParent.ludius_alphaBeforeFadeOut then
         -- The same as UIFrameFadeIn(), but with a callback function.
@@ -544,7 +550,13 @@ function DynamicCam:FadeInUI(fadeInTime, settings)
             finishedArg1.ludius_alphaBeforeFadeOut = nil
           end
         fadeInfo.finishedArg1 = UIParent
+
+        UIFrameFadeRemoveFrame(UIParent)
         UIFrameFade(UIParent, fadeInfo)
+
+
+        -- Undo the HideUI by the UiHideModule..
+        Addon:ShowUI(fadeInTime, false)
     end
 
 end
@@ -763,18 +775,18 @@ function DynamicCam:StartRotation(newSituation, transitionTime)
     local r = newSituation.rotation
     if r.rotationEnabled then
         if r.rotationType == "continuous" then
-        
+
             LibCamera:BeginContinuousYaw(r.rotationSpeed, transitionTime)
-            
+
         elseif r.rotationType == "degrees" then
-        
+
             if r.yawDegrees ~= 0 then
                 LibCamera:Yaw(r.yawDegrees, transitionTime, LibEasing[self.db.profile.easingYaw])
             end
             if r.pitchDegrees ~= 0 then
                 LibCamera:Pitch(r.pitchDegrees, transitionTime, LibEasing[self.db.profile.easingPitch])
             end
-            
+
         end
     end
 end
@@ -950,10 +962,10 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- Otherwise take the zoom level of the situation we are entering.
         -- (There is no default zoom level for the no-situation case!)
         elseif newSituationID then
-        
+
             local c = newSituation.changeZoom
             if c.zoomEnabled then
-            
+
                 if (c.zoomType == "set") or
                    (c.zoomType == "in"  and newZoomLevel > c.zoomValue) or
                    (c.zoomType == "out" and newZoomLevel < c.zoomValue) then
@@ -961,15 +973,15 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
                     newZoomLevel = c.zoomValue
 
                 elseif c.zoomType == "range" then
-                
+
                     if newZoomLevel < c.zoomMin then
                         newZoomLevel = c.zoomMin
                     elseif newZoomLevel > c.zoomMax then
                         newZoomLevel = c.zoomMax
                     end
-                    
+
                 end
-                
+
             end
         end
     end
@@ -1023,7 +1035,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
     -- TODO:
-    -- 
+    --
     -- If the "Don't slow" option is selected, we have to check
     -- if actually a faster transition time is possible.
     -- if transitionTime > 0 and newSituation and newSituation.cameraActions.timeIsMax then
@@ -1743,7 +1755,7 @@ function DynamicCam:ModernizeSituation(situation, version)
     -- TODO
 
     -- if version == 1 then
-    
+
         -- -- clear unused nameplates db stuff
         -- if situation.extras then
             -- situation.extras["nameplates"] = nil
@@ -1784,8 +1796,8 @@ function DynamicCam:ModernizeSituation(situation, version)
             -- end
         -- end
     -- end
-    
-    
+
+
 end
 
 function DynamicCam:RefreshConfig()
