@@ -63,7 +63,7 @@ If you find a problem or want to make a suggestion, please, please leave a note 
 
 Some handy slash commands:
     `/dynamiccam` or `/dc` will open this menu
-    `/zoominfo` or `/zi` will print out the current zoom
+    `/zoominfo` or `/zi` will print out the current zoom level
     `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
 
     The following slash commands will also accept a time:
@@ -109,9 +109,6 @@ local easingValues = {
 }
 
 
-
-
-
 local general = {
     type = "group",
     name = "General",
@@ -128,38 +125,6 @@ local general = {
                     name = welcomeMessage,
                 },
             }
-        },
-
-        zoomRestoreSettingGroup = {
-            type = "group",
-            name = "Restore Zoom",
-            order = 0,
-            inline = true,
-            args = {
-                zoomRestoreSettingDescription = {
-                    type = "description",
-                    name = "When you exit a situation (or exit the default of no situation being active), the current zoom level is temporarily stored, such that it can be restored once you return to that situation. These are the options:\n\nNever: The zoom is never restored. I.e. when you enter a situation, no stored zoom is taken into account, but the zoom setting from the situation's options (if any) is applied.\n\nAlways: When entering a situation, the stored zoom (if any) is always restored.\n\nAdaptive: This only restores the zoom level under certain circumstances. E.g. only when returning to the same situation you came from or when the stored zoom fulfills the criteria of the situation's \"in\", \"out\" or \"range\" zoom settings.",
-                    order = 0,
-                },
-                zoomRestoreSetting = {
-                    type = "select",
-                    name = "",
-                    order = 1,
-                    get =
-                        function()
-                            return DynamicCam.db.profile.zoomRestoreSetting
-                        end,
-                    set =
-                        function(_, newValue)
-                            DynamicCam.db.profile.zoomRestoreSetting = newValue
-                        end,
-                    values = {
-                        ["adaptive"] = "Adaptive",
-                        ["always"] = "Always",
-                        ["never"] = "Never",
-                    },
-                },
-            },
         },
 
     },
@@ -242,6 +207,15 @@ function DynamicCam:SetSettingsDefault(situationId, index1, index2)
     end
 
     Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+end
+
+
+function DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(ignoreParentAlpha)
+    GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
+    InterfaceOptionsFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
+    for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do
+      if _G["AceGUI30Pullout" .. i] then _G["AceGUI30Pullout" .. i]:SetIgnoreParentAlpha(ignoreParentAlpha) end
+    end
 end
 
 
@@ -462,25 +436,22 @@ end
 local function ApplyContinuousRotation()
   if SID == DynamicCam.currentSituationID then
       LibCamera:StopRotating()
-    
-      if S.rotation.rotationEnabled and S.rotation.rotationType == "continuous" then
+
+      if S.rotation.enabled and S.rotation.rotationType == "continuous" then
           LibCamera:BeginContinuousYaw(S.rotation.rotationSpeed, 0)
-      end 
+      end
   end
 end
 
 
-local function ApplyUIOpacityPreview()
-  -- local h = S.hideUI
-  -- if SID == DynamicCam.currentSituationID and h.enabled and h.togglePreview then
-      -- InterfaceOptionsFrame:SetIgnoreParentAlpha(true)
-      -- DynamicCam:FadeOutUI(h.fadeOpacity, false, h.keepMinimap, 0)
-  -- else
-      -- DynamicCam:FadeInUI(1, 0)
-      -- InterfaceOptionsFrame:SetIgnoreParentAlpha(false)
-  -- end
+local function ApplyUIFade()
+    if SID == DynamicCam.currentSituationID then
+        DynamicCam:FadeInUI(0)
+        if S.hideUI.enabled then
+            DynamicCam:FadeOutUI(0, S.hideUI)
+        end
+    end
 end
-
 
 
 local function CreateSettingsTab(tabOrder, forSituations)
@@ -510,13 +481,13 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                         if not forSituations then
 
-                            text = "These Standard Settings are applied when either no situation is active or when the active situation has no Situation Settings set up which would override the Standard Settings."
+                            text = "These Standard Settings are applied when either no situation is active or when the active situation has no Situation Settings set up overriding the Standard Settings."
 
                             if DynamicCam.currentSituationID then
                                 text = text .. " |cFF00FF00The categories marked in green are currently overridden by the active situation \"" .. DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name .. "\". You will thus not see any effect of changing the Standard Settings of green categories while the overriding situation is active.|r"
                             end
                         else
-                            text = "These Situation Settings can be applied when a situation is active and override the Standard Settings."
+                            text = "These Situation Settings can override the Standard Settings when the respective situation is active."
                         end
 
                         return text .. "\n\n"
@@ -643,7 +614,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                                or (forSituations and not CheckGroupVars(zoomGroupVars))
                                     end,
                                 order = 5,
-                                inline = true,
                                 args = {
 
                                     addIncrements = {
@@ -818,7 +788,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Help",
                                 order = 3,
-                                inline = true,
                                 args = {
 
                                     yawPitchDescription = {
@@ -863,7 +832,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Camera Over Shoulder Offset",
                                 order = 1,
-                                inline = true,
                                 args = {
 
                                     cameraOverShoulderDescription = {
@@ -899,7 +867,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Adjust shoulder offset according to zoom level",
                                 order = 2,
-                                inline = true,
                                 args = {
 
                                     shoulderOffsetZoomEnabled = {
@@ -1165,7 +1132,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Help",
                                 order = 6,
-                                inline = true,
                                 args = {
 
                                     pitchDescription = {
@@ -1210,7 +1176,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Enemy Target",
                                 order = 1,
-                                inline = true,
                                 args = {
 
                                     targetFocusEnemyEnable = {
@@ -1291,7 +1256,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Interaction Target (NPCs)",
                                 order = 2,
-                                inline = true,
                                 args = {
 
                                     targetFocusInteractEnable = {
@@ -1373,7 +1337,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Help",
                                 order = 3,
-                                inline = true,
                                 args = {
                                     targetFocusDescription = {
                                         type = "description",
@@ -1402,7 +1365,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                     overrideStandardToggle = CreateOverrideStandardToggle(headTrackingGroupVars, forSituations),
                     blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
-                    targetFocusSubGroup = {
+                    headTrackingSubGroup = {
                         type = "group",
                         name = "",
                         order = 1,
@@ -1517,7 +1480,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                             },
                             movingStrengthReset =
                                 CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraHeadMovementMovingStrength"),
-                            blank5 = {type = "description", name = " ", order = 4.2, },
+                            blank4 = {type = "description", name = " ", order = 4.2, },
 
                             movingDampRate = {
                                 type = "range",
@@ -1644,7 +1607,6 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 type = "group",
                                 name = "Help",
                                 order = 9,
-                                inline = true,
                                 args = {
                                     headTrackingDescription = {
                                         type = "description",
@@ -1677,7 +1639,7 @@ local function CreateSituationSettingsTab(tabOrder)
             selectedSituation = {
                 type = "select",
                 name = "Situation:",
-                desc = "Select a situation to view or edit.",
+                desc = "Select a situation to setup.",
                 get =
                     function()
                         return SID
@@ -1731,94 +1693,257 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 2,
 
                 args = {
-                
-                
+
                     help = {
                         type = "description",
                         name =
                             function()
-                                return "Here you can setup different things that should happen when entering, exiting or during a situation.\n\n"
+                                return "Setup stuff to happen when entering, exiting or while in a situation.\n\n"
                             end,
                         order = 0,
                     },
-                
 
-                    changeViewZoomSettings = {
-
+                    viewZoomSettings = {
                         type = "group",
-                        name = "Change View/Zoom",
+                        name = "Zoom/View",
                         order = 1,
                         args = {
-                        
-                            zoomBox = {
-                            
-                                type = "group",
-                                name = "Set Zoom",
+
+                            viewZoomToggle = {
+                                type = "toggle",
+                                name = "Enable",
+                                desc = "Zoom to a certain zoom level or switch to a saved camera view when entering this situation.",
+                                get =
+                                    function()
+                                        return S.viewZoom.enabled
+                                    end,
+                                set =
+                                    function(_, newValue)
+                                        S.viewZoom.enabled = newValue
+                                    end,
+                                width = "half",
                                 order = 1,
+                            },
+                            viewZoomReset = {
+                                type = "execute",
+                                -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
+                                name = "Reset",
+                                image = "Interface\\Transmogrify\\Transmogrify",
+                                imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                imageWidth = 25/1.5,
+                                imageHeight = 24/1.5,
+                                desc = "Reset to default: This will reset to the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+                                order = 1.5,
+                                width = 0.25,
+                                func =
+                                    function()
+                                        for k in pairs(S.viewZoom) do
+                                            if k ~= "enabled" and k ~= "viewZoomType" then
+                                                S.viewZoom[k] = DynamicCam.situationDefaults.viewZoom[k]
+                                            end
+                                        end
+                                    end,
+                                disabled =
+                                    function()
+                                        for k in pairs(S.viewZoom) do
+                                            if k ~= "enabled" and k ~= "viewZoomType" and S.viewZoom[k] ~= DynamicCam.situationDefaults.viewZoom[k] then
+                                                return false
+                                            end
+                                        end
+                                        return true
+                                    end,
+                            },
+
+                            viewZoomGroup = {
+                                type = "group",
+                                name = "",
+                                order = 2,
+                                disabled =
+                                    function()
+                                        return not S.viewZoom.enabled
+                                    end,
                                 inline = true,
                                 args = {
-                               
-                                    zoomToggle = {
-                                        type = "toggle",
-                                        name = "Enable",
-                                        desc = "Set a zoom level when this situation is activated.",
+
+                                    viewZoomType = {
+                                        type = "select",
+                                        name = "Set Zoom or Set View",
+                                        desc = "\nSet Zoom: Zoom to a given zoom level with advanced options of transition time and zoom conditions.\n\nSet View: Switch to a saved camera view consisting of a fix zoom level and camera angle.",
                                         width = "full",
+                                        disabled =
+                                            function()
+                                                return not S.viewZoom.enabled
+                                            end,
                                         get =
                                             function()
-                                                return S.changeZoom.zoomEnabled
+                                                return S.viewZoom.viewZoomType
                                             end,
                                         set =
                                             function(_, newValue)
-                                                S.changeZoom.zoomEnabled = newValue
+                                                S.viewZoom.viewZoomType = newValue
                                             end,
-                                        order = 1,
-                                    },
-                                    
-                                    zoomGroup = {
-                                        type = "group",
-                                        name = "",
+                                        values = {
+                                            ["zoom"] = "Set Zoom",
+                                            ["view"] = "Set View",
+                                        },
+                                        sorting = {
+                                            "zoom",
+                                            "view",
+                                        },
                                         order = 2,
-                                        disabled = 
+                                    },
+                                    blank2 = {type = "description", name = " ", order = 2.1, },
+
+                                    viewBox = {
+
+                                        type = "group",
+                                        name = "Set View",
+                                        order = 3,
+                                        hidden =
                                             function()
-                                                return not S.changeZoom.zoomEnabled
+                                                return S.viewZoom.viewZoomType ~= "view"
                                             end,
-                                        inline = true,
                                         args = {
-                                            
+
+                                            view = {
+                                                type = "select",
+                                                name = "...to saved view:",
+                                                desc = "Select the saved view to switch to when entering this situation.",
+                                                get =
+                                                    function()
+                                                        return S.viewZoom.viewNumber
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.viewZoom.viewNumber = newValue
+                                                    end,
+                                                values = {
+                                                    [2] = "View 2",
+                                                    [3] = "View 3",
+                                                    [4] = "View 4",
+                                                    [5] = "View 5"
+                                                },
+                                                order = 1,
+                                                width = 0.6,
+                                            },
+                                            blank1 = {type = "description", name = " ", order = 1.1, width = 0.1, },
+                                            instant = {
+                                                type = "toggle",
+                                                name = "Instant",
+                                                desc = "Make the transition to this view instant.",
+                                                get =
+                                                    function()
+                                                        return S.viewZoom.viewInstant
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.viewZoom.viewInstant = newValue
+                                                    end,
+                                                order = 2,
+                                                width = "half",
+                                            },
+                                            restoreView = {
+                                                type = "toggle",
+                                                name = "Restore View",
+                                                desc = "When exiting the situation restore the camera position to what it was before entering.",
+                                                get =
+                                                    function()
+                                                        return S.viewZoom.viewRestore
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.viewZoom.viewRestore = newValue
+                                                    end,
+                                                order = 3,
+                                                width = 0.6,
+                                            },
+                                        },
+
+                                    },
+                                    viewBlank3 = {type = "description", name = " ", order = 3.1, },
+
+                                    viewDescriptionGroup = {
+                                        type = "group",
+                                        name = "Help",
+                                        order = 4,
+                                        hidden =
+                                            function()
+                                                return S.viewZoom.viewZoomType ~= "view"
+                                            end,
+                                        args = {
+                                            zoomDescription = {
+                                                type = "description",
+                                                name =
+[[WoW allows us to save up to 5 custom camera views. View 1 is used by DynamicCam to save the camera position when entering a situation, such that it can be restored upon exiting the situation again, if you check the "Restore" box above. This is particularly nice for short situations like NPC interaction, allowing us to switch to one view while talking to the NPC and afterwards back to what the camera was before. This is why you cannot select View 1 in the above drop down menu of saved views.
+
+Views 2, 3, 4 and 5, however, can be used to save your custom camera positions. To save a view, simply bring the camera into the desired zoom and angle. Then type the following command into the console (with # being the view number 2, 3, 4 or 5):
+
+    /saveView #
+
+Or for short:
+
+    /sv #
+
+Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a DynamicCam situation profile using views, fitting saved views have to be setup on top of importing the situation profile.
+
+
+DynamicCam also provides a console command to set views irrespective of entering or exiting situations:
+
+    /setView #
+
+To make the view transition instant, add an "i" after the view number. E.g. to immediately switch to the saved View 3 enter:
+
+    /setView 3 i
+
+]],
+                                            },
+                                        },
+                                    },
+
+
+
+                                    zoomBox = {
+                                        type = "group",
+                                        name = "Set Zoom",
+                                        order = 3,
+                                        hidden =
+                                            function()
+                                                return S.viewZoom.viewZoomType ~= "zoom"
+                                            end,
+                                        args = {
+
                                             transitionTime = {
                                                 type = "range",
                                                 name = "Zoom Transition Time",
-                                                desc = "The time in seconds it takes to transition to the new zoom value. If set lower than possible, it will be as fast as the camera zoom speed allows.",
+                                                desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its initialization script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
                                                 min = 0,
                                                 max = 5,
                                                 step = .05,
                                                 get =
                                                     function()
-                                                        return S.changeZoom.zoomTransitionTime
+                                                        return S.viewZoom.zoomTransitionTime
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeZoom.zoomTransitionTime = newValue
+                                                        S.viewZoom.zoomTransitionTime = newValue
                                                     end,
                                                 width = "full",
                                                 order = 1,
                                             },
                                             blank1 = {type = "description", name = "\n\n", order = 1.2, },
-                                            
-                                            
-                                    
+
                                             zoomType = {
                                                 type = "select",
                                                 name = "Zoom Type",
-                                                desc = "Set: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in if further away than the maximum, zoom out if closer than the minimum. If the camera is currently within the [min, max] range, do nothing.",
+                                                desc = "\nSet: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in, if further away than the given maximum. Zoom out, if closer than the given minimum. Do nothing, if the current zoom is within the [min, max] range.",
                                                 width = "full",
                                                 get =
                                                     function()
-                                                        return S.changeZoom.zoomType
+                                                        return S.viewZoom.zoomType
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeZoom.zoomType = newValue
+                                                        S.viewZoom.zoomType = newValue
                                                     end,
                                                 values = {
                                                     ["set"] = "Set",
@@ -1834,29 +1959,40 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 },
                                                 order = 2,
                                             },
+                                            blank2 = {type = "description", name = " ", order = 2.1, },
+
                                             zoomValue = {
                                                 type = "range",
                                                 name = "Zoom Value",
-                                                desc = "The zoom value to set",
+                                                desc =
+                                                    function()
+                                                      if S.viewZoom.zoomType == "set" then
+                                                          return "Zoom to this zoom level."
+                                                      elseif S.viewZoom.zoomType == "out" then
+                                                          return "Zoom out to this zoom level, if the current zoom level is less than this."
+                                                      elseif S.viewZoom.zoomType == "in" then
+                                                          return "Zoom in to this zoom level, if the current zoom level is greater than this."
+                                                      end
+                                                    end,
                                                 width = "full",
                                                 hidden =
                                                     function()
-                                                        return S.changeZoom.zoomType == "range"
+                                                        return S.viewZoom.zoomType == "range"
                                                     end,
                                                 min = 0,
                                                 max = 39,
                                                 step = .5,
                                                 get =
                                                     function()
-                                                        return S.changeZoom.zoomValue
+                                                        return S.viewZoom.zoomValue
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeZoom.zoomValue = newValue
+                                                        S.viewZoom.zoomValue = newValue
                                                     end,
                                                 order = 3,
-                                                
                                             },
+
                                             zoomMin = {
                                                 type = "range",
                                                 name = "Zoom Min",
@@ -1864,23 +2000,32 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 width = "full",
                                                 hidden =
                                                     function()
-                                                        return S.changeZoom.zoomType ~= "range"
+                                                        return S.viewZoom.zoomType ~= "range"
                                                     end,
                                                 min = 0,
                                                 max = 39,
                                                 step = .5,
                                                 get =
                                                     function()
-                                                        return S.changeZoom.zoomMin
+                                                        return S.viewZoom.zoomMin
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeZoom.zoomMin = newValue
-                                                        if S.changeZoom.zoomMin > S.changeZoom.zoomMax then
-                                                            S.changeZoom.zoomMax = S.changeZoom.zoomMin
+                                                        S.viewZoom.zoomMin = newValue
+                                                        if S.viewZoom.zoomMin > S.viewZoom.zoomMax then
+                                                            S.viewZoom.zoomMax = S.viewZoom.zoomMin
                                                         end
                                                     end,
                                                 order = 3,
+                                            },
+                                            blank3 = {
+                                                type = "description",
+                                                name = " ",
+                                                order = 3.1,
+                                                hidden =
+                                                    function()
+                                                        return S.viewZoom.zoomType ~= "range"
+                                                    end,
                                             },
                                             zoomMax = {
                                                 type = "range",
@@ -1889,129 +2034,125 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 width = "full",
                                                 hidden =
                                                     function()
-                                                        return S.changeZoom.zoomType ~= "range"
+                                                        return S.viewZoom.zoomType ~= "range"
                                                     end,
                                                 min = 0,
                                                 max = 39,
                                                 step = .5,
                                                 get =
                                                     function()
-                                                        return S.changeZoom.zoomMax
+                                                        return S.viewZoom.zoomMax
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeZoom.zoomMax = newValue
-                                                        if S.changeZoom.zoomMax < S.changeZoom.zoomMin then
-                                                            S.changeZoom.zoomMin = S.changeZoom.zoomMax
+                                                        S.viewZoom.zoomMax = newValue
+                                                        if S.viewZoom.zoomMax < S.viewZoom.zoomMin then
+                                                            S.viewZoom.zoomMin = S.viewZoom.zoomMax
                                                         end
                                                     end,
                                                 order = 4,
                                             },
 
-
-                                            -- timeIsMax = {
-                                                -- type = "toggle",
-                                                -- name = "Don't Slow",
-                                                -- desc = "Camera shouldn't be slowed down to match the transition time. Thus, the transition takes at most the time given here but is otherwise as fast as the set Camera Move Speed allows.",
-                                                -- get = function() return S.cameraActions.timeIsMax end,
-                                                -- set = function(_, newValue) S.cameraActions.timeIsMax = newValue end,
-                                                -- order = 6,
-                                            -- },
-                                    
                                         },
+
                                     },
-                                    
-                                },
-                                
-                            },
-
-
-                            viewBox = {
-                            
-                                type = "group",
-                                name = "Set View",
-                                order = 2,
-                                inline = true,
-                                args = {
-
-                                    viewToggle = {
-                                        type = "toggle",
-                                        name = "Enable",
-                                        desc = "When this situation is activated (and only then), the selected view will be set",
-                                        get =
-                                            function()
-                                                return S.changeView.viewEnabled
-                                            end,
-                                        set =
-                                            function(_, newValue)
-                                                S.changeView.viewEnabled = newValue
-                                            end,
-                                        order = 3,
+                                    zoomBlank3 = {
+                                      type = "description",
+                                      name = " ",
+                                      order = 3.1,
+                                      hidden =
+                                          function()
+                                              return S.viewZoom.viewZoomType ~= "zoom"
+                                          end,
                                     },
 
-                                    viewGroup = {
+                                    zoomRestoreSettingGroup = {
                                         type = "group",
-                                        name = "",
-                                        order = 30,
-                                        inline = true,
-                                        disabled =
+                                        name = "Restore Zoom",
+                                        order = 4,
+                                        disabled = false,
+                                        hidden =
                                             function()
-                                                return not S.changeView.viewEnabled
+                                                return S.viewZoom.viewZoomType ~= "zoom"
                                             end,
                                         args = {
-                                            view = {
+
+                                            zoomRestoreSettingDescription = {
+                                                type = "description",
+                                                name = "When you exit a situation (or exit the default of no situation being active), the current zoom level is temporarily saved, such that it could be restored once you enter this situation the next time. Here you can select how this is handled.\n\nThis setting is global for all situations.",
+                                                order = 0,
+                                            },
+
+                                            zoomRestoreSetting = {
                                                 type = "select",
-                                                name = "View",
-                                                desc = "WoW allows you to store up to 5 custom camera views.\nView 1 is used by DynamicCam to save and restore views, so you cannot use this. Views 2 to 5 can be used by you. Simply bring the camera into the position you want to save and then enter into the console: \"/sv x\" (with x being the view number 2, 3, 4 or 5).",
+                                                name = "Restore Zoom Mode",
+                                                desc = "\nNever: When entering a situation, the actual zoom setting (if any) of the entering situation is applied. No saved zoom is taken into account.\n\nAlways: When entering a situation, the last saved zoom of this situation is used. Its actual setting is only taken into account when entering the situation for the first time after login.\n\nAdaptive: The saved zoom is only used under certain circumstances. E.g. only when returning to the same situation you came from or when the saved zoom fulfills the criteria of the situation's \"in\", \"out\" or \"range\" zoom settings.",
+                                                order = 1,
+                                                width = "full",
                                                 get =
                                                     function()
-                                                        return S.changeView.viewNumber
+                                                        return DynamicCam.db.profile.zoomRestoreSetting
                                                     end,
                                                 set =
                                                     function(_, newValue)
-                                                        S.changeView.viewNumber = newValue
+                                                        DynamicCam.db.profile.zoomRestoreSetting = newValue
                                                     end,
                                                 values = {
-                                                    [2] = "2",
-                                                    [3] = "3",
-                                                    [4] = "4",
-                                                    [5] = "5"
+                                                    ["never"] = "Never",
+                                                    ["always"] = "Always",
+                                                    ["adaptive"] = "Adaptive",
                                                 },
-                                                order = 2,
-                                                width = "half",
+                                                sorting = {
+                                                    "never",
+                                                    "always",
+                                                    "adaptive",
+                                                },
                                             },
-                                            instant = {
-                                                type = "toggle",
-                                                name = "Instant",
-                                                desc = "If the transition to this view should be instant",
-                                                get =
-                                                    function()
-                                                        return S.changeView.viewInstant
-                                                    end,
-                                                set =
-                                                    function(_, newValue)
-                                                        S.changeView.viewInstant = newValue
-                                                    end,
-                                                order = 3,
-                                                width = "half",
-                                            },
-                                            restoreView = {
-                                                type = "toggle",
-                                                name = "Restore",
-                                                desc = "Restore view to what it was before the situation arose",
-                                                get =
-                                                    function()
-                                                        return S.changeView.viewRestore
-                                                    end,
-                                                set =
-                                                    function(_, newValue)
-                                                        S.changeView.viewRestore = newValue
-                                                    end,
-                                                order = 5,
-                                                width = "half",
+
+                                        },
+                                    },
+                                    zoomBlank4 = {
+                                        type = "description",
+                                        name = " ",
+                                        order = 4.1,
+                                        hidden =
+                                            function()
+                                                return S.viewZoom.viewZoomType ~= "zoom"
+                                            end,
+                                    },
+
+                                    zoomDescriptionGroup = {
+                                        type = "group",
+                                        name = "Help",
+                                        order = 5,
+                                        hidden =
+                                            function()
+                                                return S.viewZoom.viewZoomType ~= "zoom"
+                                            end,
+                                        args = {
+                                            zoomDescription = {
+                                                type = "description",
+                                                name =
+[[To determine the current zoom level, you can either use the "Visual Aid" (toggled in DynamicCam's "Mouse Zoom" settings) or use the console command:
+
+    /zoomInfo
+
+Or for short:
+
+    /zi
+
+
+DynamicCam also provides a console command to set the zoom irrespective of entering or exiting situations:
+
+    /zoom #1 #2
+
+where #1 is the zoom level and #2 is the transition time. E.g. to zoom to level 10 within 2 seconds enter:
+
+    /zoom 10 2
+
+]],
                                             },
                                         },
-
                                     },
 
                                 },
@@ -2026,21 +2167,20 @@ local function CreateSituationSettingsTab(tabOrder)
                         type = "group",
                         name = "Rotation",
                         order = 2,
-
                         args = {
 
                             rotationToggle = {
                                 type = "toggle",
                                 name = "Enable",
-                                desc = "Start a camera rotation when this situation is activated.",
+                                desc = "Start a camera rotation when this situation is active.",
                                 get =
                                     function()
-                                        return S.rotation.rotationEnabled
+                                        return S.rotation.enabled
                                     end,
                                 set =
                                     function(_, newValue)
-                                        S.rotation.rotationEnabled = newValue
-                                        ApplyContinuousRotation()           
+                                        S.rotation.enabled = newValue
+                                        ApplyContinuousRotation()
                                     end,
                                 width = "half",
                                 order = 1,
@@ -2059,36 +2199,38 @@ local function CreateSituationSettingsTab(tabOrder)
                                 func =
                                     function()
                                         for k in pairs(S.rotation) do
-                                            S.rotation[k] = DynamicCam.situationDefaults.rotation[k]
+                                            if k ~= "enabled" then
+                                                S.rotation[k] = DynamicCam.situationDefaults.rotation[k]
+                                            end
                                         end
                                         ApplyContinuousRotation()
                                     end,
                                 disabled =
                                     function()
                                         for k in pairs(S.rotation) do
-                                            if S.rotation[k] ~= DynamicCam.situationDefaults.rotation[k] then
+                                            if k ~= "enabled" and S.rotation[k] ~= DynamicCam.situationDefaults.rotation[k] then
                                                 return false
                                             end
                                         end
                                         return true
                                     end,
                             },
-                            
+
                             rotationGroup = {
                                 type = "group",
                                 name = "",
                                 order = 2,
-                                disabled = 
+                                disabled =
                                     function()
-                                        return not S.rotation.rotationEnabled
+                                        return not S.rotation.enabled
                                     end,
                                 inline = true,
                                 args = {
-                                    
+
                                     rotationType = {
                                         type = "select",
                                         name = "Rotation Type",
-                                        desc = "Continuously: The camera is rotating horizontally all the time while this situation is active. Only advisable for situations in which you are not mouse-moving the camera; e.g. teleport spell casting, taxi or AFK. Continuous vertical rotation is not possible as it would stop at the perpendicular upwards or downwards view.\n\nBy Degrees: After entering the situation, change the current camera yaw (horizontal) and/or pitch (vertical) by a certain amount of degrees.",
+                                        desc = "\nContinuously: The camera is rotating horizontally all the time while this situation is active. Only advisable for situations in which you are not mouse-moving the camera; e.g. teleport spell casting, taxi or AFK. Continuous vertical rotation is not possible as it would stop at the perpendicular upwards or downwards view.\n\nBy Degrees: After entering the situation, change the current camera yaw (horizontal) and/or pitch (vertical) by the given amount of degrees.",
                                         get =
                                             function()
                                                 return S.rotation.rotationType
@@ -2105,7 +2247,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 1,
                                     },
-                                    blank1 = {type = "description", name = "\n\n", order = 1.2, },
+                                    blank1 = {type = "description", name = "\n\n", order = 1.1, },
 
                                     rotationTime = {
                                         type = "range",
@@ -2116,14 +2258,14 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 else
                                                     return "Rotation Time"
                                                 end
-                                            
+
                                             end,
                                         desc =
                                             function()
                                                 if S.rotation.rotationType == "continuous" then
                                                     return "If you set a time greater than 0 here, the continuous rotation will not immediately start at its full rotation speed but will take that amount of time to accelerate. (Only noticeable for relatively high rotation speeds.)"
                                                 else
-                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached."
+                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its initialization script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
                                                 end
                                             end,
                                         min = 0,
@@ -2140,7 +2282,8 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 2,
                                     },
-                                    
+                                    blank2 = {type = "description", name = " ", order = 2.1, },
+
                                     rotationSpeed = {
                                         type = "range",
                                         name = "Rotation Speed",
@@ -2166,7 +2309,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 3,
                                     },
-                                    
+
                                     yawDegrees = {
                                         type = "range",
                                         name = "Yaw (-Left/Right+)",
@@ -2180,7 +2323,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 return S.rotation.rotationType == "continuous"
                                             end,
                                         step = 5,
-                                        get = 
+                                        get =
                                             function()
                                                 return S.rotation.yawDegrees
                                             end,
@@ -2190,6 +2333,15 @@ local function CreateSituationSettingsTab(tabOrder)
                                             end,
                                         width = "full",
                                         order = 3,
+                                    },
+                                    blank3 = {
+                                      type = "description",
+                                      name = " ",
+                                      hidden =
+                                            function()
+                                                return S.rotation.rotationType == "continuous"
+                                            end,
+                                      order = 3.1,
                                     },
                                     pitchDegrees = {
                                         type = "range",
@@ -2213,8 +2365,10 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 4,
                                     },
-                                    
-                                    blank4 = {type = "description", name = "\n\n", order = 4.2, },
+
+
+                                    blank4 = {type = "description", name = "\n\n", order = 4.1, },
+
                                     rotateBack = {
                                         type = "toggle",
                                         name = "Rotate Back",
@@ -2252,21 +2406,22 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 6,
                                     },
+                                    blank6 = {type = "description", name = " ", order = 6.1, },
                                 },
                             },
                         },
                     },
-                    
+
 
                     hideUISettings = {
                         type = "group",
-                        name = "Hide UI",
+                        name = "Fade Out UI",
                         order = 3,
                         args = {
                             hideUIToggle = {
                                 type = "toggle",
-                                name = "Enabled",
-                                desc = "Hide the UI when this situation is active.",
+                                name = "Enable",
+                                desc = "Fade out or hide (parts of) the UI when this situation is active.",
                                 get =
                                     function()
                                         return S.hideUI.enabled
@@ -2274,7 +2429,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                 set =
                                     function(_, newValue)
                                         S.hideUI.enabled = newValue
-                                        ApplyUIOpacityPreview()
+                                        ApplyUIFade()
                                     end,
                                 width = "half",
                                 order = 1,
@@ -2293,76 +2448,39 @@ local function CreateSituationSettingsTab(tabOrder)
                                 func =
                                     function()
                                         for k in pairs(S.hideUI) do
-                                            S.hideUI[k] = DynamicCam.situationDefaults.hideUI[k]
+                                            if k ~= "enabled" then
+                                                S.hideUI[k] = DynamicCam.situationDefaults.hideUI[k]
+                                            end
                                         end
-                                        ApplyUIOpacityPreview()
+                                        ApplyUIFade()
                                     end,
                                 disabled =
                                     function()
                                         for k in pairs(S.hideUI) do
-                                            if S.hideUI[k] ~= DynamicCam.situationDefaults.hideUI[k] then
+                                            if k ~= "enabled" and S.hideUI[k] ~= DynamicCam.situationDefaults.hideUI[k] then
                                                 return false
                                             end
                                         end
                                         return true
                                     end,
                             },
-                            blank1 = {type = "description", name = "\n\n", order = 1.7, },
-                            
-                            hideUIGroup = {                            
+                            blank1 = {type = "description", name = " ", order = 1.7, },
+
+                            hideUIGroup = {
                                 type = "group",
                                 name = "",
                                 order = 2,
-                                disabled = 
+                                disabled =
                                     function()
                                         return not S.hideUI.enabled
                                     end,
                                 inline = true,
                                 args = {
-                            
-                                    hideUIToggle = {
-                                        type = "toggle",
-                                        name = "Toggle Preview",
-                                        desc = "Check this box to see the UI opacity change while you are moving the \"Fade Opacity\" slider below.",
-                                        get =
-                                            function()
-                                                return S.hideUI.togglePreview
-                                            end,
-                                        set =
-                                            function(_, newValue)
-                                                S.hideUI.togglePreview = newValue
-                                                ApplyUIOpacityPreview()
-                                            end,
-                                        width = "full",
-                                        order = 0,
-                                    },
-                            
-                                    hideUIFadeOpacity = {
-                                        type = "range",
-                                        name = "Fade Opacity",
-                                        desc = "Fade the UI to this opacity.",
-                                        min = 0,
-                                        max = .99,
-                                        step = .01,
-                                        get =
-                                            function()
-                                                return S.hideUI.fadeOpacity
-                                            end,
-                                        set =
-                                            function(_, newValue)
-                                                S.hideUI.fadeOpacity = newValue
-                                                ApplyUIOpacityPreview()
-                                            end,
-                                        width = "full",
-                                        order = 1,
-                                    },
-                                    blank1 = {type = "description", name = "\n\n", order = 1.2, },
-                                    
-                                    
+
                                     fadeOutTime = {
                                         type = "range",
                                         name = "Fade Out Time",
-                                        desc = "The time in seconds it takes to fade out the UI.",
+                                        desc = "Seconds it takes to fade out the UI when entering the situation.",
                                         min = 0,
                                         max = 5,
                                         step = .05,
@@ -2375,12 +2493,13 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 S.hideUI.fadeOutTime = newValue
                                             end,
                                         width = "full",
-                                        order = 2,
+                                        order = 1,
                                     },
+                                    blank1 = {type = "description", name = " ", order = 1.1, },
                                     fadeInTime = {
                                         type = "range",
                                         name = "Fade In Time",
-                                        desc = "The time in seconds it takes to fade the UI back in.",
+                                        desc = "Seconds it takes to fade the UI back in when exiting the situation.\n\nWhen you exit a situation while entering another situation, the fade out time of the entering situation is used for the transition.",
                                         min = 0,
                                         max = 5,
                                         step = .05,
@@ -2395,71 +2514,270 @@ local function CreateSituationSettingsTab(tabOrder)
                                         width = "full",
                                         order = 2,
                                     },
-                                    blank3 = {type = "description", name = "\n\n", order = 3.2, },
-                                    
-         
-                                    
-                                    -- actuallyHideUI = {
-                                        -- type = "toggle",
-                                        -- name = "Hide UI After Fade",
-                                        -- desc = "Actually hides the UI after the fade. Otherwise it is still interactable even when faded out.",
-                                        -- disabled =
-                                            -- function()
-                                                -- return not S.hideUI.enabled or S.hideUI.fadeOpacity ~= 0
-                                            -- end,
-                                        -- get =
-                                            -- function()
-                                                -- return S.hideUI.trulyHide
-                                            -- end,
-                                        -- set =
-                                            -- function(_, newValue)
-                                                -- S.hideUI.trulyHide = newValue
-                                            -- end,
-                                        -- order = 2,
-                                    -- },
-                                    -- keepMinimap = {
-                                        -- type = "toggle",
-                                        -- name = "Keep Minimap",
-                                        -- desc = "Do not fade the minimap.",
-                                        -- disabled =
-                                            -- function()
-                                                -- return not S.hideUI.enabled
-                                            -- end,
-                                        -- get =
-                                            -- function()
-                                                -- return S.hideUI.keepMinimap
-                                            -- end,
-                                        -- set =
-                                            -- function(_, newValue)
-                                                -- S.hideUI.keepMinimap = newValue
-                                            -- end,
-                                        -- order = 3,
-                                    -- },
+                                    blank2 = {type = "description", name = "\n\n", order = 2.1, },
+
+                                    hideEntireUI = {
+                                        type = "toggle",
+                                        name =
+                                            function()
+                                                local text = "Hide entire UI"
+                                                if S.hideUI.hideEntireUI then
+                                                    return "|cFFFF4040" .. text .. "|r"
+                                                else
+                                                    return text
+                                                end
+                                            end,
+                                        desc = "The difference between a \"hidden\" UI and an \"only invisible\" UI is that invisible UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are hiding most UI elements anyway if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a legacy feature. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"only invisile\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the \"Enable Situation\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
+                                        disabled =
+                                            function()
+                                                return not S.hideUI.enabled
+                                            end,
+                                        get =
+                                            function()
+                                                return S.hideUI.hideEntireUI
+                                            end,
+                                        set =
+                                            function(_, newValue)
+                                                if newValue then
+                                                    S.hideUI.fadeOpacity = 0
+                                                end
+                                                S.hideUI.hideEntireUI = newValue
+                                            end,
+                                        order = 3,
+                                    },
+
+                                    keepFrameRate = {
+                                        type = "toggle",
+                                        name = "Keep FPS indicator",
+                                        desc = "Do not fade out or hide the FPS indicator (the one you typically toggle with Ctrl + R).",
+                                        disabled =
+                                            function()
+                                                return not S.hideUI.enabled
+                                            end,
+                                        get =
+                                            function()
+                                                return S.hideUI.keepFrameRate
+                                            end,
+                                        set =
+                                            function(_, newValue)
+                                                S.hideUI.keepFrameRate = newValue
+                                            end,
+                                        order = 4,
+                                    },
+                                    blank4 = {type = "description", name = "\n\n", order = 4.2, },
+
+                                    hideUIFadeOpacity = {
+                                        type = "range",
+                                        name = "Fade Opacity",
+                                        desc = "Fade the UI to this opacity when entering the situation.",
+                                        min = 0,
+                                        max = .99,
+                                        step = .01,
+                                        disabled =
+                                            function()
+                                                return not S.hideUI.enabled or S.hideUI.hideEntireUI
+                                            end,
+                                        get =
+                                            function()
+                                                return S.hideUI.fadeOpacity
+                                            end,
+                                        set =
+                                            function(_, newValue)
+                                                S.hideUI.fadeOpacity = newValue
+                                                ApplyUIFade()
+                                            end,
+                                        width = "full",
+                                        order = 5,
+                                    },
+                                    blank5 = {type = "description", name = "\n\n", order = 5.2, },
+
+                                    excludedFramesGroup = {
+                                        type = "group",
+                                        name = "Excluded UI elements",
+                                        order = 6,
+                                        disabled =
+                                            function()
+                                                return not S.hideUI.enabled or S.hideUI.hideEntireUI
+                                            end,
+                                        args = {
+
+                                            keepAlertFrames = {
+                                                type = "toggle",
+                                                name = "Keep Alerts",
+                                                desc = "Still show alert popups from completed achievements, Covenant Renown, etc.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepAlertFrames
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepAlertFrames = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 1,
+                                                width = 0.9,
+                                            },
+
+                                            keepTooltip = {
+                                                type = "toggle",
+                                                name = "Keep Tooltip",
+                                                desc = "Still show the game tooltip, which appears when you hover your mouse cursor over UI or world elements.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepTooltip
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepTooltip = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 2,
+                                                width = 0.9,
+                                            },
+
+                                            keepMinimap = {
+                                                type = "toggle",
+                                                name = "Keep Minimap",
+                                                desc = "Do not fade out the Minimap.\n\nNotice that we cannot reduce the opacity of the \"blips\" on the Minimap. These can only be hidden together with the whole Minimap, when the UI is faded to 0 opacity.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepMinimap
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepMinimap = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 3,
+                                                width = 0.9,
+                                            },
+
+                                            keepChatFrame = {
+                                                type = "toggle",
+                                                name = "Keep Chat Box",
+                                                desc = "Do not fade out the chat box.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepChatFrame
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepChatFrame = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 4,
+                                                width = 0.9,
+                                            },
+
+                                            keepTrackingBar = {
+                                                type = "toggle",
+                                                name = "Keep Tracking Bar",
+                                                desc = "Do not fade out the tracking bar (XP, AP, reputation).",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepTrackingBar
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepTrackingBar = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 5,
+                                                width = 0.9,
+                                            },
+                                        },
+                                    },
+                                    blank6 = {type = "description", name = " ", order = 6.2, },
+
+                                    emergencyShowGroup = {
+                                        type = "group",
+                                        name = "Emergency Fade In",
+                                        order = 7,
+                                        disabled =
+                                            function()
+                                                return not S.hideUI.enabled
+                                            end,
+                                        args = {
+                                            emergencyShowEscEnabled = {
+                                                type = "toggle",
+                                                name = "Pressing Esc fades the UI back in.",
+                                                get =
+                                                    function()
+                                                        return S.hideUI.emergencyShowEscEnabled
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.emergencyShowEscEnabled = newValue
+                                                    end,
+                                                order = 1,
+                                                width = "full",
+                                            },
+                                            headTrackingDescription = {
+                                                type = "description",
+                                                name =
+[[Sometimes you need to show the UI even in situations where you normaly want it hidden. Older versions of DynamicCam established that the UI is shown whenever the Esc key is pressed. The downside of this is that the UI is also shown when the Esc key is used for other purposes like closing windows, cancelling spell casting etc. Unchecking the above checkbox disables this.
+
+Notice however that you can lock yourself out of the UI this way! A better alternative to the Esc key are the following console commands, which show or hide the UI according to the current situation's "Fade Out UI" settings:
+
+    /showUI
+    /hideUI
+
+For a convenient fade-in hotkey, put /showUI into a macro and assign a key to it in your "bindings-cache.wtf" file. E.g.:
+
+    bind ALT+F11 MACRO Your Macro Name
+
+If editing the "bindings-cache.wtf" file puts you off, you could use a keybind addon like "BindPad".
+
+Using /showUI or /hideUI without any arguments takes the current situation's fade in or fade out time. But you can also provide a different transition time. E.g.:
+
+    /showUI 0
+
+to show the UI without any delay.]],
+                                                order = 2,
+                                            },
+                                        },
+                                    },
                                 },
                             },
-                            blank2 = {type = "description", name = "\n\n", order = 2.2, },
-                            hideUIDescriptionGroup = {
+                            blank2 = {type = "description", name = " ", order = 2.2, },
+
+                            hideUIHelpGroup = {
                                 type = "group",
                                 name = "Help",
                                 order = 3,
                                 inline = true,
                                 args = {
-                                    headTrackingDescription = {
+                                    hideUIHelpDescription = {
                                         type = "description",
-                                        name = "asdasd",
+                                        name = "While setting up your desired UI fade effects, it can be annoying when this \"Interface\" settings frame fades out as well. If this box is checked, it will not be faded out.\n\nThis setting is global for all situations.",
+                                        order = 1,
+                                    },
+                                    interfaceOptionsFrameIgnoreParentAlpha = {
+                                        type = "toggle",
+                                        name = "Do not fade out this \"Interface\" settings frame.",
+                                        get =
+                                            function()
+                                                return InterfaceOptionsFrame:IsIgnoringParentAlpha()
+                                            end,
+                                        set =
+                                            function(_, newValue)
+                                                DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha = newValue
+                                                DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(newValue)
+                                            end,
+                                        width = "full",
+                                        order = 2,
                                     },
                                 },
                             },
-                            
                         },
                     },
-
-
-
                 },
-
             },
-
 
 
             situationTriggers = {
@@ -2468,7 +2786,6 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = "Situation Triggers",
                 order = 3,
                 args = {
-
 
                     events = {
                         type = "input",
@@ -2533,7 +2850,7 @@ local function CreateSituationSettingsTab(tabOrder)
                     condition = {
                         type = "input",
                         name = "Condition",
-                        desc = "When this situation should be activated.",
+                        desc = "When this situation is activated.",
                         get = function() return S.condition end,
                         set = function(_, newValue)
                                 S.condition = newValue
@@ -2939,7 +3256,7 @@ end
 
 
 
--- Needed to make my own copy of UIDropDownMenu_AddButton() to avoid spreadin of taint...
+-- Needed to make my own copy of UIDropDownMenu_AddButton() to avoid spreading of taint...
 -- https://www.wowinterface.com/forums/showthread.php?p=337966#post337966
 local function MyUIDropDownMenu_AddButton(info, level)
 
@@ -3247,13 +3564,18 @@ end
 
 
 
-
-
+local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
 -- Automatically undo forbidden cvar changes.
 hooksecurefunc("SetCVar", function(cvar, value)
     if cvar == "CameraKeepCharacterCentered" and value == "1" then
+        print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
         SetCVar("CameraKeepCharacterCentered", 0)
+
+    -- https://github.com/Mpstark/DynamicCam/issues/40
+    elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
+        print("cameraView =", value, "prevented by DynamicCam!")
+        SetCVar("cameraView", GetCVarDefault("cameraView"))
     end
 end)
 

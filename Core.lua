@@ -408,114 +408,126 @@ end
 -- FADE UI --
 -------------
 
--- Use this dummy frame to enable UI fade-in by pressing ESC.
--- Inserting it to UISpecialFrames will close it pressing ESC triggering OnHide.
--- local unfadeUIFrame = CreateFrame("Frame", "DynamicCamUnfadeUIFrame")
--- tinsert(UISpecialFrames, unfadeUIFrame:GetName())
--- unfadeUIFrame:SetScript("OnHide", function(self)
-    -- UIParent:Show()
-    -- UIParent:SetAlpha(1)
--- end)
+-- We Show() this frame, whenever we are hiding the UI.
+-- Inserting it into UISpecialFrames leads to the frame being hidden when
+-- the user presses ESCAPE. So we can use the frame's OnHide script to
+-- bring the UI back.
+local fadeUIEscapeHandlerFrame = CreateFrame("Frame", "DynamicCamfadeUIEscapeHandlerFrame")
+tinsert(UISpecialFrames, fadeUIEscapeHandlerFrame:GetName())
+
+fadeUIEscapeHandlerFrame:SetScript("OnHide", function(self)
+    -- print("Hiding FadeUIEscapeHandler")
+
+    if not DynamicCam.db.profile.situations[DynamicCam.currentSituationID].hideUI.emergencyShowEscEnabled then return end
+
+    -- We do not even have to Show() UIParent here, because whenever
+    -- UIParent is hidden the first press of ESCAPE will bring the
+    -- UIParent back. Only a second ESCAPE press would then hide
+    -- all shown UISpecialFrames. That's why we are always hiding
+    -- fadeUIEscapeHandlerFrame after UIParent's OnHide handler.
+    -- (see below).
+
+    -- Use this as default.
+    local fadeInTime = 0.5
+
+    -- Check if we are currently in a situation with fadeInTime.
+    local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
+    if curSituation and curSituation.hideUI.enabled then
+        fadeInTime = curSituation.hideUI.fadeInTime
+    end
+
+    DynamicCam:FadeInUI(fadeInTime)
+end)
+-- For debugging.
+-- fadeUIEscapeHandlerFrame:SetScript("OnShow", function() print("Showing FadeUIEscapeHandler") end)
 
 
--- if unfadeUIFrame:IsShown() then
-    -- -- want to hide the frame without calling it's onhide handler
-    -- local onHide = unfadeUIFrame:GetScript("OnHide")
-    -- unfadeUIFrame:SetScript("OnHide", nil)
-    -- unfadeUIFrame:Hide()
-    -- unfadeUIFrame:SetScript("OnHide", onHide)
--- end
+-- Whenever UIParent is hidden, the first ESCAPE press brings UIParent back.
+-- A second ESCAPE press would be needed to hide UISpecialFrames.
+-- So we already hide fadeUIEscapeHandlerFrame with the first ESCAPE press.
+UIParent:HookScript("OnShow", function()
+    if fadeUIEscapeHandlerFrame:IsShown() then
+        fadeUIEscapeHandlerFrame:Hide()
+    end
+end)
+
+
+-- To hide fadeUIEscapeHandlerFrame without triggering its OnHide script.
+local function UIEscapeHandlerDisable()
+    if fadeUIEscapeHandlerFrame:IsShown() then
+        local onHide = fadeUIEscapeHandlerFrame:GetScript("OnHide")
+        fadeUIEscapeHandlerFrame:SetScript("OnHide", nil)
+        fadeUIEscapeHandlerFrame:Hide()
+        fadeUIEscapeHandlerFrame:SetScript("OnHide", onHide)
+    end
+end
+-- When the UI is loaded fadeUIEscapeHandlerFrame is shown, so we hide it.
+UIEscapeHandlerDisable()
 
 
 
-
-
--- TODO: Merge these into one frame:
-
--- If entering combat while frames are faded to 0 *and hidden*,
--- we have to show the hidden frames again, because Show() is
--- not allowed for protected frames during combat.
 local enterCombatFrame = CreateFrame("Frame")
-enterCombatFrame:RegisterEvent("PLAYER_REGEN_DISABLED") -- Entering combat.
+enterCombatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 enterCombatFrame:SetScript("OnEvent", function()
     -- print("enterCombatFrame")
-    Addon.ShowUI(0, true)
+
+    -- If entering combat while UIParent is hidden,
+    -- we have to show it here again, because it is not allowed during combat.
+    -- To avoid that the UI is also faded in again, we have to
+    -- temporarily disable our UIEscapeHandler while showing UIParent.
+    if not UIParent:IsShown() then
+        local fadeUIEscapeHandlerShown = fadeUIEscapeHandlerFrame:IsShown()
+        if fadeUIEscapeHandlerShown then UIEscapeHandlerDisable() end
+        UIParent:Show()
+        if fadeUIEscapeHandlerShown then fadeUIEscapeHandlerFrame:Show() end
+    end
+
+    -- If entering combat while frames are faded to 0 *and hidden*,
+    -- we have to show the hidden frames again, because Show() is
+    -- not allowed for protected frames during combat.
+    if Addon.uiHiddenTime ~= 0 then
+        Addon.ShowUI(0, true)
+    end
 end)
 
--- If UIParent is visbile and we somehow missed to show the frames again, we do it here!
-local emergencyFrame = CreateFrame("Frame")
-emergencyFrame:SetScript("onUpdate", function(...)
-  if UIParent:GetAlpha() == 1 and Addon.uiHiddenTime > 0 and Addon.uiHiddenTime < GetTime() then
-    -- print("Emergency show")
-    Addon.ShowUI(0, false)
-  end
+-- If the user leaves combat while still in a situation with hidden UI,
+-- we hide it again everything again.
+local leaveCombatFrame = CreateFrame("Frame")
+leaveCombatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+leaveCombatFrame:SetScript("OnEvent", function()
+    -- print("leaveCombatFrame")
+
+    -- But not, if the user has pressed ESC in between.
+    if fadeUIEscapeHandlerFrame:IsShown() then
+        -- Check if we are currently in a situation with hideUI settings.
+        local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
+        if curSituation and curSituation.hideUI.enabled then
+            DynamicCam:FadeOutUI(0, curSituation.hideUI)
+        end
+    end
 end)
 
 
+-- WoW's UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn() cause errors in combat lockdown when used with UIParent.
+-- Hence, we need our own function.
+local easeUIParentAlphaHandle
+local function EaseUIParentAlpha(endValue, duration, callback)
+    if easeUIParentAlphaHandle then
+        LibEasing:StopEasing(easeUIParentAlphaHandle)
+        easeUIParentAlphaHandle = nil
+    end
 
--- local function setUIAlpha(newAlpha)
-    -- if newAlpha and type(newAlpha) == 'number' then
-        -- UIParent:SetAlpha(newAlpha)
-
-        -- -- show unfadeUIFrame if we're faded
-        -- if newAlpha < 1 and not unfadeUIFrame:IsShown() then
-            -- unfadeUIFrame:Show()
-        -- elseif newAlpha == 1 then
-            -- -- UI is no longer faded, remove the esc handler
-            -- if unfadeUIFrame:IsShown() then
-                -- -- want to hide the frame without calling it's onhide handler
-                -- local onHide = unfadeUIFrame:GetScript("OnHide")
-                -- unfadeUIFrame:SetScript("OnHide", nil)
-                -- unfadeUIFrame:Hide()
-                -- unfadeUIFrame:SetScript("OnHide", onHide)
-            -- end
-        -- end
-    -- end
--- end
-
--- local function stopEasingUIAlpha()
-    -- -- if we are currently easing the UI out, make sure to stop that
-    -- if easeUIAlphaHandle then
-        -- LibEasing:StopEasing(easeUIAlphaHandle)
-        -- easeUIAlphaHandle = nil
-    -- end
-
-    -- -- show the minimap if we hid it and it's still hidden
-    -- if hidMinimap and not Minimap:IsShown() then
-        -- Minimap:Show()
-        -- hidMinimap = nil
-    -- end
-
-    -- -- show the UI if we hid it and it's still hidden
-    -- if combatSecureFrame.hidUI then
-        -- if not UIParent:IsShown() and (not InCombatLockdown() or issecure()) then
-            -- setUIAlpha(combatSecureFrame.lastUIAlpha)
-            -- UIParent:Show()
-        -- end
-
-        -- combatSecureFrame.hidUI = nil
-        -- combatSecureFrame.lastUIAlpha = nil
-    -- end
--- end
-
--- local function easeUIAlpha(endValue, duration, easingFunc, callback)
-    -- stopEasingUIAlpha()
-
-    -- if UIParent:GetAlpha() ~= endValue then
-        -- easeUIAlphaHandle = LibEasing:Ease(setUIAlpha, UIParent:GetAlpha(), endValue, duration, easingFunc, callback)
-    -- else
-        -- -- we're not going to ease because we're already there, have to call the callback anyways
-        -- if callback then
-            -- callback()
-        -- end
-    -- end
--- end
-
+    if UIParent:GetAlpha() ~= endValue then
+        easeUIParentAlphaHandle = LibEasing:Ease(function(alpha) UIParent:SetAlpha(alpha) end, UIParent:GetAlpha(), endValue, duration, LibEasing.Linear, callback)
+    else
+        if callback then callback() end
+    end
+end
 
 
 function DynamicCam:FadeOutUI(fadeOutTime, settings)
 
-    -- print("FadeOutUI", fadeOutTime)
+    -- print("FadeOutUI", fadeOutTime, GetTime())
 
     -- If we are starting to fade-out while a fade-in was still in progress,
     -- we are not updating ludius_alphaBeforeFadeOut.
@@ -525,43 +537,70 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
       -- print("Remembering", UIParent.ludius_alphaBeforeFadeOut)
     end
 
-    UIFrameFadeRemoveFrame(UIParent)
-    UIFrameFadeOut(UIParent, fadeOutTime, UIParent:GetAlpha(), settings.fadeOpacity)
+    EaseUIParentAlpha(settings.hideEntireUI and 0 or settings.fadeOpacity, fadeOutTime)
 
+    if settings.hideEntireUI then
 
-    -- Use the UiHideModule to keep configured frames and properly hide the others.
-    Addon:HideUI(config, fadeOutTime)
+        -- The frame rate indicator is the only frame that is independent of UIParent.
+        -- So we can keep or hide it even when UIParent is hidden.
+        Addon.HideUI(fadeOutTime, {hideFrameRate = not settings.keepFrameRate, UIParentAlpha = 0})
 
-end
+        if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
+        self.hideEntireUITimer = LibStub("AceTimer-3.0"):ScheduleTimer(
+                function()
+                    if not InCombatLockdown() then
+                        UIParent:Hide()
+                    end
+                end,
+            fadeOutTime)
+    else
+        local config = {
+            UIParentAlpha = settings.fadeOpacity,
 
-function DynamicCam:FadeInUI(fadeInTime, settings)
+            hideFrameRate = not settings.keepFrameRate,
+            keepChatFrame = settings.keepChatFrame,
+            keepAlertFrames = settings.keepAlertFrames,
 
-    -- print("FadeInUI", fadeInTime)
+            keepTrackingBar = settings.keepTrackingBar,
+            -- This only has an effect when keepTrackingBar is true.
+            -- (For now we are not allowing DynamicCam users to partially fade out single frames.
+            -- That's just for "Immersion ExtraFade".)
+            trackingBarAlpha = 1,
 
-    if UIParent.ludius_alphaBeforeFadeOut then
-        -- The same as UIFrameFadeIn(), but with a callback function.
-        local fadeInfo = {};
-        fadeInfo.mode = "IN";
-        fadeInfo.timeToFade = fadeInTime
-        fadeInfo.startAlpha = UIParent:GetAlpha()
-        fadeInfo.endAlpha = UIParent.ludius_alphaBeforeFadeOut
-        fadeInfo.finishedFunc = function(finishedArg1)
-            print(finishedArg1:GetName(), "finished")
-            finishedArg1.ludius_alphaBeforeFadeOut = nil
-          end
-        fadeInfo.finishedArg1 = UIParent
+            keepMinimap = settings.keepMinimap,
+            keepTooltip = settings.keepTooltip,
+        }
 
-        UIFrameFadeRemoveFrame(UIParent)
-        UIFrameFade(UIParent, fadeInfo)
-
-
-        -- Undo the HideUI by the UiHideModule..
-        Addon:ShowUI(fadeInTime, false)
+        -- Use the UiHideModule to keep configured frames and properly hide the others.
+        Addon.HideUI(fadeOutTime, config)
     end
 
+    if settings.emergencyShowEscEnabled then
+        fadeUIEscapeHandlerFrame:Show()
+    end
 end
 
+function DynamicCam:FadeInUI(fadeInTime)
 
+    -- print("FadeInUI", fadeInTime, GetTime())
+
+    if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
+    if not UIParent:IsShown() then UIParent:Show() end
+
+    if UIParent.ludius_alphaBeforeFadeOut then
+
+        UIEscapeHandlerDisable()
+
+        local function FadeInCallback()
+            -- print("Fade in finished")
+            UIParent.ludius_alphaBeforeFadeOut = nil
+        end
+
+        EaseUIParentAlpha(UIParent.ludius_alphaBeforeFadeOut, fadeInTime, FadeInCallback)
+
+        Addon.ShowUI(fadeInTime, false)
+    end
+end
 
 
 
@@ -580,15 +619,19 @@ function DynamicCam:OnInitialize()
     self:RegisterChatCommand("dynamiccam", "OpenMenu")
     self:RegisterChatCommand("dc", "OpenMenu")
 
-    self:RegisterChatCommand("saveview", "SaveViewCC")
-    self:RegisterChatCommand("sv", "SaveViewCC")
+    self:RegisterChatCommand("saveview", "SaveViewSlash")
+    self:RegisterChatCommand("sv", "SaveViewSlash")
+    self:RegisterChatCommand("setView", "SetViewSlash")
 
-    self:RegisterChatCommand("zoominfo", "ZoomInfoCC")
-    self:RegisterChatCommand("zi", "ZoomInfoCC")
+    self:RegisterChatCommand("zoominfo", "ZoomInfoSlash")
+    self:RegisterChatCommand("zi", "ZoomInfoSlash")
 
     self:RegisterChatCommand("zoom", "ZoomSlash")
     self:RegisterChatCommand("pitch", "PitchSlash")
     self:RegisterChatCommand("yaw", "YawSlash")
+
+    self:RegisterChatCommand("hideUI", "HideUISlash")
+    self:RegisterChatCommand("showUI", "ShowUISlash")
 
     -- Disable the ActionCam warning message.
     UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
@@ -639,11 +682,41 @@ function DynamicCam:Startup()
     enteredSituationAtLogin = false
 
 
-    SetCVar("CameraKeepCharacterCentered", 0)
+    if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
+        -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
+        SetCVar("CameraKeepCharacterCentered", 0)
+    end
+
+    -- https://github.com/Mpstark/DynamicCam/issues/40
+    local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
+    if not validValuesCameraView[tonumber(GetCVar("cameraView"))] then
+        -- print("cameraView =", GetCVar("cameraView"), "prevented by DynamicCam!")
+        SetCVar("cameraView", GetCVarDefault("cameraView"))
+    end
+
+
+    self:InterfaceOptionsFrameSetIgnoreParentAlpha(DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha)
+    hooksecurefunc(
+      LibStub("AceGUI-3.0"),
+      "Create",
+      function(_, widgetType)
+        if widgetType == "Dropdown-Pullout" then
+          DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha)
+        end
+      end
+    )
 
 
     -- For coding
     C_Timer.After(0, self.OpenMenu)
+
+    C_Timer.After(3, function()
+        if BugSack then
+            BugSack:OpenSack()
+            BugSackFrame:SetIgnoreParentAlpha(true)
+            BugSackFrame:Hide()
+        end
+    end)
 
 end
 
@@ -773,7 +846,7 @@ end
 -- Start rotating when entering a situation.
 function DynamicCam:StartRotation(newSituation, transitionTime)
     local r = newSituation.rotation
-    if r.rotationEnabled then
+    if r.enabled then
         if r.rotationType == "continuous" then
 
             LibCamera:BeginContinuousYaw(r.rotationSpeed, transitionTime)
@@ -794,7 +867,7 @@ end
 -- Stop rotating when leaving a situation.
 function DynamicCam:StopRotation(oldSituation)
     local r = oldSituation.rotation
-    if r.rotationEnabled then
+    if r.enabled then
         if r.rotationType == "continuous" then
             local yaw = LibCamera:StopYawing()
 
@@ -859,12 +932,9 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     local restoringView = false
     local settingView = false
 
-
     -- Needed so often that we are setting these shortcuts for the whole function scope.
     local oldSituation
     local newSituation
-
-
 
     -- If we are exiting another situation.
     if oldSituationID then
@@ -872,15 +942,14 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         lastZoom[oldSituationID] = GetCameraZoom()
         -- print("---> Storing zoom", lastZoom[oldSituationID], oldSituationID)
 
-
         oldSituation = self.db.profile.situations[oldSituationID]
 
         -- Stop rotating if applicable.
         self:StopRotation(oldSituation)
 
         -- Restore view if applicable.
-        local c = oldSituation.changeView
-        if c.viewEnabled and c.viewRestore then
+        local c = oldSituation.viewZoom
+        if c.enabled and c.viewZoomType == "view" and c.viewRestore then
             gotoView(1, c.viewInstant)
             restoringView = true
         end
@@ -890,8 +959,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
         -- Unhide UI if applicable.
         if oldSituation.hideUI.enabled then
-            -- Use default transition time for UI fade.
-            self:FadeInUI(oldSituation.hideUI.fadeInTime, oldSituation.hideUI)
+            self:FadeInUI(oldSituation.hideUI.fadeInTime)
         end
 
         self:SendMessage("DC_SITUATION_EXITED")
@@ -902,7 +970,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         lastZoom["no-situation"] = GetCameraZoom()
         -- print("---> Storing default zoom", lastZoom[oldSituationID], oldSituationID)
     end
-
 
 
     -- If we are entering a new situation.
@@ -917,8 +984,8 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
         -- Set view settings
         -- (Restoring a view has a higher priority than setting a new one.)
-        local c = newSituation.changeView
-        if c.viewEnabled and not restoringView then
+        local c = newSituation.viewZoom
+        if c.enabled and c.viewZoomType == "view" and not restoringView then
             if c.viewRestore then SaveView(1) end
             gotoView(c.viewNumber, c.viewInstant)
             settingView = true
@@ -929,13 +996,18 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
         -- Hide UI if applicable.
         if newSituation.hideUI.enabled then
-            -- Use default transition time for UI fade.
             self:FadeOutUI(newSituation.hideUI.fadeOutTime, newSituation.hideUI)
+        -- If we are currently exiting a situation, we have already called
+        -- FadeInUI() above. Only if we are neither entering nor exiting a situation
+        -- with UI fade, we show the UI, to be on the safe side.
+        elseif not oldSituation or not oldSituation.hideUI.enabled then
+            self:FadeInUI(0)
         end
 
 
     -- If we are entering the no-situation state.
     -- else
+      -- print("Not entering a new situation")
 
     end
 
@@ -963,8 +1035,8 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- (There is no default zoom level for the no-situation case!)
         elseif newSituationID then
 
-            local c = newSituation.changeZoom
-            if c.zoomEnabled then
+            local c = newSituation.viewZoom
+            if c.enabled and c.viewZoomType == "zoom" then
 
                 if (c.zoomType == "set") or
                    (c.zoomType == "in"  and newZoomLevel > c.zoomValue) or
@@ -1011,22 +1083,22 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     -- Restoring a stored view has a greater priority than than setting a new view.
     elseif restoringView then
         -- If restoringView is true, we know there must be an oldSituationID.
-        if self.db.profile.situations[oldSituationID].changeView.viewInstant then
+        if self.db.profile.situations[oldSituationID].viewZoom.viewInstant then
             transitionTime = 0
         else
             transitionTime = SET_VIEW_TRANSITION_TIME
         end
     elseif settingView then
         -- If settingView is true, we know there must be a newSituationID.
-        if newSituation.changeView.viewInstant then
+        if newSituation.viewZoom.viewInstant then
             transitionTime = 0
         else
             transitionTime = SET_VIEW_TRANSITION_TIME
         end
 
     -- Otherwise the new situation's transition time is taken.
-    elseif newSituation and newSituation.changeZoom.zoomEnabled then
-        transitionTime = newSituation.changeZoom.zoomTransitionTime
+    elseif newSituation and newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "zoom" then
+        transitionTime = newSituation.viewZoom.zoomTransitionTime
 
     -- Default is this "magic number"...
     else
@@ -1074,8 +1146,11 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     -- (Except shoulder offset, which we are easing above.)
     if newSituation then
 
+        -- If there is a rotationTime in the environment, it has priority.
+        local rotationTime = situationEnvironments[newSituationID].this.rotationTime or newSituation.rotation.rotationTime
+
         -- Start rotating if applicable.
-        self:StartRotation(newSituation, newSituation.rotation.rotationTime)
+        self:StartRotation(newSituation, rotationTime)
 
         for cvar, value in pairs(newSituation.situationSettings.cvars) do
             if cvar ~= "test_cameraOverShoulder" then
@@ -1286,7 +1361,7 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
     local newSituation = self.db.profile.situations[newSituationID]
     -- Don't restore zoom if we're about to go into a view.
-    if newSituation.changeView.viewEnabled then
+    if newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "view" then
         -- print("Not restoring zoom because entering a view.")
         return false
     end
@@ -1309,9 +1384,9 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
     end
 
 
-    local c = newSituation.changeZoom
+    local c = newSituation.viewZoom
     -- Restore zoom based on newSituation zoomSetting.
-    if not c.zoomEnabled then
+    if not c.enabled or c.viewZoomType ~= "zoom" then
         -- print("Not restoring zoom because new situation has no zoom setting.")
         return false
     end
@@ -1906,19 +1981,38 @@ function DynamicCam:OpenMenu()
     InterfaceOptionsFrame_OpenToCategory(Options.menu)
 end
 
-function DynamicCam:SaveViewCC(input)
+function DynamicCam:SaveViewSlash(input)
     local tokens = tokenize(input)
 
     local viewNum = tonumber(tokens[1])
 
-    if viewNum and viewNum <= 5 and viewNum > 1 then
+    if viewNum and viewNum <= 5 and viewNum > 0 then
         SaveView(viewNum)
     else
         self:Print("Improper view number provided.")
     end
 end
 
-function DynamicCam:ZoomInfoCC(input)
+
+function DynamicCam:SetViewSlash(input)
+    local tokens = tokenize(input)
+
+    local viewNum = tonumber(tokens[1])
+    local instant = tokens[2] == "i"
+
+    if viewNum and viewNum <= 5 and viewNum > 0 then
+        SetView(viewNum)
+        if instant then
+            SetView(viewNum)
+        end
+    else
+        self:Print("Improper view number provided.")
+    end
+end
+
+
+
+function DynamicCam:ZoomInfoSlash(input)
     self:Print(string.format("Zoom level: %0.2f", GetCameraZoom()))
 end
 
@@ -2000,6 +2094,25 @@ function DynamicCam:YawSlash(input)
         LibCamera:Yaw(yaw, time or 0.75, easingFunc)
     end
 end
+
+
+
+function DynamicCam:ShowUISlash(input)
+    local tokens = tokenize(input)
+    local duration = tonumber(tokens[1])
+    local currentSituation = self.db.profile.situations[self.currentSituationID]
+    self:FadeInUI(duration or currentSituation.hideUI.fadeInTime)
+end
+
+
+function DynamicCam:HideUISlash(input)
+    local tokens = tokenize(input)
+    local duration = tonumber(tokens[1])
+    local currentSituation = self.db.profile.situations[self.currentSituationID]
+    self:FadeOutUI(duration or currentSituation.hideUI.fadeOutTime, currentSituation.hideUI)
+end
+
+
 
 function DynamicCam:PopupCreateCustomProfile()
     StaticPopup_Show("DYNAMICCAM_NEW_CUSTOM_SITUATION")
@@ -2289,29 +2402,23 @@ end)
 
 
 
-
-
-
-
-
-
 -- For debugging.
-function DynamicCam:PrintTable(t, indent)
-  assert(type(t) == "table", "PrintTable() called for non-table!")
+-- function DynamicCam:PrintTable(t, indent)
+  -- assert(type(t) == "table", "PrintTable() called for non-table!")
 
-  local indentString = ""
-  for i = 1, indent do
-    indentString = indentString .. "  "
-  end
+  -- local indentString = ""
+  -- for i = 1, indent do
+    -- indentString = indentString .. "  "
+  -- end
 
-  for k, v in pairs(t) do
-    if type(v) ~= "table" then
-      print(indentString, k, "=", v)
-    else
-      print(indentString, k, "=")
-      print(indentString, "  {")
-      self:PrintTable(v, indent + 2)
-      print(indentString, "  }")
-    end
-  end
-end
+  -- for k, v in pairs(t) do
+    -- if type(v) ~= "table" then
+      -- print(indentString, k, "=", v)
+    -- else
+      -- print(indentString, k, "=")
+      -- print(indentString, "  {")
+      -- self:PrintTable(v, indent + 2)
+      -- print(indentString, "  }")
+    -- end
+  -- end
+-- end

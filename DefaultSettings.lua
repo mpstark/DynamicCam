@@ -12,45 +12,60 @@ DynamicCam.situationDefaults = {
         cvars = {},
     },
 
-    changeZoom = {
-        zoomEnabled = false,
+
+
+
+    viewZoom = {
+
+        enabled = false,
+
+        viewZoomType = "zoom",
+
         zoomTransitionTime = 1,
         zoomType = "set",
         zoomValue = 10,
         zoomMin = 5,
         zoomMax = 15,
-    },
-     
-    changeView = {
-        viewEnabled = false,
-        viewNumber = 5,
-        viewRestore = false,
+
+        viewNumber = 2,
+        viewRestore = true,
         viewInstant = false,
     },
 
+
+
     rotation = {
-        rotationEnabled = false,
+        enabled = false,
         rotationType = "continuous",
-        
+
         rotationTime = 1,
         rotationSpeed = 10,
-        
+
         yawDegrees = 0,
         pitchDegrees = 0,
-        
+
         rotateBack = true,
         rotateBackTime = 1,
     },
 
     hideUI = {
         enabled = false,
-        togglePreview = false,
-        fadeOpacity = 0.5,
+
+        fadeOpacity = 0.6,
         fadeOutTime = 1,
         fadeInTime = 1,
-        
-        -- trulyHide = true,
-        -- keepMinimap = false,
+
+        keepTooltip = true,
+        keepAlertFrames = true,
+        keepFrameRate = false,
+        keepChatFrame = false,
+        keepTrackingBar = false,
+
+        keepMinimap = true,
+
+        hideEntireUI = false,
+
+        emergencyShowEscEnabled = true,
     },
 
 
@@ -80,6 +95,8 @@ DynamicCam.defaults = {
         enableSituations = true,
         zoomRestoreSetting = "adaptive",
 
+
+        interfaceOptionsFrameIgnoreParentAlpha = true,
 
         -- Standard settings (for when no situation is overriding them).
         standardSettings = {
@@ -372,10 +389,10 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
   346170,  -- Attendant's Pocket Portal: Ardenweald
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
-  
+
 }]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
-                priority = 20,
+                priority = 130,
                 condition = [[for k,v in pairs(this.spells) do
     if GetSpellInfo(v) and GetSpellInfo(v) == UnitCastingInfo("player") then
         return true
@@ -383,7 +400,8 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 end
 return false]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
-this.transitionTime = (endTime - startTime)/1000]],
+this.transitionTime = (endTime - startTime)/1000
+this.rotationTime = this.transitionTime]],
             },
 
             ["201"] = {
@@ -467,14 +485,14 @@ return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
                 priority = 120,
                 condition = "return UnitIsAFK(\"player\")",
             },
-            
+
             ["310"] = {
                 name = "Pet Battle",
                 events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
                 priority = 130,
                 condition = "return C_PetBattles.IsInBattle()",
             },
-            
+
         },
     },
 }
