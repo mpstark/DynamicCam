@@ -2,7 +2,7 @@ local _, Addon = ...
 
 
 -- For debugging:
--- local debugFrameName = "BT4Bar1"
+-- local debugFrameName = "MinimapCluster"
 
 
 -- Flag to remember if the UI is currently faded out.
@@ -14,6 +14,15 @@ Addon.uiHiddenTime = 0
 --   This will show the actually hidden frames, that cannot be shown during combat,
 --   but the fade out state will remain. You only see tooltips of faded-out frames.
 -- Call Addon.ShowUI(fadeInTime, false) to show UI.
+
+-- Accepted options for config argument of HideUI():
+--   config.hideFrameRate
+--   config.keepAlertFrames
+--   config.keepMinimap
+--   config.keepTooltip
+--   config.keepChatFrame
+--   config.keepTrackingBar
+--   config.UIParentAlpha     (while faded out)
 
 
 -- Lua API
@@ -80,7 +89,9 @@ local function UIFrameFade(frame, fadeInfo)
 	if not frame then return end
 
   -- We make sure that we always call this with mode, startAlpha and endAlpha.
-  assert(fadeInfo.mode, fadeInfo.startAlpha, fadeInfo.endAlpha)
+  assert(fadeInfo.mode) assert(fadeInfo.startAlpha) assert(fadeInfo.endAlpha)
+
+  -- if frame:GetName() == debugFrameName then print("UIFrameFade", frame:GetName(), fadeInfo.mode, fadeInfo.startAlpha, fadeInfo.endAlpha) end
 
   frame.fadeInfo = fadeInfo
 	frame:SetAlpha(fadeInfo.startAlpha)
@@ -318,14 +329,27 @@ end
 
 -- If targetIgnoreParentAlpha == true, targetAlpha is the frame's alpha.
 -- If targetIgnoreParentAlpha == false, targetAlpha is the UIParent's alpha.
+--
+-- If targetIgnoreParentAlpha == nil, we are ignoring this frame!
+-- FadeInFrame() will automatically ignore this as well as it will not find our ludius_ flags.
 local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlpha)
 
-  if not frame then return end
+  if not frame or targetIgnoreParentAlpha == nil then return end
 
   -- Prevent callback functions of currently active timers.
   UIFrameFadeRemoveFrame(frame)
 
   -- if frame:GetName() == debugFrameName then print("FadeOutFrame", frame:GetName(), targetIgnoreParentAlpha, targetAlpha) end
+
+
+  -- ludius_alphaBeforeFadeOut is only set, if this is a fresh FadeOutFrame().
+  -- It is set to nil after a FadeOutFrame is completed.
+  -- Otherwise, we might falsely asume a wrong ludius_alphaBeforeFadeOut
+  -- value while a fadein is still in progress.
+  if frame.ludius_alphaBeforeFadeOut == nil then
+    frame.ludius_alphaBeforeFadeOut = frame:GetAlpha()
+  end
+
 
   -- To use UIFrameFade() which is the same as UIFrameFadeOut, but with a callback function.
   local fadeInfo = {}
@@ -333,9 +357,9 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
   fadeInfo.timeToFade = duration
   fadeInfo.finishedArg1 = frame
   fadeInfo.finishedFunc = function(finishedArg1)
-    if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), targetAlpha) end
+    -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), targetAlpha) end
     if targetAlpha == 0 then
-      if finishedArg1:GetName() == debugFrameName then print("...and hiding!", targetAlpha) end
+      -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", targetAlpha) end
 
       if not frame:IsProtected() or not InCombatLockdown() then
         ConditionalHide(finishedArg1)
@@ -346,15 +370,6 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
 
   -- Frame should henceforth ignore parent alpha.
   if targetIgnoreParentAlpha then
-
-    -- ludius_alphaBeforeFadeOut is only set, if this is a fresh FadeOutFrame().
-    -- It is set to nil after a FadeOutFrame is completed.
-    -- Otherwise, we might falsely asume a wrong ludius_alphaBeforeFadeOut
-    -- value while a fadein is still in progress.
-    if frame.ludius_alphaBeforeFadeOut == nil then
-      frame.ludius_alphaBeforeFadeOut = frame:GetAlpha()
-    end
-
 
     -- This is to let SetMouseOverAlpha() know whether we are
     -- currently fading/faded in or fading/faded out.
@@ -398,7 +413,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
       fadeInfo.endAlpha = targetAlpha
 
       fadeInfo.finishedFunc = function(finishedArg1)
-        if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), targetAlpha) end
+        -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), targetAlpha) end
         frame:SetAlpha(1)
         ConditionalSetIgnoreParentAlpha(finishedArg1, false)
         if targetAlpha == 0 then
