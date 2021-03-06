@@ -1638,8 +1638,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
             selectedSituation = {
                 type = "select",
-                name = "Situation:",
-                desc = "Select a situation to setup.",
+                name = "Select a situation to setup:",
+                desc = "\nColor codes:\n|cFF808A87- Disabled situation.|r\n|cFF00FF00- Currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r",
                 get =
                     function()
                         return SID
@@ -1653,7 +1653,7 @@ local function CreateSituationSettingsTab(tabOrder)
                     function()
                         return DynamicCam:GetSituationList()
                     end,
-                width = 2.3,
+                width = 2,
                 order = 1,
             },
             blank1 = {type = "description", name = " ", width = 0.1, order = 1.5, },
@@ -1661,8 +1661,11 @@ local function CreateSituationSettingsTab(tabOrder)
             enabled = {
                 type = "toggle",
                 name = "Enable Situation",
-                desc = "If this box is checked, DynamicCam will enter this situation whenever its condition is fulfilled and no other situation with higher priority is active.",
-                hidden =
+                desc =
+                    function()
+                        return "If this box is checked, DynamicCam will enter the situation \"" .. S.name .. "\" whenever its condition is fulfilled and no other situation with higher priority is active."
+                    end,
+                disabled =
                     function()
                         return not S
                     end,
@@ -1682,15 +1685,39 @@ local function CreateSituationSettingsTab(tabOrder)
                 width = 0.7,
                 order = 2,
             },
-
-
-            situationSettings = CreateSettingsTab(1, true),
+            blank2 = {type = "description", name = " ", width = 0.1, order = 2.5, },
+            
+            deleteCustom = {
+                type = "execute",
+                name = "-",
+                desc =
+                    function()
+                        return "Delete custom situation \"" .. S.name .. "\"."
+                    end,
+                disabled = function() return not S or not string.find(SID, "custom") end,
+                func = function() DynamicCam:DeleteCustomSituation(SID) end,
+                order = 3,
+                width = 0.23,
+            },
+            blank3 = {type = "description", name = " ", width = 0.03, order = 3.5, },
+            
+            newSituation = {
+                type = "execute",
+                name = "+",
+                desc = "Create a new custom situation.",
+                func = function() DynamicCam:PopupCreateCustomProfile() end,
+                order = 4,
+                width = 0.23,
+            },
+            
+            
+            situationSettings = CreateSettingsTab(5, true),
 
             situationActions = {
 
                 type = "group",
                 name = "Situation Actions",
-                order = 2,
+                order = 6,
 
                 args = {
 
@@ -2780,11 +2807,11 @@ to show the UI without any delay.]],
             },
 
 
-            situationTriggers = {
+            situationControls = {
 
                 type = "group",
-                name = "Situation Triggers",
-                order = 3,
+                name = "Situation Controls",
+                order = 7,
                 args = {
 
                     events = {
@@ -2949,18 +2976,9 @@ to show the UI without any delay.]],
 
                 type = "group",
                 name = "Custom / Import",
-                order = 4,
+                order = 8,
 
                 args = {
-
-                    newSituation = {
-                        type = "execute",
-                        name = "New Custom Situation",
-                        desc = "Create a new custom situation.",
-                        func = function() DynamicCam:PopupCreateCustomProfile() end,
-                        order = 4,
-                        width = "full",
-                    },
 
                     copy = {
                         type = "execute",
@@ -2996,15 +3014,7 @@ to show the UI without any delay.]],
                         width = "half",
                     },
 
-                    deleteCustom = {
-                        type = "execute",
-                        name = "Delete",
-                        desc = "Delete this custom situation",
-                        hidden = function() return not S or not string.find(SID, "custom") end,
-                        func = function() DynamicCam:DeleteCustomSituation(SID) end,
-                        order = 8,
-                        width = "half",
-                    },
+                    
 
                 },
 
