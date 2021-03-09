@@ -248,21 +248,40 @@ local function ConditionalShow(frame)
 
   -- if frame:GetName() == debugFrameName then print("ConditionalShow", frame:GetName(), frame.ludius_shownBeforeFadeOut) end
 
-  -- Don't accidentally bring back party or raid frames when we are not in the party or raid any more.
-  if string_find(frame:GetName(), "^PartyMemberFrame") and not UnitInParty("player") then return end
-  
-  -- Use CompactRaidFrameManager:IsShown() instead of UnitInRaid("player") because people might use
-  -- an addon like SoloRaidFrame to show the raid frame even while not in raid.
-  if string_find(frame:GetName(), "^CompactRaidFrame") and not CompactRaidFrameManager:IsShown() then return end
-
   if frame:IsProtected() and InCombatLockdown() then
     print("ERROR: Should not try to show", frame:GetName(), "in combat lockdown!")
   end
 
-  if frame.ludius_shownBeforeFadeOut and not frame:IsShown() then
-    -- if frame:GetName() == debugFrameName then print("Have to show it again!") end
-    frame:Show()
+
+  -- If the frame is already shown, we leave it be.
+  if not frame:IsShown() then
+  
+    if string_find(frame:GetName(), "^PartyMemberFrame") then
+      -- If we are in a party, we always show the party frame.
+      -- Because if we joined the party while the UI was faded,
+      -- the party frame was actually hidden before the fade and
+      -- ludius_shownBeforeFadeOut is false.
+      if UnitInParty("player") then 
+        frame:Show()
+      end
+    
+    elseif string_find(frame:GetName(), "^CompactRaidFrame") then
+      
+      -- The same for the raid frames.
+      -- Use CompactRaidFrameManager:IsShown() instead of UnitInRaid("player") because people might use
+      -- an addon like SoloRaidFrame to show the raid frame even while not in raid.
+      if CompactRaidFrameManager:IsShown() then
+        frame:Show()
+      end
+    
+    elseif frame.ludius_shownBeforeFadeOut then
+      -- if frame:GetName() == debugFrameName then print("Have to show it again!") end
+      frame:Show()
+    end
+    
   end
+  
+  
   frame.ludius_shownBeforeFadeOut = nil
 end
 
