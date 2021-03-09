@@ -2,7 +2,7 @@ local _, Addon = ...
 
 
 -- For debugging:
--- local debugFrameName = "MinimapCluster"
+-- local debugFrameName = "CompactRaidFrame1"
 
 
 -- Flag to remember if the UI is currently faded out.
@@ -29,10 +29,8 @@ Addon.uiHiddenTime = 0
 local _G = _G
 local string_find = string.find
 
-local UIFrameFadeOut     = _G.UIFrameFadeOut
-local UIFrameFadeIn      = _G.UIFrameFadeIn
+local GetTime            = _G.GetTime
 local InCombatLockdown   = _G.InCombatLockdown
-local GetNumGroupMembers = _G.GetNumGroupMembers
 local UnitInParty        = _G.UnitInParty
 local UnitInRaid         = _G.UnitInRaid
 
@@ -48,7 +46,20 @@ local function UIFrameFadeRemoveFrame(frame)
 	tDeleteItem(ludius_FADEFRAMES, frame)
 end
 
-local function UIFrameFade_OnUpdate(self, elapsed)
+
+
+-- Changed this to work with GetTime() instead of "elapsed" argument.
+-- Because the first elapsed after login is always very long and we want
+-- to be able to start a smooth fade out beginning at the first update.
+local lastUpdate
+local function UIFrameFade_OnUpdate(self)
+
+	local elapsed = 0
+	if lastUpdate then
+		elapsed = GetTime() - lastUpdate
+	end
+	lastUpdate = GetTime()
+
 	local index = 1
 	local frame, fadeInfo
 	while ludius_FADEFRAMES[index] do
@@ -82,6 +93,7 @@ local function UIFrameFade_OnUpdate(self, elapsed)
 
 	if #ludius_FADEFRAMES == 0 then
 		self:SetScript("OnUpdate", nil)
+		lastUpdate = nil
 	end
 end
 
@@ -212,7 +224,7 @@ GameTooltip:HookScript("OnShow", GameTooltipHider)
 local function ConditionalHide(frame)
   if not frame then return end
 
-  -- if frame:GetName() == debugFrameName then print("ConditionalHide", frame:GetName()) end
+  -- if frame:GetName() == debugFrameName then print("ConditionalHide", frame:GetName(), frame:GetParent():GetName(), frame:IsIgnoringParentAlpha()) end
 
   -- Checking for combat lockdown is not this function's concern.
   -- Functions calling it must make sure, it is not  called in combat lockdown.
@@ -238,7 +250,10 @@ local function ConditionalShow(frame)
 
   -- Don't accidentally bring back party or raid frames when we are not in the party or raid any more.
   if string_find(frame:GetName(), "^PartyMemberFrame") and not UnitInParty("player") then return end
-  if string_find(frame:GetName(), "^CompactRaidFrame") and not UnitInRaid("player") then return end
+  
+  -- Use CompactRaidFrameManager:IsShown() instead of UnitInRaid("player") because people might use
+  -- an addon like SoloRaidFrame to show the raid frame even while not in raid.
+  if string_find(frame:GetName(), "^CompactRaidFrame") and not CompactRaidFrameManager:IsShown() then return end
 
   if frame:IsProtected() and InCombatLockdown() then
     print("ERROR: Should not try to show", frame:GetName(), "in combat lockdown!")
@@ -256,7 +271,8 @@ end
 -- To restore frames to their pre-hide ignore-parent-alpha state,
 -- we remember it in the ludius_ignoreParentAlphaBeforeFadeOut variable.
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
-  if not frame then return end
+  -- Only do this to direct children of UIParent.
+  if not frame or frame:GetParent() ~= UIParent then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
     frame.ludius_ignoreParentAlphaBeforeFadeOut = frame:IsIgnoringParentAlpha()
@@ -361,7 +377,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     if targetAlpha == 0 then
       -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", targetAlpha) end
 
-      if not frame:IsProtected() or not InCombatLockdown() then
+      if not finishedArg1:IsProtected() or not InCombatLockdown() then
         ConditionalHide(finishedArg1)
       end
     end
@@ -430,7 +446,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
 
   end
 
-  -- if frame:GetName() == debugFrameName then print("Starting fade with", fadeInfo.startAlpha, fadeInfo.endAlpha, fadeInfo.mode) end
+  -- if frame:GetName() == debugFrameName then print("Starting fade with", fadeInfo.startAlpha, fadeInfo.endAlpha, fadeInfo.mode, fadeInfo.timeToFade) end
   UIFrameFade(frame, fadeInfo)
 
 end
@@ -582,7 +598,8 @@ Addon.HideUI = function(fadeOutTime, config)
     end
   end
 
-  for i = 1, GetNumGroupMembers(), 1 do
+  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid the frame numbers get mixed up.
+  for i = 1, 40, 1 do
     if _G["CompactRaidFrame" .. i] then
       FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeOutTime, true, config.UIParentAlpha)
       FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeOutTime, true, config.UIParentAlpha)
@@ -672,7 +689,8 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
     end
   end
 
-  for i = 1, GetNumGroupMembers(), 1 do
+  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid the frame numbers get mixed up.
+  for i = 1, 40, 1 do
     if _G["CompactRaidFrame" .. i] then
 
       FadeInFrame(_G["CompactRaidFrame" .. i], fadeInTime, enteringCombat)
@@ -757,7 +775,6 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
   end
 
 
-
   -- Cancel timers that may still be in progress.
   if Addon.frameShowTimer then LibStub("AceTimer-3.0"):CancelTimer(Addon.frameShowTimer) end
 
@@ -768,10 +785,6 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
     end, fadeInTime)
   end
 
-
 end
-
-
-
 
 

@@ -1653,14 +1653,14 @@ local function CreateSituationSettingsTab(tabOrder)
                     function()
                         return DynamicCam:GetSituationList()
                     end,
-                width = 2,
+                width = 2.2,
                 order = 1,
             },
             blank1 = {type = "description", name = " ", width = 0.1, order = 1.5, },
 
             enabled = {
                 type = "toggle",
-                name = "Enable Situation",
+                name = "Enable",
                 desc =
                     function()
                         return "If this box is checked, DynamicCam will enter the situation \"" .. S.name .. "\" whenever its condition is fulfilled and no other situation with higher priority is active."
@@ -1682,7 +1682,7 @@ local function CreateSituationSettingsTab(tabOrder)
                             Options:SendMessage("DC_SITUATION_DISABLED")
                         end
                     end,
-                width = 0.7,
+                width = 0.5,
                 order = 2,
             },
             blank2 = {type = "description", name = " ", width = 0.1, order = 2.5, },
@@ -1723,10 +1723,7 @@ local function CreateSituationSettingsTab(tabOrder)
 
                     help = {
                         type = "description",
-                        name =
-                            function()
-                                return "Setup stuff to happen when entering, exiting or while in a situation.\n\n"
-                            end,
+                        name = "Setup stuff to happen while in a situation or when entering/exiting it.\n\n",
                         order = 0,
                     },
 
@@ -2554,7 +2551,7 @@ where #1 is the zoom level and #2 is the transition time. E.g. to zoom to level 
                                                     return text
                                                 end
                                             end,
-                                        desc = "The difference between a \"hidden\" UI and an \"only invisible\" UI is that invisible UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are hiding most UI elements anyway if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a legacy feature. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"only invisile\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the \"Enable Situation\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
+                                        desc = "The difference between a \"hidden\" UI and an \"only invisible\" UI is that invisible UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are hiding most UI elements anyway if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a legacy feature. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"only invisile\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
                                         disabled =
                                             function()
                                                 return not S.hideUI.enabled
@@ -2812,158 +2809,193 @@ to show the UI without any delay.]],
                 type = "group",
                 name = "Situation Controls",
                 order = 7,
+                
                 args = {
-
-                    events = {
-                        type = "input",
-                        name = "Events",
-                        desc = "",
-                        get = function() return table.concat(S.events, ", ") end,
-                        set = function(_, newValue)
-                                if newValue == "" then
-                                    S.events = {}
-                                else
-                                    newValue = string.gsub(newValue, "%s+", "")
-                                    S.events = {strsplit(",", newValue)}
-                                end
-                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                            end,
-                        width = "double",
-                        order = 1,
+                
+                    help = {
+                        type = "description",
+                        name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you check the stock situations here. You can also modify them, but beware: your changed settings will persist even if a future version of DynamicCam introduces important updates.\n\n",
+                        order = 0,
                     },
 
-
-
-
-                    eventsDefault = {
-                        type = "execute",
-                        name = "Restore default",
-                        desc = "Your 'Events' deviate from the default. Click here to restore it.",
-                        func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
-                        hidden = function()
-                            if not DynamicCam.defaults.profile.situations[SID] then return true end
-                            return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
-                          end,
-                        order = 3,
-                    },
                     priority = {
-                        type = "input",
+                        type = "group",
                         name = "Priority",
-                        desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
-                        get = function() return ""..S.priority end,
-                        set = function(_, newValue)
-                                if tonumber(newValue) then
-                                    S.priority = tonumber(newValue)
-                                end
-                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                            end,
-                        width = "half",
                         order = 1,
+                        args = {
+                
+                
+                                events = {
+                                type = "input",
+                                name = "Events",
+                                desc = "",
+                                get = function() return table.concat(S.events, ", ") end,
+                                set = function(_, newValue)
+                                        if newValue == "" then
+                                            S.events = {}
+                                        else
+                                            newValue = string.gsub(newValue, "%s+", "")
+                                            S.events = {strsplit(",", newValue)}
+                                        end
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                width = "double",
+                                order = 1,
+                            },
+
+
+                            eventsDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'Events' deviate from the default. Click here to restore it.",
+                                func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
+                                  end,
+                                order = 3,
+                            },
+                            
+                            priority = {
+                                type = "input",
+                                name = "Priority",
+                                desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
+                                get = function() return ""..S.priority end,
+                                set = function(_, newValue)
+                                        if tonumber(newValue) then
+                                            S.priority = tonumber(newValue)
+                                        end
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                width = "half",
+                                order = 1,
+                            },
+                            
+                            delay = {
+                                type = "input",
+                                name = "Delay",
+                                desc = "How long to delay exiting this situation",
+                                get = function() return ""..S.delay end,
+                                set = function(_, newValue)
+                                        if tonumber(newValue) then
+                                            S.delay = tonumber(newValue)
+                                        end
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                width = "half",
+                                order = 2,
+                            },
+                            
+                            condition = {
+                                type = "input",
+                                name = "Condition",
+                                desc = "When this situation is activated.",
+                                get = function() return S.condition end,
+                                set = function(_, newValue)
+                                        S.condition = newValue
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                multiline = 6,
+                                width = "full",
+                                order = 5,
+                            },
+                            
+                            conditionDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'Condition' deviates from the default. Click here to restore it.",
+                                func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                                  end,
+                                order = 6,
+                            },
+                            
+                            executeOnInit = {
+                                type = "input",
+                                name = "Initialization Script",
+                                desc = "Called when the situation is loaded and when it is modified.",
+                                get = function() return S.executeOnInit end,
+                                set = function(_, newValue)
+                                        S.executeOnInit = newValue
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                multiline = 6,
+                                width = "full",
+                                order = 10,
+                            },
+                            
+                            executeOnInitDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
+                                func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
+                                  end,
+                                order = 11,
+                            },
+                            
+                            executeOnEnter = {
+                                type = "input",
+                                name = "On Enter Script",
+                                desc = "Called when the situation is selected as the active situation (before any thing else).",
+                                get = function() return S.executeOnEnter end,
+                                set = function(_, newValue) S.executeOnEnter = newValue end,
+                                multiline = 6,
+                                width = "full",
+                                order = 20,
+                            },
+                            
+                            executeOnEnterDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
+                                func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
+                                  end,
+                                order = 21,
+                            },
+                            
+                            executeOnExit = {
+                                type = "input",
+                                name = "On Exit Script",
+                                desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
+                                get = function() return S.executeOnExit end,
+                                set = function(_, newValue) S.executeOnExit = newValue end,
+                                multiline = 6,
+                                width = "full",
+                                order = 30,
+                            },
+                            
+                            executeOnExitDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
+                                func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
+                                  end,
+                                order = 31,
+                            },
+                
+                
+                
+                
+                
+                
+                
+                
+                        },
                     },
-                    delay = {
-                        type = "input",
-                        name = "Delay",
-                        desc = "How long to delay exiting this situation",
-                        get = function() return ""..S.delay end,
-                        set = function(_, newValue)
-                                if tonumber(newValue) then
-                                    S.delay = tonumber(newValue)
-                                end
-                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                            end,
-                        width = "half",
-                        order = 2,
-                    },
-                    condition = {
-                        type = "input",
-                        name = "Condition",
-                        desc = "When this situation is activated.",
-                        get = function() return S.condition end,
-                        set = function(_, newValue)
-                                S.condition = newValue
-                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                            end,
-                        multiline = 6,
-                        width = "full",
-                        order = 5,
-                    },
-                    conditionDefault = {
-                        type = "execute",
-                        name = "Restore default",
-                        desc = "Your 'Condition' deviates from the default. Click here to restore it.",
-                        func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
-                        hidden = function()
-                            if not DynamicCam.defaults.profile.situations[SID] then return true end
-                            return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
-                          end,
-                        order = 6,
-                    },
-                    executeOnInit = {
-                        type = "input",
-                        name = "Initialization Script",
-                        desc = "Called when the situation is loaded and when it is modified.",
-                        get = function() return S.executeOnInit end,
-                        set = function(_, newValue)
-                                S.executeOnInit = newValue
-                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                            end,
-                        multiline = 6,
-                        width = "full",
-                        order = 10,
-                    },
-                    executeOnInitDefault = {
-                        type = "execute",
-                        name = "Restore default",
-                        desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
-                        func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
-                        hidden = function()
-                            if not DynamicCam.defaults.profile.situations[SID] then return true end
-                            return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
-                          end,
-                        order = 11,
-                    },
-                    executeOnEnter = {
-                        type = "input",
-                        name = "On Enter Script",
-                        desc = "Called when the situation is selected as the active situation (before any thing else).",
-                        get = function() return S.executeOnEnter end,
-                        set = function(_, newValue) S.executeOnEnter = newValue end,
-                        multiline = 6,
-                        width = "full",
-                        order = 20,
-                    },
-                    executeOnEnterDefault = {
-                        type = "execute",
-                        name = "Restore default",
-                        desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
-                        func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
-                        hidden = function()
-                            if not DynamicCam.defaults.profile.situations[SID] then return true end
-                            return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
-                          end,
-                        order = 21,
-                    },
-                    executeOnExit = {
-                        type = "input",
-                        name = "On Exit Script",
-                        desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
-                        get = function() return S.executeOnExit end,
-                        set = function(_, newValue) S.executeOnExit = newValue end,
-                        multiline = 6,
-                        width = "full",
-                        order = 30,
-                    },
-                    executeOnExitDefault = {
-                        type = "execute",
-                        name = "Restore default",
-                        desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
-                        func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
-                        hidden = function()
-                            if not DynamicCam.defaults.profile.situations[SID] then return true end
-                            return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
-                          end,
-                        order = 31,
-                    },
+                
+
+                    
 
 
                 },
