@@ -815,11 +815,19 @@ DynamicCam.defaults = {
   298068,  -- Holographic Digitalization Hearthstone
   308742,  -- Eternal Traveler's Hearthstone
   312372,  -- Return to Camp
+  325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
   335671,  -- Scroll of Teleport: Theater of Pain
   340200,  -- Necrolord Hearthstone
-  340767,  -- Chromie's Teleportation Scroll  
+  340767,  -- Chromie's Teleportation Scroll
+  342122,  -- Venthyr Sinstone
   344587,  -- Teleport: Oribos
+  345393,  -- Kyrian Hearthstone
+  346167,  -- Attendant's Pocket Portal: Bastion
+  346168,  -- Attendant's Pocket Portal: Oribos
+  346170,  -- Attendant's Pocket Portal: Ardenweald
+  346171,  -- Attendant's Pocket Portal: Maldraxxus
+  346173,  -- Attendant's Pocket Portal: Revendreth
   
 }]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
