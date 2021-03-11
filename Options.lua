@@ -790,7 +790,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 order = 3,
                                 args = {
 
-                                    yawPitchDescription = {
+                                    mouseLookDescription = {
                                         type = "description",
                                         name = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\nThe \"Mouse Look Speed\" slider of WoW's default interface settings controls horizontal and vertical speed at the same time: automatically setting horizontal speed to 2 x vertical speed. DynamicCam overrides this and allows you a more customized setup.",
                                     },
@@ -2823,12 +2823,64 @@ to show the UI without any delay.]],
                         name = "Priority",
                         order = 1,
                         args = {
-                
-                
-                                events = {
+
+                            priority = {
+                                type = "input",
+                                name = "Priority",
+                                desc = "The priority of this situation.\nMust be a number.",
+                                get = function() return ""..S.priority end,
+                                set =
+                                    function(_, newValue)
+                                        if tonumber(newValue) then
+                                            S.priority = tonumber(newValue)
+                                        end
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                order = 0,
+                            },
+                            priorityDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc =
+                                    function()
+                                        return "Your 'Priority' deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
+                                    end,
+                                func = function() S.priority = DynamicCam.defaults.profile.situations[SID].priority end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return S.priority == DynamicCam.defaults.profile.situations[SID].priority
+                                    end,
+                                order = 1,
+                            },
+                            blank1 = {type = "description", name = " ", order = 1.2, },
+                            
+                            priorityDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 2,
+                                args = {
+                                    priorityDescription = {
+                                        type = "description",
+                                        name = "If the conditions of several different DynamicCam situations are fulfilled at the same time, the situation with the highest priority is entered. For example, whenever the condition of \"World Indoors\" is fulfilled, the condition of \"World\" is fulfilled as well. But as \"World Indoor\" has a higher priority than \"World\", it is prioritised. You can see the priorities of all situations in the drop down menu above.\n\n",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    
+                    
+                    events = {
+                        type = "group",
+                        name = "Events",
+                        order = 2,
+                        args = {
+
+                            events = {
                                 type = "input",
                                 name = "Events",
-                                desc = "",
+                                desc = "Separated by commas.",
                                 get = function() return table.concat(S.events, ", ") end,
                                 set = function(_, newValue)
                                         if newValue == "" then
@@ -2839,10 +2891,10 @@ to show the UI without any delay.]],
                                         end
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                width = "double",
+                                multiline = 12,
+                                width = "full",
                                 order = 1,
                             },
-
 
                             eventsDefault = {
                                 type = "execute",
@@ -2853,65 +2905,31 @@ to show the UI without any delay.]],
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
                                     return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
                                   end,
-                                order = 3,
-                            },
-                            
-                            priority = {
-                                type = "input",
-                                name = "Priority",
-                                desc = "If multiple situations are active at the same time, the one with the highest priority is chosen",
-                                get = function() return ""..S.priority end,
-                                set = function(_, newValue)
-                                        if tonumber(newValue) then
-                                            S.priority = tonumber(newValue)
-                                        end
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                width = "half",
-                                order = 1,
-                            },
-                            
-                            delay = {
-                                type = "input",
-                                name = "Delay",
-                                desc = "How long to delay exiting this situation",
-                                get = function() return ""..S.delay end,
-                                set = function(_, newValue)
-                                        if tonumber(newValue) then
-                                            S.delay = tonumber(newValue)
-                                        end
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                width = "half",
                                 order = 2,
                             },
                             
-                            condition = {
-                                type = "input",
-                                name = "Condition",
-                                desc = "When this situation is activated.",
-                                get = function() return S.condition end,
-                                set = function(_, newValue)
-                                        S.condition = newValue
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
-                                multiline = 6,
-                                width = "full",
-                                order = 5,
+                            help = {
+                                type = "description",
+                                name = "asdasd.\n\n",
+                                order = 1,
+                            },
+                        },
+                    },
+                    
+                    
+                    initialization = {
+                        type = "group",
+                        name = "Initialization",
+                        order = 3,
+                        args = {
+
+                            help = {
+                                type = "description",
+                                name = "asdasd.\n\n",
+                                order = 0,
                             },
                             
-                            conditionDefault = {
-                                type = "execute",
-                                name = "Restore default",
-                                desc = "Your 'Condition' deviates from the default. Click here to restore it.",
-                                func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
-                                  end,
-                                order = 6,
-                            },
-                            
+
                             executeOnInit = {
                                 type = "input",
                                 name = "Initialization Script",
@@ -2938,6 +2956,65 @@ to show the UI without any delay.]],
                                 order = 11,
                             },
                             
+                        },
+                    },
+                    
+                    
+                    condition = {
+                        type = "group",
+                        name = "Condition",
+                        order = 4,
+                        args = {
+
+                            help = {
+                                type = "description",
+                                name = "asdasd.\n\n",
+                                order = 0,
+                            },
+                            
+                            
+                            
+                            condition = {
+                                type = "input",
+                                name = "Condition",
+                                desc = "When this situation is activated.",
+                                get = function() return S.condition end,
+                                set = function(_, newValue)
+                                        S.condition = newValue
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                multiline = 6,
+                                width = "full",
+                                order = 1,
+                            },
+                            
+                            conditionDefault = {
+                                type = "execute",
+                                name = "Restore default",
+                                desc = "Your 'Condition' deviates from the default. Click here to restore it.",
+                                func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
+                                hidden = function()
+                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                    return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                                  end,
+                                order = 2,
+                            },
+                            
+                        },
+                    },
+                    
+                    entering = {
+                        type = "group",
+                        name = "Entering",
+                        order = 5,
+                        args = {
+
+                            help = {
+                                type = "description",
+                                name = "asdasd.\n\n",
+                                order = 0,
+                            },
+                            
                             executeOnEnter = {
                                 type = "input",
                                 name = "On Enter Script",
@@ -2946,7 +3023,7 @@ to show the UI without any delay.]],
                                 set = function(_, newValue) S.executeOnEnter = newValue end,
                                 multiline = 6,
                                 width = "full",
-                                order = 20,
+                                order = 1,
                             },
                             
                             executeOnEnterDefault = {
@@ -2958,7 +3035,21 @@ to show the UI without any delay.]],
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
                                     return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
                                   end,
-                                order = 21,
+                                order = 2,
+                            },
+                        },
+                    },
+                            
+                    exiting = {
+                        type = "group",
+                        name = "Exiting",
+                        order = 6,
+                        args = {
+
+                            help = {
+                                type = "description",
+                                name = "asdasd.\n\n",
+                                order = 0,
                             },
                             
                             executeOnExit = {
@@ -2969,7 +3060,7 @@ to show the UI without any delay.]],
                                 set = function(_, newValue) S.executeOnExit = newValue end,
                                 multiline = 6,
                                 width = "full",
-                                order = 30,
+                                order = 1,
                             },
                             
                             executeOnExitDefault = {
@@ -2981,22 +3072,28 @@ to show the UI without any delay.]],
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
                                     return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
                                   end,
-                                order = 31,
+                                order = 2,
                             },
-                
-                
-                
-                
-                
-                
-                
+                            
+                            delay = {
+                                type = "input",
+                                name = "Delay",
+                                desc = "How long to delay exiting this situation",
+                                get = function() return ""..S.delay end,
+                                set = function(_, newValue)
+                                        if tonumber(newValue) then
+                                            S.delay = tonumber(newValue)
+                                        end
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                width = "half",
+                                order = 3,
+                            },
                 
                         },
                     },
                 
-
-                    
-
+               
 
                 },
 
