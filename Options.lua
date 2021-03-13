@@ -706,7 +706,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                             reactiveZoomDescription = {
                                 type = "description",
-                                name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\". While \"Reactive Zoom Target\" is further away from \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a good feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
+                                name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
                                 order = 2,
                             },
                         },
@@ -836,7 +836,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                                     cameraOverShoulderDescription = {
                                         type = "description",
-                                        name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (cameraOverShoulder_Fix) to resolve this.",
+                                        name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this.",
                                         order = 0,
                                     },
 
@@ -1340,7 +1340,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                 args = {
                                     targetFocusDescription = {
                                         type = "description",
-                                        name = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\" is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat).",
+                                        name = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\", is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat).",
                                     },
                                 },
                             },
@@ -1638,8 +1638,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
             selectedSituation = {
                 type = "select",
-                name = "Select a situation to setup:",
-                desc = "\nColor codes:\n|cFF808A87- Disabled situation.|r\n|cFF00FF00- Currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r",
+                name = "Select a situation to setup",
+                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r",
                 get =
                     function()
                         return SID
@@ -1694,10 +1694,17 @@ local function CreateSituationSettingsTab(tabOrder)
                     function()
                         return "Delete custom situation \"" .. S.name .. "\"."
                     end,
-                disabled = function() return not S or not string.find(SID, "custom") end,
+                hidden = function() return not S or not string.find(SID, "custom") end,
                 func = function() DynamicCam:DeleteCustomSituation(SID) end,
                 order = 3,
                 width = 0.23,
+            },
+            deleteCustomPlaceholder = {
+                type = "description",
+                name = " ",
+                hidden = function() return S and string.find(SID, "custom") end,
+                width = 0.23,
+                order = 3,
             },
             blank3 = {type = "description", name = " ", width = 0.03, order = 3.5, },
             
@@ -1939,7 +1946,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                                             transitionTime = {
                                                 type = "range",
                                                 name = "Zoom Transition Time",
-                                                desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its initialization script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
+                                                desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its initialisation script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
                                                 min = 0,
                                                 max = 5,
                                                 step = .05,
@@ -2170,7 +2177,7 @@ DynamicCam also provides a console command to set the zoom irrespective of enter
 
     /zoom #1 #2
 
-where #1 is the zoom level and #2 is the transition time. E.g. to zoom to level 10 within 2 seconds enter:
+where #1 is the zoom level and #2 is the transition time.\nE.g. to zoom to level 10 within 2 seconds enter:
 
     /zoom 10 2
 
@@ -2289,7 +2296,7 @@ where #1 is the zoom level and #2 is the transition time. E.g. to zoom to level 
                                                 if S.rotation.rotationType == "continuous" then
                                                     return "If you set a time greater than 0 here, the continuous rotation will not immediately start at its full rotation speed but will take that amount of time to accelerate. (Only noticeable for relatively high rotation speeds.)"
                                                 else
-                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its initialization script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
+                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its initialisation script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
                                                 end
                                             end,
                                         min = 0,
@@ -2836,7 +2843,7 @@ to show the UI without any delay.]],
                                         end
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                order = 0,
+                                order = 1,
                             },
                             priorityDefault = {
                                 type = "execute",
@@ -2851,19 +2858,19 @@ to show the UI without any delay.]],
                                         if not DynamicCam.defaults.profile.situations[SID] then return true end
                                         return S.priority == DynamicCam.defaults.profile.situations[SID].priority
                                     end,
-                                order = 1,
+                                order = 2,
                             },
-                            blank1 = {type = "description", name = " ", order = 1.2, },
+                            blank2 = {type = "description", name = " ", order = 2.2, },
                             
                             priorityDescriptionGroup = {
                                 type = "group",
                                 name = "Help",
                                 inline = true,
-                                order = 2,
+                                order = 3,
                                 args = {
                                     priorityDescription = {
                                         type = "description",
-                                        name = "If the conditions of several different DynamicCam situations are fulfilled at the same time, the situation with the highest priority is entered. For example, whenever the condition of \"World Indoors\" is fulfilled, the condition of \"World\" is fulfilled as well. But as \"World Indoor\" has a higher priority than \"World\", it is prioritised. You can see the priorities of all situations in the drop down menu above.\n\n",
+                                        name = "If the conditions of several different DynamicCam situations are fulfilled at the same time, the situation with the highest priority is entered. For example, whenever the condition of \"World Indoors\" is fulfilled, the condition of \"World\" is fulfilled as well. But as \"World Indoor\" has a higher priority than \"World\", it is prioritised. You can also see the priorities of all situations in the drop down menu above.\n\n",
                                     },
                                 },
                             },
@@ -2899,7 +2906,7 @@ to show the UI without any delay.]],
                             eventsDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Events' deviate from the default. Click here to restore it.",
+                                desc = "Your 'Events' deviate from the default for this situation. Click here to restore them.",
                                 func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -2907,53 +2914,93 @@ to show the UI without any delay.]],
                                   end,
                                 order = 2,
                             },
+                            blank2 = {type = "description", name = " ", order = 2.2, },
                             
-                            help = {
-                                type = "description",
-                                name = "asdasd.\n\n",
-                                order = 1,
+                            eventsDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 3,
+                                args = {
+                                    eventsDescription = {
+                                        type = "description",
+                                        name =
+[[Here you define all the in-game events upon which DynamicCam should check the condition of this situation, to enter or exit it if applicable.
+
+You can learn about in-game events using WoW's event trace.
+To open it, type this into the console:
+
+  /eventtrace
+
+Notice, that you have to manually scroll down after the window first opens. Then you can use these commands to stop and start the logging:
+
+  /eventtrace stop
+  /eventtrace start
+
+If you want to get serious with the event trace, put these two commands into macros and keybind them, so you can stop and start quickly.
+
+A list of all possible events can also be found here:
+https://wow.gamepedia.com/Events
+
+]],
+                                    },
+                                },
                             },
                         },
                     },
                     
                     
-                    initialization = {
+                    initialisation = {
                         type = "group",
-                        name = "Initialization",
+                        name = "Initialisation",
                         order = 3,
                         args = {
 
-                            help = {
-                                type = "description",
-                                name = "asdasd.\n\n",
-                                order = 0,
-                            },
-                            
-
                             executeOnInit = {
                                 type = "input",
-                                name = "Initialization Script",
-                                desc = "Called when the situation is loaded and when it is modified.",
+                                name = "Initialisation Script",
+                                desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnInit end,
                                 set = function(_, newValue)
                                         S.executeOnInit = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 6,
+                                multiline = 12,
                                 width = "full",
-                                order = 10,
+                                order = 1,
                             },
                             
                             executeOnInitDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Initialization Script' deviates from the default. Click here to restore it.",
+                                desc = "Your 'Initialisation Script' deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
                                     return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
                                   end,
-                                order = 11,
+                                order = 2,
+                            },
+                            blank2 = {type = "description", name = " ", order = 2.2, },
+                            
+                            initialisationDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 3,
+                                args = {
+                                    initialisationDescription = {
+                                        type = "description",
+                                        name =
+[[The initialisation script of a situation is run once when DynamicCam is loaded (and also when the situation is modified). You would typically put stuff into it which you want to reuse in any of the other scripts (condition, on-enter, on-exit). This can make these other scripts a bit shorter.
+
+For example, the initialisation script of the "Hearth/Teleport" situation defines the table 'this.spells', which includes the spell IDs of teleport spells. The condition script can then simply access 'this.spells' every time it is executed.
+
+Like in this example, you can share any data object between the scripts of a situation by putting it into the 'this' table.
+
+]],
+                                    },
+                                },
                             },
                             
                         },
@@ -2976,8 +3023,8 @@ to show the UI without any delay.]],
                             
                             condition = {
                                 type = "input",
-                                name = "Condition",
-                                desc = "When this situation is activated.",
+                                name = "Condition Script",
+                                desc = "Lua code using the WoW UI API.\nShould return 'true' if and only if the condition is fulfilled.",
                                 get = function() return S.condition end,
                                 set = function(_, newValue)
                                         S.condition = newValue
@@ -2991,7 +3038,7 @@ to show the UI without any delay.]],
                             conditionDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Condition' deviates from the default. Click here to restore it.",
+                                desc = "Your 'Condition Script' deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3017,8 +3064,8 @@ to show the UI without any delay.]],
                             
                             executeOnEnter = {
                                 type = "input",
-                                name = "On Enter Script",
-                                desc = "Called when the situation is selected as the active situation (before any thing else).",
+                                name = "On-Enter Script",
+                                desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnEnter end,
                                 set = function(_, newValue) S.executeOnEnter = newValue end,
                                 multiline = 6,
@@ -3029,7 +3076,7 @@ to show the UI without any delay.]],
                             executeOnEnterDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'On Enter Script' deviates from the default. Click here to restore it.",
+                                desc = "Your 'On-Enter Script' deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3054,8 +3101,8 @@ to show the UI without any delay.]],
                             
                             executeOnExit = {
                                 type = "input",
-                                name = "On Exit Script",
-                                desc = "Called when the situation is overridden by another situation or the condition fails a check (before any thing else).",
+                                name = "On-Exit Script",
+                                desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnExit end,
                                 set = function(_, newValue) S.executeOnExit = newValue end,
                                 multiline = 6,
@@ -3066,7 +3113,7 @@ to show the UI without any delay.]],
                             executeOnExitDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'On Exit Script' deviates from the default. Click here to restore it.",
+                                desc = "Your 'On-Exit Script' deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3104,7 +3151,7 @@ to show the UI without any delay.]],
             customImport = {
 
                 type = "group",
-                name = "Custom / Import",
+                name = "Import / Export",
                 order = 8,
 
                 args = {

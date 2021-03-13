@@ -220,6 +220,14 @@ GameTooltip:HookScript("OnShow", GameTooltipHider)
 
 
 
+local partyUpdateFrame = CreateFrame("Frame")
+partyUpdateFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+partyUpdateFrame:SetScript("OnEvent", function()
+  if Addon.uiHiddenTime == 0 then return end
+  -- TODO: Take care of party member frames that are added while the UI is faded...
+end)
+
+
 
 local function ConditionalHide(frame)
   if not frame then return end
@@ -255,33 +263,48 @@ local function ConditionalShow(frame)
 
   -- If the frame is already shown, we leave it be.
   if not frame:IsShown() then
-  
+
+    -- The party frames might change while the UI is faded out.
+    -- So we have to evaluate it when fading in.
     if string_find(frame:GetName(), "^PartyMemberFrame") then
-      -- If we are in a party, we always show the party frame.
-      -- Because if we joined the party while the UI was faded,
-      -- the party frame was actually hidden before the fade and
-      -- ludius_shownBeforeFadeOut is false.
-      if UnitInParty("player") then 
-        frame:Show()
+
+      -- The NotPresentIcon is taken care of by PartyMemberFrame_UpdateNotPresentIcon
+      -- while showing the actual PartyMemberFrame.
+      if string_find(frame:GetName(), "^PartyMemberFrame(%d+)$") then
+
+        -- Only if we are in a party.
+        if UnitInParty("player") then
+          -- Only for as many frames as there are party members.
+          local numGroupMembers = GetNumGroupMembers()
+          local frameNumber = tonumber(string.match(frame:GetName(), "^PartyMemberFrame(%d+)"))
+          if frameNumber < numGroupMembers then
+            frame:Show()
+            PartyMemberFrame_UpdateNotPresentIcon(frame)
+            -- The above functions set the alpha, but we want to do the fade in ourselves.
+            frame:SetAlpha(0)
+            frame.notPresentIcon:SetAlpha(0)
+          end
+        end
+
       end
-    
+
     elseif string_find(frame:GetName(), "^CompactRaidFrame") then
-      
-      -- The same for the raid frames.
+
       -- Use CompactRaidFrameManager:IsShown() instead of UnitInRaid("player") because people might use
       -- an addon like SoloRaidFrame to show the raid frame even while not in raid.
       if CompactRaidFrameManager:IsShown() then
+        -- TODO: Ideally do something here as well to handle frames that are added or removed during NPC interaction...
         frame:Show()
       end
-    
+
     elseif frame.ludius_shownBeforeFadeOut then
       -- if frame:GetName() == debugFrameName then print("Have to show it again!") end
       frame:Show()
     end
-    
+
   end
-  
-  
+
+
   frame.ludius_shownBeforeFadeOut = nil
 end
 
