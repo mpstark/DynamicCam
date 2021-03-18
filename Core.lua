@@ -176,8 +176,18 @@ local function DC_RunScript(script, situationID)
 
     -- make sure that we're not creating tables willy nilly
     if not functionCache[script] then
-        functionCache[script] = assert(loadstring(script))
 
+        local f, msg = loadstring(script)
+        if not f then
+            print("Syntax error in script!")
+            print(msg)
+            
+            -- TODO: Disable and mark this situation!
+            return
+        else
+            functionCache[script] = f
+        end
+        
         -- if env, set the environment to that
         if situationID then
             if not situationEnvironments[situationID] then
@@ -199,8 +209,21 @@ local function DC_RunScript(script, situationID)
         end
     end
 
-    -- return the result
-    return functionCache[script]()
+
+    local result = {pcall(functionCache[script])}
+
+    if result[1] == false then
+        print("Runtime error in script!")
+        print(result[2])
+        
+        -- TODO: Disable and mark this situation!
+        return
+    else
+        tremove(result, 1)
+        -- print(DynamicCam.db.profile.situations[situationID].name, unpack(result))
+        return unpack(result)
+    end
+
 end
 
 local function DC_SetCVar(cvar, setting)

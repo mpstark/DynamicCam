@@ -570,7 +570,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                             addIncrementsAlways = {
                                 type = "range",
                                 name = "Zoom Increments",
-                                desc = "How many yards the camera should travel for each \'tick\' of the mouse wheel.",
+                                desc = "How many yards the camera should travel for each \"tick\" of the mouse wheel.",
                                 order = 3,
                                 width = sliderWidth,
                                 min = 0.05,
@@ -1686,7 +1686,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 2,
             },
             blank2 = {type = "description", name = " ", width = 0.1, order = 2.5, },
-            
+
             deleteCustom = {
                 type = "execute",
                 name = "-",
@@ -1707,7 +1707,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 3,
             },
             blank3 = {type = "description", name = " ", width = 0.03, order = 3.5, },
-            
+
             newSituation = {
                 type = "execute",
                 name = "+",
@@ -1716,8 +1716,8 @@ local function CreateSituationSettingsTab(tabOrder)
                 order = 4,
                 width = 0.23,
             },
-            
-            
+
+
             situationSettings = CreateSettingsTab(5, true),
 
             situationActions = {
@@ -2816,9 +2816,9 @@ to show the UI without any delay.]],
                 type = "group",
                 name = "Situation Controls",
                 order = 7,
-                
+
                 args = {
-                
+
                     help = {
                         type = "description",
                         name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you check the stock situations here. You can also modify them, but beware: your changed settings will persist even if a future version of DynamicCam introduces important updates.\n\n",
@@ -2850,7 +2850,7 @@ to show the UI without any delay.]],
                                 name = "Restore default",
                                 desc =
                                     function()
-                                        return "Your 'Priority' deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
+                                        return "Your \"Priority\" deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
                                     end,
                                 func = function() S.priority = DynamicCam.defaults.profile.situations[SID].priority end,
                                 hidden =
@@ -2861,7 +2861,7 @@ to show the UI without any delay.]],
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
-                            
+
                             priorityDescriptionGroup = {
                                 type = "group",
                                 name = "Help",
@@ -2876,8 +2876,8 @@ to show the UI without any delay.]],
                             },
                         },
                     },
-                    
-                    
+
+
                     events = {
                         type = "group",
                         name = "Events",
@@ -2906,7 +2906,7 @@ to show the UI without any delay.]],
                             eventsDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Events' deviate from the default for this situation. Click here to restore them.",
+                                desc = "Your \"Events\" deviate from the default for this situation. Click here to restore them.",
                                 func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -2915,7 +2915,7 @@ to show the UI without any delay.]],
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
-                            
+
                             eventsDescriptionGroup = {
                                 type = "group",
                                 name = "Help",
@@ -2948,8 +2948,8 @@ https://wow.gamepedia.com/Events
                             },
                         },
                     },
-                    
-                    
+
+
                     initialisation = {
                         type = "group",
                         name = "Initialisation",
@@ -2969,11 +2969,11 @@ https://wow.gamepedia.com/Events
                                 width = "full",
                                 order = 1,
                             },
-                            
+
                             executeOnInitDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Initialisation Script' deviates from the default for this situation. Click here to restore it.",
+                                desc = "Your \"Initialisation Script\" deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -2982,7 +2982,7 @@ https://wow.gamepedia.com/Events
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
-                            
+
                             initialisationDescriptionGroup = {
                                 type = "group",
                                 name = "Help",
@@ -2994,51 +2994,43 @@ https://wow.gamepedia.com/Events
                                         name =
 [[The initialisation script of a situation is run once when DynamicCam is loaded (and also when the situation is modified). You would typically put stuff into it which you want to reuse in any of the other scripts (condition, on-enter, on-exit). This can make these other scripts a bit shorter.
 
-For example, the initialisation script of the "Hearth/Teleport" situation defines the table 'this.spells', which includes the spell IDs of teleport spells. The condition script can then simply access 'this.spells' every time it is executed.
+For example, the initialisation script of the "Hearth/Teleport" situation defines the table "this.spells", which includes the spell IDs of teleport spells. The condition script can then simply access "this.spells" every time it is executed.
 
-Like in this example, you can share any data object between the scripts of a situation by putting it into the 'this' table.
+Like in this example, you can share any data object between the scripts of a situation by putting it into the "this" table.
 
 ]],
                                     },
                                 },
                             },
-                            
+
                         },
                     },
-                    
-                    
+
+
                     condition = {
                         type = "group",
                         name = "Condition",
                         order = 4,
                         args = {
 
-                            help = {
-                                type = "description",
-                                name = "asdasd.\n\n",
-                                order = 0,
-                            },
-                            
-                            
-                            
                             condition = {
                                 type = "input",
                                 name = "Condition Script",
-                                desc = "Lua code using the WoW UI API.\nShould return 'true' if and only if the condition is fulfilled.",
+                                desc = "Lua code using the WoW UI API.\nShould return \"true\" if and only if the situation should be active.",
                                 get = function() return S.condition end,
                                 set = function(_, newValue)
                                         S.condition = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 6,
+                                multiline = 12,
                                 width = "full",
                                 order = 1,
                             },
-                            
+
                             conditionDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'Condition Script' deviates from the default for this situation. Click here to restore it.",
+                                desc = "Your \"Condition Script\" deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3046,10 +3038,38 @@ Like in this example, you can share any data object between the scripts of a sit
                                   end,
                                 order = 2,
                             },
-                            
+                            blank2 = {type = "description", name = " ", order = 2.2, },
+
+                            conditionDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 3,
+                                args = {
+                                    conditionDescription = {
+                                        type = "description",
+                                        name =
+[[The condition script of a situation is run every time an in-game event of this situation is triggered. The script should return "true" if and only if this situation should be active.
+
+For example, the condition script of the "City" situation uses the WoW API function "IsResting()" to check if you are currently is a resting zone:
+
+  return IsResting()
+
+Likewise, the condition script of the "City - Indoors" situation also uses the WoW API function "IsIndoors()" to also check if you are indoors:
+
+  return IsResting() and IsIndoors()
+
+A list of WoW API functions can be found here:
+https://wow.gamepedia.com/World_of_Warcraft_API
+
+]],
+                                    },
+                                },
+                            },
+
                         },
                     },
-                    
+
                     entering = {
                         type = "group",
                         name = "Entering",
@@ -3061,7 +3081,7 @@ Like in this example, you can share any data object between the scripts of a sit
                                 name = "asdasd.\n\n",
                                 order = 0,
                             },
-                            
+
                             executeOnEnter = {
                                 type = "input",
                                 name = "On-Enter Script",
@@ -3072,11 +3092,11 @@ Like in this example, you can share any data object between the scripts of a sit
                                 width = "full",
                                 order = 1,
                             },
-                            
+
                             executeOnEnterDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'On-Enter Script' deviates from the default for this situation. Click here to restore it.",
+                                desc = "Your \"On-Enter Script\" deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3086,7 +3106,7 @@ Like in this example, you can share any data object between the scripts of a sit
                             },
                         },
                     },
-                            
+
                     exiting = {
                         type = "group",
                         name = "Exiting",
@@ -3098,7 +3118,7 @@ Like in this example, you can share any data object between the scripts of a sit
                                 name = "asdasd.\n\n",
                                 order = 0,
                             },
-                            
+
                             executeOnExit = {
                                 type = "input",
                                 name = "On-Exit Script",
@@ -3109,11 +3129,11 @@ Like in this example, you can share any data object between the scripts of a sit
                                 width = "full",
                                 order = 1,
                             },
-                            
+
                             executeOnExitDefault = {
                                 type = "execute",
                                 name = "Restore default",
-                                desc = "Your 'On-Exit Script' deviates from the default for this situation. Click here to restore it.",
+                                desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to restore it.",
                                 func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3121,7 +3141,7 @@ Like in this example, you can share any data object between the scripts of a sit
                                   end,
                                 order = 2,
                             },
-                            
+
                             delay = {
                                 type = "input",
                                 name = "Delay",
@@ -3136,11 +3156,11 @@ Like in this example, you can share any data object between the scripts of a sit
                                 width = "half",
                                 order = 3,
                             },
-                
+
                         },
                     },
-                
-               
+
+
 
                 },
 
@@ -3190,7 +3210,7 @@ Like in this example, you can share any data object between the scripts of a sit
                         width = "half",
                     },
 
-                    
+
 
                 },
 

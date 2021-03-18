@@ -304,7 +304,12 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 }]],
                 events = {"UPDATE_SHAPESHIFT_FORM"},
                 priority = 100,
-                condition = "return this.travelFormIds[GetShapeshiftFormID(true)]",
+                condition = [[local formId = GetShapeshiftFormID()
+if formId and this.travelFormIds[formId] then
+  return true
+else
+  return false
+end]],
             },
 
             ["200"] = {
