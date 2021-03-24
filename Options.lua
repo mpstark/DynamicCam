@@ -1720,6 +1720,7 @@ local function CreateSituationSettingsTab(tabOrder)
 
             situationSettings = CreateSettingsTab(5, true),
 
+
             situationActions = {
 
                 type = "group",
@@ -1946,7 +1947,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                                             transitionTime = {
                                                 type = "range",
                                                 name = "Zoom Transition Time",
-                                                desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its initialisation script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
+                                                desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
                                                 min = 0,
                                                 max = 5,
                                                 step = .05,
@@ -2296,7 +2297,7 @@ where #1 is the zoom level and #2 is the transition time.\nE.g. to zoom to level
                                                 if S.rotation.rotationType == "continuous" then
                                                     return "If you set a time greater than 0 here, the continuous rotation will not immediately start at its full rotation speed but will take that amount of time to accelerate. (Only noticeable for relatively high rotation speeds.)"
                                                 else
-                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its initialisation script, the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
+                                                    return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
                                                 end
                                             end,
                                         min = 0,
@@ -2821,7 +2822,7 @@ to show the UI without any delay.]],
 
                     help = {
                         type = "description",
-                        name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you check the stock situations here. You can also modify them, but beware: your changed settings will persist even if a future version of DynamicCam introduces important updates.\n\n",
+                        name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if a future version of DynamicCam introduces important updates.\n\n",
                         order = 0,
                     },
 
@@ -2847,10 +2848,10 @@ to show the UI without any delay.]],
                             },
                             priorityDefault = {
                                 type = "execute",
-                                name = "Restore default",
+                                name = "Reset to default",
                                 desc =
                                     function()
-                                        return "Your \"Priority\" deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
+                                        return "Your \"Priority\" deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to reset it."
                                     end,
                                 func = function() S.priority = DynamicCam.defaults.profile.situations[SID].priority end,
                                 hidden =
@@ -2876,7 +2877,6 @@ to show the UI without any delay.]],
                             },
                         },
                     },
-
 
                     events = {
                         type = "group",
@@ -2905,8 +2905,8 @@ to show the UI without any delay.]],
 
                             eventsDefault = {
                                 type = "execute",
-                                name = "Restore default",
-                                desc = "Your \"Events\" deviate from the default for this situation. Click here to restore them.",
+                                name = "Reset to default",
+                                desc = "Your \"Events\" deviate from the default for this situation. Click here to reset them.",
                                 func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -2949,7 +2949,6 @@ https://wow.gamepedia.com/Events
                         },
                     },
 
-
                     initialisation = {
                         type = "group",
                         name = "Initialisation",
@@ -2972,8 +2971,8 @@ https://wow.gamepedia.com/Events
 
                             executeOnInitDefault = {
                                 type = "execute",
-                                name = "Restore default",
-                                desc = "Your \"Initialisation Script\" deviates from the default for this situation. Click here to restore it.",
+                                name = "Reset to default",
+                                desc = "Your \"Initialisation Script\" deviates from the default for this situation. Click here to reset it.",
                                 func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3002,10 +3001,8 @@ Like in this example, you can share any data object between the scripts of a sit
                                     },
                                 },
                             },
-
                         },
                     },
-
 
                     condition = {
                         type = "group",
@@ -3029,8 +3026,8 @@ Like in this example, you can share any data object between the scripts of a sit
 
                             conditionDefault = {
                                 type = "execute",
-                                name = "Restore default",
-                                desc = "Your \"Condition Script\" deviates from the default for this situation. Click here to restore it.",
+                                name = "Reset to default",
+                                desc = "Your \"Condition Script\" deviates from the default for this situation. Click here to reset it.",
                                 func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3066,7 +3063,6 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                     },
                                 },
                             },
-
                         },
                     },
 
@@ -3076,27 +3072,21 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                         order = 5,
                         args = {
 
-                            help = {
-                                type = "description",
-                                name = "asdasd.\n\n",
-                                order = 0,
-                            },
-
                             executeOnEnter = {
                                 type = "input",
                                 name = "On-Enter Script",
                                 desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnEnter end,
                                 set = function(_, newValue) S.executeOnEnter = newValue end,
-                                multiline = 6,
+                                multiline = 12,
                                 width = "full",
                                 order = 1,
                             },
 
                             executeOnEnterDefault = {
                                 type = "execute",
-                                name = "Restore default",
-                                desc = "Your \"On-Enter Script\" deviates from the default for this situation. Click here to restore it.",
+                                name = "Reset to default",
+                                desc = "Your \"On-Enter Script\" deviates from the default for this situation. Click here to reset it.",
                                 func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3104,6 +3094,26 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                   end,
                                 order = 2,
                             },
+                            blank2 = {type = "description", name = " ", order = 2.2, },
+
+                            executeOnEnterDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 3,
+                                args = {
+                                    executeOnEnterDescription = {
+                                        type = "description",
+                                        name =
+[[The on-enter script of a situation is run every time the situation is entered.
+
+So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.transitionTime" and "this.rotationTime", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Because not all teleport spells have the same cast times.)
+
+]],
+                                    },
+                                },
+                            },
+
                         },
                     },
 
@@ -3113,27 +3123,21 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                         order = 6,
                         args = {
 
-                            help = {
-                                type = "description",
-                                name = "asdasd.\n\n",
-                                order = 0,
-                            },
-
                             executeOnExit = {
                                 type = "input",
                                 name = "On-Exit Script",
                                 desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnExit end,
                                 set = function(_, newValue) S.executeOnExit = newValue end,
-                                multiline = 6,
+                                multiline = 12,
                                 width = "full",
                                 order = 1,
                             },
 
                             executeOnExitDefault = {
                                 type = "execute",
-                                name = "Restore default",
-                                desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to restore it.",
+                                name = "Reset to default",
+                                desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to reset it.",
                                 func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
                                 hidden = function()
                                     if not DynamicCam.defaults.profile.situations[SID] then return true end
@@ -3145,7 +3149,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                             delay = {
                                 type = "input",
                                 name = "Delay",
-                                desc = "How long to delay exiting this situation",
+                                desc = "Wait for this many seconds before exiting this situation.",
                                 get = function() return ""..S.delay end,
                                 set = function(_, newValue)
                                         if tonumber(newValue) then
@@ -3156,19 +3160,35 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                 width = "half",
                                 order = 3,
                             },
+                            blank3 = {type = "description", name = " ", order = 3.2, },
+
+                            executeOnEnterDescriptionGroup = {
+                                type = "group",
+                                name = "Help",
+                                inline = true,
+                                order = 4,
+                                args = {
+                                    executeOnEnterDescription = {
+                                        type = "description",
+                                        name =
+[[The on-exit script of a situation is run every time the situation is exited. So far, no situation is using this.
+
+The delay determines how many seconds to wait before exiting the situation. So far, the only example for this is the "Fishing" situation, where the delay gives you time to re-cast your fishing rod without exiting the situation.
+
+]],
+                                    },
+                                },
+                            },
 
                         },
                     },
-
-
 
                 },
 
             },
 
 
-
-            customImport = {
+            importExport = {
 
                 type = "group",
                 name = "Import / Export",
@@ -3210,6 +3230,21 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                         width = "half",
                     },
 
+                    helpText = {
+                        type = "description",
+                        name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
+                        order = 8,
+                    },
+                    import = {
+                        type = "input",
+                        name = "Paste and hit Accept to import!",
+                        desc = "Paste the DynamicCam import string of a profile or a situation.",
+                        get = function() return "" end,
+                        set = function(_, newValue) DynamicCam:Import(newValue) end,
+                        multiline = 10,
+                        width = "full",
+                        order = 9,
+                    },
 
 
                 },
@@ -3228,47 +3263,33 @@ local profileSettings = {
     childGroups = "tab",
     args = {
 
-        exportGroup = {
+        manageProfiles = {
             type = "group",
-            name = "Export currently active profile",
-            order = 1000,
+            name = "Manage Profiles",
+            order = 1,
             args = {
-                helpText = {
-                    type = "description",
-                    name = "If you want to share your profile with others you can export it into a text string. Use the \"Import\" section of the DynamicCam settings to import strings you have received from others.",
-                    order = 0,
-                },
-                name = {
-                    type = "input",
-                    name = "Profile Name (Required!)",
-                    desc = "The name that other people will see when importing this profile.",
-                    get = function() return exportName end,
-                    set = function(_, newValue) exportName = newValue end,
-                    --width = "double",
-                    order = 1,
-                },
-                author = {
-                    type = "input",
-                    name = "Author (Optional)",
-                    desc = "A name that will be attached to the export so that other people know whom it's from.",
-                    get = function() return exportAuthor end,
-                    set = function(_, newValue) exportAuthor = newValue end,
-                    order = 2,
-                },
-                export = {
-                    type = "execute",
-                    name = "Generate export string",
-                    disabled = function() return not (exportName and exportName ~= "") end,
-                    func = function() DynamicCam:PopupExport(DynamicCam:ExportProfile(exportName, exportAuthor)) end,
-                    order = 3,
+
+                blank99 = {type = "description", name = " ", order = 99, },
+
+                warning = {
+                    type = "group",
+                    name = "Help",
+                    inline = true,
+                    order = 100,
+                    args = {
+                        priorityDescription = {
+                            type = "description",
+                            name = "Like many addons, DynamicCam is using the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever settings change you make for the currently active profile is permanent!! There is nothing like \"Cancel\" or \"Discard\". The \"Reset Profile\" button only resets to the DynamicCam stock profile settings.\n\nSo if you have found some custom DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can carelessly experiment more with the settings and at any time return to your original profile selecting your backup profile in the \"Copy from\" box.\n\n",
+                        },
+                    },
                 },
             },
         },
 
-        presetGroup = {
+        presets = {
             type = "group",
             name = "Profile presets",
-            order = 1010,
+            order = 2,
             args = {
                 description = {
                     type = "description",
@@ -3301,30 +3322,60 @@ local profileSettings = {
                 },
             },
         },
-    },
-}
+
+        importExport = {
+            type = "group",
+            name = "Import / Export",
+            order = 3,
+            args = {
+                helpText = {
+                    type = "description",
+                    name = "If you want to share your profile with others you can export it into a text string. Use \"Import\" to import strings you have received from others.",
+                    order = 0,
+                },
+                name = {
+                    type = "input",
+                    name = "Profile Name (Required!)",
+                    desc = "The name that other people will see when importing this profile.",
+                    get = function() return exportName end,
+                    set = function(_, newValue) exportName = newValue end,
+                    --width = "double",
+                    order = 1,
+                },
+                author = {
+                    type = "input",
+                    name = "Author (Optional)",
+                    desc = "A name that will be attached to the export so that other people know whom it's from.",
+                    get = function() return exportAuthor end,
+                    set = function(_, newValue) exportAuthor = newValue end,
+                    order = 2,
+                },
+                export = {
+                    type = "execute",
+                    name = "Generate export string",
+                    disabled = function() return not (exportName and exportName ~= "") end,
+                    func = function() DynamicCam:PopupExport(DynamicCam:ExportProfile(exportName, exportAuthor)) end,
+                    order = 3,
+                },
 
 
+                helpText = {
+                    type = "description",
+                    name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
+                    order = 4,
+                },
+                import = {
+                    type = "input",
+                    name = "Paste and hit Accept to import!",
+                    desc = "Paste the DynamicCam import string of a profile or a situation.",
+                    get = function() return "" end,
+                    set = function(_, newValue) DynamicCam:Import(newValue) end,
+                    multiline = 10,
+                    width = "full",
+                    order = 5,
+                },
 
-local import = {
-    type = "group",
-    name = "Import",
-    order = 5,
-    args = {
-        helpText = {
-            type = "description",
-            name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
-            order = 0,
-        },
-        import = {
-            type = "input",
-            name = "Paste and hit Accept to import!",
-            desc = "Paste the DynamicCam import string of a profile or a situation.",
-            get = function() return "" end,
-            set = function(_, newValue) DynamicCam:Import(newValue) end,
-            multiline = 10,
-            width = "full",
-            order = 20,
+            },
         },
     },
 }
@@ -3398,8 +3449,12 @@ function Options:RegisterMenus()
     -- setup menu
 
     -- Add profile managing here, such that we can have export below it.
-    profileSettings.args["settings"] = LibStub("AceDBOptions-3.0"):GetOptionsTable(DynamicCam.db)
-    profileSettings.args["settings"]["name"] = "Manage profiles"
+    profileSettings.args.manageProfiles.args.acedbPanel = LibStub("AceDBOptions-3.0"):GetOptionsTable(DynamicCam.db)
+
+    profileSettings.args.manageProfiles.args.acedbPanel.name = ""
+    profileSettings.args.manageProfiles.args.acedbPanel.inline = true
+    profileSettings.args.manageProfiles.args.acedbPanel.order = 1
+
 
     local allOptions = {
         name = "DynamicCam",
@@ -3410,7 +3465,6 @@ function Options:RegisterMenus()
             standardSettingsTab = CreateSettingsTab(2),
             situationSettingsTab = CreateSituationSettingsTab(3),
             profileSettingsTab = profileSettings,
-            importTab = import,
         }
     }
 

@@ -181,13 +181,13 @@ local function DC_RunScript(script, situationID)
         if not f then
             print("Syntax error in script!")
             print(msg)
-            
+
             -- TODO: Disable and mark this situation!
             return
         else
             functionCache[script] = f
         end
-        
+
         -- if env, set the environment to that
         if situationID then
             if not situationEnvironments[situationID] then
@@ -215,7 +215,7 @@ local function DC_RunScript(script, situationID)
     if result[1] == false then
         print("Runtime error in script!")
         print(result[2])
-        
+
         -- TODO: Disable and mark this situation!
         return
     else
@@ -1725,8 +1725,19 @@ function DynamicCam:RegisterSituationEvents(situationID)
         for i, event in pairs(situation.events) do
             if not events[event] then
                 events[event] = true
-                self:RegisterEvent(event, "EventHandler")
-                -- print("Registered for event:", event)
+
+                local result = {pcall(function() DynamicCam:RegisterEvent(event, "EventHandler") end)}
+
+                if result[1] == false then
+                    print("Error with your events!")
+                    print(result[2])
+
+                    -- TODO: Disable and mark this situation!
+                    return
+
+                -- else
+                  -- print("Registered for event:", event)
+                end
             end
         end
     end

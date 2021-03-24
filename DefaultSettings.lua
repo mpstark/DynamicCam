@@ -482,6 +482,7 @@ return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 priority = 20,
                 condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
+                delay = 1,
             },
 
             ["303"] = {
