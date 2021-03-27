@@ -6,19 +6,14 @@ local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
 
 DynamicCam.situationDefaults = {
 
-    enabled = true,
+    enabled = false,
 
     situationSettings = {
         cvars = {},
     },
 
-
-
-
     viewZoom = {
-
         enabled = false,
-
         viewZoomType = "zoom",
 
         zoomTransitionTime = 1,
@@ -31,8 +26,6 @@ DynamicCam.situationDefaults = {
         viewRestore = true,
         viewInstant = false,
     },
-
-
 
     rotation = {
         enabled = false,
@@ -61,13 +54,12 @@ DynamicCam.situationDefaults = {
         keepChatFrame = false,
         keepTrackingBar = false,
 
-        keepMinimap = true,
+        keepMinimap = false,
 
         hideEntireUI = false,
 
         emergencyShowEscEnabled = true,
     },
-
 
     executeOnInit = "",
 

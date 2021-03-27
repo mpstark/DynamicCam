@@ -169,21 +169,19 @@ shoulderOffsetEasingFrame:SetScript("onUpdate", ShoulderOffsetEasingFunction)
 
 
 
-local function DC_RunScript(script, situationID)
-    if not script or script == "" then
-        return
-    end
+local function DC_RunScript(situationID, scriptID)
+
+    local script = DynamicCam.db.profile.situations[situationID][scriptID]
+
+    if not script or script == "" then return end
 
     -- make sure that we're not creating tables willy nilly
     if not functionCache[script] then
 
         local f, msg = loadstring(script)
         if not f then
-            print("Syntax error in script!")
-            print(msg)
-
-            -- TODO: Disable and mark this situation!
-            return
+            DynamicCam:ScriptError(situationID, scriptID, "syntax", msg)
+            return nil
         else
             functionCache[script] = f
         end
@@ -213,11 +211,8 @@ local function DC_RunScript(script, situationID)
     local result = {pcall(functionCache[script])}
 
     if result[1] == false then
-        print("Runtime error in script!")
-        print(result[2])
-
-        -- TODO: Disable and mark this situation!
-        return
+        DynamicCam:ScriptError(situationID, scriptID, "runtime", result[2])
+        return nil
     else
         tremove(result, 1)
         -- print(DynamicCam.db.profile.situations[situationID].name, unpack(result))
@@ -799,7 +794,7 @@ function DynamicCam:EvaluateSituations()
         if situation.enabled then
             -- evaluate the condition, if it checks out and the priority is larger than any other, set it
             local lastEvaluate = self.conditionExecutionCache[id]
-            local thisEvaluate = DC_RunScript(situation.condition, id)
+            local thisEvaluate = DC_RunScript(id, "condition")
             self.conditionExecutionCache[id] = thisEvaluate
 
             if thisEvaluate then
@@ -978,7 +973,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         end
 
         -- Load and run advanced script onExit.
-        DC_RunScript(oldSituation.executeOnExit, oldSituationID)
+        DC_RunScript(oldSituationID, "executeOnExit")
 
         -- Unhide UI if applicable.
         if oldSituation.hideUI.enabled then
@@ -1015,7 +1010,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         end
 
         -- Load and run advanced script onEnter.
-        DC_RunScript(newSituation.executeOnEnter, newSituationID)
+        DC_RunScript(newSituationID, "executeOnEnter")
 
         -- Hide UI if applicable.
         if newSituation.hideUI.enabled then
@@ -1233,7 +1228,7 @@ function DynamicCam:UpdateSituation(situationID)
     if situation and situationID == self.currentSituationID then
         self:ApplySettings()
     end
-    DC_RunScript(situation.executeOnInit, situationID)
+    DC_RunScript(situationID, "executeOnInit")
     self:RegisterSituationEvents(situationID)
     self:EvaluateSituations()
 end
@@ -1727,14 +1722,10 @@ function DynamicCam:RegisterSituationEvents(situationID)
                 events[event] = true
 
                 local result = {pcall(function() DynamicCam:RegisterEvent(event, "EventHandler") end)}
-
+                
                 if result[1] == false then
-                    print("Error with your events!")
-                    print(result[2])
-
-                    -- TODO: Disable and mark this situation!
-                    return
-
+                    DynamicCam:ScriptError(situationID, "events", "events", result[2])
+                    return nil
                 -- else
                   -- print("Registered for event:", event)
                 end
@@ -1771,7 +1762,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
     OnAccept = function()
         InterfaceOptionsFrame_OpenToCategory(Options.menu)
         InterfaceOptionsFrame_OpenToCategory(Options.menu)
@@ -1787,7 +1778,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
     OnAccept = function()
         InterfaceOptionsFrame_OpenToCategory(Options.menu)
         InterfaceOptionsFrame_OpenToCategory(Options.menu)
@@ -1946,7 +1937,7 @@ function DynamicCam:RefreshConfig()
 
     -- run all situations's advanced init script
     for id, situation in pairs(self.db.profile.situations) do
-        DC_RunScript(situation.executeOnInit, id)
+        DC_RunScript(id, "executeOnInit")
     end
 end
 
@@ -1992,7 +1983,7 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
     hasEditBox = true,
     whileDead = true,
     hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see http://www.wowace.com/announcements/how-to-avoid-some-ui-taint/
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
     OnShow = function (self, data)
         self.editBox:SetText(exportString)
         self.editBox:HighlightText()
@@ -2431,6 +2422,63 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
     end
 
 end)
+
+
+
+
+
+
+
+
+
+
+
+-- For errors in scripts.
+-- https://wowpedia.fandom.com/wiki/API_StaticPopup_Show
+-- https://wowpedia.fandom.com/wiki/Creating_simple_pop-up_dialog_boxes
+
+
+StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
+    text = "There is a problem with your script!",
+    button1 = "OK",
+    button2 = "Cancel",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+    OnAccept = function()
+        print("ok")
+    end,
+    OnCancel = function(_, reason)
+        print("no")
+    end,
+}
+
+
+-- TODO: Later with localisation:
+local scriptNames = {
+    executeOnInit = "Initialisation Script",
+    condition = "Condition Script",
+    executeOnEnter = "On-Enter Script",
+    executeOnExit = "On-Exit Script",
+    events = "Events",
+}
+
+function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
+
+    -- print(situationID, scriptID, errorType, errorMessage)
+    local situation = self.db.profile.situations[situationID]
+    
+    print("Situation", situation.name, "has a problem with its", scriptNames[scriptID])
+    
+    print(errorType, errorMessage)
+
+    -- TODO 
+
+end
+
+
+
 
 
 
