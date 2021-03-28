@@ -2,7 +2,7 @@ local _, Addon = ...
 
 
 -- For debugging:
--- local debugFrameName = "CompactRaidFrame1"
+-- local debugFrameName = "StatusTrackingBarManager"
 
 
 -- Flag to remember if the UI is currently faded out.
@@ -327,11 +327,19 @@ end
 
 
 
+-- Normally we do not change the IgnoreParentAlpha for frames that are
+-- not children of UIParent. But for some, we have to make an exception.
+local allowedNonUIParentChildren = {
+  StatusTrackingBarManager = true,
+  BT4StatusBarTrackingManager = true,
+  GwExperienceFrame = true,
+}
+
 -- To restore frames to their pre-hide ignore-parent-alpha state,
 -- we remember it in the ludius_ignoreParentAlphaBeforeFadeOut variable.
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
   -- Only do this to direct children of UIParent.
-  if not frame or frame:GetParent() ~= UIParent then return end
+  if not frame or (frame:GetParent() ~= UIParent and not allowedNonUIParentChildren[frame:GetName()]) then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
     frame.ludius_ignoreParentAlphaBeforeFadeOut = frame:IsIgnoringParentAlpha()
