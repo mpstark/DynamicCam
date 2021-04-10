@@ -18,36 +18,6 @@ local function round(num, numDecimalPlaces)
     return math.floor(num * mult + 0.5) / mult
 end
 
-local function ScriptEqual(customScript, defaultScript)
-    if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
-end
-
-
-local function EventsEqual(customEvents, defaultEvents)
-    local customEventsCheck = {}
-    local defaultEventsCheck = {}
-
-    for k, v in pairs(customEvents) do
-        customEventsCheck[v] = true
-    end
-
-    for k, v in pairs(defaultEvents) do
-        if not customEventsCheck[v] then
-            return false
-        end
-        defaultEventsCheck[v] = true
-    end
-
-    for k, v in pairs(customEvents) do
-        if not defaultEventsCheck[v] then
-            return false
-        end
-    end
-
-    return true
-end
-
-
 
 local Options = DynamicCam.Options
 local _
@@ -129,6 +99,35 @@ local general = {
 
     },
 }
+
+
+function DynamicCam:ScriptEqual(customScript, defaultScript)
+    if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
+end
+
+function DynamicCam:EventsEqual(customEvents, defaultEvents)
+    local customEventsCheck = {}
+    local defaultEventsCheck = {}
+
+    for k, v in pairs(customEvents) do
+        customEventsCheck[v] = true
+    end
+
+    for k, v in pairs(defaultEvents) do
+        if not customEventsCheck[v] then
+            return false
+        end
+        defaultEventsCheck[v] = true
+    end
+
+    for k, v in pairs(customEvents) do
+        if not defaultEventsCheck[v] then
+            return false
+        end
+    end
+
+    return true
+end
 
 
 
@@ -391,6 +390,16 @@ local function ColoredNames(name, groupVarsTable, forSituations)
 end
 
 
+local function RedIfError(text, scriptId)
+    if S.errorEncountered and (not scriptId or scriptId == S.errorEncountered) then
+        return "|cFFEE0000".. text .. "|r"
+    else
+        return text
+    end
+end
+
+
+
 local function CreateOverriddenText(groupVarsTable, forSituations)
 
     return {
@@ -452,6 +461,42 @@ local function ApplyUIFade()
         end
     end
 end
+
+
+local function GetSituationList()
+    local situationList = {}
+
+    for id, situation in pairs(DynamicCam.db.profile.situations) do
+        local prefix = ""
+        local suffix = ""
+        local customPrefix = ""
+
+        if situation.errorEncountered then
+            prefix = "|cFFEE0000"
+            suffix = "|r"
+        elseif DynamicCam.currentSituationID == id then
+            prefix = "|cFF00FF00"
+            suffix = "|r"
+        elseif not situation.enabled then
+            prefix = "|cFF808A87"
+            suffix = "|r"
+        elseif DynamicCam.conditionExecutionCache[id] then
+            prefix = "|cFF63B8FF"
+            suffix = "|r"
+        end
+
+        if string.find(id, "custom") then
+            customPrefix = "Custom: "
+        end
+
+        situationList[id] = prefix..customPrefix..situation.name.." [Priority: "..situation.priority.."]"..suffix
+    end
+
+    return situationList
+end
+
+
+
 
 
 local function CreateSettingsTab(tabOrder, forSituations)
@@ -1639,7 +1684,7 @@ local function CreateSituationSettingsTab(tabOrder)
             selectedSituation = {
                 type = "select",
                 name = "Select a situation to setup",
-                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r",
+                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFEE0000- Erroneous Situation Controls.|r",
                 get =
                     function()
                         return SID
@@ -1651,7 +1696,7 @@ local function CreateSituationSettingsTab(tabOrder)
                     end,
                 values =
                     function()
-                        return DynamicCam:GetSituationList()
+                        return GetSituationList()
                     end,
                 width = 2.2,
                 order = 1,
@@ -1677,9 +1722,9 @@ local function CreateSituationSettingsTab(tabOrder)
                     function(_, newValue)
                         S.enabled = newValue
                         if newValue then
-                            Options:SendMessage("DC_SITUATION_ENABLED")
+                            Options:SendMessage("DC_SITUATION_UPDATED", SID)
                         else
-                            Options:SendMessage("DC_SITUATION_DISABLED")
+                            Options:SendMessage("DC_SITUATION_DISABLED", SID)
                         end
                     end,
                 width = 0.5,
@@ -2815,14 +2860,13 @@ to show the UI without any delay.]],
             situationControls = {
 
                 type = "group",
-                name = "Situation Controls",
+                name = function() return RedIfError("Situation Controls") end,
                 order = 7,
-
                 args = {
 
                     help = {
                         type = "description",
-                        name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if a future version of DynamicCam introduces important updates.\n\n",
+                        name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates.\n\n",
                         order = 0,
                     },
 
@@ -2880,16 +2924,31 @@ to show the UI without any delay.]],
 
                     events = {
                         type = "group",
-                        name = "Events",
+                        name = function() return RedIfError("Events", "events") end,
                         order = 2,
                         args = {
+
+                            errorMessage = {
+                                type = "description",
+                                name =
+                                    function()
+                                        if S.errorEncountered then
+                                            return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                                        else
+                                            return ""
+                                        end
+                                    end,
+                                hidden = function() return not S.errorEncountered end,
+                                order = 0
+                            },
 
                             events = {
                                 type = "input",
                                 name = "Events",
                                 desc = "Separated by commas.",
                                 get = function() return table.concat(S.events, ", ") end,
-                                set = function(_, newValue)
+                                set =
+                                    function(_, newValue)
                                         if newValue == "" then
                                             S.events = {}
                                         else
@@ -2907,11 +2966,16 @@ to show the UI without any delay.]],
                                 type = "execute",
                                 name = "Reset to default",
                                 desc = "Your \"Events\" deviate from the default for this situation. Click here to reset them.",
-                                func = function() S.events = DynamicCam.defaults.profile.situations[SID].events end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
-                                  end,
+                                func =
+                                    function()
+                                        S.events = DynamicCam.defaults.profile.situations[SID].events
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return DynamicCam:EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
+                                    end,
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
@@ -2949,18 +3013,33 @@ https://wow.gamepedia.com/Events
                         },
                     },
 
-                    initialisation = {
+                    executeOnInit = {
                         type = "group",
-                        name = "Initialisation",
+                        name = function() return RedIfError("Initialisation", "executeOnInit") end,
                         order = 3,
                         args = {
+
+                            errorMessage = {
+                                type = "description",
+                                name =
+                                    function()
+                                        if S.errorEncountered then
+                                            return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                                        else
+                                            return ""
+                                        end
+                                    end,
+                                hidden = function() return not S.errorEncountered end,
+                                order = 0
+                            },
 
                             executeOnInit = {
                                 type = "input",
                                 name = "Initialisation Script",
                                 desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnInit end,
-                                set = function(_, newValue)
+                                set =
+                                    function(_, newValue)
                                         S.executeOnInit = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
@@ -2973,11 +3052,16 @@ https://wow.gamepedia.com/Events
                                 type = "execute",
                                 name = "Reset to default",
                                 desc = "Your \"Initialisation Script\" deviates from the default for this situation. Click here to reset it.",
-                                func = function() S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
-                                  end,
+                                func =
+                                    function()
+                                        S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return DynamicCam:ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
+                                    end,
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
@@ -3006,16 +3090,31 @@ Like in this example, you can share any data object between the scripts of a sit
 
                     condition = {
                         type = "group",
-                        name = "Condition",
+                        name = function() return RedIfError("Condition", "condition") end,
                         order = 4,
                         args = {
+
+                            errorMessage = {
+                                type = "description",
+                                name =
+                                    function()
+                                        if S.errorEncountered then
+                                            return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                                        else
+                                            return ""
+                                        end
+                                    end,
+                                hidden = function() return not S.errorEncountered end,
+                                order = 0
+                            },
 
                             condition = {
                                 type = "input",
                                 name = "Condition Script",
                                 desc = "Lua code using the WoW UI API.\nShould return \"true\" if and only if the situation should be active.",
                                 get = function() return S.condition end,
-                                set = function(_, newValue)
+                                set =
+                                    function(_, newValue)
                                         S.condition = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
@@ -3028,11 +3127,16 @@ Like in this example, you can share any data object between the scripts of a sit
                                 type = "execute",
                                 name = "Reset to default",
                                 desc = "Your \"Condition Script\" deviates from the default for this situation. Click here to reset it.",
-                                func = function() S.condition = DynamicCam.defaults.profile.situations[SID].condition end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
-                                  end,
+                                func =
+                                    function()
+                                        S.condition = DynamicCam.defaults.profile.situations[SID].condition
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return DynamicCam:ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                                    end,
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
@@ -3066,18 +3170,36 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                         },
                     },
 
-                    entering = {
+                    executeOnEnter = {
                         type = "group",
-                        name = "Entering",
+                        name = function() return RedIfError("Entering", "executeOnEnter") end,
                         order = 5,
                         args = {
+
+                            errorMessage = {
+                                type = "description",
+                                name =
+                                    function()
+                                        if S.errorEncountered then
+                                            return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                                        else
+                                            return ""
+                                        end
+                                    end,
+                                hidden = function() return not S.errorEncountered end,
+                                order = 0
+                            },
 
                             executeOnEnter = {
                                 type = "input",
                                 name = "On-Enter Script",
                                 desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnEnter end,
-                                set = function(_, newValue) S.executeOnEnter = newValue end,
+                                set =
+                                    function(_, newValue)
+                                        S.executeOnEnter = newValue
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
                                 multiline = 12,
                                 width = "full",
                                 order = 1,
@@ -3087,11 +3209,16 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                 type = "execute",
                                 name = "Reset to default",
                                 desc = "Your \"On-Enter Script\" deviates from the default for this situation. Click here to reset it.",
-                                func = function() S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
-                                  end,
+                                func =
+                                    function()
+                                        S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return DynamicCam:ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
+                                    end,
                                 order = 2,
                             },
                             blank2 = {type = "description", name = " ", order = 2.2, },
@@ -3107,7 +3234,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                         name =
 [[The on-enter script of a situation is run every time the situation is entered.
 
-So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.transitionTime" and "this.rotationTime", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Because not all teleport spells have the same cast times.)
+So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.transitionTime" and "this.rotationTime", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Not all teleport spells have the same cast times.)
 
 ]],
                                     },
@@ -3117,18 +3244,36 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                         },
                     },
 
-                    exiting = {
+                    executeOnExit = {
                         type = "group",
-                        name = "Exiting",
+                        name = function() return RedIfError("Exiting", "executeOnExit") end,
                         order = 6,
                         args = {
+
+                            errorMessage = {
+                                type = "description",
+                                name =
+                                    function()
+                                        if S.errorEncountered then
+                                            return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                                        else
+                                            return ""
+                                        end
+                                    end,
+                                hidden = function() return not S.errorEncountered end,
+                                order = 0
+                            },
 
                             executeOnExit = {
                                 type = "input",
                                 name = "On-Exit Script",
                                 desc = "Lua code using the WoW UI API.",
                                 get = function() return S.executeOnExit end,
-                                set = function(_, newValue) S.executeOnExit = newValue end,
+                                set =
+                                    function(_, newValue)
+                                        S.executeOnExit = newValue
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
                                 multiline = 12,
                                 width = "full",
                                 order = 1,
@@ -3138,11 +3283,16 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                 type = "execute",
                                 name = "Reset to default",
                                 desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to reset it.",
-                                func = function() S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit end,
-                                hidden = function()
-                                    if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                    return ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
-                                  end,
+                                func =
+                                    function()
+                                        S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
+                                hidden =
+                                    function()
+                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
+                                        return DynamicCam:ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
+                                    end,
                                 order = 2,
                             },
 
@@ -3279,7 +3429,7 @@ local profileSettings = {
                     args = {
                         priorityDescription = {
                             type = "description",
-                            name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever settings change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you have found some custom DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can carelessly experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\n",
+                            name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever settings change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can carelessly experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\n",
                         },
                     },
                 },
@@ -3472,41 +3622,6 @@ function Options:RegisterMenus()
     self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
 
 end
-
-
-
-
-
-
-function DynamicCam:GetSituationList()
-    local situationList = {}
-
-    for id, situation in pairs(DynamicCam.db.profile.situations) do
-        local prefix = ""
-        local suffix = ""
-        local customPrefix = ""
-
-        if DynamicCam.currentSituationID == id then
-            prefix = "|cFF00FF00"
-            suffix = "|r"
-        elseif not situation.enabled then
-            prefix = "|cFF808A87"
-            suffix = "|r"
-        elseif self.conditionExecutionCache[id] then
-            prefix = "|cFF63B8FF"
-            suffix = "|r"
-        end
-
-        if string.find(id, "custom") then
-            customPrefix = "Custom: "
-        end
-
-        situationList[id] = prefix..customPrefix..situation.name.." [Priority: "..situation.priority.."]"..suffix
-    end
-
-    return situationList
-end
-
 
 
 

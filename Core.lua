@@ -8,6 +8,16 @@ local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
 
 
+
+-- The user may try to register invalid events. In order to prevent AceEvent-3.0
+-- from remembering invalid events, we have to check if an event exists ourselves!
+-- https://www.wowinterface.com/forums/showthread.php?t=58681
+if not APIDocumentation then
+    LoadAddOn("Blizzard_APIDocumentation");
+end
+local allEvents = APIDocumentation:GetAPITableByTypeName("event")
+
+
 ---------------
 -- CONSTANTS --
 ---------------
@@ -625,10 +635,11 @@ end
 ----------
 -- CORE --
 ----------
-local started
+local started = false
 local events = {}
 
 function DynamicCam:OnInitialize()
+
     -- setup db
     self:InitDatabase()
     self:RefreshConfig()
@@ -671,13 +682,18 @@ function DynamicCam:OnDisable()
 end
 
 function DynamicCam:Startup()
+
+    if started then return end
+
+    enteredSituationAtLogin = false
+
+
     -- make sure that shortcuts have values
     if not Options then
         Options = self.Options
     end
 
     -- register for dynamiccam messages
-    self:RegisterMessage("DC_SITUATION_ENABLED")
     self:RegisterMessage("DC_SITUATION_DISABLED")
     self:RegisterMessage("DC_SITUATION_UPDATED")
     self:RegisterMessage("DC_BASE_CAMERA_UPDATED")
@@ -694,11 +710,6 @@ function DynamicCam:Startup()
         -- Must call this to prehook NonReactiveZoomIn/Out.
         self:ReactiveZoomOff()
     end
-
-    started = true
-
-    enteredSituationAtLogin = false
-
 
     if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
         -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
@@ -724,21 +735,25 @@ function DynamicCam:Startup()
       end
     )
 
+    started = true
 
-    -- For coding
-    C_Timer.After(0, self.OpenMenu)
 
-    C_Timer.After(3, function()
-        if BugSack then
-            BugSack:OpenSack()
-            BugSackFrame:SetIgnoreParentAlpha(true)
-            BugSackFrame:Hide()
-        end
-    end)
+    -- -- For coding
+    -- C_Timer.After(0, self.OpenMenu)
+
+    -- C_Timer.After(3, function()
+        -- if BugSack then
+            -- BugSack:OpenSack()
+            -- BugSackFrame:SetIgnoreParentAlpha(true)
+            -- BugSackFrame:Hide()
+        -- end
+    -- end)
 
 end
 
 function DynamicCam:Shutdown()
+
+    if not started then return end
 
     -- exit the current situation if in one
     if self.currentSituationID then
@@ -791,7 +806,7 @@ function DynamicCam:EvaluateSituations()
     -- go through all situations pick the best one
     for id, situation in pairs(self.db.profile.situations) do
 
-        if situation.enabled then
+        if situation.enabled and not situation.errorEncountered then
             -- evaluate the condition, if it checks out and the priority is larger than any other, set it
             local lastEvaluate = self.conditionExecutionCache[id]
             local thisEvaluate = DC_RunScript(id, "condition")
@@ -1225,11 +1240,18 @@ end
 
 function DynamicCam:UpdateSituation(situationID)
     local situation = self.db.profile.situations[situationID]
+
+    -- Give this situation a new chance!
+    situation.errorEncountered = nil
+    situation.errorMessage = nil
+
     if situation and situationID == self.currentSituationID then
         self:ApplySettings()
     end
+
     DC_RunScript(situationID, "executeOnInit")
     self:RegisterSituationEvents(situationID)
+
     self:EvaluateSituations()
 end
 
@@ -1710,33 +1732,54 @@ function DynamicCam:RegisterEvents()
     self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler")
 
     for situationID, situation in pairs(self.db.profile.situations) do
-        self:RegisterSituationEvents(situationID)
+
+        if situation.enabled and not situation.errorEncountered then
+            self:RegisterSituationEvents(situationID)
+        end
     end
 end
 
 function DynamicCam:RegisterSituationEvents(situationID)
+    -- print("RegisterSituationEvents", situationID)
     local situation = self.db.profile.situations[situationID]
+
     if situation and situation.events then
         for i, event in pairs(situation.events) do
             if not events[event] then
-                events[event] = true
 
-                local result = {pcall(function() DynamicCam:RegisterEvent(event, "EventHandler") end)}
-                
-                if result[1] == false then
-                    DynamicCam:ScriptError(situationID, "events", "events", result[2])
-                    return nil
-                -- else
-                  -- print("Registered for event:", event)
+                -- We have to check if the event exists ourselves.
+                -- https://www.wowinterface.com/forums/showthread.php?t=58681
+                local eventExists = false
+                for k, v in pairs(allEvents) do
+                    if event == v.LiteralName then
+                        eventExists = true
+                        break
+                    end
+                end
+                if not eventExists then
+                    DynamicCam:ScriptError(situationID, "events", "events", "Trying to register an unknown event: " .. event)
+                    -- print("Trying to register an unknown event: ", event)
+
+                else
+
+                    -- If the event does exist, we should never get any problems here,
+                    -- but just to be on the safe side:
+                    local result = {pcall(function() DynamicCam:RegisterEvent(event, "EventHandler") end)}
+                    if result[1] == false then
+                        -- print("Not registered for event:", event)
+                        DynamicCam:ScriptError(situationID, "events", "events", result[2])
+                    else
+                        -- print("Registered for event:", event)
+                        events[event] = true
+                    end
+
                 end
             end
         end
     end
 end
 
-function DynamicCam:DC_SITUATION_ENABLED(message, situationID)
-    self:EvaluateSituations()
-end
+
 
 function DynamicCam:DC_SITUATION_DISABLED(message, situationID)
     self:EvaluateSituations()
@@ -1764,8 +1807,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
+        DynamicCam:OpenMenu()
     end,
     OnCancel = function(_, reason)
     end,
@@ -1780,8 +1822,7 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
     OnAccept = function()
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
-        InterfaceOptionsFrame_OpenToCategory(Options.menu)
+        DynamicCam:OpenMenu()
     end,
     OnCancel = function(_, reason)
     end,
@@ -1937,7 +1978,9 @@ function DynamicCam:RefreshConfig()
 
     -- run all situations's advanced init script
     for id, situation in pairs(self.db.profile.situations) do
-        DC_RunScript(id, "executeOnInit")
+        if situation.enabled and not situation.errorEncountered then
+            DC_RunScript(id, "executeOnInit")
+        end
     end
 end
 
@@ -1963,7 +2006,7 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     whileDead = true,
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnShow = function (self, data)
+    OnShow = function (self)
         self.editBox:SetFocus()
     end,
     OnAccept = function (self, data)
@@ -1984,7 +2027,7 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
     whileDead = true,
     hideOnEscape = true,
     preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnShow = function (self, data)
+    OnShow = function (self)
         self.editBox:SetText(exportString)
         self.editBox:HighlightText()
     end,
@@ -2004,6 +2047,7 @@ function DynamicCam:OpenMenu()
     -- just open to the frame, double call because blizz bug
     InterfaceOptionsFrame_OpenToCategory(Options.menu)
     InterfaceOptionsFrame_OpenToCategory(Options.menu)
+
 end
 
 function DynamicCam:SaveViewSlash(input)
@@ -2172,16 +2216,10 @@ end
 
 
 
-
-
-
-
 -- This is needed to correct reactiveZoomTarget in case the target is missed.
-local lastZoom = GetCameraZoom()
-local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
-reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
+local lastZoomForCorrection = GetCameraZoom()
 
-
+local function ReactiveZoomTargetCorrectionFunction()
 
     if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
 
@@ -2191,7 +2229,7 @@ reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
         -- print("NonReactiveZoom just Started", nonReactiveZoomStartValue, GetTime())
         nonReactiveZoomInProgress = true
         nonReactiveZoomStarted = false
-    elseif nonReactiveZoomInProgress and lastZoom == currentZoom then
+    elseif nonReactiveZoomInProgress and lastZoomForCorrection == currentZoom then
         -- print("NonReactiveZoom finished", GetTime())
         nonReactiveZoomInProgress = false
     end
@@ -2207,11 +2245,11 @@ reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", function()
       end
     end
 
-    lastZoom = currentZoom
-end)
+    lastZoomForCorrection = currentZoom
+end
 
-
-
+local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
+reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", ReactiveZoomTargetCorrectionFunction)
 
 
 
@@ -2359,10 +2397,11 @@ function DynamicCam:ToggleRZVA()
 end
 
 
-local lastReactiveZoomTarget = reactiveZoomTarget
-local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
-reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
 
+
+
+
+local function ReactiveZoomGraphUpdateFunction()
     if not rzvaFrame or not rzvaFrame:IsShown() then return end
 
     rzvaFrame.zm:ClearAllPoints()
@@ -2421,39 +2460,17 @@ reactiveZoomGraphUpdateFrame:SetScript("onUpdate", function()
         end
     end
 
-end)
+end
 
-
-
-
-
-
+local lastReactiveZoomTarget = reactiveZoomTarget
+local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
+reactiveZoomGraphUpdateFrame:SetScript("onUpdate", ReactiveZoomGraphUpdateFunction)
 
 
 
 
 
 -- For errors in scripts.
--- https://wowpedia.fandom.com/wiki/API_StaticPopup_Show
--- https://wowpedia.fandom.com/wiki/Creating_simple_pop-up_dialog_boxes
-
-
-StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
-    text = "There is a problem with your script!",
-    button1 = "OK",
-    button2 = "Cancel",
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnAccept = function()
-        print("ok")
-    end,
-    OnCancel = function(_, reason)
-        print("no")
-    end,
-}
-
 
 -- TODO: Later with localisation:
 local scriptNames = {
@@ -2464,17 +2481,130 @@ local scriptNames = {
     events = "Events",
 }
 
+-- Export box for the script error dialog:
+local scrollBoxWidth = 400
+local scrollBoxHeight = 90
+
+local outerFrame = CreateFrame("Frame")
+outerFrame:SetSize(scrollBoxWidth + 80, scrollBoxHeight + 20)
+
+local borderFrame = CreateFrame("Frame", nil, outerFrame, "TooltipBackdropTemplate")
+borderFrame:SetSize(scrollBoxWidth + 34, scrollBoxHeight + 10)
+borderFrame:SetPoint("CENTER")
+
+local scrollFrame = CreateFrame("ScrollFrame", nil, outerFrame, "UIPanelScrollFrameTemplate")
+scrollFrame:SetPoint("CENTER", -10, 0)
+scrollFrame:SetSize(scrollBoxWidth, scrollBoxHeight)
+
+local editbox = CreateFrame("EditBox", nil, scrollFrame, "InputBoxScriptTemplate")
+editbox:SetMultiLine(true)
+editbox:SetAutoFocus(false)
+editbox:SetFontObject(ChatFontNormal)
+editbox:SetWidth(scrollBoxWidth)
+editbox:SetCursorPosition(0)
+scrollFrame:SetScrollChild(editbox)
+
+
+local hideDefaultButton = false
+
+-- The script error dialog.
+StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
+
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+
+    text = "%s",
+
+    OnShow = function (self)
+        self.ludius_originalTextWidth = self.text:GetWidth()
+        self.text:SetWidth(borderFrame:GetWidth())
+    end,
+    OnHide = function(self)
+        self.text:SetWidth(self.ludius_originalTextWidth)
+        self.ludius_originalTextWidth = nil
+    end,
+
+    -- So that we can have 4 buttons.
+    selectCallbackByIndex = true,
+
+    button1 = "Dismiss",
+    OnButton1 = function() end,
+
+    button2 = "Disable situation",
+    OnButton2 = function(_, data)
+        DynamicCam.db.profile.situations[data.situationID].enabled = false
+        DynamicCam:SendMessage("DC_SITUATION_DISABLED")
+        LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+    end,
+
+    button3 = "Fix manually",
+    OnButton3 = function(_, data)
+        -- if data then print(data.situationID, data.scriptID) end
+        DynamicCam:OpenMenu()
+        LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationControls", data.scriptID)
+        Options:SelectSituation(data.situationID)
+    end,
+
+    button4 = "Reset to default",
+    OnButton4 = function(_, data)
+        -- if data then print(data.situationID, data.scriptID) end
+        DynamicCam.db.profile.situations[data.situationID][data.scriptID] = DynamicCam.defaults.profile.situations[data.situationID][data.scriptID]
+        DynamicCam:SendMessage("DC_SITUATION_UPDATED", data.situationID)
+        LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+    end,
+    DisplayButton4 = function() return not hideDefaultButton end,
+
+}
+
+
 function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
 
     -- print(situationID, scriptID, errorType, errorMessage)
-    local situation = self.db.profile.situations[situationID]
-    
-    print("Situation", situation.name, "has a problem with its", scriptNames[scriptID])
-    
-    print(errorType, errorMessage)
 
-    -- TODO 
+    local situation = DynamicCam.db.profile.situations[situationID]
 
+    situation.errorEncountered = scriptID
+    situation.errorMessage = errorMessage
+
+    local situationName = situation.name
+    local scriptName = scriptNames[scriptID]
+
+
+    local isCustomSituation = true
+    local alreadyUsingDefault = true
+    if DynamicCam.defaults.profile.situations[situationID] then
+        isCustomSituation = false
+        if scriptID == "events" then
+            alreadyUsingDefault = DynamicCam:EventsEqual(situation.events, DynamicCam.defaults.profile.situations[situationID].events)
+        else
+            alreadyUsingDefault = DynamicCam:ScriptEqual(situation[scriptID], DynamicCam.defaults.profile.situations[situationID][scriptID])
+        end
+    end
+
+    local text = "There is a problem with your DynamicCam Situation Controls!\n(Situation: " .. situationName .. "," .. scriptName .. ")\n\n"
+
+    if isCustomSituation then
+        text = text .. "This error is caused by one of your custom situations, so you have to resolve it yourself or seek assistance online.\n\n"
+    elseif alreadyUsingDefault then
+        text = text .. "This is really embarrassing, because this error is caused by the default settings of a DynamicCam stock situation. Please copy the error message below and send it to us on GitHub, Curseforge or WoWInterface. In the meantime you can try to fix it yourself or just disable this situation. Sorry!\n\n"
+    else
+        text = text .. "You have modified the default settings of this DynamicCam stock situation. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
+    end
+
+    local errorText = "Error: " .. situationName .. " (" .. situationID .. "), " .. scriptID .. ", " .. errorType .. "\n\n" .. errorMessage .. "\n\n\n"
+    editbox:SetText(errorText)
+
+    -- Data for the button press functions.
+    local data = {
+      situationID = situationID,
+      scriptID = scriptID,
+    }
+
+    -- Only show the default button, if there is a default to return to.
+    hideDefaultButton = isCustomSituation or alreadyUsingDefault
+    StaticPopup_Show("DYNAMICCAM_SCRIPT_ERROR", text, nil, data, outerFrame)
 end
 
 
@@ -2484,7 +2614,7 @@ end
 
 
 
--- For debugging.
+-- -- For debugging.
 -- function DynamicCam:PrintTable(t, indent)
   -- assert(type(t) == "table", "PrintTable() called for non-table!")
 

@@ -1,6 +1,12 @@
 local _, Addon = ...
 
 
+
+-- TODO: What happens if a raid member joins (CompactRaidFrame is created) while the UI is hidden and the player is in combat?
+-- 1x [ADDON_ACTION_BLOCKED] AddOn 'DynamicCam' tried to call the protected function 'CompactRaidFrame1:Show()'.
+
+
+
 -- For debugging:
 -- local debugFrameName = "StatusTrackingBarManager"
 
@@ -777,7 +783,7 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
     end
   end
 
-  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid the frame numbers get mixed up.
+  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid, the frame numbers get mixed up.
   for i = 1, 40, 1 do
     if _G["CompactRaidFrame" .. i] then
 
