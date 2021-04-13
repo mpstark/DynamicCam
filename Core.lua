@@ -12,10 +12,10 @@ local LibEasing = LibStub("LibEasing-1.0")
 -- The user may try to register invalid events. In order to prevent AceEvent-3.0
 -- from remembering invalid events, we have to check if an event exists ourselves!
 -- https://www.wowinterface.com/forums/showthread.php?t=58681
-local evenExistsFrame = CreateFrame("Frame");
+local eventExistsFrame = CreateFrame("Frame");
 local function EventExists(event)
-    local exists = pcall(evenExistsFrame.RegisterEvent, evenExistsFrame, event)
-    if exists then evenExistsFrame:UnregisterEvent(event) end
+    local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
+    if exists then eventExistsFrame:UnregisterEvent(event) end
     return exists
 end
 
@@ -1759,7 +1759,7 @@ function DynamicCam:RegisterSituationEvents(situationID)
 
                     -- If the event does exist, we should never get any problems here,
                     -- but just to be on the safe side:
-                    local result = {pcall(function() DynamicCam:RegisterEvent(event, "EventHandler") end)}
+                    local result = {pcall(DynamicCam.RegisterEvent, DynamicCam, event, "EventHandler")}
                     if result[1] == false then
                         -- print("Not registered for event:", event)
                         DynamicCam:ScriptError(situationID, "events", "events", result[2])
