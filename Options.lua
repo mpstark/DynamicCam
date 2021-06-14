@@ -101,6 +101,10 @@ local general = {
 }
 
 
+
+
+-- Checking if settings deviate from the default.
+
 function DynamicCam:ScriptEqual(customScript, defaultScript)
     if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
 end
@@ -127,6 +131,57 @@ function DynamicCam:EventsEqual(customEvents, defaultEvents)
     end
 
     return true
+end
+
+
+local function EventsIsDefault(situationID)
+    if not DynamicCam.defaults.profile.situations[situationID] then return true end
+    return DynamicCam:EventsEqual(DynamicCam.db.profile.situations[situationID].events, DynamicCam.defaults.profile.situations[situationID].events)
+end
+
+local function ScriptIsDefault(situationID, scriptName)
+    if not DynamicCam.defaults.profile.situations[situationID] then return true end
+    return DynamicCam:ScriptEqual(DynamicCam.db.profile.situations[situationID][scriptName], DynamicCam.defaults.profile.situations[situationID][scriptName])
+end
+
+local function ValueIsDefault(situationID, valueName)
+    if not DynamicCam.defaults.profile.situations[situationID] then return true end
+    return DynamicCam.db.profile.situations[situationID][valueName] == DynamicCam.defaults.profile.situations[situationID][valueName]
+end
+
+
+local function SituationControlsAreDefault(situationID)
+    if EventsIsDefault(situationID) and
+       ValueIsDefault(situationID, "priority") and
+       ScriptIsDefault(situationID, "executeOnInit") and
+       ScriptIsDefault(situationID, "condition") and
+       ScriptIsDefault(situationID, "executeOnEnter") and
+       ValueIsDefault(situationID, "delay") then
+        return true
+    else
+        return false
+    end
+end
+
+
+local function ColourTextErrorOrModified(text, dataType, dataId)
+
+    -- Do we have an error at all, and is it an error for this script.
+    -- (dataId is left empty to colour the "Situation Controls" tab text.)
+    if S.errorEncountered and (not dataId or dataId == S.errorEncountered) then
+        return "|cFFEE0000".. text .. "|r"
+
+    -- Check if the given data is default. Different checking methods based on dataType.
+    else
+        if (not dataId and not SituationControlsAreDefault(SID))
+          or (dataType == "value"  and not ValueIsDefault(SID, dataId))
+          or (dataType == "events" and not EventsIsDefault(SID))
+          or (dataType == "script" and not ScriptIsDefault(SID, dataId)) then
+            return "|cFFFF6600" .. text .. "|r"
+        else
+            return text
+        end
+    end
 end
 
 
@@ -207,6 +262,7 @@ function DynamicCam:SetSettingsDefault(situationId, index1, index2)
 
     Options:SendMessage("DC_BASE_CAMERA_UPDATED")
 end
+
 
 
 function DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(ignoreParentAlpha)
@@ -390,16 +446,6 @@ local function ColoredNames(name, groupVarsTable, forSituations)
 end
 
 
-local function RedIfError(text, scriptId)
-    if S.errorEncountered and (not scriptId or scriptId == S.errorEncountered) then
-        return "|cFFEE0000".. text .. "|r"
-    else
-        return text
-    end
-end
-
-
-
 local function CreateOverriddenText(groupVarsTable, forSituations)
 
     return {
@@ -470,6 +516,7 @@ local function GetSituationList()
         local prefix = ""
         local suffix = ""
         local customPrefix = ""
+        local modifiedSuffix = ""
 
         if situation.errorEncountered then
             prefix = "|cFFEE0000"
@@ -489,7 +536,12 @@ local function GetSituationList()
             customPrefix = "Custom: "
         end
 
-        situationList[id] = prefix..customPrefix..situation.name.." [Priority: "..situation.priority.."]"..suffix
+        if not SituationControlsAreDefault(id) then
+            modifiedSuffix = "|cFFFF6600" .. "  (modified)" .. "|r"
+        end
+
+
+        situationList[id] = prefix .. customPrefix .. situation.name .. " [Priority: " .. situation.priority .. "]" .. suffix .. modifiedSuffix
     end
 
     return situationList
@@ -1684,7 +1736,7 @@ local function CreateSituationSettingsTab(tabOrder)
             selectedSituation = {
                 type = "select",
                 name = "Select a situation to setup",
-                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFEE0000- Erroneous Situation Controls.|r",
+                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified Situation Controls.|r\n|cFFEE0000- Erroneous Situation Controls.|r",
                 get =
                     function()
                         return SID
@@ -1737,17 +1789,26 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = "-",
                 desc =
                     function()
-                        return "Delete custom situation \"" .. S.name .. "\"."
+                        return "Delete custom situation \"" .. S.name .. "\".\n(There is no 'Are you sure?' prompt!)"
                     end,
-                hidden = function() return not S or not string.find(SID, "custom") end,
-                func = function() DynamicCam:DeleteCustomSituation(SID) end,
+                hidden =
+                    function()
+                        return not S or not string.find(SID, "custom")
+                    end,
+                func =
+                    function()
+                        DynamicCam:DeleteCustomSituation(SID)
+                    end,
                 order = 3,
                 width = 0.23,
             },
             deleteCustomPlaceholder = {
                 type = "description",
                 name = " ",
-                hidden = function() return S and string.find(SID, "custom") end,
+                hidden =
+                    function()
+                        return S and string.find(SID, "custom")
+                    end,
                 width = 0.23,
                 order = 3,
             },
@@ -2860,7 +2921,7 @@ to show the UI without any delay.]],
             situationControls = {
 
                 type = "group",
-                name = function() return RedIfError("Situation Controls") end,
+                name = function() return ColourTextErrorOrModified("Situation Controls") end,
                 order = 7,
                 args = {
 
@@ -2872,7 +2933,10 @@ to show the UI without any delay.]],
 
                     priority = {
                         type = "group",
-                        name = "Priority",
+                        name =
+                            function()
+                                return ColourTextErrorOrModified("Priority", "value", "priority")
+                            end,
                         order = 1,
                         args = {
 
@@ -2900,8 +2964,7 @@ to show the UI without any delay.]],
                                 func = function() S.priority = DynamicCam.defaults.profile.situations[SID].priority end,
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return S.priority == DynamicCam.defaults.profile.situations[SID].priority
+                                        return ValueIsDefault(SID, "priority")
                                     end,
                                 order = 2,
                             },
@@ -2924,7 +2987,10 @@ to show the UI without any delay.]],
 
                     events = {
                         type = "group",
-                        name = function() return RedIfError("Events", "events") end,
+                        name =
+                            function()
+                                return ColourTextErrorOrModified("Events", "events", "events")
+                            end,
                         order = 2,
                         args = {
 
@@ -2932,13 +2998,14 @@ to show the UI without any delay.]],
                                 type = "description",
                                 name =
                                     function()
-                                        if S.errorEncountered then
+                                        if S.errorEncountered and S.errorEncountered == "events" then
                                             return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
-                                        else
-                                            return ""
                                         end
                                     end,
-                                hidden = function() return not S.errorEncountered end,
+                                hidden =
+                                    function()
+                                        return not S.errorEncountered or S.errorEncountered ~= "events"
+                                    end,
                                 order = 0
                             },
 
@@ -2957,7 +3024,7 @@ to show the UI without any delay.]],
                                         end
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 12,
+                                multiline = 10,
                                 width = "full",
                                 order = 1,
                             },
@@ -2973,8 +3040,7 @@ to show the UI without any delay.]],
                                     end,
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return DynamicCam:EventsEqual(S.events, DynamicCam.defaults.profile.situations[SID].events)
+                                        return EventsIsDefault(SID)
                                     end,
                                 order = 2,
                             },
@@ -3015,7 +3081,10 @@ https://wow.gamepedia.com/Events
 
                     executeOnInit = {
                         type = "group",
-                        name = function() return RedIfError("Initialisation", "executeOnInit") end,
+                        name =
+                            function()
+                                return ColourTextErrorOrModified("Initialisation", "script", "executeOnInit")
+                            end,
                         order = 3,
                         args = {
 
@@ -3023,13 +3092,14 @@ https://wow.gamepedia.com/Events
                                 type = "description",
                                 name =
                                     function()
-                                        if S.errorEncountered then
+                                        if S.errorEncountered and S.errorEncountered == "executeOnInit" then
                                             return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
-                                        else
-                                            return ""
                                         end
                                     end,
-                                hidden = function() return not S.errorEncountered end,
+                                hidden =
+                                    function()
+                                        return not S.errorEncountered or S.errorEncountered ~= "executeOnInit"
+                                    end,
                                 order = 0
                             },
 
@@ -3043,7 +3113,7 @@ https://wow.gamepedia.com/Events
                                         S.executeOnInit = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 12,
+                                multiline = 10,
                                 width = "full",
                                 order = 1,
                             },
@@ -3059,8 +3129,7 @@ https://wow.gamepedia.com/Events
                                     end,
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return DynamicCam:ScriptEqual(S.executeOnInit, DynamicCam.defaults.profile.situations[SID].executeOnInit)
+                                        return ScriptIsDefault(SID, "executeOnInit")
                                     end,
                                 order = 2,
                             },
@@ -3090,7 +3159,10 @@ Like in this example, you can share any data object between the scripts of a sit
 
                     condition = {
                         type = "group",
-                        name = function() return RedIfError("Condition", "condition") end,
+                        name =
+                            function()
+                                return ColourTextErrorOrModified("Condition", "script", "condition")
+                            end,
                         order = 4,
                         args = {
 
@@ -3098,13 +3170,14 @@ Like in this example, you can share any data object between the scripts of a sit
                                 type = "description",
                                 name =
                                     function()
-                                        if S.errorEncountered then
+                                        if S.errorEncountered and S.errorEncountered == "condition" then
                                             return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
-                                        else
-                                            return ""
                                         end
                                     end,
-                                hidden = function() return not S.errorEncountered end,
+                                hidden =
+                                    function()
+                                        return not S.errorEncountered or S.errorEncountered ~= "condition"
+                                    end,
                                 order = 0
                             },
 
@@ -3118,7 +3191,7 @@ Like in this example, you can share any data object between the scripts of a sit
                                         S.condition = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 12,
+                                multiline = 10,
                                 width = "full",
                                 order = 1,
                             },
@@ -3134,8 +3207,7 @@ Like in this example, you can share any data object between the scripts of a sit
                                     end,
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return DynamicCam:ScriptEqual(S.condition, DynamicCam.defaults.profile.situations[SID].condition)
+                                        return ScriptIsDefault(SID, "condition")
                                     end,
                                 order = 2,
                             },
@@ -3172,7 +3244,10 @@ https://wow.gamepedia.com/World_of_Warcraft_API
 
                     executeOnEnter = {
                         type = "group",
-                        name = function() return RedIfError("Entering", "executeOnEnter") end,
+                        name =
+                            function()
+                                return ColourTextErrorOrModified("Entering", "script", "executeOnEnter")
+                            end,
                         order = 5,
                         args = {
 
@@ -3180,13 +3255,14 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                 type = "description",
                                 name =
                                     function()
-                                        if S.errorEncountered then
+                                        if S.errorEncountered and S.errorEncountered == "executeOnEnter" then
                                             return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
-                                        else
-                                            return ""
                                         end
                                     end,
-                                hidden = function() return not S.errorEncountered end,
+                                hidden =
+                                    function()
+                                        return not S.errorEncountered or S.errorEncountered ~= "executeOnEnter"
+                                    end,
                                 order = 0
                             },
 
@@ -3200,7 +3276,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                         S.executeOnEnter = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 12,
+                                multiline = 10,
                                 width = "full",
                                 order = 1,
                             },
@@ -3216,8 +3292,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                                     end,
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return DynamicCam:ScriptEqual(S.executeOnEnter, DynamicCam.defaults.profile.situations[SID].executeOnEnter)
+                                        return ScriptIsDefault(SID, "executeOnEnter")
                                     end,
                                 order = 2,
                             },
@@ -3246,7 +3321,14 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
 
                     executeOnExit = {
                         type = "group",
-                        name = function() return RedIfError("Exiting", "executeOnExit") end,
+                        name =
+                            function()
+                                if (S.errorEncountered and S.errorEncountered == executeOnExit) or not ScriptIsDefault(SID, "executeOnExit") then
+                                    return ColourTextErrorOrModified("Exiting", "script", "executeOnExit")
+                                else
+                                    return ColourTextErrorOrModified("Exiting", "value", "delay")
+                                end
+                            end,
                         order = 6,
                         args = {
 
@@ -3254,13 +3336,14 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                 type = "description",
                                 name =
                                     function()
-                                        if S.errorEncountered then
+                                        if S.errorEncountered and S.errorEncountered == "executeOnExit" then
                                             return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
-                                        else
-                                            return ""
                                         end
                                     end,
-                                hidden = function() return not S.errorEncountered end,
+                                hidden =
+                                    function()
+                                        return not S.errorEncountered or S.errorEncountered ~= "executeOnExit"
+                                    end,
                                 order = 0
                             },
 
@@ -3274,31 +3357,38 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                         S.executeOnExit = newValue
                                         Options:SendMessage("DC_SITUATION_UPDATED", SID)
                                     end,
-                                multiline = 12,
+                                multiline = 10,
                                 width = "full",
                                 order = 1,
                             },
-
-                            executeOnExitDefault = {
-                                type = "execute",
-                                name = "Reset to default",
-                                desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to reset it.",
-                                func =
-                                    function()
-                                        S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
-                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
-                                    end,
+                            executeOnExitDefaultWrapper = {
+                                type = "group",
+                                name = "",
+                                inline = true,
+                                width = "full",
+                                order = 2,
+                                args = {
+                                    executeOnExitDefault = {
+                                        type = "execute",
+                                        name = "Reset to default",
+                                        desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to reset it.",
+                                        func =
+                                            function()
+                                                S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
+                                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                            end,
+                                    },
+                                },
                                 hidden =
                                     function()
-                                        if not DynamicCam.defaults.profile.situations[SID] then return true end
-                                        return DynamicCam:ScriptEqual(S.executeOnExit, DynamicCam.defaults.profile.situations[SID].executeOnExit)
+                                        return ScriptIsDefault(SID, "executeOnExit")
                                     end,
-                                order = 2,
                             },
+                            blank2 = {type = "description", name = " ", order = 2.1, },
 
-                            delay = {
+                            exitDelay = {
                                 type = "input",
-                                name = "Delay",
+                                name = "Exit Delay",
                                 desc = "Wait for this many seconds before exiting this situation.",
                                 get = function() return ""..S.delay end,
                                 set = function(_, newValue)
@@ -3310,13 +3400,36 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                 width = "half",
                                 order = 3,
                             },
-                            blank3 = {type = "description", name = " ", order = 3.2, },
+                            exitDelayDefaultWrapper = {
+                                type = "group",
+                                name = "",
+                                inline = true,
+                                width = "full",
+                                order = 4,
+                                args = {
+                                    exitDelayDefault = {
+                                        type = "execute",
+                                        name = "Reset to default",
+                                        desc = "Your \"Exit Delay\" deviates from the default for this situation. Click here to reset it.",
+                                        func =
+                                            function()
+                                                S.delay = DynamicCam.defaults.profile.situations[SID].delay
+                                                Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                            end,
+                                    },
+                                },
+                                hidden =
+                                    function()
+                                        return ValueIsDefault(SID, "delay")
+                                    end,
+                            },
+                            blank4 = {type = "description", name = " ", order = 4.1, },
 
                             executeOnEnterDescriptionGroup = {
                                 type = "group",
                                 name = "Help",
                                 inline = true,
-                                order = 4,
+                                order = 5,
                                 args = {
                                     executeOnEnterDescription = {
                                         type = "description",
@@ -3334,7 +3447,6 @@ The delay determines how many seconds to wait before exiting the situation. So f
                     },
 
                 },
-
             },
 
 

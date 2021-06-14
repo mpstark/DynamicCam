@@ -741,7 +741,7 @@ function DynamicCam:Startup()
 
 
     -- -- For coding
-    -- C_Timer.After(0, self.OpenMenu)
+    C_Timer.After(0, self.OpenMenu)
 
     -- C_Timer.After(3, function()
         -- if BugSack then
