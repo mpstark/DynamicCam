@@ -25,85 +25,10 @@ local S, SID
 local copiedSituationID
 local exportName, exportAuthor
 
-local welcomeMessage = [[Hello and welcome to DynamicCam!
-
-We're glad that you're here and we hope that you have fun with the addon.
-
-If you find a problem or want to make a suggestion, please, please leave a note in the Curse comments or use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
-
-Some handy slash commands:
-    `/dynamiccam` or `/dc` will open this menu
-    `/zoominfo` or `/zi` will print out the current zoom level
-    `/saveview #` or `/sv #` will save to the specified view slot (where # is a number between 2 and 5)
-
-    The following slash commands will also accept a time:
-        `/zoom #` will zoom to that zoom level
-        `/yaw #` will yaw the camera left/right by that number of degrees
-        `/pitch #` will pitch the camera up/down by that number of degrees
-
-        Example:
-            `/zoom 5 5` will zoom to 5 over 5 seconds.
-    ]]
-
-
-local easingValues = {
-    Linear = "Linear",
-    InQuad = "In Quadratic",
-    OutQuad = "Out Quadratic",
-    InOutQuad = "In/Out Quadratic",
-    OutInQuad = "Out/In Quadratic",
-    InCubic = "In Cubic",
-    OutCubic = "Out Cubic",
-    InOutCubic = "In/Out Cubic",
-    OutInCubic = "Out/In Cubic",
-    InQuart = "In Quartic",
-    OutQuart = "Out Quartic",
-    InOutQuart = "In/Out Quartic",
-    OutInQuart = "Out/In Quartic",
-    InQuint = "In Quintic",
-    OutQuint = "Out Quintic",
-    InOutQuint = "In/Out Quintic",
-    OutInQuint = "Out/In Quintic",
-    InSine = "In Sine",
-    OutSine = "Out Sine",
-    InOutSine = "In/Out Sine",
-    OutInSine = "Out/In Sine",
-    InExpo = "In Exponent",
-    OutExpo = "Out Exponent",
-    InOutExpo = "In/Out Exponent",
-    OutInExpo = "Out/In Exponent",
-    InCirc = "In Circular",
-    OutCirc = "Out Circular",
-    InOutCirc = "In/Out Circular",
-    OutInCirc = "Out/In Circular",
-}
-
-
-local general = {
-    type = "group",
-    name = "General",
-    order = 1,
-    args = {
-        messageGroup = {
-            type = "group",
-            name = "Welcome!",
-            order = 2,
-            inline = true,
-            args = {
-                message = {
-                    type = "description",
-                    name = welcomeMessage,
-                },
-            }
-        },
-
-    },
-}
 
 
 
-
--- Checking if settings deviate from the default.
+-- Checking if "situation controls" settings deviate from the stock settings.
 
 function DynamicCam:ScriptEqual(customScript, defaultScript)
     if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
@@ -151,16 +76,32 @@ end
 
 
 local function SituationControlsAreDefault(situationID)
-    if EventsIsDefault(situationID) and
-       ValueIsDefault(situationID, "priority") and
+    if ValueIsDefault(situationID, "priority") and
+       EventsIsDefault(situationID) and
        ScriptIsDefault(situationID, "executeOnInit") and
        ScriptIsDefault(situationID, "condition") and
        ScriptIsDefault(situationID, "executeOnEnter") and
+       ScriptIsDefault(situationID, "executeOnExit") and
        ValueIsDefault(situationID, "delay") then
         return true
     else
         return false
     end
+end
+
+local function SituationControlsToDefault(situationID)
+    local targetSituation = DynamicCam.db.profile.situations[situationID]
+    local defaultSituation = DynamicCam.defaults.profile.situations[situationID]
+
+    targetSituation.priority       = defaultSituation.priority
+    targetSituation.events         = defaultSituation.events
+    targetSituation.executeOnInit  = defaultSituation.executeOnInit
+    targetSituation.condition      = defaultSituation.condition
+    targetSituation.executeOnEnter = defaultSituation.executeOnEnter
+    targetSituation.executeOnExit  = defaultSituation.executeOnExit
+    targetSituation.delay          = defaultSituation.delay
+
+    Options:SendMessage("DC_SITUATION_UPDATED", situationID)
 end
 
 
@@ -183,6 +124,7 @@ local function ColourTextErrorOrModified(text, dataType, dataId)
         end
     end
 end
+
 
 
 
@@ -313,7 +255,7 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
         imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
         imageWidth = 25/1.5,
         imageHeight = 24/1.5,
-        desc = "Reset to default: " .. tooltipDefaultValue .."\nThis is just the global default! Choosing settings of other profiles or presets is not possible here. You can only copy a whole profile or preset into the current profile in the Profiles/Presets section.",
+        desc = "Reset to default: " .. tooltipDefaultValue .."\nThis is just the global default! Choosing settings of other profiles or presets is not possible here. You can only copy a whole profile or preset into the current profile (see \"Profiles\" tab).",
         order = order,
         width = 0.25,
         func =
@@ -540,13 +482,11 @@ local function GetSituationList()
             modifiedSuffix = "|cFFFF6600" .. "  (modified)" .. "|r"
         end
 
-
         situationList[id] = prefix .. customPrefix .. situation.name .. " [Priority: " .. situation.priority .. "]" .. suffix .. modifiedSuffix
     end
 
     return situationList
 end
-
 
 
 
@@ -1736,7 +1676,7 @@ local function CreateSituationSettingsTab(tabOrder)
             selectedSituation = {
                 type = "select",
                 name = "Select a situation to setup",
-                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified Situation Controls.|r\n|cFFEE0000- Erroneous Situation Controls.|r",
+                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\".|r\n|cFFEE0000- Erroneous \"Situation Controls\".|r",
                 get =
                     function()
                         return SID
@@ -2277,18 +2217,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
 Or for short:
 
-    /zi
-
-
-DynamicCam also provides a console command to set the zoom irrespective of entering or exiting situations:
-
-    /zoom #1 #2
-
-where #1 is the zoom level and #2 is the transition time.\nE.g. to zoom to level 10 within 2 seconds enter:
-
-    /zoom 10 2
-
-]],
+    /zi]],
                                             },
                                         },
                                     },
@@ -2531,7 +2460,7 @@ where #1 is the zoom level and #2 is the transition time.\nE.g. to zoom to level
                                         step = .05,
                                         disabled =
                                             function()
-                                                return not S.rotation.rotateBack
+                                                return not S.rotation.enabled or not S.rotation.rotateBack
                                             end,
                                         get =
                                             function()
@@ -2956,12 +2885,16 @@ to show the UI without any delay.]],
                             },
                             priorityDefault = {
                                 type = "execute",
-                                name = "Reset to default",
+                                name = "Restore stock setting",
                                 desc =
                                     function()
-                                        return "Your \"Priority\" deviates from the default for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to reset it."
+                                        return "Your \"Priority\" deviates from the stock setting for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
                                     end,
-                                func = function() S.priority = DynamicCam.defaults.profile.situations[SID].priority end,
+                                func =
+                                    function()
+                                        S.priority = DynamicCam.defaults.profile.situations[SID].priority
+                                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                                    end,
                                 hidden =
                                     function()
                                         return ValueIsDefault(SID, "priority")
@@ -3031,8 +2964,8 @@ to show the UI without any delay.]],
 
                             eventsDefault = {
                                 type = "execute",
-                                name = "Reset to default",
-                                desc = "Your \"Events\" deviate from the default for this situation. Click here to reset them.",
+                                name = "Restore stock setting",
+                                desc = "Your \"Events\" deviate from the default for this situation. Click here to restore them.",
                                 func =
                                     function()
                                         S.events = DynamicCam.defaults.profile.situations[SID].events
@@ -3057,22 +2990,24 @@ to show the UI without any delay.]],
                                         name =
 [[Here you define all the in-game events upon which DynamicCam should check the condition of this situation, to enter or exit it if applicable.
 
-You can learn about in-game events using WoW's event trace.
+You can learn about in-game events using WoW's Event Log.
 To open it, type this into the console:
 
   /eventtrace
-
-Notice, that you have to manually scroll down after the window first opens. Then you can use these commands to stop and start the logging:
-
-  /eventtrace stop
-  /eventtrace start
-
-If you want to get serious with the event trace, put these two commands into macros and keybind them, so you can stop and start quickly.
 
 A list of all possible events can also be found here:
 https://wow.gamepedia.com/Events
 
 ]],
+
+-- TODO: Still need this for classic:
+-- Notice, that you have to manually scroll down after the window first opens. Then you can use these commands to stop and start the logging:
+
+  -- /eventtrace stop
+  -- /eventtrace start
+
+-- If you want to get serious with the event trace, put these two commands into macros and keybind them, so you can stop and start quickly.
+
                                     },
                                 },
                             },
@@ -3120,8 +3055,8 @@ https://wow.gamepedia.com/Events
 
                             executeOnInitDefault = {
                                 type = "execute",
-                                name = "Reset to default",
-                                desc = "Your \"Initialisation Script\" deviates from the default for this situation. Click here to reset it.",
+                                name = "Restore stock setting",
+                                desc = "Your \"Initialisation Script\" deviates from the stock setting for this situation. Click here to restore it.",
                                 func =
                                     function()
                                         S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit
@@ -3198,8 +3133,8 @@ Like in this example, you can share any data object between the scripts of a sit
 
                             conditionDefault = {
                                 type = "execute",
-                                name = "Reset to default",
-                                desc = "Your \"Condition Script\" deviates from the default for this situation. Click here to reset it.",
+                                name = "Restore stock setting",
+                                desc = "Your \"Condition Script\" deviates from the stock setting for this situation. Click here to restore it.",
                                 func =
                                     function()
                                         S.condition = DynamicCam.defaults.profile.situations[SID].condition
@@ -3283,8 +3218,8 @@ https://wow.gamepedia.com/World_of_Warcraft_API
 
                             executeOnEnterDefault = {
                                 type = "execute",
-                                name = "Reset to default",
-                                desc = "Your \"On-Enter Script\" deviates from the default for this situation. Click here to reset it.",
+                                name = "Restore stock setting",
+                                desc = "Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it.",
                                 func =
                                     function()
                                         S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter
@@ -3370,8 +3305,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                 args = {
                                     executeOnExitDefault = {
                                         type = "execute",
-                                        name = "Reset to default",
-                                        desc = "Your \"On-Exit Script\" deviates from the default for this situation. Click here to reset it.",
+                                        name = "Restore stock setting",
+                                        desc = "Your \"On-Exit Script\" deviates from the stock setting for this situation. Click here to restore it.",
                                         func =
                                             function()
                                                 S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
@@ -3409,8 +3344,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                                 args = {
                                     exitDelayDefault = {
                                         type = "execute",
-                                        name = "Reset to default",
-                                        desc = "Your \"Exit Delay\" deviates from the default for this situation. Click here to reset it.",
+                                        name = "Restore stock setting",
+                                        desc = "Your \"Exit Delay\" deviates from the stock setting for this situation. Click here to restore it.",
                                         func =
                                             function()
                                                 S.delay = DynamicCam.defaults.profile.situations[SID].delay
@@ -3516,6 +3451,125 @@ The delay determines how many seconds to wait before exiting the situation. So f
         },
     }
 end
+
+
+
+
+local welcomeMessage = [[We're glad that you're here and we hope that you have fun with the addon.
+
+DynamicCam (DC) was started in May 2016 by mpstark when the WoW devs at Blizzard introduced the experimental ActionCam features to the game. The main purpose of DC has been to provide a user interface for the ActionCam settings. ActionCam is still marked as experimental while there has been no sign from Blizzard to develop it further. But instead of complaining about possible shortcomings, we should be thankful that it was left in the game for enthusiast like us to use. :-) DC does not just allow to change the ActionCam settings but to have different settings for different game situations. Not related to ActionCam, DC also provides features regarding camera zoom and UI fade-out.
+
+The work of mpstark on DC continued until August 2018. While most features worked well for a substantial user base, mpstark had always considered DC to be in beta state and due to his waning investment in WoW he ended up not resuming his work. At that time, Ludius had already begun making adjustments to DC for himself, which was noticed by Weston (aka dernPerkins) who in early 2020 managed to get in touch with mpstark leading to Ludius taking over the development. The first non-beta version 1.0 was released in May 2020 including Ludius's adjustments up to that point. Afterwards, Ludius began to work on an overhaul of DC resulting in version 2.0 being released in Summer 2021.
+
+When mpstark started DC, his focus was on making most customisations in-game instead of having to change the source code. This made it easier to experiment particularly with the different game situations. From version 2.0 on, these advanced settings have been moved to a special section called "Situation Controls". Most users will probably never need it, but for "power users" it is still available. A hazard of making changes there is that saved user settings always override DC's stock settings, even if new versions of DC bring updated stock settings. Hence, a warning is displayed at the top of this page whenever you have stock situations with modified "Situation Controls".
+
+If you think one of DC's stock situations should be changed, you can always create a copy of it with your changes. Feel free to export this new situation and post it on DC's curseforge page. We may then add it as a new stock situtation of its own. You are also welcome to export and post your entire DC profile, as we are always looking for new profile presets which allow newcomers an easier entry to DC. If you find a problem or want to make a suggestion, just leave a note in the curseforge comments or even better use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
+
+Here are some handy slash commands:
+
+    `/dynamiccam` or `/dc` opens this menu.
+    `/zoominfo` or `/zi` prints out the current zoom level.
+
+    `/zoom #1 #2` zooms to zoom level #1 in #2 seconds.
+    `/yaw #1 #2` yaws the camera by #1 degrees in #2 seconds (negative #1 to yaw right).
+    `/pitch #1 #2` pitches the camera by #1 degrees (negative #1 to pitch up).
+
+
+]]
+
+
+
+
+local about = {
+    type = "group",
+    name = "About",
+    order = 1,
+    args = {
+        situationControlsWarning = {
+            type = "group",
+            name = " ",
+            order = 1,
+            inline = true,
+            hidden =
+                function()
+                    for situationId in pairs(DynamicCam.defaults.profile.situations) do
+                        if not SituationControlsAreDefault(situationId) then return false end
+                    end
+                    return true
+                end,
+            args = {
+                header = {
+                    type = "header",
+                    name = "|cFFEE0000WARNING!|r",
+                    order = 1,
+                },
+                message = {
+                    type = "description",
+                    name =
+                        function()
+                            local returnString = "The game situations listed below have customized \"Situation Controls\" deviating from DynamicCam's stock settings. If you are doing this on purpose, it is fine. Just be aware that any updates to these settings by the DynamicCam developers will always be overridden by your modified (possibly outdated) version. You can check the \"Situation Controls\" tabs of each situation for details.\n\n"
+
+                            for situationId, situation in pairs(DynamicCam.defaults.profile.situations) do
+                                if not SituationControlsAreDefault(situationId) then
+                                    returnString = returnString .. "  - " .. situation.name .. "\n"
+                                end
+                            end
+
+                            returnString = returnString .. "\nIf you are not aware of any \"Situation Controls\" modifications from your side and simply want to restore the stock control settings for all situation, hit the button below!"
+
+                            return returnString
+
+                        end,
+                    order = 2,
+                },
+                restoreDefaultsButton = {
+                    type = "execute",
+                    name = "Restore stock Situation Controls (recommended)",
+                    order = 3,
+                    width = "full",
+                    func =
+                        function()
+                            for situationId in pairs(DynamicCam.defaults.profile.situations) do
+                                SituationControlsToDefault(situationId)
+                            end
+                        end,
+                },
+            }
+        },
+        blank1 = {
+            type = "description",
+            name = " ",
+            order = 1.1,
+            hidden =
+                function()
+                    for situationId in pairs(DynamicCam.defaults.profile.situations) do
+                        if not SituationControlsAreDefault(situationId) then return false end
+                    end
+                    return true
+                end,
+            },
+        messageGroup = {
+            type = "group",
+            name = "",
+            order = 2,
+            inline = true,
+            args = {
+                heading = {
+                    type = "header",
+                    name = "Hello and welcome to DynamicCam!",
+                },
+                message = {
+                    type = "description",
+                    name = welcomeMessage,
+                },
+            }
+        },
+
+    },
+}
+
+
+
 
 
 local profileSettings = {
@@ -3723,7 +3777,7 @@ function Options:RegisterMenus()
         type = "group",
         childGroups = "tab",
         args = {
-            generalTab = general,
+            aboutTab = about,
             standardSettingsTab = CreateSettingsTab(2),
             situationSettingsTab = CreateSituationSettingsTab(3),
             profileSettingsTab = profileSettings,
@@ -4123,18 +4177,18 @@ C_Timer.After(1, function()
     end
 
 
-    local MyMotionSicknessDropdown = CreateFrame("Frame", "MyMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
-    MyMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelOverrideFadeOut, "BOTTOMLEFT", 90, -8)
+    local DynamicCamMotionSicknessDropdown = CreateFrame("Frame", "DynamicCamMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
+    DynamicCamMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, "TOPLEFT", 0, 0)
     -- Use in place of dropDown:SetWidth.
     -- (Could not find where the original takes its width from, but 130 seems to be it.)
-    UIDropDownMenu_SetWidth(MyMotionSicknessDropdown, 130)
-    MyMotionSicknessDropdown.label = MyMotionSicknessDropdown:CreateFontString("MyMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
-    MyMotionSicknessDropdown.label:SetPoint("RIGHT", MyMotionSicknessDropdown, "LEFT")
-    MyMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
+    UIDropDownMenu_SetWidth(DynamicCamMotionSicknessDropdown, 130)
+    DynamicCamMotionSicknessDropdown.label = DynamicCamMotionSicknessDropdown:CreateFontString("DynamicCamMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
+    DynamicCamMotionSicknessDropdown.label:SetPoint("BOTTOMLEFT", DynamicCamMotionSicknessDropdown, "TOPLEFT", 17, 3)
+    DynamicCamMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
 
-    local function MyMotionSicknessDropdown_Initialize()
+    local function DynamicCamMotionSicknessDropdown_Initialize()
 
-      local selectedValue = UIDropDownMenu_GetSelectedValue(MyMotionSicknessDropdown)
+      local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
 
       local info = UIDropDownMenu_CreateInfo()
 
@@ -4144,8 +4198,8 @@ C_Timer.After(1, function()
           BlizzardOptionsPanel_SetCVarSafe(cameraKeepCharacterCentered, motionSicknessOptions[self.value][cameraKeepCharacterCentered])
           BlizzardOptionsPanel_SetCVarSafe(cameraReduceUnexpectedMovement, motionSicknessOptions[self.value][cameraReduceUnexpectedMovement])
           -- Then set the selected item accordingly.
-          MyMotionSicknessDropdown.value = GetMotionSicknessSelected()
-          UIDropDownMenu_SetSelectedValue(MyMotionSicknessDropdown, MyMotionSicknessDropdown.value)
+          DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
+          UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
         end
 
       for k, v in ipairs(motionSicknessOptions) do
@@ -4160,18 +4214,18 @@ C_Timer.After(1, function()
     end
 
 
-    UIDropDownMenu_Initialize(MyMotionSicknessDropdown, MyMotionSicknessDropdown_Initialize)
+    UIDropDownMenu_Initialize(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown_Initialize)
 
-    MyMotionSicknessDropdown.value = GetMotionSicknessSelected()
-    UIDropDownMenu_SetSelectedValue(MyMotionSicknessDropdown, MyMotionSicknessDropdown.value)
+    DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
+    UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
 
 
     -- Place a tooltip warning.
-    MyMotionSicknessDropdown:SetScript("OnEnter", function(self)
+    DynamicCamMotionSicknessDropdown:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
         GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.")
     end)
-    MyMotionSicknessDropdown:SetScript("OnLeave", function(self)
+    DynamicCamMotionSicknessDropdown:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
     end)
 
@@ -4184,6 +4238,40 @@ end)
 
 -- This is not working reliably. Especially the zoom when not set to default.
 -- So we hide this for now.
+
+-- local easingValues = {
+    -- Linear = "Linear",
+    -- InQuad = "In Quadratic",
+    -- OutQuad = "Out Quadratic",
+    -- InOutQuad = "In/Out Quadratic",
+    -- OutInQuad = "Out/In Quadratic",
+    -- InCubic = "In Cubic",
+    -- OutCubic = "Out Cubic",
+    -- InOutCubic = "In/Out Cubic",
+    -- OutInCubic = "Out/In Cubic",
+    -- InQuart = "In Quartic",
+    -- OutQuart = "Out Quartic",
+    -- InOutQuart = "In/Out Quartic",
+    -- OutInQuart = "Out/In Quartic",
+    -- InQuint = "In Quintic",
+    -- OutQuint = "Out Quintic",
+    -- InOutQuint = "In/Out Quintic",
+    -- OutInQuint = "Out/In Quintic",
+    -- InSine = "In Sine",
+    -- OutSine = "Out Sine",
+    -- InOutSine = "In/Out Sine",
+    -- OutInSine = "Out/In Sine",
+    -- InExpo = "In Exponent",
+    -- OutExpo = "Out Exponent",
+    -- InOutExpo = "In/Out Exponent",
+    -- OutInExpo = "Out/In Exponent",
+    -- InCirc = "In Circular",
+    -- OutCirc = "Out Circular",
+    -- InOutCirc = "In/Out Circular",
+    -- OutInCirc = "Out/In Circular",
+-- }
+
+
 -- defaultEasing = {
     -- type = "group",
     -- name = "Default Easing Functions",
