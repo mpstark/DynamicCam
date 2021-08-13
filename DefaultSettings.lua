@@ -6,11 +6,22 @@ local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
 
 DynamicCam.situationDefaults = {
 
+    name = "",
+
     enabled = false,
 
-    situationSettings = {
-        cvars = {},
-    },
+    executeOnInit = "",
+
+    priority = 0,
+    events = {},
+
+    condition = "return false",
+
+    executeOnEnter = "",
+    executeOnExit = "",
+
+    delay = 0,
+
 
     viewZoom = {
         enabled = false,
@@ -21,6 +32,7 @@ DynamicCam.situationDefaults = {
         zoomValue = 10,
         zoomMin = 5,
         zoomMax = 15,
+        zoomTimeIsMax = false,
 
         viewNumber = 2,
         viewRestore = true,
@@ -61,17 +73,10 @@ DynamicCam.situationDefaults = {
         emergencyShowEscEnabled = true,
     },
 
-    executeOnInit = "",
 
-    priority = 0,
-    events = {},
-
-    condition = "return false",
-
-    executeOnEnter = "",
-    executeOnExit = "",
-
-    delay = 0,
+    situationSettings = {
+        cvars = {},
+    },
 }
 
 
@@ -81,13 +86,9 @@ DynamicCam.defaults = {
     profile = {
 
         -- Global settings.
-        version = 2,
         firstRun = true,
 
-        enableSituations = true,
         zoomRestoreSetting = "adaptive",
-
-
         interfaceOptionsFrameIgnoreParentAlpha = true,
 
         -- Standard settings (for when no situation is overriding them).
@@ -98,7 +99,6 @@ DynamicCam.defaults = {
             reactiveZoomAddIncrements = 2.5,
             reactiveZoomIncAddDifference = 1.2,
             reactiveZoomMaxZoomTime = 0.1,
-
 
             shoulderOffsetZoomEnabled = true,
             shoulderOffsetZoomLowerBound = 2,
@@ -422,6 +422,8 @@ return false]],
 this.mountVendors = {
   ["62821"] = 460, -- Grand Expedition Yak
   ["62822"] = 460, -- Grand Expedition Yak
+  -- Add more npcId and mountId pairs here.
+  -- To find them, uncomment print command in condition script.
 }
 
 function this:GetCurrentMount()
@@ -446,6 +448,8 @@ end]],
 if IsMounted() then
   if UnitGUID("npc") then
     local _, _, _, _, _, npcId = strsplit("-", UnitGUID("npc"))
+    -- Uncomment this to find out npcId and mountId pairs.
+    -- print("Current npc", npcId, "current mount", this:GetCurrentMount())
     if this.mountVendors[npcId] and this.mountVendors[npcId] == this:GetCurrentMount() then
       return false
     end
@@ -505,5 +509,116 @@ for _, situation in pairs(DynamicCam.defaults.profile.situations) do
         end
     end
 end
+
+
+
+
+
+
+-- With DC 2.0, some default values changed. As AceDB does not store default values,
+-- non-existent entries may have to be set to the old default when modernizing a profile.
+DynamicCam.oldDefaults = {
+
+    shoulderOffsetZoom = {
+        enabled = true,
+        lowerBound = 2,
+        upperBound = 8,
+    },
+
+    reactiveZoom = {
+        enabled = false,
+        addIncrementsAlways = 1,
+        addIncrements = 3,
+        maxZoomTime = .25,
+        incAddDifference = 4,
+    },
+
+    defaultCvars = {
+        cameraDistanceMaxZoomFactor = 2.6,
+        cameraZoomSpeed = 20,
+
+        test_cameraOverShoulder = 0,
+
+        test_cameraDynamicPitch = 0,
+        test_cameraDynamicPitchBaseFovPad = .35,
+        test_cameraDynamicPitchBaseFovPadFlying = .75,
+        test_cameraDynamicPitchBaseFovPadDownScale = .25,
+        test_cameraDynamicPitchSmartPivotCutoffDist = 10,
+
+        test_cameraTargetFocusEnemyEnable = 0,
+        test_cameraTargetFocusEnemyStrengthYaw = 0.5,
+        test_cameraTargetFocusEnemyStrengthPitch = 0.4,
+        test_cameraTargetFocusInteractEnable = 0,
+        test_cameraTargetFocusInteractStrengthYaw = 1.0,
+        test_cameraTargetFocusInteractStrengthPitch = 0.75,
+
+        test_cameraHeadMovementStrength = 0,
+        test_cameraHeadMovementStandingStrength = 0.3,
+        test_cameraHeadMovementStandingDampRate = 10,
+        test_cameraHeadMovementMovingStrength = 0.5,
+        test_cameraHeadMovementMovingDampRate = 10,
+        test_cameraHeadMovementFirstPersonDampRate = 20,
+        test_cameraHeadMovementRangeScale = 5,
+        test_cameraHeadMovementDeadZone = 0.015,
+    },
+
+    situations = {
+
+        enabled = true,
+
+        cameraActions = {
+            transitionTime = 0.75,
+            timeIsMax = true,
+
+            rotate = false,
+            rotateSetting = "continuous",
+            rotateSpeed = 20,
+            yawDegrees = 0,
+            pitchDegrees = 0,
+            rotateBack = false,
+
+            zoomSetting = "off",
+            zoomValue = 10,
+            zoomMin = 5,
+            zoomMax = 15,
+        },
+        view = {
+            enabled = false,
+            viewNumber = 5,
+            restoreView = false,
+            instant = false,
+        },
+        extras = {
+            hideUI = false,
+            hideUIFadeOpacity = 0,
+            actuallyHideUI = true,
+            keepMinimap = false,
+        },
+    },
+
+    -- AFK was the only situation in DC pre-2.0 that had other defaults.
+    afkSituation = {
+        cameraActions = {
+            transitionTime = 1,
+            rotateSpeed = 3,
+            zoomValue = 9,
+            rotate = true,
+            zoomSetting = "out",
+        },
+        extras = {
+            hideUI = true,
+        },
+
+    }
+
+}
+
+
+
+
+
+
+
+
 
 

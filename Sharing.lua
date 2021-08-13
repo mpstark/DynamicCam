@@ -170,9 +170,13 @@ local function copyTable(src, dest)
     assert(type(src) == "table", "copyTable() called for non-table source!")
     for k, v in pairs(src) do
         if type(v) == "table" then
-            copyTable(v, dest[k])
+            if dest[k] == nil then
+                print("The destination table does not have a field", k)
+            else
+                copyTable(v, dest[k])
+            end
         else
-          dest[k] = v
+            dest[k] = v
         end
     end
 end

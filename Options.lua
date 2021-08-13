@@ -1920,7 +1920,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 order = 2,
                                                 width = "half",
                                             },
-                                            restoreView = {
+                                            viewRestore = {
                                                 type = "toggle",
                                                 name = "Restore View",
                                                 desc = "When exiting the situation restore the camera position to what it was before entering.",
@@ -1962,10 +1962,10 @@ Or for short:
 
     /sv #
 
-Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a DynamicCam situation profile using views, fitting saved views have to be setup on top of importing the situation profile.
+Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a DynamicCam situation profile using views, you may have to set up and save the appropriate views manually.
 
 
-DynamicCam also provides a console command to set views irrespective of entering or exiting situations:
+DynamicCam also provides a console command to switch to a view irrespective of entering or exiting situations:
 
     /setView #
 
@@ -1977,7 +1977,6 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                                             },
                                         },
                                     },
-
 
 
                                     zoomBox = {
@@ -3507,7 +3506,7 @@ local about = {
                     type = "description",
                     name =
                         function()
-                            local returnString = "The game situations listed below have customized \"Situation Controls\" deviating from DynamicCam's stock settings. If you are doing this on purpose, it is fine. Just be aware that any updates to these settings by the DynamicCam developers will always be overridden by your modified (possibly outdated) version. You can check the \"Situation Controls\" tabs of each situation for details.\n\n"
+                            local returnString = "The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"
 
                             for situationId, situation in pairs(DynamicCam.defaults.profile.situations) do
                                 if not SituationControlsAreDefault(situationId) then
@@ -3515,7 +3514,7 @@ local about = {
                                 end
                             end
 
-                            returnString = returnString .. "\nIf you are not aware of any \"Situation Controls\" modifications from your side and simply want to restore the stock control settings for all situation, hit the button below!"
+                            returnString = returnString .. "\nIf you are doing this on purpose, it is fine. Just be aware that any updates to these settings by the DynamicCam developers will always be overridden by your modified (possibly outdated) version. You can check the \"Situation Controls\" tab of each situation for details. If you are not aware of any \"Situation Controls\" modifications from your side and simply want to restore the stock control settings for *all* situations, hit this button:"
 
                             return returnString
 
@@ -3524,7 +3523,7 @@ local about = {
                 },
                 restoreDefaultsButton = {
                     type = "execute",
-                    name = "Restore stock Situation Controls (recommended)",
+                    name = "Restore all stock Situation Controls",
                     order = 3,
                     width = "full",
                     func =

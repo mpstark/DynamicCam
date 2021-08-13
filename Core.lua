@@ -65,7 +65,7 @@ local Options
 local functionCache = {}
 local situationEnvironments = {}
 
-
+local next = next
 
 
 local OldCameraZoomIn = CameraZoomIn
@@ -130,7 +130,7 @@ local enteredSituationAtLogin = false
 
 -- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
 -- This is more accurate than the game framerate, which is the average over several recent frames.
-local secondsPerFrame = 1.0/GetFramerate()
+local secondsPerFrame = 1.0 / GetFramerate()
 
 
 
@@ -139,10 +139,10 @@ local secondsPerFrame = 1.0/GetFramerate()
 -- having to change the user's permanent DynamicCam profile.
 local shoulderOffsetZoomTmpDisable = false
 function DynamicCam:BlockShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = true
+    shoulderOffsetZoomTmpDisable = true
 end
 function DynamicCam:AllowShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = false
+    shoulderOffsetZoomTmpDisable = false
 end
 
 
@@ -260,8 +260,9 @@ local function gotoView(view, instant)
 
     if not view then return end
 
-    -- View change overrides all zooming.
+    -- View change overrides all zooming and rotating.
     LibCamera:StopZooming()
+    LibCamera:StopRotating()
 
     -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
     reactiveZoomTarget = nil
@@ -1141,6 +1142,8 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     end
 
 
+    -- print("transitiontime", transitionTime)
+
     -- TODO:
     --
     -- If the "Don't slow" option is selected, we have to check
@@ -1175,7 +1178,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- Set default values (possibly for new situation, may be nil).
     self.currentSituationID = newSituationID
-    self:ApplySettings(newSituationID, true)
+    self:ApplySettings(true)
 
     -- Set situation specific values.
     -- (Except shoulder offset, which we are easing above.)
@@ -1324,15 +1327,11 @@ end
 -------------
 -- UTILITY --
 -------------
-function DynamicCam:ApplySettings(newSituationID, noShoulderOffsetChange)
+function DynamicCam:ApplySettings(noShoulderOffsetChange)
 
-    -- print("ApplySettings", newSituationID, self.currentSituationID, noShoulderOffsetChange)
+    -- print("ApplySettings", self.currentSituationID, noShoulderOffsetChange)
 
     local curSituation = self.db.profile.situations[self.currentSituationID]
-
-    if newSituationID then
-        curSituation = self.db.profile.situations[newSituationID]
-    end
 
     -- Set the cvars (standard or situation).
     for cvar, value in pairs(self.db.profile.standardSettings.cvars) do
@@ -1348,7 +1347,6 @@ function DynamicCam:ApplySettings(newSituationID, noShoulderOffsetChange)
             DC_SetCVar(cvar, value)
         end
     end
-
 
     -- Set reactive zoom.
     if self:GetSettingsValue(self.currentSituationID, "reactiveZoomEnabled") then
@@ -1427,7 +1425,7 @@ function DynamicCam:ShouldRestoreZoom(oldSituationID, newSituationID)
 
 
     local c = newSituation.viewZoom
-    -- Restore zoom based on newSituation zoomSetting.
+    -- Restore zoom based on newSituation viewZoomType.
     if not c.enabled or c.viewZoomType ~= "zoom" then
         -- print("Not restoring zoom because new situation has no zoom setting.")
         return false
@@ -1832,107 +1830,329 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown")
 
 
-    -- if not DynamicCamDB.profiles then
-        -- firstDynamicCamLaunch = true
-    -- else
+    if not DynamicCamDB.profiles then
+        firstDynamicCamLaunch = true
+    else
 
         -- reset db if we've got a really old version
-        -- local veryOldVersion = false
-        -- for profileName, profile in pairs(DynamicCamDB.profiles) do
-            -- if profile.standardSettings.cvars and profile.standardSettings.cvars["cameraovershoulder"] then
-                -- veryOldVersion = true
-            -- end
-        -- end
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            if profile.defaultCvars and profile.defaultCvars["cameraovershoulder"] then
+                self:Print("Detected very old profile versions, resetting DB, sorry about that!")
+                self.db:ResetDB()
+            end
+        end
 
-        -- if veryOldVersion then
-            -- self:Print("Detected very old version, resetting DB, sorry about that!")
-            -- self.db:ResetDB()
-        -- end
 
-        -- -- modernize each profile
-        -- for profileName, profile in pairs(DynamicCamDB.profiles) do
-            -- self:ModernizeProfile(profile)
-        -- end
+        local profilesModernized = false
 
-    -- end
+        -- modernize each profile
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            local modernized = self:ModernizeProfile(profile)
+            profilesModernized = profilesModernized or modernized
+        end
 
+        -- Setting the profile cleans up the storage.
+        -- I.e. defaults are not explicitly stored.
+        if profilesModernized then
+            local currentProfile = self.db:GetCurrentProfile()
+            for profileName, profile in pairs(DynamicCamDB.profiles) do
+                self.db:SetProfile(profileName)
+            end
+            self.db:SetProfile(currentProfile)
+        end
+
+
+    end
 
 end
 
-function DynamicCam:ModernizeProfile(profile)
-    if not profile.version then
-        profile.version = 1
-    end
-
-    local startVersion = profile.version
-
-    if profile.version == 1 then
-        if profile.standardSettings.cvars and profile.standardSettings.cvars["test_cameraLockedTargetFocusing"] ~= nil then
-            profile.standardSettings.cvars["test_cameraLockedTargetFocusing"] = nil
-        end
-
-        upgradingFromOldVersion = true
-        profile.version = 2
-        profile.firstRun = false
-    end
-
-    -- modernize each situation
-    if profile.situations then
-        for situationID, situation in pairs(profile.situations) do
-            self:ModernizeSituation(situation, startVersion)
-        end
+-- (oldValues and oldValues.enabled) or oldDefaults.enabled
+-- does not work when "oldValues.enabled" is "false".
+-- Hence, we have to make our own function here.
+local function OldValueOrDefault(oldValues, oldDefaults, key)
+    if oldValues and oldValues[key] ~= nil then
+        return oldValues[key]
+    else
+        return oldDefaults[key]
     end
 end
 
 
 
-function DynamicCam:ModernizeSituation(situation, version)
 
-    -- TODO
+-- 1 : some early DC version
+-- 2 : DC pre-2.0
+-- 3 : DC post-2.0
+function DynamicCam:ModernizeProfile(p)
 
-    -- if version == 1 then
+    -- If there is no version number, it is most probably a newly created one!
+    if not p.version then
+        p.version = 3
+        return false
+    end
 
-        -- -- clear unused nameplates db stuff
-        -- if situation.extras then
-            -- situation.extras["nameplates"] = nil
-            -- situation.extras["friendlyNameplates"] = nil
-            -- situation.extras["enemyNameplates"] = nil
-        -- end
 
-        -- -- update targetlock features
-        -- if situation.targetLock then
-            -- if situation.targetLock.enabled then
-                -- if not situation.situationSettings.cvars then
-                    -- situation.situationSettings.cvars = {}
-                -- end
+    if p.version == 1 then
 
-                -- if situation.targetLock.onlyAttackable ~= nil and situation.targetLock.onlyAttackable == false then
-                    -- situation.situationSettings.cvars["test_cameraTargetFocusEnemyEnable"] = 1
-                    -- situation.situationSettings.cvars["test_cameraTargetFocusInteractEnable"] = 1
-                -- else
-                    -- situation.situationSettings.cvars["test_cameraTargetFocusEnemyEnable"] = 1
-                -- end
-            -- end
+        if p.defaultCvars and p.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil then
+            p.defaultCvars["test_cameraLockedTargetFocusing"] = nil
+        end
+        p.firstRun = false
 
-            -- situation.targetLock = nil
-        -- end
+        -- modernize each situation
+        if p.situations then
+            for k, v in pairs(p.situations) do
+                self:ModernizeSituation(v, k, p.version)
+            end
+        end
 
-        -- -- update camera rotation
-        -- if situation.cameraActions then
-            -- -- convert to yaw degrees instead of rotate degrees
-            -- if situation.cameraActions.rotateDegrees then
-                -- situation.cameraActions.yawDegrees = situation.cameraActions.rotateDegrees
-                -- situation.cameraActions.pitchDegrees = 0
-                -- situation.cameraActions.rotateDegrees = nil
-            -- end
+        p.version = 2
+    end
 
-            -- -- convert old scalar rotate speed to something that's in degrees/second
-            -- if situation.cameraActions.rotateSpeed and situation.cameraActions.rotateSpeed < 5 then
-                -- situation.cameraActions.rotateSpeed = situation.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"))
-            -- end
-        -- end
-    -- end
 
+    -- Upgrade to DynamicCam 2.0
+    if p.version == 2 then
+
+        -- Not changing:
+        -- p.firstRun
+        -- p.zoomRestoreSetting
+
+        -- These existed before. But as the user is currently not supposed to change the values, we do not set them (i.e. they assume the default).
+        -- p.standardSettings.easingZoom
+        -- p.standardSettings.easingYaw
+        -- p.standardSettings.easingPitch
+        -- p.standardSettings.reactiveZoomEasingFunc
+
+        -- Newly introduced setting also assumes default.
+        -- p.interfaceOptionsFrameIgnoreParentAlpha
+
+        p.standardSettings = {cvars = {},}
+
+        local oldValues = p.reactiveZoom
+        local oldDefaults = DynamicCam.oldDefaults.reactiveZoom
+
+
+        p.standardSettings.reactiveZoomEnabled             = OldValueOrDefault(oldValues, oldDefaults, "enabled")
+        p.standardSettings.reactiveZoomAddIncrementsAlways = OldValueOrDefault(oldValues, oldDefaults, "addIncrementsAlways")
+        p.standardSettings.reactiveZoomAddIncrements       = OldValueOrDefault(oldValues, oldDefaults, "addIncrements")
+        p.standardSettings.reactiveZoomIncAddDifference    = OldValueOrDefault(oldValues, oldDefaults, "incAddDifference")
+        p.standardSettings.reactiveZoomMaxZoomTime         = OldValueOrDefault(oldValues, oldDefaults, "maxZoomTime")
+
+        local oldValues = p.shoulderOffsetZoom
+        local oldDefaults = DynamicCam.oldDefaults.shoulderOffsetZoom
+        p.standardSettings.shoulderOffsetZoomEnabled       = OldValueOrDefault(oldValues, oldDefaults, "enabled")
+        p.standardSettings.shoulderOffsetZoomLowerBound    = OldValueOrDefault(oldValues, oldDefaults, "lowerBound")
+        p.standardSettings.shoulderOffsetZoomUpperBound    = OldValueOrDefault(oldValues, oldDefaults, "upperBound")
+
+        local oldValues = p.defaultCvars
+        local oldDefaults = DynamicCam.oldDefaults.defaultCvars
+        for cvarName, _ in pairs(oldDefaults) do
+            p.standardSettings.cvars[cvarName] = OldValueOrDefault(oldValues, oldDefaults, cvarName)
+        end
+
+
+        -- If we did not import anything...
+        if next(p.standardSettings.cvars) == nil then p.standardSettings.cvars = nil end
+        if next(p.standardSettings) == nil then p.standardSettings = nil end
+
+
+        -- Deep compare of two tables in Lua is not trivial.
+        -- So we just delete all old settings manually here.
+        p.enabled = nil
+        p.advanced = nil
+        p.debugMode = nil
+        p.actionCam = nil
+
+        p.easingZoom = nil
+        p.easingYaw = nil
+        p.easingPitch = nil
+
+        p.reactiveZoom = nil
+        p.shoulderOffsetZoom = nil
+        p.defaultCvars = nil
+
+
+        -- modernize each situation
+        if p.situations then
+            for k, v in pairs(p.situations) do
+                self:ModernizeSituation(v, k, p.version)
+                -- It may happen that a situation becomes empty
+                -- because old values are the same as new defaults.
+                -- (Particularly "enabled")
+                if next(v) == nil then p.situations[k] = nil end
+            end
+        end
+
+        p.version = 3
+
+        return true
+    end
+
+    return false
+end
+
+
+
+function DynamicCam:ModernizeSituation(s, situationID, version)
+
+    if version == 1 then
+
+        -- clear unused nameplates db stuff
+        if s.extras then
+            s.extras["nameplates"] = nil
+            s.extras["friendlyNameplates"] = nil
+            s.extras["enemyNameplates"] = nil
+        end
+
+        -- update targetlock features
+        if s.targetLock then
+            if s.targetLock.enabled then
+                if not s.cameraCVars then
+                    s.cameraCVars = {}
+                end
+
+                if s.targetLock.onlyAttackable ~= nil and s.targetLock.onlyAttackable == false then
+                    s.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
+                    s.cameraCVars["test_cameraTargetFocusInteractEnable"] = 1
+                else
+                    s.cameraCVars["test_cameraTargetFocusEnemyEnable"] = 1
+                end
+            end
+
+            s.targetLock = nil
+        end
+
+        -- update camera rotation
+        if s.cameraActions then
+            -- convert to yaw degrees instead of rotate degrees
+            if s.cameraActions.rotateDegrees then
+                s.cameraActions.yawDegrees = s.cameraActions.rotateDegrees
+                s.cameraActions.pitchDegrees = 0
+                s.cameraActions.rotateDegrees = nil
+            end
+
+            -- convert old scalar rotate speed to something that's in degrees/second
+            if s.cameraActions.rotateSpeed and s.cameraActions.rotateSpeed < 5 then
+                s.cameraActions.rotateSpeed = s.cameraActions.rotateSpeed * tonumber(GetCVar("cameraYawMoveSpeed"))
+            end
+        end
+
+
+    elseif version == 2 then
+
+        -- The new default is "disabled".
+        if s.enabled == nil then
+            s.enabled = true
+        else
+            s.enabled = nil
+        end
+
+
+        -- Not changing:
+        -- s.name
+        -- s.executeOnInit
+        -- s.priority
+        -- s.events
+        -- s.condition
+        -- s.executeOnEnter
+        -- s.executeOnExit
+        -- s.delay
+
+
+        s.viewZoom = {}
+        s.rotation = {}
+        s.hideUI = {}
+        s.situationSettings = {cvars = {},}
+
+
+        -- Only restoring old values or defaults if an option was enabled.
+
+
+        local oldValues = s.cameraActions
+        local oldDefaults = DynamicCam.oldDefaults.situations.cameraActions
+
+        -- For AFK situation we need to restore special defaults...
+        if situationID == "303" then
+            oldDefaults = {}
+            for k, v in pairs(DynamicCam.oldDefaults.situations.cameraActions) do
+                if DynamicCam.oldDefaults.afkSituation.cameraActions[k] then
+                    -- print("Taking", k, DynamicCam.oldDefaults.afkSituation.cameraActions[k], "from AFK defaults.")
+                    oldDefaults[k] = DynamicCam.oldDefaults.afkSituation.cameraActions[k]
+                else
+                    -- print("Taking", k, v, "from global defaults.")
+                    oldDefaults[k] = v
+                end
+            end
+        end
+
+        if oldValues and oldValues.zoomSetting and oldValues.zoomSetting ~= "off" then
+            s.viewZoom.enabled      = true
+            s.viewZoom.viewZoomType = "zoom"
+            s.viewZoom.zoomTransitionTime = OldValueOrDefault(oldValues, oldDefaults, "transitionTime")
+            s.viewZoom.zoomType           = OldValueOrDefault(oldValues, oldDefaults, "zoomSetting")
+            s.viewZoom.zoomValue          = OldValueOrDefault(oldValues, oldDefaults, "zoomValue")
+            s.viewZoom.zoomMin            = OldValueOrDefault(oldValues, oldDefaults, "zoomMin")
+            s.viewZoom.zoomMax            = OldValueOrDefault(oldValues, oldDefaults, "zoomMax")
+            s.viewZoom.zoomTimeIsMax      = OldValueOrDefault(oldValues, oldDefaults, "timeIsMax")
+        end
+
+        -- Different default for AFK situation...
+        if (oldValues and oldValues.rotate) or (situationID == "303" and (oldValues == nil or oldValues.rotate == nil)) then
+            s.rotation.enabled            = true
+            s.rotation.rotationType       = OldValueOrDefault(oldValues, oldDefaults, "rotateSetting")
+            s.rotation.rotationTime       = OldValueOrDefault(oldValues, oldDefaults, "transitionTime")
+            s.rotation.rotationSpeed      = OldValueOrDefault(oldValues, oldDefaults, "rotateSpeed")
+            s.rotation.yawDegrees         = OldValueOrDefault(oldValues, oldDefaults, "yawDegrees")
+            s.rotation.pitchDegrees       = OldValueOrDefault(oldValues, oldDefaults, "pitchDegrees")
+            s.rotation.rotateBack         = OldValueOrDefault(oldValues, oldDefaults, "rotateBack")
+            s.rotation.rotateBackTime     = OldValueOrDefault(oldValues, oldDefaults, "transitionTime")
+        end
+
+        -- From DC 2.0 on, you cannot do a view change and a zoom change at the same time.
+        -- A view change has higher priority than zoom change. By checking view here,
+        -- a possible zoom change gets overridden.
+        local oldValues = s.view
+        local oldDefaults = DynamicCam.oldDefaults.situations.view
+        if oldValues and oldValues.enabled then
+            s.viewZoom.enabled      = true
+            s.viewZoom.viewZoomType = "view"
+            s.viewZoom.viewNumber   = OldValueOrDefault(oldValues, oldDefaults, "viewNumber")
+            s.viewZoom.viewRestore  = OldValueOrDefault(oldValues, oldDefaults, "restoreView")
+            s.viewZoom.viewInstant  = OldValueOrDefault(oldValues, oldDefaults, "instant")
+        end
+
+        local oldValues = s.extras
+        local oldDefaults = DynamicCam.oldDefaults.situations.extras
+        -- Different default for AFK situation...
+        if (oldValues and oldValues.hideUI) or (situationID == "303" and (oldValues == nil or oldValues.hideUI == nil)) then
+            s.hideUI.enabled      = true
+            s.hideUI.fadeOpacity  = OldValueOrDefault(oldValues, oldDefaults, "hideUIFadeOpacity")
+            s.hideUI.hideEntireUI = OldValueOrDefault(oldValues, oldDefaults, "actuallyHideUI")
+            s.hideUI.keepMinimap  = OldValueOrDefault(oldValues, oldDefaults, "keepMinimap")
+        end
+
+        -- There are and were no defaults for situation specific cvars.
+        if s.cameraCVars then
+            for cvarName, cvarValue in pairs(s.cameraCVars) do
+                s.situationSettings.cvars[cvarName] = cvarValue
+            end
+        end
+
+
+        -- Delete entries if empty.
+        if next(s.viewZoom) == nil then s.viewZoom = nil end
+        if next(s.rotation) == nil then s.rotation = nil end
+        if next(s.hideUI) == nil then s.hideUI = nil end
+        if next(s.situationSettings.cvars) == nil then s.situationSettings.cvars = nil end
+        if next(s.situationSettings) == nil then s.situationSettings = nil end
+
+        -- Delete old entries.
+        s.cameraActions = nil
+        s.view = nil
+        s.extras = nil
+        s.cameraCVars = nil
+
+    end
 
 end
 
