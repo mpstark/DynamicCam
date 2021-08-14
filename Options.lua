@@ -3391,56 +3391,62 @@ The delay determines how many seconds to wait before exiting the situation. So f
                 order = 8,
 
                 args = {
-
-                    copy = {
-                        type = "execute",
-                        name = "Copy",
-                        desc = "Copy this situations settings so that you can paste it into another situation.\n\nDoesn't copy the condition or the advanced mode Lua scripts.",
-                        hidden = function() return not S end,
-                        func = function() copiedSituationID = SID end,
-                        order = 5,
-                        width = "half",
-                    },
-
-                    paste = {
-                        type = "execute",
-                        name = "Paste",
-                        desc = "Paste the settings from that last copied situation.",
-                        hidden = function() return not S end,
-                        disabled = function() return not copiedSituationID end,
-                        func = function()
-                                DynamicCam:CopySituationInto(copiedSituationID, SID)
-                                copiedSituationID = nil
-                            end,
-                        order = 6,
-                        width = "half",
-                    },
-
-                    export = {
-                        type = "execute",
-                        name = "Export",
-                        desc = "If you want to share the settings of this situation with others you can export it into a text string. Use the \"Import\" section of the DynamicCam settings to import strings you have received from others.",
-                        hidden = function() return not S end,
-                        func = function() DynamicCam:PopupExport(DynamicCam:ExportSituation(SID)) end,
-                        order = 7,
-                        width = "half",
-                    },
-
-                    helpText = {
+                        description = {
                         type = "description",
-                        name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
-                        order = 8,
+                        name = "Coming soon...",
+                        order = 1,
                     },
-                    import = {
-                        type = "input",
-                        name = "Paste and hit Accept to import!",
-                        desc = "Paste the DynamicCam import string of a profile or a situation.",
-                        get = function() return "" end,
-                        set = function(_, newValue) DynamicCam:Import(newValue) end,
-                        multiline = 10,
-                        width = "full",
-                        order = 9,
-                    },
+                    -- TODO: Disabled in Beta.
+
+                    -- copy = {
+                        -- type = "execute",
+                        -- name = "Copy",
+                        -- desc = "Copy this situations settings so that you can paste it into another situation.\n\nDoesn't copy the condition or the advanced mode Lua scripts.",
+                        -- hidden = function() return not S end,
+                        -- func = function() copiedSituationID = SID end,
+                        -- order = 5,
+                        -- width = "half",
+                    -- },
+
+                    -- paste = {
+                        -- type = "execute",
+                        -- name = "Paste",
+                        -- desc = "Paste the settings from that last copied situation.",
+                        -- hidden = function() return not S end,
+                        -- disabled = function() return not copiedSituationID end,
+                        -- func = function()
+                                -- DynamicCam:CopySituationInto(copiedSituationID, SID)
+                                -- copiedSituationID = nil
+                            -- end,
+                        -- order = 6,
+                        -- width = "half",
+                    -- },
+
+                    -- export = {
+                        -- type = "execute",
+                        -- name = "Export",
+                        -- desc = "If you want to share the settings of this situation with others you can export it into a text string. Use the \"Import\" section of the DynamicCam settings to import strings you have received from others.",
+                        -- hidden = function() return not S end,
+                        -- func = function() DynamicCam:PopupExport(DynamicCam:ExportSituation(SID)) end,
+                        -- order = 7,
+                        -- width = "half",
+                    -- },
+
+                    -- helpText = {
+                        -- type = "description",
+                        -- name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
+                        -- order = 8,
+                    -- },
+                    -- import = {
+                        -- type = "input",
+                        -- name = "Paste and hit Accept to import!",
+                        -- desc = "Paste the DynamicCam import string of a profile or a situation.",
+                        -- get = function() return "" end,
+                        -- set = function(_, newValue) DynamicCam:Import(newValue) end,
+                        -- multiline = 10,
+                        -- width = "full",
+                        -- order = 9,
+                    -- },
 
 
                 },
@@ -3608,33 +3614,39 @@ local profileSettings = {
             args = {
                 description = {
                     type = "description",
-                    name = "Here are some preset profiles created by other DynamicCam users. Do you have a profile that's unlike any of these? Please export it and post it together with a name and description on the DynamicCam user forum! We will then consider putting it into the next release.",
+                    name = "Coming soon...",
                     order = 1,
                 },
-                loadPreset = {
-                    type = "select",
-                    name = "Load Preset",
-                    desc = "Select a preset profile to load it.\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r",
-                    get = function() return "" end,
-                    set = function(_, newValue) DynamicCam:LoadPreset(newValue) end,
-                    values = function() return DynamicCam:GetPresets() end,
-                    sorting = function() return DynamicCam:GetPresetsSorting() end,
-                    width = "full",
-                    order = 2,
-                },
-                presetDescriptions = {
-                    type = "group",
-                    name = "Descriptions",
-                    order = 3,
-                    inline = true,
-                    args = {
-                        description = {
-                            type = "description",
-                            name = function() return DynamicCam:GetPresetDescriptions() end,
-                            order = 1,
-                        },
-                    },
-                },
+                -- TODO: Disabled in Beta.
+                -- description = {
+                    -- type = "description",
+                    -- name = "Here are some preset profiles created by other DynamicCam users. Do you have a profile that's unlike any of these? Please export it and post it together with a name and description on the DynamicCam user forum! We will then consider putting it into the next release.",
+                    -- order = 1,
+                -- },
+                -- loadPreset = {
+                    -- type = "select",
+                    -- name = "Load Preset",
+                    -- desc = "Select a preset profile to load it.\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r",
+                    -- get = function() return "" end,
+                    -- set = function(_, newValue) DynamicCam:LoadPreset(newValue) end,
+                    -- values = function() return DynamicCam:GetPresets() end,
+                    -- sorting = function() return DynamicCam:GetPresetsSorting() end,
+                    -- width = "full",
+                    -- order = 2,
+                -- },
+                -- presetDescriptions = {
+                    -- type = "group",
+                    -- name = "Descriptions",
+                    -- order = 3,
+                    -- inline = true,
+                    -- args = {
+                        -- description = {
+                            -- type = "description",
+                            -- name = function() return DynamicCam:GetPresetDescriptions() end,
+                            -- order = 1,
+                        -- },
+                    -- },
+                -- },
             },
         },
 
@@ -3643,52 +3655,58 @@ local profileSettings = {
             name = "Import / Export",
             order = 3,
             args = {
-                helpText = {
+                description = {
                     type = "description",
-                    name = "If you want to share your profile with others you can export it into a text string. Use \"Import\" to import strings you have received from others.",
-                    order = 0,
-                },
-                name = {
-                    type = "input",
-                    name = "Profile Name (Required!)",
-                    desc = "The name that other people will see when importing this profile.",
-                    get = function() return exportName end,
-                    set = function(_, newValue) exportName = newValue end,
-                    --width = "double",
+                    name = "Coming soon...",
                     order = 1,
                 },
-                author = {
-                    type = "input",
-                    name = "Author (Optional)",
-                    desc = "A name that will be attached to the export so that other people know whom it's from.",
-                    get = function() return exportAuthor end,
-                    set = function(_, newValue) exportAuthor = newValue end,
-                    order = 2,
-                },
-                export = {
-                    type = "execute",
-                    name = "Generate export string",
-                    disabled = function() return not (exportName and exportName ~= "") end,
-                    func = function() DynamicCam:PopupExport(DynamicCam:ExportProfile(exportName, exportAuthor)) end,
-                    order = 3,
-                },
+                -- TODO: Disabled in Beta.
+                -- helpText = {
+                    -- type = "description",
+                    -- name = "If you want to share your profile with others you can export it into a text string. Use \"Import\" to import strings you have received from others.",
+                    -- order = 0,
+                -- },
+                -- name = {
+                    -- type = "input",
+                    -- name = "Profile Name (Required!)",
+                    -- desc = "The name that other people will see when importing this profile.",
+                    -- get = function() return exportName end,
+                    -- set = function(_, newValue) exportName = newValue end,
+                    -- --width = "double",
+                    -- order = 1,
+                -- },
+                -- author = {
+                    -- type = "input",
+                    -- name = "Author (Optional)",
+                    -- desc = "A name that will be attached to the export so that other people know whom it's from.",
+                    -- get = function() return exportAuthor end,
+                    -- set = function(_, newValue) exportAuthor = newValue end,
+                    -- order = 2,
+                -- },
+                -- export = {
+                    -- type = "execute",
+                    -- name = "Generate export string",
+                    -- disabled = function() return not (exportName and exportName ~= "") end,
+                    -- func = function() DynamicCam:PopupExport(DynamicCam:ExportProfile(exportName, exportAuthor)) end,
+                    -- order = 3,
+                -- },
 
 
-                helpText = {
-                    type = "description",
-                    name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
-                    order = 4,
-                },
-                import = {
-                    type = "input",
-                    name = "Paste and hit Accept to import!",
-                    desc = "Paste the DynamicCam import string of a profile or a situation.",
-                    get = function() return "" end,
-                    set = function(_, newValue) DynamicCam:Import(newValue) end,
-                    multiline = 10,
-                    width = "full",
-                    order = 5,
-                },
+                -- helpText = {
+                    -- type = "description",
+                    -- name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
+                    -- order = 4,
+                -- },
+                -- import = {
+                    -- type = "input",
+                    -- name = "Paste and hit Accept to import!",
+                    -- desc = "Paste the DynamicCam import string of a profile or a situation.",
+                    -- get = function() return "" end,
+                    -- set = function(_, newValue) DynamicCam:Import(newValue) end,
+                    -- multiline = 10,
+                    -- width = "full",
+                    -- order = 5,
+                -- },
 
             },
         },

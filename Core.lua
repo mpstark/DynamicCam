@@ -742,7 +742,7 @@ function DynamicCam:Startup()
 
 
     -- -- For coding
-    C_Timer.After(0, self.OpenMenu)
+    -- C_Timer.After(0, self.OpenMenu)
 
     -- C_Timer.After(3, function()
         -- if BugSack then
@@ -1806,20 +1806,54 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
     end,
 }
 
-StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
-    text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
-    button1 = "OK",
-    button2 = "Cancel",
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnAccept = function()
-        DynamicCam:OpenMenu()
-    end,
-    OnCancel = function(_, reason)
-    end,
-}
+
+-- TODO: Disabled in Beta.
+-- StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
+    -- text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
+    -- button1 = "OK",
+    -- button2 = "Cancel",
+    -- timeout = 0,
+    -- whileDead = true,
+    -- hideOnEscape = true,
+    -- preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+    -- OnAccept = function()
+        -- DynamicCam:OpenMenu()
+    -- end,
+    -- OnCancel = function(_, reason)
+    -- end,
+-- }
+
+
+
+function DynamicCam:ModernizeProfiles()
+
+    -- reset db if we've got a really old version
+    for profileName, profile in pairs(DynamicCamDB.profiles) do
+        if profile.defaultCvars and profile.defaultCvars["cameraovershoulder"] then
+            self:Print("Detected very old profile versions, resetting DB, sorry about that!")
+            self.db:ResetDB()
+        end
+    end
+
+
+    local profilesModernized = false
+
+    -- modernize each profile
+    for profileName, profile in pairs(DynamicCamDB.profiles) do
+        local modernized = self:ModernizeProfile(profile)
+        profilesModernized = profilesModernized or modernized
+    end
+
+    -- Setting the profile cleans up the storage.
+    -- I.e. defaults are not explicitly stored.
+    if profilesModernized then
+        local currentProfile = self.db:GetCurrentProfile()
+        for profileName, profile in pairs(DynamicCamDB.profiles) do
+            self.db:SetProfile(profileName)
+        end
+        self.db:SetProfile(currentProfile)
+    end
+end
 
 
 function DynamicCam:InitDatabase()
@@ -1834,32 +1868,21 @@ function DynamicCam:InitDatabase()
         firstDynamicCamLaunch = true
     else
 
-        -- reset db if we've got a really old version
+        -- For Beta: Prompt to modernize profiles.
+        local modernizationNeeded = false
         for profileName, profile in pairs(DynamicCamDB.profiles) do
-            if profile.defaultCvars and profile.defaultCvars["cameraovershoulder"] then
-                self:Print("Detected very old profile versions, resetting DB, sorry about that!")
-                self.db:ResetDB()
+            if profile.version ~= 3 then
+                modernizationNeeded = true
+                break
             end
         end
-
-
-        local profilesModernized = false
-
-        -- modernize each profile
-        for profileName, profile in pairs(DynamicCamDB.profiles) do
-            local modernized = self:ModernizeProfile(profile)
-            profilesModernized = profilesModernized or modernized
+        if modernizationNeeded then
+            DynamicCam:ShowBetaWarning()
         end
 
-        -- Setting the profile cleans up the storage.
-        -- I.e. defaults are not explicitly stored.
-        if profilesModernized then
-            local currentProfile = self.db:GetCurrentProfile()
-            for profileName, profile in pairs(DynamicCamDB.profiles) do
-                self.db:SetProfile(profileName)
-            end
-            self.db:SetProfile(currentProfile)
-        end
+
+        -- TODO: Could later paste the content of ModernizeProfiles() here again.
+
 
 
     end
@@ -2181,7 +2204,8 @@ function DynamicCam:RefreshConfig()
             StaticPopup_Show("DYNAMICCAM_FIRST_RUN")
             firstDynamicCamLaunch = false
         else
-            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
+            -- TODO: Disabled in Beta.
+            -- StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
         end
         self.db.profile.firstRun = false
     end
@@ -2827,6 +2851,42 @@ end
 
 
 
+local betaWarningOuterFrame = CreateFrame("Frame")
+betaWarningOuterFrame:SetSize(650, 1)
+
+StaticPopupDialogs["DYNAMICCAM_BETA_WARNING"] = {
+    text = "DynamicCam 2.0 Beta\n\nThank you very much for testing the all new 2.0 version of DynamicCam!\nDue to some fundamental changes \"under the hood\" your settings profiles must be modernized. Part of this Beta is to check if this modernization works flawlessly. Hence, you should make a backup copy of the file:\n\n\\World of Warcraft\\_retail_\\WTF\\Account\\<YourAccountName>\\SavedVariables\\DynamicCam.lua\n\nIf anything goes worng, you could then restore your settings from this backup. Furthermore, you could send us your file (on curseforge or wowinterface), so we could figure out what went wrong.\n\nYou can alt-tab out of WoW right now to make a copy of that file and then come back to press the \"OK\" button. Or if you do not want to do this right now, press the \"Cancel\" button, which will disable most functions of DynamicCam.",
+    button1 = "OK (Modernize Profiles)",
+    button2 = "Cancel (Disable DynamicCam)",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+
+    OnShow = function (self)
+        self.ludius_originalTextWidth = self.text:GetWidth()
+        self.text:SetWidth(betaWarningOuterFrame:GetWidth() - 30)
+    end,
+    OnHide = function(self)
+        self.text:SetWidth(self.ludius_originalTextWidth)
+        self.ludius_originalTextWidth = nil
+    end,
+
+    OnAccept = function()
+        DynamicCam:ModernizeProfiles()
+        print("DynamicCam 2.0: Profiles modernized! Please check if all settings are as before...")
+    end,
+    OnCancel = function()
+        DynamicCam:Disable()
+        print("DynamicCam 2.0: Disabled! You will be asked again to modernize profiles after reloading the UI (type /reload into the console).")
+    end,
+}
+
+
+
+function DynamicCam:ShowBetaWarning()
+    StaticPopup_Show("DYNAMICCAM_BETA_WARNING", _, _, _, betaWarningOuterFrame)
+end
 
 
 -- -- For debugging.
