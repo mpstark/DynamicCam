@@ -743,7 +743,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                             reactiveZoomDescription = {
                                 type = "description",
-                                name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, however, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
+                                name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
                                 order = 2,
                             },
                         },
@@ -2013,7 +2013,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                                                 type = "select",
                                                 name = "Zoom Type",
                                                 desc = "\nSet: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in, if further away than the given maximum. Zoom out, if closer than the given minimum. Do nothing, if the current zoom is within the [min, max] range.",
-                                                width = "full",
+                                                width = 0.8,
                                                 get =
                                                     function()
                                                         return S.viewZoom.zoomType
@@ -2036,7 +2036,27 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                                                 },
                                                 order = 2,
                                             },
-                                            blank2 = {type = "description", name = " ", order = 2.1, },
+                                            blank2 = {type = "description", name = " ", order = 2.1, width = 0.2, },
+
+                                            zoomTimeIsMaxToggle = {
+                                                type = "toggle",
+                                                name = "Don't slow",
+                                                desc = "Zoom transitions may be executed faster (but never slower) than the specified time above, if the \"Camera Zoom Speed\" (see \"Mouse Zoom\" settings) allows.",
+                                                get =
+                                                    function()
+                                                        return S.viewZoom.zoomTimeIsMax
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.viewZoom.zoomTimeIsMax = newValue
+                                                    end,
+                                                width = 0.8,
+                                                order = 2.2,
+                                            },
+
+
+
+                                            blank22 = {type = "description", name = " ", order = 2.5, },
 
                                             zoomValue = {
                                                 type = "range",
@@ -3393,7 +3413,7 @@ The delay determines how many seconds to wait before exiting the situation. So f
                 args = {
                         description = {
                         type = "description",
-                        name = "Coming soon...",
+                        name = "Coming soon...\n\nThis is the Beta of DynamicCam 2.0. The full release will have this feature enabled.",
                         order = 1,
                     },
                     -- TODO: Disabled in Beta.
@@ -3614,7 +3634,7 @@ local profileSettings = {
             args = {
                 description = {
                     type = "description",
-                    name = "Coming soon...",
+                    name = "Coming soon...\n\nThis is the Beta of DynamicCam 2.0. The full release will have this feature enabled.",
                     order = 1,
                 },
                 -- TODO: Disabled in Beta.
@@ -3657,7 +3677,7 @@ local profileSettings = {
             args = {
                 description = {
                     type = "description",
-                    name = "Coming soon...",
+                    name = "Coming soon...\n\nThis is the Beta of DynamicCam 2.0. The full release will have this feature enabled.",
                     order = 1,
                 },
                 -- TODO: Disabled in Beta.
