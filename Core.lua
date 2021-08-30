@@ -742,7 +742,7 @@ function DynamicCam:Startup()
 
 
     -- -- For coding
-    -- C_Timer.After(0, self.OpenMenu)
+    C_Timer.After(0, self.OpenMenu)
 
     -- C_Timer.After(3, function()
         -- if BugSack then
@@ -1803,21 +1803,20 @@ StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
 }
 
 
--- TODO: Disabled in Beta.
--- StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
-    -- text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
-    -- button1 = "OK",
-    -- button2 = "Cancel",
-    -- timeout = 0,
-    -- whileDead = true,
-    -- hideOnEscape = true,
-    -- preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    -- OnAccept = function()
-        -- DynamicCam:OpenMenu()
-    -- end,
-    -- OnCancel = function(_, reason)
-    -- end,
--- }
+StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
+    text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
+    button1 = "OK",
+    button2 = "Cancel",
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+    OnAccept = function()
+        DynamicCam:OpenMenu()
+    end,
+    OnCancel = function(_, reason)
+    end,
+}
 
 
 
@@ -2182,8 +2181,7 @@ function DynamicCam:RefreshConfig()
             StaticPopup_Show("DYNAMICCAM_FIRST_RUN")
             firstDynamicCamLaunch = false
         else
-            -- TODO: Disabled in Beta.
-            -- StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
+            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
         end
         self.db.profile.firstRun = false
     end
@@ -2507,6 +2505,71 @@ local rzvaHalfWidth = rzvaWidth/2
 
 local rzvaFrame = nil
 
+local lastReactiveZoomTarget = reactiveZoomTarget
+local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
+
+
+local function ReactiveZoomGraphUpdateFunction()
+
+    rzvaFrame.zm:ClearAllPoints()
+    rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / 39) )
+    rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
+
+
+    if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
+
+        if not rzvaFrame.rzt:IsShown() then
+            rzvaFrame.rzt:Show()
+            rzvaFrame.rzi:Show()
+            rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
+            rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
+        end
+
+        rzvaFrame.rzt:ClearAllPoints()
+        if reactiveZoomTarget then
+            rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / 39) )
+
+            rzvaFrame.reactiveZoomTargetValue:SetText(round(reactiveZoomTarget, 3))
+
+            if lastReactiveZoomTarget then
+                local step = lastReactiveZoomTarget - reactiveZoomTarget
+
+                if step > 0 then
+                    rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
+                    rzvaFrame.rzi:Show()
+                elseif step < 0 then
+                    rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
+                    rzvaFrame.rzi:Show()
+                else
+                    rzvaFrame.rzi:Hide()
+                end
+
+
+            end
+
+            lastReactiveZoomTarget = reactiveZoomTarget
+
+        else
+            rzvaFrame.rzi:Hide()
+            rzvaFrame.rzt:Hide()
+            rzvaFrame.reactiveZoomTargetValue:SetText("---")
+        end
+
+    else
+
+        if rzvaFrame.rzi:IsShown() then  end
+        if rzvaFrame.rzt:IsShown() then
+            rzvaFrame.rzt:Hide()
+            rzvaFrame.rzi:Hide()
+            rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, .3, 1)
+            rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, .3, 1)
+            rzvaFrame.reactiveZoomTargetValue:SetText("---")
+        end
+    end
+end
+
+
+
 function DynamicCam:ToggleRZVA()
 
     if not rzvaFrame then
@@ -2603,6 +2666,15 @@ function DynamicCam:ToggleRZVA()
         rzvaFrame.rzi.t:SetColorTexture(1, 1, 0, 1)
 
         rzvaFrame:Hide()
+
+
+        rzvaFrame:HookScript("OnShow", function()
+            reactiveZoomGraphUpdateFrame:SetScript("onUpdate", ReactiveZoomGraphUpdateFunction)
+        end)
+
+        rzvaFrame:HookScript("OnHide", function()
+            reactiveZoomGraphUpdateFrame:SetScript("onUpdate", nil)
+        end)
     end
 
     if not rzvaFrame:IsShown() then
@@ -2612,76 +2684,6 @@ function DynamicCam:ToggleRZVA()
     end
 
 end
-
-
-
-
-
-
-local function ReactiveZoomGraphUpdateFunction()
-    if not rzvaFrame or not rzvaFrame:IsShown() then return end
-
-    rzvaFrame.zm:ClearAllPoints()
-    rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / 39) )
-    rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
-
-
-    if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
-
-        if not rzvaFrame.rzt:IsShown() then
-            rzvaFrame.rzt:Show()
-            rzvaFrame.rzi:Show()
-            rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-            rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
-        end
-
-        rzvaFrame.rzt:ClearAllPoints()
-        if reactiveZoomTarget then
-            rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / 39) )
-
-            rzvaFrame.reactiveZoomTargetValue:SetText(round(reactiveZoomTarget, 3))
-
-            if lastReactiveZoomTarget then
-                local step = lastReactiveZoomTarget - reactiveZoomTarget
-
-                if step > 0 then
-                    rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
-                    rzvaFrame.rzi:Show()
-                elseif step < 0 then
-                    rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
-                    rzvaFrame.rzi:Show()
-                else
-                    rzvaFrame.rzi:Hide()
-                end
-
-
-            end
-
-            lastReactiveZoomTarget = reactiveZoomTarget
-
-        else
-            rzvaFrame.rzi:Hide()
-            rzvaFrame.rzt:Hide()
-            rzvaFrame.reactiveZoomTargetValue:SetText("---")
-        end
-
-    else
-
-        if rzvaFrame.rzi:IsShown() then  end
-        if rzvaFrame.rzt:IsShown() then
-            rzvaFrame.rzt:Hide()
-            rzvaFrame.rzi:Hide()
-            rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, .3, 1)
-            rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, .3, 1)
-            rzvaFrame.reactiveZoomTargetValue:SetText("---")
-        end
-    end
-
-end
-
-local lastReactiveZoomTarget = reactiveZoomTarget
-local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
-reactiveZoomGraphUpdateFrame:SetScript("onUpdate", ReactiveZoomGraphUpdateFunction)
 
 
 
