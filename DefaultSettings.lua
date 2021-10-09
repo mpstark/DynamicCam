@@ -433,7 +433,7 @@ function this:GetCurrentMount()
       return this.lastMount
     end
   end
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
+  for _, v in pairs(C_MountJournal.GetMountIDs()) do
     local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
     if active then
       this.lastMount = v

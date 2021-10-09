@@ -522,7 +522,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                             text = "These Standard Settings are applied when either no situation is active or when the active situation has no Situation Settings set up overriding the Standard Settings."
 
                             if DynamicCam.currentSituationID then
-                                text = text .. " |cFF00FF00The categories marked in green are currently overridden by the active situation \"" .. DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name .. "\". You will thus not see any effect of changing the Standard Settings of green categories while the overriding situation is active.|r"
+                                text = text .. " |cFF00FF00The categories marked in green are currently overridden by the active situation. You will thus not see any effect of changing the Standard Settings of green categories while the overriding situation is active.|r"
                             end
                         else
                             text = "These Situation Settings can override the Standard Settings when the respective situation is active."
@@ -3415,7 +3415,7 @@ The delay determines how many seconds to wait before exiting the situation. So f
 
                     exportFrame = {
                         type = "input",
-                        name = "",
+                        name = "Situation Export",
                         dialogControl = "aceInvader",
                     },
                 },
@@ -3826,65 +3826,171 @@ end
 
 
 
+
+local function DrawLine(f, startRelativeAnchor, startOffsetX, startOffsetY,
+                           endRelativeAnchor, endOffsetX, endOffsetY,
+                           thickness, r, g, b, a)
+
+  local line = f:CreateLine()
+  line:SetThickness(thickness)
+  line:SetColorTexture(r, g, b, a)
+  line:SetStartPoint(startRelativeAnchor, f, startOffsetX, startOffsetY)
+  line:SetEndPoint(endRelativeAnchor, f, endOffsetX, endOffsetY)
+
+end
+
+
+local function SetFrameBorder(f, thickness, r, g, b, a)
+  -- Bottom line.
+  DrawLine(f, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, thickness, r, g, b, a)
+  -- Top line.
+  DrawLine(f, "TOPLEFT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
+  -- Left line.
+  DrawLine(f, "BOTTOMLEFT", 0, 0, "TOPLEFT", 0, 0, thickness, r, g, b, a)
+  -- Right line.
+  DrawLine(f, "BOTTOMRIGHT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
+end
+
+
+
+
+-- Create stuff, but all width dependent things have to be (re-)done in the OnWidthSet function.
+local function BuildSituationExportFrame(widget)
+
+  f = widget.frame
+
+  f:SetHeight(300)
+  SetFrameBorder(f, 2, 1, 0, 0, 0.5)
+
+  if not f.help then
+
+    -- print("Building")
+
+
+    -- #### Description text on top of the page.
+    f.help = f:CreateFontString(nil, "HIGH")
+    -- Using the same font as AceConfig description text.
+    f.help:SetFontObject("GameFontHighlightSmall")
+    f.help:SetJustifyH("LEFT")
+    -- f.help:SetJustifyV("TOP")
+    f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
+    -- This does not help! The FontString dimensions get out of hand anyway
+    -- unless I am enforcing them in the OnWidthSet function.
+    -- f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+    f.help:SetText("Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates.")
+    -- Register for resizing in OnWidthSet.
+    tinsert(widget.fontStrings, {f.help, f})
+
+
+
+
+    f.contentFrame = CreateFrame("Frame", nil, f)
+    f.contentFrame:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, -10)
+    f.contentFrame:SetPoint("TOPRIGHT", f.help, "BOTTOMRIGHT", 0, -10)
+
+    f.contentFrame:SetHeight(70)
+
+    -- TODO: Continue here
+    SetFrameBorder(f.contentFrame, 2, 1, 1, 1)
+
+  end
+
+end
+
+
+-- So we only call OnWidthSet when necessary.
+local lastWidth = nil
+
 -- My aceInvader.
 -- Inspired by https://github.com/SFX-WoW/AceGUI-3.0_SFX-Widgets/.
 do
 
   local Type, Version = "aceInvader", 1
-  local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
+  local AceGUI = LibStub("AceGUI-3.0", true)
 
 	local function Constructor()
 		local Widget = {}
 
 		-- Container Frame
-		local Frame = CreateFrame("Frame", nil, UIParent)
+		local frame = CreateFrame("Frame", nil, UIParent)
+    frame.obj = Widget
 
-    -- For testing!
-    Frame.t = Frame:CreateTexture()
-    Frame.t:SetAllPoints()
-    Frame.t:SetTexture("Interface/BUTTONS/WHITE8X8")
-    Frame.t:SetColorTexture(0, 1, 0, .5)
-
-
-		Widget.frame = Frame
-		Frame.obj = Widget
-
-		-- Widget
-		Widget.type  = Type
+    -- Widget
+    Widget.frame = frame
+    Widget.type  = Type
 		Widget.num   = AceGUI:GetNextWidgetNum(Type)
 
 
+    -- Reccommended place to store ephemeral widget information.
+    Widget.userdata = {}
+
+    -- FontStrings we need to resize in OnWidthSet().
+    Widget.fontStrings = {}
 
     -- OnAcquire, SetLabel, SetText, SetDisabled(nil)
     -- all get called when showing the widget.
     -- It does not really matter which of these functions you use to do your stuff.
 		Widget.OnAcquire = function(self)
-      -- print("OnAcquire")
+      -- print("----------- OnAcquire")
+      self.resizing = true
+
       self:SetDisabled(true)
+      self:SetFullWidth(true)
+
+      self.resizing = nil
     end
 
     -- Could be used to read the "name" attribute,
     -- if you want to use the same aceInvader for different purposes.
 		Widget.SetLabel = function(self, name)
-      -- print(SetLabel, name)
+      -- print("----------- SetLabel", name)
 
-      self:SetHeight(800)
-      self:SetFullWidth(true)
+      if name == "Situation Export" then
+        BuildSituationExportFrame(self)
+      end
+
+      -- print(self.frame:GetWidth())
+      -- print(self.frame.help:GetWidth())
+      -- print(self.frame.help:GetHeight())
+
+      -- For testing.
+      -- self:SetHeight(800)
+      -- or
+      -- self.frame:SetHeight(800)
     end
 
-    -- Not useful to us, but Ace3 has to call it.
-		Widget.SetText = function() end
+    -- Not useful to us, but Ace3 needs to call it.
+		Widget.SetText = function(self)
+        -- print("SetText")
+    end
+
+
+
+    Widget.OnWidthSet = function(self)
+      if self.resizing or (self.frame:GetWidth() == lastWidth) then return end
+      -- print("----------- OnWidthSet")
+
+      -- We need to manually set the FontString width after the frame width has changed.
+      for _, v in pairs(self.fontStrings) do
+        local label, frame = unpack(v)
+        label:SetWidth(frame:GetWidth())
+      end
+
+      lastWidth = self.frame:GetWidth()
+    end
+
+
 
     -- Not sure if this is really necessary...
 		Widget.SetDisabled = function(self, Disabled)
-      -- print("SetDisabled", Disabled)
+      -- print("----------- SetDisabled", Disabled)
       self.disabled = Disabled
     end
 
 
     -- OnRelease gets called when hiding the widget.
     Widget.OnRelease = function(self)
-      -- print("OnRelease")
+      -- print("----------- OnRelease")
       self:SetDisabled(true)
       self.frame:ClearAllPoints()
     end

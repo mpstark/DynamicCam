@@ -742,7 +742,10 @@ function DynamicCam:Startup()
 
 
     -- -- For coding
-    C_Timer.After(0, self.OpenMenu)
+    -- C_Timer.After(0, function()
+        -- self:OpenMenu()
+        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+    -- end)
 
     -- C_Timer.After(3, function()
         -- if BugSack then
@@ -2193,7 +2196,12 @@ function DynamicCam:RefreshConfig()
 
     -- run all situations's advanced init script
     for id, situation in pairs(self.db.profile.situations) do
-        if situation.enabled and not situation.errorEncountered then
+
+        -- So we don't have old error messages active.
+        situation.errorEncountered = nil
+        situation.errorMessage = nil
+
+        if situation.enabled then
             DC_RunScript(id, "executeOnInit")
         end
     end
