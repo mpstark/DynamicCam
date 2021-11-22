@@ -2614,7 +2614,7 @@ Or for short:
                                                     return text
                                                 end
                                             end,
-                                        desc = "The difference between a \"hidden\" UI and an \"only invisible\" UI is that invisible UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are hiding most UI elements anyway if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a legacy feature. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"only invisile\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
+                                        desc = "There is a difference between a \"hidden\" UI and a \"just faded out\" UI: the faded-out UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are automatically hiding most UI elements if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a relic. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"just faded out\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
                                         disabled =
                                             function()
                                                 return not S.hideUI.enabled
@@ -2777,6 +2777,77 @@ Or for short:
                                                 order = 5,
                                                 width = 0.9,
                                             },
+                                            
+                                            keepPartyRaidFrame = {
+                                                type = "toggle",
+                                                name = "Keep Party/Raid",
+                                                desc = "Do not fade out the Party/Raid frame.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepPartyRaidFrame
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepPartyRaidFrame = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 5,
+                                                width = 0.9,
+                                            },
+                                            
+                                            n6 = {order = 6, type = "description", name = " ",},
+                                            
+                                            keepCustomFrames = {
+                                                type = 'toggle',
+                                                name = "Keep additional frames",
+                                                desc = "The text box below allows you to define any frame you want to keep during NPC interaction.\n\nUse the console command /fstack to learn the names of frames.\n\nFor example, you may want to keep the buff icons next to the Minimap to be able to dismount during NPC interaction by clicking the appropriate icon.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepCustomFrames
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepCustomFrames = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 7,
+                                                width = 2,
+                                            },
+                                            customFramesToKeep = {
+                                                type = "input",
+                                                name = "Custom frames to keep",
+                                                desc = "Separated by commas.",
+                                                get =
+                                                    function()
+                                                        returnString = ""
+                                                        for k, _ in pairs(S.hideUI.customFramesToKeep) do
+                                                            if returnString ~= "" then
+                                                                returnString = returnString .. ", "
+                                                            end
+                                                            returnString = returnString .. k
+                                                        end
+                                                        return returnString
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.customFramesToKeep = {}
+
+                                                        newValue = string.gsub(newValue, "%s+", "")
+                                                        for k, v in pairs({strsplit(",", newValue)}) do
+                                                            -- Not checking if frame exists, because some frames are only created when needed (e.g. DebuffFrame).
+                                                            S.hideUI.customFramesToKeep[v] = true
+                                                        end
+                                                        ApplyUIFade()
+                                                    end,
+                                                disabled = function() return not S.hideUI.keepCustomFrames end,
+                                                multiline = 3,
+                                                order = 8,
+                                                width = "double",
+                                            },
+                                            
+                                            
                                         },
                                     },
                                     blank6 = {type = "description", name = " ", order = 6.2, },

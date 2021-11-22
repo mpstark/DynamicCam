@@ -600,6 +600,11 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
 
             keepMinimap = settings.keepMinimap,
             keepTooltip = settings.keepTooltip,
+            
+            keepCustomFrames   = settings.keepCustomFrames,
+            customFramesToKeep = settings.customFramesToKeep,
+            
+            keepPartyRaidFrame = settings.keepPartyRaidFrame,
         }
 
         -- Use the UiHideModule to keep configured frames and properly hide the others.
@@ -1862,8 +1867,6 @@ function DynamicCam:InitDatabase()
             end
             self.db:SetProfile(currentProfile)
         end
-
-
 
     end
 

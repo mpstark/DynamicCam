@@ -54,19 +54,28 @@ DynamicCam.situationDefaults = {
     },
 
     hideUI = {
-        enabled = false,
+        enabled            = false,
 
-        fadeOpacity = 0.6,
-        fadeOutTime = 1,
-        fadeInTime = 1,
+        fadeOpacity        = 0.6,
+        fadeOutTime        = 1,
+        fadeInTime         = 1,
 
-        keepTooltip = true,
-        keepAlertFrames = true,
-        keepFrameRate = false,
-        keepChatFrame = false,
-        keepTrackingBar = false,
+        keepTooltip        = true,
+        keepAlertFrames    = true,
+        keepFrameRate      = false,
+        keepChatFrame      = false,
+        keepTrackingBar    = false,
 
-        keepMinimap = false,
+        keepMinimap        = false,
+        keepPartyRaidFrame = false,
+
+        keepCustomFrames   = false,
+        customFramesToKeep = {
+            ["BuffFrame"]    = true,
+            ["DebuffFrame"]  = true,
+            ["GossipFrame"]  = true,
+          },
+
 
         hideEntireUI = false,
 

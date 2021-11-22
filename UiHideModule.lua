@@ -1,14 +1,8 @@
 local _, Addon = ...
 
 
-
--- TODO: What happens if a raid member joins (CompactRaidFrame is created) while the UI is hidden and the player is in combat?
--- 1x [ADDON_ACTION_BLOCKED] AddOn 'DynamicCam' tried to call the protected function 'CompactRaidFrame1:Show()'.
-
-
-
 -- For debugging:
--- local debugFrameName = "StatusTrackingBarManager"
+-- local debugFrameName = "PartyMemberFrame3"
 
 
 -- Flag to remember if the UI is currently faded out.
@@ -49,6 +43,104 @@ local InCombatLockdown   = _G.InCombatLockdown
 local UnitInParty        = _G.UnitInParty
 
 local CompactRaidFrameContainer = _G.CompactRaidFrameContainer
+
+
+
+
+
+-- The user can define custom frames to keep visible.
+-- To prevent these user settings from clashing with the other frames
+-- we store the names of frames handled by the addon.
+
+-- Frames whose visibility is defined via explicit UI checkboxes/flags.
+local flagFrames = {
+
+  -- config.hideFrameRate
+  ["FramerateLabel"] = true,
+  ["FramerateText"] = true,
+
+  -- config.keepAlertFrames
+  ["CovenantRenownToast"] = true,
+
+
+  -- config.keepMinimap
+  ["MinimapCluster"] = true,
+  -- Minimap is needed, because Immersion sets it to IgnoreParentAlpha.
+  ["Minimap"] = true,
+
+  -- config.keepTooltip
+  ["GameTooltip"] = true,
+  ["AceGUITooltip"] = true,
+  ["AceConfigDialogTooltip"] = true,
+
+  -- config.keepChatFrame
+  ["ChatFrame1"] = true,
+  ["ChatFrame1Tab"] = true,
+  ["ChatFrame1EditBox"] = true,
+  ["GwChatContainer1"] = true,
+
+  -- config.keepTrackingBar
+  ["BT4StatusBarTrackingManager"] = true,
+  ["StatusTrackingBarManager"] = true,
+  ["GwExperienceFrame"] = true,
+}
+
+-- config.keepPartyRaidFrame
+for i = 1, 4, 1 do
+  flagFrames["PartyMemberFrame" .. i] = true
+  flagFrames["PartyMemberFrame" .. i .. "NotPresentIcon"] = true
+end
+flagFrames["CompactRaidFrameContainer"] = true
+for i = 1, 40, 1 do
+  flagFrames["CompactRaidFrame" .. i] = true
+  flagFrames["CompactRaidFrame" .. i .. "Background"] = true
+  flagFrames["CompactRaidFrame" .. i .. "HorizTopBorder"] = true
+  flagFrames["CompactRaidFrame" .. i .. "HorizBottomBorder"] = true
+  flagFrames["CompactRaidFrame" .. i .. "VertLeftBorder"] = true
+  flagFrames["CompactRaidFrame" .. i .. "VertRightBorder"] = true
+  flagFrames["CompactRaidFrame" .. i .. "SelectionHighlight"] = true
+end
+
+
+
+-- Frames which are hidden by default.
+local defaultHiddenFrames = {
+  ["QuickJoinToastButton"] = true,
+  ["PlayerFrame"] = true,
+  ["PetFrame"] = true,
+  ["TargetFrame"] = true,
+  ["BuffFrame"] = true,
+  ["DebuffFrame"] = true,
+}
+if Bartender4 then
+  defaultHiddenFrames["BT4Bar1"] = true
+  defaultHiddenFrames["BT4Bar2"] = true
+  defaultHiddenFrames["BT4Bar3"] = true
+  defaultHiddenFrames["BT4Bar4"] = true
+  defaultHiddenFrames["BT4Bar5"] = true
+  defaultHiddenFrames["BT4Bar6"] = true
+  defaultHiddenFrames["BT4Bar7"] = true
+  defaultHiddenFrames["BT4Bar8"] = true
+  defaultHiddenFrames["BT4Bar9"] = true
+  defaultHiddenFrames["BT4Bar10"] = true
+  defaultHiddenFrames["BT4BarBagBar"] = true
+  defaultHiddenFrames["BT4BarMicroMenu"] = true
+  defaultHiddenFrames["BT4BarStanceBar"] = true
+  defaultHiddenFrames["BT4BarPetBar"] = true
+else
+  defaultHiddenFrames["ExtraActionBarFrame"] = true
+  defaultHiddenFrames["MainMenuBarArtFrame"] = true
+  defaultHiddenFrames["MainMenuBarVehicleLeaveButton"] = true
+  defaultHiddenFrames["MicroButtonAndBagsBar"] = true
+  defaultHiddenFrames["MultiCastActionBarFrame"] = true
+  defaultHiddenFrames["PetActionBarFrame"] = true
+  defaultHiddenFrames["PossessBarFrame"] = true
+  defaultHiddenFrames["StanceBarFrame"] = true
+  defaultHiddenFrames["MultiBarRight"] = true
+  defaultHiddenFrames["MultiBarLeft"] = true
+end
+
+
 
 
 -- We need a function to change a frame's alpha without automatically showing the frame
@@ -117,7 +209,9 @@ local function UIFrameFade(frame, fadeInfo)
 	if not frame then return end
 
   -- We make sure that we always call this with mode, startAlpha and endAlpha.
-  assert(fadeInfo.mode) assert(fadeInfo.startAlpha) assert(fadeInfo.endAlpha)
+  assert(fadeInfo.mode)
+  assert(fadeInfo.startAlpha)
+  assert(fadeInfo.endAlpha)
 
   -- if frame:GetName() == debugFrameName then print("UIFrameFade", frame:GetName(), fadeInfo.mode, fadeInfo.startAlpha, fadeInfo.endAlpha) end
 
@@ -135,10 +229,6 @@ local function UIFrameFade(frame, fadeInfo)
 	tinsert(ludius_FADEFRAMES, frame)
 	frameFadeManager:SetScript("OnUpdate", UIFrameFade_OnUpdate)
 end
-
-
-
-
 
 
 
@@ -212,7 +302,7 @@ end
 
 -- To hide the tooltip of bag items.
 -- (While we are actually hiding other frames to suppress their tooltips,
--- this is not practical for the bag, as openning my cause a slight lag.)
+-- this is not practical for the bag, as opening may cause an annoying FPS drop.)
 local function GameTooltipHider(self)
 
   if Addon.uiHiddenTime == 0 or not self then return end
@@ -250,7 +340,7 @@ local function ConditionalHide(frame)
   end
 
   if frame.ludius_shownBeforeFadeOut == nil then
-    -- if frame:GetName() == debugFrameName then print("Remember it was shown") end
+    -- if frame:GetName() == debugFrameName then print("Remember it was shown", frame:IsShown()) end
     frame.ludius_shownBeforeFadeOut = frame:IsShown()
   end
 
@@ -301,25 +391,16 @@ local function ConditionalShow(frame)
 
       end
 
-    elseif string_find(frame:GetName(), "^CompactRaidFrame") then
 
-      -- Use CompactRaidFrameContainer:IsShown() instead of UnitInRaid("player") because people might use
-      -- an addon like SoloRaidFrame to show the raid frame even while not in raid.
-      if CompactRaidFrameContainer:IsShown() then
+    -- Only show the CompactRaidFrameManager, if the player is still in a party.
+    elseif frame == CompactRaidFrameManager then
 
-        -- The actual unit frame is only shown, if it has still a unit.
-        -- This prevents that we show frames of raid members that have already left.
-        if string_find(frame:GetName(), "^CompactRaidFrame(%d+)$") then
-          if frame.unitExists then
-            frame:Show()
-          end
-
-        -- The other frames can be shown, because they are children of CompactRaidFrame.
-        else
-          frame:Show()
-        end
-
+      -- (Again also use CompactRaidFrameContainer:IsShown() because people might use
+      -- an addon like SoloRaidFrame to show the raid frame even while not in raid.)
+      if UnitInParty("player") or CompactRaidFrameContainer:IsShown() then
+        frame:Show()
       end
+
 
     elseif frame.ludius_shownBeforeFadeOut then
       -- if frame:GetName() == debugFrameName then print("Have to show it again!") end
@@ -332,19 +413,22 @@ local function ConditionalShow(frame)
 end
 
 
-
 -- Normally we do not change the IgnoreParentAlpha for frames that are
 -- not children of UIParent. But for some, we have to make an exception.
 local allowedNonUIParentChildren = {
   StatusTrackingBarManager = true,
   BT4StatusBarTrackingManager = true,
   GwExperienceFrame = true,
+  -- Minimap is needed, because Immersion sets it to IgnoreParentAlpha.
+  Minimap = true,
 }
 
 -- To restore frames to their pre-hide ignore-parent-alpha state,
 -- we remember it in the ludius_ignoreParentAlphaBeforeFadeOut variable.
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
+
   -- Only do this to direct children of UIParent.
+  -- I.e. not for the CompactRaidFrames children Background, HorizTopBorder, HorizBottomBorder, etc...
   if not frame or (frame:GetParent() ~= UIParent and not allowedNonUIParentChildren[frame:GetName()]) then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
@@ -416,20 +500,27 @@ end
 
 
 
--- If targetIgnoreParentAlpha == true, targetAlpha is the frame's alpha.
--- If targetIgnoreParentAlpha == false, targetAlpha is the UIParent's alpha.
+
+
+-- targetIgnoreParentAlpha == true:  frame ignores parent alpha, and itself fades to targetAlpha (maybe different from UIParent's alpha).
+-- targetIgnoreParentAlpha == false: frame adheres to parent alpha, but gets hidden, if targetAlpha (UIParent's alpha) is 0.
 --
--- If targetIgnoreParentAlpha == nil, we are ignoring this frame!
--- FadeInFrame() will automatically ignore this as well as it will not find our ludius_ flags.
+-- targetIgnoreParentAlpha == nil: Ignoring this frame!
+-- This is needed for example, if the keeping or fading of a frame should be governed by another addon.
+-- Like MinimapCluster is governed by Immersion and should therefore not be modified by IEF.
+-- FadeInFrame() will automatically ignore non-faded frames as it will not find our ludius_ flags.
 local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlpha)
 
   if not frame or targetIgnoreParentAlpha == nil then return end
+
+  assert(targetAlpha)
+  
+  -- if frame:GetParent() ~= UIFrames then print(frame:GetName()) end
 
   -- Prevent callback functions of currently active timers.
   UIFrameFadeRemoveFrame(frame)
 
   -- if frame:GetName() == debugFrameName then print("FadeOutFrame", frame:GetName(), targetIgnoreParentAlpha, targetAlpha) end
-
 
   -- ludius_alphaBeforeFadeOut is only set, if this is a fresh FadeOutFrame().
   -- It is set to nil after a FadeOutFrame is completed.
@@ -449,7 +540,6 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), targetAlpha) end
     if targetAlpha == 0 then
       -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", targetAlpha) end
-
       if not finishedArg1:IsProtected() or not InCombatLockdown() then
         ConditionalHide(finishedArg1)
       end
@@ -476,7 +566,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     -- Frame was adhering to parent alpha before.
     -- Start the fade with UIParent's current alpha.
     if not frame:IsIgnoringParentAlpha() then
-      fadeInfo.startAlpha = UIParent:GetAlpha()
+      fadeInfo.startAlpha = frame:GetParent():GetAlpha()
 
     -- Frame was already ignoring parent alpha before.
     else
@@ -573,7 +663,7 @@ local function FadeInFrame(frame, duration, enteringCombat)
     -- Frame was adhering to parent alpha before.
     -- Start the fade with UIParent's current alpha.
     if not frame:IsIgnoringParentAlpha() then
-      fadeInfo.startAlpha = UIParent:GetAlpha()
+      fadeInfo.startAlpha = frame:GetParent():GetAlpha()
     -- Frame was already ignoring parent alpha before.
     else
       fadeInfo.startAlpha = frame:GetAlpha()
@@ -633,7 +723,7 @@ end
 
 Addon.HideUI = function(fadeOutTime, config)
 
-  -- print("HideUI", fadeOutTime)
+  -- print("HideUI", fadeOutTime, config.UIParentAlpha)
 
   -- Remember that the UI is faded.
   Addon.uiHiddenTime = GetTime()
@@ -647,11 +737,13 @@ Addon.HideUI = function(fadeOutTime, config)
   end
 
   AlertFramesSetIgnoreParentAlpha(config.keepAlertFrames)
-
   FadeOutFrame(CovenantRenownToast, fadeOutTime, config.keepAlertFrames, config.keepAlertFrames and 1 or config.UIParentAlpha)
 
   FadeOutFrame(MinimapCluster, fadeOutTime, config.keepMinimap, config.keepMinimap and 1 or config.UIParentAlpha)
+  -- Minimap is needed, because Immersion sets it to IgnoreParentAlpha.
+  FadeOutFrame(Minimap, fadeOutTime, config.keepMinimap, config.keepMinimap and 1 or config.UIParentAlpha)
 
+  -- TODO: For GameTooltip it seems to only work the first time the tooltip is shown...
   FadeOutFrame(GameTooltip, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
   FadeOutFrame(AceGUITooltip, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
   FadeOutFrame(AceConfigDialogTooltip, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
@@ -659,97 +751,78 @@ Addon.HideUI = function(fadeOutTime, config)
   FadeOutFrame(ChatFrame1, fadeOutTime, config.keepChatFrame, config.keepChatFrame and 1 or config.UIParentAlpha)
   FadeOutFrame(ChatFrame1Tab, fadeOutTime, config.keepChatFrame, config.keepChatFrame and 1 or config.UIParentAlpha)
   FadeOutFrame(ChatFrame1EditBox, fadeOutTime, config.keepChatFrame, config.keepChatFrame and 1 or config.UIParentAlpha)
+  FadeOutFrame(GwChatContainer1, fadeOutTime, config.keepChatFrame, config.keepChatFrame and 1 or config.UIParentAlpha)
 
-  if GwChatContainer1 then
-    FadeOutFrame(GwChatContainer1, fadeOutTime, config.keepChatFrame, config.keepChatFrame and 1 or config.UIParentAlpha)
-  end
+  FadeOutFrame(BT4StatusBarTrackingManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  FadeOutFrame(StatusTrackingBarManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  FadeOutFrame(GwExperienceFrame, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
 
 
-  if BT4StatusBarTrackingManager then
-    FadeOutFrame(BT4StatusBarTrackingManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
-  else
-    FadeOutFrame(StatusTrackingBarManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
-  end
 
-  if GwExperienceFrame then
-    FadeOutFrame(GwExperienceFrame, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
-  end
-
+  -- CompactRaidFrameManager:Hide() is disabled, if the addon SoloRaidFrame is used.
+  -- But we are not taking care of this!
+  FadeOutFrame(CompactRaidFrameManager, fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
 
   for i = 1, 4, 1 do
     if _G["PartyMemberFrame" .. i] then
 
       -- This frame is by default ignoring its parent's alpha. So we have to fade it manually.
-      FadeOutFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], fadeOutTime, true, config.UIParentAlpha)
+      -- So we always set targetIgnoreParentAlpha to true. But depending on config.keepPartyRaidFrame
+      -- we set the targetAlpha to 1 or to the UIParentAlpha.
+      FadeOutFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], fadeOutTime, true, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
 
-      -- This frame does adhere to its parent's alpha, but we want to hide it.
-      FadeOutFrame(_G["PartyMemberFrame" .. i], fadeOutTime, false, config.UIParentAlpha)
+      -- PartyMemberFrames are direct children of UIParent (unlike CompactRaidFrames, which are children of
+      -- CompactRaidFrameContainer, which is a child of CompactRaidFrameManager).
+      -- Hence, we have to hide PartyMemberFrames manually.
+      FadeOutFrame(_G["PartyMemberFrame" .. i], fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
     end
   end
+
 
   -- Do not use GetNumGroupMembers() here, because as people join and leave the raid the frame numbers get mixed up.
   for i = 1, 40, 1 do
     if _G["CompactRaidFrame" .. i] then
 
-      -- These frames are by default ignoring their parent's alpha. So we have to fade them out manually.
-      FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeOutTime, true, config.UIParentAlpha)
-      FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeOutTime, true, config.UIParentAlpha)
-      FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], fadeOutTime, true, config.UIParentAlpha)
-      FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], fadeOutTime, true, config.UIParentAlpha)
-      FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], fadeOutTime, true, config.UIParentAlpha)
+      -- These frames are by default ignoring their parent's (i.e. "CompactRaidFrame"..i's) alpha.
+      -- So we have to fade them out manually, when we want to hide the raid frame.
+      -- So we always set targetIgnoreParentAlpha to true.
+      if config.keepPartyRaidFrame == false then
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeOutTime, true, config.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeOutTime, true, config.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], fadeOutTime, true, config.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], fadeOutTime, true, config.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], fadeOutTime, true, config.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], fadeOutTime, true, config.UIParentAlpha)
 
-      -- This frame does adhere to its parent's alpha, but we want to hide it.
-      FadeOutFrame(_G["CompactRaidFrame" .. i], fadeOutTime, false, config.UIParentAlpha)
+        -- I first thought, there is no need to fade out "CompactRaidFrame"..i, as it is taken care of through its parent
+        -- CompactRaidFrameManager. However, it turns out that the CompactRaidFrames produce tooltips again after the
+        -- raid roster changes. So we have to do this here!
+        -- FadeOutFrame(_G["CompactRaidFrame" .. i], fadeOutTime, false, config.UIParentAlpha)
+      end
+
     end
   end
 
 
-
   -- Non-configurable frames that we just want to hide in case UIParentAlpha is 0.
-
-  FadeOutFrame(QuickJoinToastButton, fadeOutTime, false, config.UIParentAlpha)
-  FadeOutFrame(PlayerFrame, fadeOutTime, false, config.UIParentAlpha)
-  FadeOutFrame(PetFrame, fadeOutTime, false, config.UIParentAlpha)
-  FadeOutFrame(TargetFrame, fadeOutTime, false, config.UIParentAlpha)
-  FadeOutFrame(BuffFrame, fadeOutTime, false, config.UIParentAlpha)
-  FadeOutFrame(DebuffFrame, fadeOutTime, false, config.UIParentAlpha)
-
-
-  if Bartender4 then
-
-    FadeOutFrame(BT4Bar1, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar2, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar3, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar4, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar5, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar6, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar7, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar8, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar9, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4Bar10, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4BarBagBar, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4BarMicroMenu, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4BarStanceBar, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(BT4BarPetBar, fadeOutTime, false, config.UIParentAlpha)
-
-  else
-
-    FadeOutFrame(ExtraActionBarFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MainMenuBarArtFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MainMenuBarVehicleLeaveButton, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MicroButtonAndBagsBar, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MultiCastActionBarFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(PetActionBarFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(PossessBarFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(StanceBarFrame, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MultiBarRight, fadeOutTime, false, config.UIParentAlpha)
-    FadeOutFrame(MultiBarLeft, fadeOutTime, false, config.UIParentAlpha)
-
+  for k in pairs(defaultHiddenFrames) do
+    -- Using "not not" to convert nil to false.
+    local keepFrame = not not config.keepCustomFrames and not not config.customFramesToKeep[k]
+    FadeOutFrame(_G[k], fadeOutTime, keepFrame, keepFrame and 1 or config.UIParentAlpha)
   end
 
 
-  if Addon.frameShowTimer then LibStub("AceTimer-3.0"):CancelTimer(Addon.frameShowTimer) end
+  -- Keep frames that are in config.customFramesToKeep but not in defaultHiddenFrames or flagFrames.
+  if config.keepCustomFrames then
+    for k in pairs(config.customFramesToKeep) do
+      if not defaultHiddenFrames[k] and not flagFrames[k] then
+        -- At the moment we are not supporting custom alphas for kept frames, so we set it to 1.
+        FadeOutFrame(_G[k], fadeOutTime, true, 1)
+      end
+    end
+  end
 
+  if Addon.frameShowTimer then LibStub("AceTimer-3.0"):CancelTimer(Addon.frameShowTimer) end
 
 end
 
@@ -774,87 +847,42 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
   FadeInFrame(FramerateLabel, fadeInTime, enteringCombat)
   FadeInFrame(FramerateText, fadeInTime, enteringCombat)
 
+
+  FadeInFrame(CompactRaidFrameManager, fadeInTime, enteringCombat)
+
   for i = 1, 4, 1 do
     if _G["PartyMemberFrame" .. i] then
-
       FadeInFrame(_G["PartyMemberFrame" .. i], fadeInTime, enteringCombat)
       FadeInFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], fadeInTime, enteringCombat)
-
     end
   end
 
-  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid, the frame numbers get mixed up.
   for i = 1, 40, 1 do
     if _G["CompactRaidFrame" .. i] then
-
-      FadeInFrame(_G["CompactRaidFrame" .. i], fadeInTime, enteringCombat)
       FadeInFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeInTime, enteringCombat)
       FadeInFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeInTime, enteringCombat)
       FadeInFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], fadeInTime, enteringCombat)
       FadeInFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], fadeInTime, enteringCombat)
       FadeInFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], fadeInTime, enteringCombat)
-
+      FadeInFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], fadeInTime, enteringCombat)
     end
   end
 
 
-  FadeInFrame(QuickJoinToastButton, fadeInTime, enteringCombat)
-  FadeInFrame(PlayerFrame, fadeInTime, enteringCombat)
-  FadeInFrame(PetFrame, fadeInTime, enteringCombat)
-  FadeInFrame(TargetFrame, fadeInTime, enteringCombat)
-  FadeInFrame(BuffFrame, fadeInTime, enteringCombat)
-  FadeInFrame(DebuffFrame, fadeInTime, enteringCombat)
-
-
-  if Bartender4 then
-
-    FadeInFrame(BT4Bar1, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar2, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar3, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar4, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar5, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar6, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar7, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar8, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar9, fadeInTime, enteringCombat)
-    FadeInFrame(BT4Bar10, fadeInTime, enteringCombat)
-    FadeInFrame(BT4BarBagBar, fadeInTime, enteringCombat)
-    FadeInFrame(BT4BarMicroMenu, fadeInTime, enteringCombat)
-    FadeInFrame(BT4BarStanceBar, fadeInTime, enteringCombat)
-    FadeInFrame(BT4BarPetBar, fadeInTime, enteringCombat)
-
-    -- Fade in the (possibly only partially) faded status bar.
-    FadeInFrame(BT4StatusBarTrackingManager, fadeInTime, enteringCombat)
-
-  else
-
-    FadeInFrame(ExtraActionBarFrame, fadeInTime, enteringCombat)
-    FadeInFrame(MainMenuBarArtFrame, fadeInTime, enteringCombat)
-    FadeInFrame(MainMenuBarVehicleLeaveButton, fadeInTime, enteringCombat)
-    FadeInFrame(MicroButtonAndBagsBar, fadeInTime, enteringCombat)
-    FadeInFrame(MultiCastActionBarFrame, fadeInTime, enteringCombat)
-    FadeInFrame(PetActionBarFrame, fadeInTime, enteringCombat)
-    FadeInFrame(PossessBarFrame, fadeInTime, enteringCombat)
-    FadeInFrame(StanceBarFrame, fadeInTime, enteringCombat)
-    FadeInFrame(MultiBarRight, fadeInTime, enteringCombat)
-    FadeInFrame(MultiBarLeft, fadeInTime, enteringCombat)
-
-
-    -- Fade in the (possibly only partially) faded status bar.
-    FadeInFrame(StatusTrackingBarManager, fadeInTime, enteringCombat)
-
+  for k in pairs(defaultHiddenFrames) do
+    FadeInFrame(_G[k], fadeInTime, enteringCombat)
   end
 
 
-  if GwExperienceFrame then
-    -- Fade in the (possibly only partially) faded status bar.
-    FadeInFrame(GwExperienceFrame, fadeInTime, enteringCombat)
-  end
-
+  -- Fade in the (possibly only partially) faded status bar.
+  FadeInFrame(BT4StatusBarTrackingManager, fadeInTime, enteringCombat)
+  FadeInFrame(StatusTrackingBarManager, fadeInTime, enteringCombat)
+  FadeInFrame(GwExperienceFrame, fadeInTime, enteringCombat)
 
   FadeInFrame(CovenantRenownToast, fadeInTime, enteringCombat)
 
   FadeInFrame(MinimapCluster, fadeInTime, enteringCombat)
+  FadeInFrame(Minimap, fadeInTime, enteringCombat)
 
   FadeInFrame(GameTooltip, fadeInTime, enteringCombat)
   FadeInFrame(AceGUITooltip, fadeInTime, enteringCombat)
@@ -864,9 +892,8 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
   FadeInFrame(ChatFrame1Tab, fadeInTime, enteringCombat)
   FadeInFrame(ChatFrame1EditBox, fadeInTime, enteringCombat)
 
-  if GwChatContainer1 then
-    FadeInFrame(GwChatContainer1, fadeInTime, enteringCombat)
-  end
+  FadeInFrame(GwChatContainer1, fadeInTime, enteringCombat)
+
 
 
   -- Cancel timers that may still be in progress.
@@ -891,8 +918,8 @@ for i = 1, 4, 1 do
   if _G["PartyMemberFrame" .. i] then
     _G["PartyMemberFrame" .. i]:HookScript("OnShow", function()
       if Addon.uiHiddenTime == 0 then return end
-      FadeOutFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], 0, true, currentConfig.UIParentAlpha)
-      FadeOutFrame(_G["PartyMemberFrame" .. i], 0, false, currentConfig.UIParentAlpha)
+      FadeOutFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], 0, true, currentConfig.keepPartyRaidFrame and 1 or currentConfig.UIParentAlpha)
+      FadeOutFrame(_G["PartyMemberFrame" .. i], 0, currentConfig.keepPartyRaidFrame, currentConfig.keepPartyRaidFrame and 1 or currentConfig.UIParentAlpha)
     end)
   end
 end
@@ -902,30 +929,34 @@ end
 -- So we have to do the onShow hook, when new ones arrive.
 hooksecurefunc("CompactRaidFrameContainer_AddUnitFrame", function(_, unit, frameType)
 
+  -- print("CompactRaidFrameContainer_AddUnitFrame", _G["CompactRaidFrame1"], _G["CompactRaidFrame1"].ludius_hooked)
+
   for i = 1, 40, 1 do
 
     -- Only look at those, which we have not hooked yet.
     if _G["CompactRaidFrame" .. i] and not _G["CompactRaidFrame" .. i].ludius_hooked then
 
       -- If it is a new frame and the UI is currently hidden, we may have to also hide the new frame.
-      if Addon.uiHiddenTime ~= 0 then
+      if Addon.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
         FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], 0, true, currentConfig.UIParentAlpha)
         FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], 0, true, currentConfig.UIParentAlpha)
         FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], 0, true, currentConfig.UIParentAlpha)
         FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], 0, true, currentConfig.UIParentAlpha)
         FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i], 0, false, currentConfig.UIParentAlpha)
+        FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], 0, true, currentConfig.UIParentAlpha)
       end
 
       -- Do the hook.
       _G["CompactRaidFrame" .. i]:HookScript("OnShow", function()
-        if Addon.uiHiddenTime == 0 then return end
-        FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], 0, true, currentConfig.UIParentAlpha)
-        FadeOutFrame(_G["CompactRaidFrame" .. i], 0, false, currentConfig.UIParentAlpha)
+
+        if Addon.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], 0, true, currentConfig.UIParentAlpha)
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], 0, true, currentConfig.UIParentAlpha)
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], 0, true, currentConfig.UIParentAlpha)
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], 0, true, currentConfig.UIParentAlpha)
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], 0, true, currentConfig.UIParentAlpha)
+          FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], 0, true, currentConfig.UIParentAlpha)
+        end
       end)
 
       -- Remember that you hooked it.
@@ -934,3 +965,16 @@ hooksecurefunc("CompactRaidFrameContainer_AddUnitFrame", function(_, unit, frame
     end
   end
 end)
+
+
+
+-- The CompactRaidFrameManager frame gets shown every time the raid roster changes.
+-- While the UI is hidden, we have hide it again.
+-- CompactRaidFrameManager:Hide() is disabled, if the addon SoloRaidFrame is used.
+-- But we are not taking care of this!
+CompactRaidFrameManager:HookScript("OnShow", function()
+  if Addon.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
+    FadeOutFrame(CompactRaidFrameManager, 0, false, currentConfig.UIParentAlpha)
+  end
+end)
+
