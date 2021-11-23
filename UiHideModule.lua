@@ -412,23 +412,11 @@ local function ConditionalShow(frame)
 end
 
 
--- Normally we do not change the IgnoreParentAlpha for frames that are
--- not children of UIParent. But for some, we have to make an exception.
-local allowedNonUIParentChildren = {
-  StatusTrackingBarManager = true,
-  BT4StatusBarTrackingManager = true,
-  GwExperienceFrame = true,
-  -- Minimap is needed, because Immersion sets it to IgnoreParentAlpha.
-  Minimap = true,
-}
-
 -- To restore frames to their pre-hide ignore-parent-alpha state,
 -- we remember it in the ludius_ignoreParentAlphaBeforeFadeOut variable.
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
 
-  -- Only do this to direct children of UIParent.
-  -- I.e. not for the CompactRaidFrames children Background, HorizTopBorder, HorizBottomBorder, etc...
-  if not frame or (frame:GetParent() ~= UIParent and not allowedNonUIParentChildren[frame:GetName()]) then return end
+  if not frame then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
     frame.ludius_ignoreParentAlphaBeforeFadeOut = frame:IsIgnoringParentAlpha()
@@ -926,8 +914,6 @@ end
 -- Unlike party member frames, the raid member frames are not there from the start.
 -- So we have to do the onShow hook, when new ones arrive.
 hooksecurefunc("CompactRaidFrameContainer_AddUnitFrame", function(_, unit, frameType)
-
-  -- print("CompactRaidFrameContainer_AddUnitFrame", _G["CompactRaidFrame1"], _G["CompactRaidFrame1"].ludius_hooked)
 
   for i = 1, 40, 1 do
 
