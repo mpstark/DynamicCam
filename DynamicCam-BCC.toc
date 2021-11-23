@@ -1,4 +1,4 @@
-## Interface: 11401
+## Interface: 20502
 ## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, dernPerkins, LudiusMaximus
