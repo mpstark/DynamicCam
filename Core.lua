@@ -114,7 +114,7 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
     end
 
     -- Notice that this also works when LibCamera:SetZoom() is called with duration 0!
-    if LibCamera:ZoomInProgress() or DynamicCam.easeShoulderOffsetInProgress then
+    if LibCamera:IsZooming() or DynamicCam.easeShoulderOffsetInProgress then
 
         -- When we are going into a view, the zoom level of the new view is returned
         -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
@@ -178,7 +178,7 @@ local function DC_SetCVar(cvar, setting)
         -- print("test_cameraOverShoulder", setting)
 
         UpdateCurrentShoulderOffset(setting)
-        if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+        if not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then
             SetCorrectedShoulderOffset(GetCameraZoom())
         end
 
@@ -1729,7 +1729,7 @@ local function NonReactiveZoomIn(increments, automated)
     -- If we are currently easing zoom or shoulder offset,
     -- shoulderOffsetEasingFrame will perform any necessary update.
     -- Otherwise, we have to do it here.
-    if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+    if not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then
         local targetZoom = math.max(0, GetCameraZoom() - increments)
         SetCorrectedShoulderOffset(targetZoom)
     end
@@ -1751,7 +1751,7 @@ local function NonReactiveZoomOut(increments, automated)
     -- If we are currently easing zoom or shoulder offset,
     -- shoulderOffsetEasingFrame will perform any necessary update.
     -- Otherwise, we have to do it here.
-    if not LibCamera:ZoomInProgress() and not DynamicCam.easeShoulderOffsetInProgress then
+    if not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then
         local targetZoom = math.min(39, GetCameraZoom() + increments)
         SetCorrectedShoulderOffset(targetZoom)
     end
