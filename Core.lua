@@ -539,6 +539,31 @@ leaveCombatFrame:SetScript("OnEvent", function()
 end)
 
 
+
+
+-- To prevent UIParent from being shown when a situation change coincides with a cinematic start.
+-- CINEMATIC_START and CINEMATIC_STOP are just for in-game cinematics.
+-- For pre-rendered cinematics, there is unfortunately no stop event.
+-- CinematicFrame:IsShown() also does not work for pre-rendered cinematics.
+-- So we go with just taking the elapsed time since the last PLAY_MOVIE.
+local ingameCinematicRunning = false
+local lastPlayMovie = GetTime()
+local cinematicTrackingFrame = CreateFrame("Frame")
+cinematicTrackingFrame:RegisterEvent("CINEMATIC_START")
+cinematicTrackingFrame:RegisterEvent("CINEMATIC_STOP")
+cinematicTrackingFrame:RegisterEvent("PLAY_MOVIE")
+cinematicTrackingFrame:SetScript("OnEvent", function(_, event)
+  if event == "CINEMATIC_START" then
+    ingameCinematicRunning = true
+  elseif event == "CINEMATIC_STOP" then
+    ingameCinematicRunning = false
+  else
+    lastPlayMovie = GetTime()
+  end
+end)
+
+
+
 -- WoW's UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn() cause errors in combat lockdown when used with UIParent.
 -- Hence, we need our own function.
 local easeUIParentAlphaHandle
@@ -600,10 +625,10 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
 
             keepMinimap = settings.keepMinimap,
             keepTooltip = settings.keepTooltip,
-            
+
             keepCustomFrames   = settings.keepCustomFrames,
             customFramesToKeep = settings.customFramesToKeep,
-            
+
             keepPartyRaidFrame = settings.keepPartyRaidFrame,
         }
 
@@ -621,7 +646,9 @@ function DynamicCam:FadeInUI(fadeInTime)
     -- print("FadeInUI", fadeInTime, GetTime())
 
     if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
-    if not UIParent:IsShown() then UIParent:Show() end
+
+    -- Actually allow the last PLAY_MOVIE to be at most 1 second ago. You never know...
+    if not UIParent:IsShown() and not ingameCinematicRunning and lastPlayMovie + 1 < GetTime() then UIParent:Show() end
 
     if UIParent.ludius_alphaBeforeFadeOut then
 
