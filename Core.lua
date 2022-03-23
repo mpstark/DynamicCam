@@ -968,6 +968,10 @@ function DynamicCam:Startup()
     started = true
 
     enteredSituationAtLogin = false
+
+
+    SetCVar("CameraKeepCharacterCentered", 0)
+
 end
 
 function DynamicCam:Shutdown()
