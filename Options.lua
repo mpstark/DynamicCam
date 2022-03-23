@@ -1730,41 +1730,41 @@ end
 
 
 
+if InterfaceOptionsAccessibilityPanelMotionSicknessDropdown then
+    C_Timer.After(1, function()
 
-C_Timer.After(1, function()
+        -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
 
-    -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
+        -- Place a tooltip warning.
+        InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
+            GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore automatically prevented.")
+        end)
+        InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnLeave", function(self)
+            GameTooltip:Hide()
+        end)
 
-    -- Place a tooltip warning.
-    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
-        GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore automatically prevented.")
-    end)
-    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-
-    -- Automatically undo forbidden cvar changes.
-    hooksecurefunc("SetCVar", function(cvar, value)
-        if cvar == "CameraKeepCharacterCentered" and value == "1" then
-            SetCVar("CameraKeepCharacterCentered", 0)
-        end
-    end)
-
-    -- Automatically set the drop down list to the appropriate value.
-    hooksecurefunc("UIDropDownMenu_SetSelectedValue", function(menu, value)
-        if menu == InterfaceOptionsAccessibilityPanelMotionSicknessDropdown then
-            -- print(value)
-            -- print(GetCVar("CameraKeepCharacterCentered"), GetCVar("CameraReduceUnexpectedMovement"))
-            if value == 1 then
-                UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 4);
-            elseif value == 3 then
-                UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 2);
+        -- Automatically undo forbidden cvar changes.
+        hooksecurefunc("SetCVar", function(cvar, value)
+            if cvar == "CameraKeepCharacterCentered" and value == "1" then
+                SetCVar("CameraKeepCharacterCentered", 0)
             end
-        end
+        end)
+
+        -- Automatically set the drop down list to the appropriate value.
+        hooksecurefunc("UIDropDownMenu_SetSelectedValue", function(menu, value)
+            if menu == InterfaceOptionsAccessibilityPanelMotionSicknessDropdown then
+                -- print(value)
+                -- print(GetCVar("CameraKeepCharacterCentered"), GetCVar("CameraReduceUnexpectedMovement"))
+                if value == 1 then
+                    UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 4);
+                elseif value == 3 then
+                    UIDropDownMenu_SetSelectedValue(InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, 2);
+                end
+            end
+        end)
+
     end)
-
-end)
-
+end
 
 
