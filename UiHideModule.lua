@@ -5,13 +5,27 @@ local _, Addon = ...
 -- local debugFrameName = "PartyMemberFrame3"
 
 
--- Flag to remember if the UI is currently faded out.
-Addon.uiHiddenTime = 0
 
 
--- TODO: How are you going to handle it, if several addons make use of this module?
--- You have to store uiHiddenTime and currentConfig globally...
-local currentConfig = nil
+
+-- Have to store uiHiddenTime and currentConfig globally,
+-- because several addons may use this module simultaneously.
+if not ludius_UiHideModule then
+  ludius_UiHideModule = {}
+
+  -- Flag indicating if the UI is currently faded out.
+  ludius_UiHideModule.uiHiddenTime = 0
+
+  -- The current configuration passed by the addon calling HideUI.
+  ludius_UiHideModule.currentConfig = nil
+
+  -- Collect alert frames that are created.
+  ludius_UiHideModule.collectedAlertFrames = {}
+end
+
+Addon.uiHiddenTime = ludius_UiHideModule.uiHiddenTime
+local currentConfig = ludius_UiHideModule.currentConfig
+local collectedAlertFrames = ludius_UiHideModule.collectedAlertFrames
 
 
 -- Call Addon.HideUI(fadeOutTime, config) to hide UI keeping configured frames.
@@ -415,6 +429,7 @@ end
 -- To restore frames to their pre-hide ignore-parent-alpha state,
 -- we remember it in the ludius_ignoreParentAlphaBeforeFadeOut variable.
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
+  -- print("ConditionalSetIgnoreParentAlpha", frame, ignoreParentAlpha)
 
   if not frame then return end
 
@@ -446,8 +461,7 @@ end
 -- /run NewMountAlertSystem:ShowAlert("123") NewMountAlertSystem:ShowAlert("123")
 -- /run CovenantRenownToast:ShowRenownLevelUpToast(C_Covenants.GetActiveCovenantID(), 40)
 
--- Collect alert frames that are created.
-local collectedAlertFrames = {}
+
 -- A flag for alert frames that are created/collected while the UI is hidden.
 local currentAlertFramesIgnoreParentAlpha = false
 
@@ -467,13 +481,15 @@ end
 
 
 local function CollectAlertFrame(_, frame)
+  -- print("CollectAlertFrame", frame, currentAlertFramesIgnoreParentAlpha, frame.ludius_collected)
+
   if frame and not frame.ludius_collected then
     tinsert(collectedAlertFrames, frame)
     frame.ludius_collected = true
+  end
 
-    if currentAlertFramesIgnoreParentAlpha then
-      ConditionalSetIgnoreParentAlpha(frame, currentAlertFramesIgnoreParentAlpha)
-    end
+  if currentAlertFramesIgnoreParentAlpha and not frame:IsIgnoringParentAlpha() then
+    ConditionalSetIgnoreParentAlpha(frame, currentAlertFramesIgnoreParentAlpha)
   end
 end
 
@@ -501,7 +517,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
   if not frame or targetIgnoreParentAlpha == nil then return end
 
   assert(targetAlpha)
-  
+
   -- if frame:GetParent() ~= UIFrames then print(frame:GetName()) end
 
   -- Prevent callback functions of currently active timers.

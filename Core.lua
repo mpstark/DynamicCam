@@ -510,6 +510,7 @@ enterCombatFrame:SetScript("OnEvent", function()
         local fadeUIEscapeHandlerShown = fadeUIEscapeHandlerFrame:IsShown()
         if fadeUIEscapeHandlerShown then UIEscapeHandlerDisable() end
         UIParent:Show()
+        uiParentHidden = false
         if fadeUIEscapeHandlerShown then fadeUIEscapeHandlerFrame:Show() end
     end
 
@@ -563,6 +564,13 @@ cinematicTrackingFrame:SetScript("OnEvent", function(_, event)
 end)
 
 
+-- To furthermore prevent unintended showing of UIParent, we set this flag whenever we have hidden it.
+local uiParentHidden = false
+
+
+
+
+
 
 -- WoW's UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn() cause errors in combat lockdown when used with UIParent.
 -- Hence, we need our own function.
@@ -606,6 +614,7 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
                 function()
                     if not InCombatLockdown() then
                         UIParent:Hide()
+                        uiParentHidden = true
                     end
                 end,
             fadeOutTime)
@@ -647,8 +656,11 @@ function DynamicCam:FadeInUI(fadeInTime)
 
     if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
 
-    -- Actually allow the last PLAY_MOVIE to be at most 1 second ago. You never know...
-    if not UIParent:IsShown() and not ingameCinematicRunning and lastPlayMovie + 1 < GetTime() then UIParent:Show() end
+    -- Actually allow the last PLAY_MOVIE to be at most 2 seconds ago. You never know...
+    if not UIParent:IsShown() and uiParentHidden and not ingameCinematicRunning and lastPlayMovie + 2 < GetTime() then
+        UIParent:Show()
+        uiParentHidden = false
+    end
 
     if UIParent.ludius_alphaBeforeFadeOut then
 
@@ -773,7 +785,7 @@ function DynamicCam:Startup()
     started = true
 
 
-    -- -- For coding
+    -- For coding
     -- C_Timer.After(0, function()
         -- self:OpenMenu()
         -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")

@@ -17,9 +17,9 @@
 embeds.xml
 
 
-Core.lua
-
 UiHideModule.lua
+
+Core.lua
 DefaultSettings.lua
 
 Sharing.lua

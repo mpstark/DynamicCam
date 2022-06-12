@@ -256,7 +256,7 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
         imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
         imageWidth = 25/1.5,
         imageHeight = 24/1.5,
-        desc = "Reset to default: " .. tooltipDefaultValue .."\nThis is just the global default! Choosing settings of other profiles or presets is not possible here. You can only copy a whole profile or preset into the current profile (see \"Profiles\" tab).",
+        desc = "Reset to global default: " .. tooltipDefaultValue .."\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
         order = order,
         width = 0.25,
         func =
@@ -929,7 +929,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                         imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
                                         imageWidth = 25/1.5,
                                         imageHeight = 24/1.5,
-                                        desc = "Reset to defaults: " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .." and " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\nThis is just the global default! Choosing settings of other profiles or presets is not possible here. You can only copy a whole profile or preset into the current profile in the Profiles/Presets section.",
+                                        desc = "Reset to global defaults: " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .." and " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
                                         order = 1.2,
                                         width = 0.25,
                                         func =
@@ -1811,7 +1811,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                 imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
-                                desc = "Reset to default: This will reset to the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+                                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
                                 order = 1.5,
                                 width = 0.25,
                                 func =
@@ -2280,7 +2280,7 @@ Or for short:
                                 imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
-                                desc = "Reset to default: This will reset to the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+                                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
                                 order = 1.5,
                                 width = 0.25,
                                 func =
@@ -2529,7 +2529,7 @@ Or for short:
                                 imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
-                                desc = "Reset to default: This will reset to the global default! If you want to reset to the settings of a preset or a different profile, do it there.",
+                                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
                                 order = 1.5,
                                 width = 0.25,
                                 func =
@@ -2777,7 +2777,7 @@ Or for short:
                                                 order = 5,
                                                 width = 0.9,
                                             },
-                                            
+
                                             keepPartyRaidFrame = {
                                                 type = "toggle",
                                                 name = "Keep Party/Raid",
@@ -2795,9 +2795,9 @@ Or for short:
                                                 order = 5,
                                                 width = 0.9,
                                             },
-                                            
+
                                             n6 = {order = 6, type = "description", name = " ",},
-                                            
+
                                             keepCustomFrames = {
                                                 type = 'toggle',
                                                 name = "Keep additional frames",
@@ -2846,8 +2846,8 @@ Or for short:
                                                 order = 8,
                                                 width = "double",
                                             },
-                                            
-                                            
+
+
                                         },
                                     },
                                     blank6 = {type = "description", name = " ", order = 6.2, },
@@ -3928,10 +3928,7 @@ end
 -- Create stuff, but all width dependent things have to be (re-)done in the OnWidthSet function.
 local function BuildSituationExportFrame(widget)
 
-  f = widget.frame
-
-  f:SetHeight(300)
-  SetFrameBorder(f, 2, 1, 0, 0, 0.5)
+  local f = widget.frame
 
   if not f.help then
 
@@ -3948,7 +3945,7 @@ local function BuildSituationExportFrame(widget)
     -- This does not help! The FontString dimensions get out of hand anyway
     -- unless I am enforcing them in the OnWidthSet function.
     -- f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-    f.help:SetText("Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates.")
+    f.help:SetText("Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates. (TODO)")
     -- Register for resizing in OnWidthSet.
     tinsert(widget.fontStrings, {f.help, f})
 
@@ -3956,15 +3953,29 @@ local function BuildSituationExportFrame(widget)
 
 
     f.contentFrame = CreateFrame("Frame", nil, f)
-    f.contentFrame:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, -10)
-    f.contentFrame:SetPoint("TOPRIGHT", f.help, "BOTTOMRIGHT", 0, -10)
+    local yOffset = -10
+    f.contentFrame:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, yOffset)
+    f.contentFrame:SetPoint("TOPRIGHT", f.help, "BOTTOMRIGHT", 0, yOffset)
 
-    f.contentFrame:SetHeight(70)
+    -- Whenever OnWidthSet() is called, adjust the height of the parent frame to contain all child frames.
+    widget.AdjustHeightFunction = function(self)
+      local f = self.frame
+      local point, _, _, _, yOffset = f.contentFrame:GetPoint()
+      assert(point == "TOPLEFT" or point == "TOPRIGHT")
+      f:SetHeight(f.help:GetStringHeight() - yOffset + f.contentFrame:GetHeight())
+    end
 
-    -- TODO: Continue here
+
+
+
+    -- TODO: For testing.
+    SetFrameBorder(f, 2, 1, 0, 0, 0.5)
     SetFrameBorder(f.contentFrame, 2, 1, 1, 1)
+    f.contentFrame:SetHeight(500)
+
 
   end
+
 
 end
 
@@ -4038,8 +4049,8 @@ do
 
 
     Widget.OnWidthSet = function(self)
+      -- print("----------- OnWidthSet", self.frame:GetWidth())
       if self.resizing or (self.frame:GetWidth() == lastWidth) then return end
-      -- print("----------- OnWidthSet")
 
       -- We need to manually set the FontString width after the frame width has changed.
       for _, v in pairs(self.fontStrings) do
@@ -4048,6 +4059,10 @@ do
       end
 
       lastWidth = self.frame:GetWidth()
+
+      -- Whenever OnWidthSet() is called, adjust the height of the parent frame to contain all child frames.
+      if self.AdjustHeightFunction then self:AdjustHeightFunction() end
+
     end
 
 
@@ -4467,7 +4482,10 @@ C_Timer.After(1, function()
 
     local function DynamicCamMotionSicknessDropdown_Initialize()
 
-      local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
+      -- This lead to taint when using the LFG "Start a group" button.
+      -- local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
+      -- But this function does nothing but this:
+      local selectedValue = DynamicCamMotionSicknessDropdown.selectedValue
 
       local info = UIDropDownMenu_CreateInfo()
 
