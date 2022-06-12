@@ -828,7 +828,8 @@ DynamicCam.defaults = {
   346170,  -- Attendant's Pocket Portal: Ardenweald
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
-  
+  367013,  -- Broker Translocation Matrix
+  368788,  -- Hearth to Brill
 }]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = ((endTime - startTime)/1000) - .25]],
