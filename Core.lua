@@ -176,7 +176,6 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
 
 end
 local shoulderOffsetEasingFrame = CreateFrame("Frame")
-shoulderOffsetEasingFrame:SetScript("onUpdate", ShoulderOffsetEasingFunction)
 
 
 
@@ -317,6 +316,50 @@ local function copyTable(originalTable)
     end
     return copy
 end
+
+
+
+
+
+-- This is needed to correct reactiveZoomTarget in case the target is missed.
+local lastZoomForCorrection = GetCameraZoom()
+
+local function ReactiveZoomTargetCorrectionFunction()
+
+    if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
+
+    local currentZoom = GetCameraZoom()
+
+    if nonReactiveZoomStarted and nonReactiveZoomStartValue ~= currentZoom then
+        -- print("NonReactiveZoom just Started", nonReactiveZoomStartValue, GetTime())
+        nonReactiveZoomInProgress = true
+        nonReactiveZoomStarted = false
+    elseif nonReactiveZoomInProgress and lastZoomForCorrection == currentZoom then
+        -- print("NonReactiveZoom finished", GetTime())
+        nonReactiveZoomInProgress = false
+    end
+
+    if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= currentZoom then
+      -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", currentZoom, GetTime())
+      reactiveZoomTarget = currentZoom
+
+      if storeMinZoom then
+          -- print("Storing", currentZoom, "for", GetModelId())
+          minZoomValues[GetModelId()] = currentZoom
+          storeMinZoom = false
+      end
+    end
+
+    lastZoomForCorrection = currentZoom
+end
+
+local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
+
+
+
+
+
+
 
 
 ----------------------
@@ -730,6 +773,12 @@ end
 
 function DynamicCam:Startup()
 
+    -- If there is a bug in the options, don't start.
+    if not DynamicCam.GetSettingsValue then
+        return self:Shutdown()
+    end
+
+
     if started then return end
 
     enteredSituationAtLogin = false
@@ -782,6 +831,8 @@ function DynamicCam:Startup()
       end
     )
 
+    shoulderOffsetEasingFrame:SetScript("onUpdate", ShoulderOffsetEasingFunction)
+
     started = true
 
 
@@ -789,6 +840,7 @@ function DynamicCam:Startup()
     -- C_Timer.After(0, function()
         -- self:OpenMenu()
         -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
     -- end)
 
     -- C_Timer.After(3, function()
@@ -817,6 +869,8 @@ function DynamicCam:Shutdown()
     self:ApplySettings()
 
     self:ReactiveZoomOff()
+
+    shoulderOffsetEasingFrame:SetScript("onUpdate", nil)
 
     started = false
 end
@@ -1008,33 +1062,64 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     LibCamera:StopZooming()
 
 
-    -- When we are storing or setting a view, we shall not apply any zoom.
-    -- Restoring a view shall have higher priority than setting a new one.
-    -- We need to differentiate between the two to know which "instant" to take
-    -- into account below.
-    local restoringView = false
+    -- When we are restoring or setting a view, we shall not apply any zoom.
+    -- The variable "viewInstant" will define the transition speed below.
     local settingView = false
+    local viewInstant
 
     -- Needed so often that we are setting these shortcuts for the whole function scope.
     local oldSituation
     local newSituation
 
-    -- If we are exiting another situation.
     if oldSituationID then
         -- Store last zoom level of this situation.
         lastZoom[oldSituationID] = GetCameraZoom()
         -- print("---> Storing zoom", lastZoom[oldSituationID], oldSituationID)
 
+        -- Shortcut variable.
         oldSituation = self.db.profile.situations[oldSituationID]
+    end
+
+    if newSituationID then
+        -- Store the old situation as the new situation's last situation.
+        -- May also be nil in case of coming from the no-situation state.
+        -- (Needed for "adaptive restore", where we only restore when
+        -- returning to the same situation we came from.)
+        lastSituation[newSituationID] = oldSituationID
+
+        -- Shortcut variable.
+        newSituation = self.db.profile.situations[newSituationID]
+    end
+
+
+    -- If we are exiting another situation.
+    if oldSituation then
 
         -- Stop rotating if applicable.
         self:StopRotation(oldSituation)
 
-        -- Restore view if applicable.
-        local c = oldSituation.viewZoom
-        if c.enabled and c.viewZoomType == "view" and c.viewRestore then
-            gotoView(1, c.viewInstant)
-            restoringView = true
+        -- Restore view if the new situation does not have a view itself.
+        -- (Setting a new view has a higher priority than reseting an old one.)
+        local old = oldSituation.viewZoom
+        if old.enabled and old.viewZoomType == "view" and (not newSituation or not (newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "view")) then
+
+            if GetCVar("cameraSmoothStyle") == "0" then
+                if old.viewRestore then
+                    gotoView(1, old.viewInstant)
+                    settingView = true
+                    viewInstant = old.viewInstant
+                end
+
+            -- Special treatment if camera follow is activated.
+            else
+                if old.restoreDefaultViewNumber then
+                    ResetView(old.restoreDefaultViewNumber)
+                    gotoView(old.restoreDefaultViewNumber, old.viewInstant)
+                    settingView = true
+                    viewInstant = old.viewInstant
+                end
+            end
+
         end
 
         -- Load and run advanced script onExit.
@@ -1056,22 +1141,15 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
     -- If we are entering a new situation.
-    if newSituationID then
-        -- Store the old situation as the new situation's last situation.
-        -- May also be nil in case of coming from the no-situation state.
-        -- (Needed for "adaptive restore", where we only restore when
-        -- returning to the same situation we came from.)
-        lastSituation[newSituationID] = oldSituationID
-
-        newSituation = self.db.profile.situations[newSituationID]
+    if newSituation then
 
         -- Set view settings
-        -- (Restoring a view has a higher priority than setting a new one.)
-        local c = newSituation.viewZoom
-        if c.enabled and c.viewZoomType == "view" and not restoringView then
-            if c.viewRestore then SaveView(1) end
-            gotoView(c.viewNumber, c.viewInstant)
+        local new = newSituation.viewZoom
+        if new.enabled and new.viewZoomType == "view" then
+            if new.viewRestore then SaveView(1) end
+            gotoView(new.viewNumber, new.viewInstant)
             settingView = true
+            viewInstant = new.viewInstant
         end
 
         -- Load and run advanced script onEnter.
@@ -1106,7 +1184,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     newZoomLevel = GetCameraZoom()
 
     -- We only need to determine newZoomLevel if we are zooming.
-    if not restoringView and not settingView then
+    if not settingView then
 
         -- Check if we should restore a stored zoom level.
         local shouldRestore, zoomLevel = self:ShouldRestoreZoom(oldSituationID, newSituationID)
@@ -1162,18 +1240,10 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- When restoring or setting a view, there is no additional zoom.
     -- The shoulder offset transition should be as fast at the view change.
-    -- 0.5 seems to be good for non-instant gotoView.
-    -- Restoring a stored view has a greater priority than than setting a new view.
-    elseif restoringView then
-        -- If restoringView is true, we know there must be an oldSituationID.
-        if self.db.profile.situations[oldSituationID].viewZoom.viewInstant then
-            transitionTime = 0
-        else
-            transitionTime = SET_VIEW_TRANSITION_TIME
-        end
+    -- SET_VIEW_TRANSITION_TIME = 0.5 seems to be good for non-instant gotoView.
     elseif settingView then
         -- If settingView is true, we know there must be a newSituationID.
-        if newSituation.viewZoom.viewInstant then
+        if viewInstant then
             transitionTime = 0
         else
             transitionTime = SET_VIEW_TRANSITION_TIME
@@ -1207,7 +1277,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     -- Start the actual easing.
 
     local easeFunction = LibEasing[self.db.profile.easingZoom]
-    if settingView or restoringView then
+    if settingView then
         easeFunction = LibEasing.Linear
     else
         -- We only need to zoom when not going into a view.
@@ -1735,6 +1805,7 @@ function DynamicCam:ReactiveZoomOn()
     CameraZoomOut = ReactiveZoomOut
 
     reactiveZoomTarget = GetCameraZoom()
+    reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", ReactiveZoomTargetCorrectionFunction)
 end
 
 function DynamicCam:ReactiveZoomOff()
@@ -1748,6 +1819,7 @@ function DynamicCam:ReactiveZoomOff()
     CameraZoomOut = NonReactiveZoomOut
 
     reactiveZoomTarget = nil
+    reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", nil)
 end
 
 
@@ -2318,12 +2390,12 @@ end
 function DynamicCam:SaveViewSlash(input)
     local tokens = tokenize(input)
 
-    local viewNum = tonumber(tokens[1])
+    local viewNumber = tonumber(tokens[1])
 
-    if viewNum and viewNum <= 5 and viewNum > 0 then
-        SaveView(viewNum)
+    if viewNumber and viewNumber <= 5 and viewNumber > 0 then
+        SaveView(viewNumber)
     else
-        self:Print("Improper view number provided.")
+        self:Print("Improper view number provided. Only 1-5 allowed.")
     end
 end
 
@@ -2331,13 +2403,13 @@ end
 function DynamicCam:SetViewSlash(input)
     local tokens = tokenize(input)
 
-    local viewNum = tonumber(tokens[1])
+    local viewNumber = tonumber(tokens[1])
     local instant = tokens[2] == "i"
 
-    if viewNum and viewNum <= 5 and viewNum > 0 then
-        SetView(viewNum)
+    if viewNumber and viewNumber <= 5 and viewNumber > 0 then
+        SetView(viewNumber)
         if instant then
-            SetView(viewNum)
+            SetView(viewNumber)
         end
     else
         self:Print("Improper view number provided.")
@@ -2481,40 +2553,8 @@ end
 
 
 
--- This is needed to correct reactiveZoomTarget in case the target is missed.
-local lastZoomForCorrection = GetCameraZoom()
 
-local function ReactiveZoomTargetCorrectionFunction()
 
-    if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
-
-    local currentZoom = GetCameraZoom()
-
-    if nonReactiveZoomStarted and nonReactiveZoomStartValue ~= currentZoom then
-        -- print("NonReactiveZoom just Started", nonReactiveZoomStartValue, GetTime())
-        nonReactiveZoomInProgress = true
-        nonReactiveZoomStarted = false
-    elseif nonReactiveZoomInProgress and lastZoomForCorrection == currentZoom then
-        -- print("NonReactiveZoom finished", GetTime())
-        nonReactiveZoomInProgress = false
-    end
-
-    if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= currentZoom then
-      -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", currentZoom, GetTime())
-      reactiveZoomTarget = currentZoom
-
-      if storeMinZoom then
-          -- print("Storing", currentZoom, "for", GetModelId())
-          minZoomValues[GetModelId()] = currentZoom
-          storeMinZoom = false
-      end
-    end
-
-    lastZoomForCorrection = currentZoom
-end
-
-local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
-reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", ReactiveZoomTargetCorrectionFunction)
 
 
 

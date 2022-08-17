@@ -129,6 +129,42 @@ end
 
 
 
+-- A function to get all views used by all situations.
+local function GetUsedViews()
+    local usedViews = {}
+    local usedDefaultViews = {}
+    -- Go through all situations.
+    for id, situation in pairs(DynamicCam.db.profile.situations) do
+
+        if situation.enabled and not situation.errorEncountered then
+
+            -- Shortcut variable.
+            local sc = situation.viewZoom
+
+            if sc.enabled and sc.viewZoomType == "view" then
+
+                if not usedViews[sc.viewNumber] then
+                    usedViews[sc.viewNumber] = {}
+                end
+                -- Store the id of the situation using this view.
+                usedViews[sc.viewNumber][id] = true
+
+                if not usedDefaultViews[sc.def] then
+                    usedDefaultViews[sc.restoreDefaultViewNumber] = {}
+                end
+                -- Store the id of the situation using this view.
+                usedDefaultViews[sc.restoreDefaultViewNumber][id] = true
+
+            end
+        end
+    end
+
+    return usedViews, usedDefaultViews
+end
+
+
+
+
 -- We want to use the same CreateSettingsTab() function for the
 -- standard settings and situation settings. Hence we need this function
 -- to return the appropriate table.
@@ -1677,7 +1713,7 @@ local function CreateSituationSettingsTab(tabOrder)
             selectedSituation = {
                 type = "select",
                 name = "Select a situation to setup",
-                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\".|r\n|cFFEE0000- Erroneous \"Situation Controls\".|r",
+                desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\" (reset recommended).|r\n|cFFEE0000- Erroneous \"Situation Controls\" (changes required).|r",
                 get =
                     function()
                         return SID
@@ -1873,6 +1909,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                     },
                                     blank2 = {type = "description", name = " ", order = 2.1, },
 
+
                                     viewBox = {
 
                                         type = "group",
@@ -1886,7 +1923,7 @@ local function CreateSituationSettingsTab(tabOrder)
 
                                             view = {
                                                 type = "select",
-                                                name = "...to saved view:",
+                                                name = "Set view to saved view:",
                                                 desc = "Select the saved view to switch to when entering this situation.",
                                                 get =
                                                     function()
@@ -1903,13 +1940,13 @@ local function CreateSituationSettingsTab(tabOrder)
                                                     [5] = "View 5"
                                                 },
                                                 order = 1,
-                                                width = 0.6,
+                                                width = 0.8,
                                             },
                                             blank1 = {type = "description", name = " ", order = 1.1, width = 0.1, },
                                             instant = {
                                                 type = "toggle",
                                                 name = "Instant",
-                                                desc = "Make the transition to this view instant.",
+                                                desc = "Make view transitions instant.",
                                                 get =
                                                     function()
                                                         return S.viewZoom.viewInstant
@@ -1921,10 +1958,15 @@ local function CreateSituationSettingsTab(tabOrder)
                                                 order = 2,
                                                 width = "half",
                                             },
+
                                             viewRestore = {
                                                 type = "toggle",
-                                                name = "Restore View",
+                                                name = "Restore",
                                                 desc = "When exiting the situation restore the camera position to what it was before entering.",
+                                                hidden =
+                                                    function()
+                                                        return GetCVar("cameraSmoothStyle") ~= "0"
+                                                    end,
                                                 get =
                                                     function()
                                                         return S.viewZoom.viewRestore
@@ -1934,10 +1976,105 @@ local function CreateSituationSettingsTab(tabOrder)
                                                         S.viewZoom.viewRestore = newValue
                                                     end,
                                                 order = 3,
-                                                width = 0.6,
+                                                width = "full",
+                                            },
+
+                                            cameraSmoothNote = {
+                                                type = "description",
+                                                hidden =
+                                                    function()
+                                                        return GetCVar("cameraSmoothStyle") == "0"
+                                                    end,
+                                                order = 4,
+                                                name =
+[[|cFFEE0000Attention:|r You are using WoW's "Camera Following Styles" that automatically put the camera behind the player. This does not work while you are in a customized saved view. It is possible to use customized saved views for situations in which camera following is not needed (e.g. NPC interaction). But after exiting the situation you have to return to a non-customized default view in order to make the camera following work again.]],
+                                            },
+
+                                            viewRestoreToDefault = {
+                                                type = "select",
+                                                name = "Restore to default view:",
+                                                desc =
+[[Select the default view to return to when exiting this situation.
+
+View 1:   Zoom 0, Pitch 0
+View 2:   Zoom 5.5, Pitch 10
+View 3:   Zoom 5.5, Pitch 20
+View 4:   Zoom 13.8, Pitch 30
+View 5:   Zoom 13.8, Pitch 10]],
+                                                hidden =
+                                                    function()
+                                                        return GetCVar("cameraSmoothStyle") == "0"
+                                                    end,
+                                                get =
+                                                    function()
+                                                        return S.viewZoom.restoreDefaultViewNumber
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.viewZoom.restoreDefaultViewNumber = newValue
+                                                    end,
+                                                values = {
+                                                    [1] = "View 1",
+                                                    [2] = "View 2",
+                                                    [3] = "View 3",
+                                                    [4] = "View 4",
+                                                    [5] = "View 5"
+                                                },
+                                                order = 5,
+                                                width = "full",
+                                            },
+
+                                            cameraSmoothWarning = {
+                                                type = "description",
+                                                hidden =
+                                                    function ()
+                                                        if GetCVar("cameraSmoothStyle") == "0" then return true end
+
+                                                        local usedViews, usedDefaultViews = GetUsedViews()
+
+                                                        for usedView in pairs(usedViews) do
+                                                                -- We know that at least one other situation used this view.
+                                                                if usedDefaultViews[usedView] then
+                                                                    -- print("View", usedView, "used as saved and default view.")
+                                                                    return false
+                                                                end
+                                                            end
+                                                        return true
+                                                    end,
+
+                                                order = 6,
+                                                name =
+                                                    function()
+                                                        if GetCVar("cameraSmoothStyle") == "0" then return "" end
+
+                                                        local usedViews, usedDefaultViews = GetUsedViews()
+
+                                                        local returnString = "|cFFEE0000WARNING:|r You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view.\n"
+
+                                                        for usedView, usedViewSituationList in pairs(usedViews) do
+
+                                                                -- We know that at least one other situation used this view.
+                                                                if usedDefaultViews[usedView] then
+
+                                                                    returnString = returnString .. "\n\n- View " .. usedView .. " is used as saved view in the situations:\n"
+
+                                                                    for usedViewSituationId in pairs(usedViewSituationList) do
+                                                                        returnString = returnString .. "    - " .. DynamicCam.db.profile.situations[usedViewSituationId].name .. "\n"
+                                                                    end
+                                                                    returnString = returnString .. "   and as restore-to-default view in the situations:\n"
+
+                                                                    for usedDefaultViewSituationId in pairs(usedDefaultViews[usedView]) do
+                                                                        returnString = returnString .. "    - " ..  DynamicCam.db.profile.situations[usedDefaultViewSituationId].name .. "\n"
+                                                                    end
+
+                                                                end
+                                                            end
+
+                                                        return returnString
+
+                                                    end,
                                             },
                                         },
-
                                     },
                                     viewBlank3 = {type = "description", name = " ", order = 3.1, },
 
@@ -1953,9 +2090,9 @@ local function CreateSituationSettingsTab(tabOrder)
                                             zoomDescription = {
                                                 type = "description",
                                                 name =
-[[WoW allows us to save up to 5 custom camera views. View 1 is used by DynamicCam to save the camera position when entering a situation, such that it can be restored upon exiting the situation again, if you check the "Restore" box above. This is particularly nice for short situations like NPC interaction, allowing us to switch to one view while talking to the NPC and afterwards back to what the camera was before. This is why you cannot select View 1 in the above drop down menu of saved views.
+[[WoW allows to save up to 5 custom camera views. View 1 is used by DynamicCam to save the camera position when entering a situation, such that it can be restored upon exiting the situation again, if you check the "Restore" box above. This is particularly nice for short situations like NPC interaction, allowing to switch to one view while talking to the NPC and afterwards back to what the camera was before. This is why View 1 cannot be selected in the above drop down menu of saved views.
 
-Views 2, 3, 4 and 5, however, can be used to save your custom camera positions. To save a view, simply bring the camera into the desired zoom and angle. Then type the following command into the console (with # being the view number 2, 3, 4 or 5):
+Views 2, 3, 4 and 5 can be used to save a custom camera positions. To save a view, simply bring the camera into the desired zoom and angle. Then type the following command into the console (with # being the view number 2, 3, 4 or 5):
 
     /saveView #
 
@@ -1963,7 +2100,7 @@ Or for short:
 
     /sv #
 
-Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a DynamicCam situation profile using views, you may have to set up and save the appropriate views manually.
+Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a new DynamicCam situation profile with views, you probably have to set and save the appropriate views afterwards.
 
 
 DynamicCam also provides a console command to switch to a view irrespective of entering or exiting situations:

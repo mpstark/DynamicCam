@@ -37,6 +37,7 @@ DynamicCam.situationDefaults = {
         viewNumber = 2,
         viewRestore = true,
         viewInstant = false,
+        restoreDefaultViewNumber = 1,
     },
 
     rotation = {
