@@ -396,8 +396,10 @@ end]],
   346170,  -- Attendant's Pocket Portal: Ardenweald
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
+  363799,  -- Dominated Hearthstone
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
+  375357,  -- Timewalker's Hearthstone
 
 }]],
                 events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},

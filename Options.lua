@@ -3700,9 +3700,9 @@ end
 
 local welcomeMessage = [[We're glad that you're here and we hope that you have fun with the addon.
 
-DynamicCam (DC) was started in May 2016 by mpstark when the WoW devs at Blizzard introduced the experimental ActionCam features to the game. The main purpose of DC has been to provide a user interface for the ActionCam settings. ActionCam is still marked as experimental while there has been no sign from Blizzard to develop it further. But instead of complaining about possible shortcomings, we should be thankful that it was left in the game for enthusiast like us to use. :-) DC does not just allow to change the ActionCam settings but to have different settings for different game situations. Not related to ActionCam, DC also provides features regarding camera zoom and UI fade-out.
+DynamicCam (DC) was started in May 2016 by mpstark when the WoW devs at Blizzard introduced the experimental ActionCam features into the game. The main purpose of DC has been to provide a user interface for the ActionCam settings. Within the game, the ActionCam is still designated as \"experimental\" and there has been no sign from Blizzard to develop it further. There are some shortcomings, but we should be thankful that ActionCam was left in the game for enthusiast like us to use. :-) DC does not just allow you to change the ActionCam settings but to have different settings for different game situations. Not related to ActionCam, DC also provides features regarding camera zoom and UI fade-out.
 
-The work of mpstark on DC continued until August 2018. While most features worked well for a substantial user base, mpstark had always considered DC to be in beta state and due to his waning investment in WoW he ended up not resuming his work. At that time, Ludius had already begun making adjustments to DC for himself, which was noticed by Weston (aka dernPerkins) who in early 2020 managed to get in touch with mpstark leading to Ludius taking over the development. The first non-beta version 1.0 was released in May 2020 including Ludius's adjustments up to that point. Afterwards, Ludius began to work on an overhaul of DC resulting in version 2.0 being released in Summer 2021.
+The work of mpstark on DC continued until August 2018. While most features worked well for a substantial user base, mpstark had always considered DC to be in beta state and due to his waning investment in WoW he ended up not resuming his work. At that time, Ludius had already begun making adjustments to DC for himself, which was noticed by Weston (aka dernPerkins) who in early 2020 managed to get in touch with mpstark leading to Ludius taking over the development. The first non-beta version 1.0 was released in May 2020 including Ludius's adjustments up to that point. Afterwards, Ludius began to work on an overhaul of DC resulting in version 2.0 being released in Autum 2022.
 
 When mpstark started DC, his focus was on making most customisations in-game instead of having to change the source code. This made it easier to experiment particularly with the different game situations. From version 2.0 on, these advanced settings have been moved to a special section called "Situation Controls". Most users will probably never need it, but for "power users" it is still available. A hazard of making changes there is that saved user settings always override DC's stock settings, even if new versions of DC bring updated stock settings. Hence, a warning is displayed at the top of this page whenever you have stock situations with modified "Situation Controls".
 
@@ -4067,58 +4067,110 @@ local function BuildSituationExportFrame(widget)
 
   local f = widget.frame
 
+  -- Description text on top of the page. Using the same font as AceConfig description text.
   if not f.help then
 
-    -- print("Building")
-
-
-    -- #### Description text on top of the page.
     f.help = f:CreateFontString(nil, "HIGH")
-    -- Using the same font as AceConfig description text.
     f.help:SetFontObject("GameFontHighlightSmall")
     f.help:SetJustifyH("LEFT")
-    -- f.help:SetJustifyV("TOP")
     f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
-    -- This does not help! The FontString dimensions get out of hand anyway
-    -- unless I am enforcing them in the OnWidthSet function.
-    -- f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-    f.help:SetText("Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates. (TODO)")
-    -- Register for resizing in OnWidthSet.
-    tinsert(widget.fontStrings, {f.help, f})
+    f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+
+    f.help:SetText("TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO")
+  end
 
 
-
-
+  if not f.contentFrame then
     f.contentFrame = CreateFrame("Frame", nil, f)
+    local cf = f.contentFrame
+
     local yOffset = -10
-    f.contentFrame:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, yOffset)
-    f.contentFrame:SetPoint("TOPRIGHT", f.help, "BOTTOMRIGHT", 0, yOffset)
-
-    -- Whenever OnWidthSet() is called, adjust the height of the parent frame to contain all child frames.
-    widget.AdjustHeightFunction = function(self)
-      local f = self.frame
-      local point, _, _, _, yOffset = f.contentFrame:GetPoint()
-      assert(point == "TOPLEFT" or point == "TOPRIGHT")
-      f:SetHeight(f.help:GetStringHeight() - yOffset + f.contentFrame:GetHeight())
-    end
+    cf:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, yOffset)
+    cf:SetPoint("TOPRIGHT", f.help, "TOPRIGHT", 0, yOffset)
 
 
+    cf.situationSettingsFrame = CreateFrame("Frame", nil, cf)
+    local ssf = cf.situationSettingsFrame
+    ssf:SetPoint("TOPLEFT", cf, "TOPLEFT")
+    ssf:SetPoint("TOPRIGHT", cf, "TOPRIGHT")
+
+    ssf:SetHeight(30)
 
 
-    -- TODO: For testing.
-    SetFrameBorder(f, 2, 1, 0, 0, 0.5)
-    SetFrameBorder(f.contentFrame, 2, 1, 1, 1)
-    f.contentFrame:SetHeight(500)
+    cf.situationActionsFrame = CreateFrame("Frame", nil, cf)
+    local saf = cf.situationActionsFrame
+    saf:SetPoint("TOPLEFT", ssf, "BOTTOMLEFT")
+    saf:SetPoint("TOPRIGHT", ssf, "BOTTOMRIGHT")
+
+    saf:SetHeight(30)
 
 
+    cf.situationControlsFrame = CreateFrame("Frame", nil, cf)
+    local scf = cf.situationControlsFrame
+    scf:SetPoint("TOPLEFT", saf, "BOTTOMLEFT")
+    scf:SetPoint("TOPRIGHT", saf, "BOTTOMRIGHT")
+
+    -- If this is too small, the text of the label gets cut off...
+    scf:SetHeight(30)
+
+
+  end
+
+
+
+
+
+
+
+
+  -- TODO: For testing.
+  -- SetFrameBorder(f, 2, 1, 0, 0, 0.5)
+  -- SetFrameBorder(f.contentFrame, 2, 1, 1, 1)
+
+  -- testFrame = f.contentFrame.situationControlsFrame
+  -- if not testFrame.myLabel then
+    -- testFrame.myLabel = testFrame:CreateFontString(nil, "HIGH")
+    -- testFrame.myLabel:SetFont("Fonts\\FRIZQT__.TTF", 12)
+    -- testFrame.myLabel:SetTextColor(0.8, 0.8, 0.8)
+    -- testFrame.myLabel:SetJustifyH("LEFT")
+    -- testFrame.myLabel:SetPoint("TOPLEFT", testFrame, "TOPLEFT")
+    -- testFrame.myLabel:SetPoint("TOPRIGHT", testFrame, "TOPRIGHT")
+    -- testFrame.myLabel:SetText("TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST")
+  -- end
+
+
+
+
+  -- Whenever OnWidthSet() is called, we set the height of frames to the height of their children frames.
+  widget.AdjustHeightFunction = widget.AdjustHeightFunction or function(self)
+
+    -- -- For multi-line text labels with automatic line breaks you may have to
+    -- -- reset the label height back to the string height here. Because for some reason
+    -- -- the label may get reduced to one line (problby because the width is temporarily
+    -- -- undefined) in the process of switching GUI tabs.
+    -- -- This is also the place where have to set the height of frames, whose height should
+    -- -- depend on a text's height.
+    -- local newHeight = testFrame.myLabel:GetStringHeight()
+    -- testFrame.myLabel:SetHeight(newHeight)
+    -- testFrame:SetHeight(newHeight)
+
+    local f = self.frame
+    local cf = f.contentFrame
+
+    -- Set the contentFrame to the height of all its children.
+    cf:SetHeight(cf.situationSettingsFrame:GetHeight() + cf.situationActionsFrame:GetHeight() + cf.situationControlsFrame:GetHeight())
+
+    -- Set the widget frame to the height of all its children (frame.help and frame.contentFrame).
+    -- Get the offset between frame.help and frame.contentFrame.
+    local point, _, _, _, yOffset = cf:GetPoint()
+    assert(point == "TOPLEFT" or point == "TOPRIGHT")
+    f:SetHeight(f.help:GetStringHeight() - yOffset + cf:GetHeight())
   end
 
 
 end
 
 
--- So we only call OnWidthSet when necessary.
-local lastWidth = nil
 
 -- My aceInvader.
 -- Inspired by https://github.com/SFX-WoW/AceGUI-3.0_SFX-Widgets/.
@@ -4143,9 +4195,6 @@ do
     -- Reccommended place to store ephemeral widget information.
     Widget.userdata = {}
 
-    -- FontStrings we need to resize in OnWidthSet().
-    Widget.fontStrings = {}
-
     -- OnAcquire, SetLabel, SetText, SetDisabled(nil)
     -- all get called when showing the widget.
     -- It does not really matter which of these functions you use to do your stuff.
@@ -4159,6 +4208,7 @@ do
       self.resizing = nil
     end
 
+
     -- Could be used to read the "name" attribute,
     -- if you want to use the same aceInvader for different purposes.
 		Widget.SetLabel = function(self, name)
@@ -4168,38 +4218,21 @@ do
         BuildSituationExportFrame(self)
       end
 
-      -- print(self.frame:GetWidth())
-      -- print(self.frame.help:GetWidth())
-      -- print(self.frame.help:GetHeight())
-
-      -- For testing.
-      -- self:SetHeight(800)
-      -- or
-      -- self.frame:SetHeight(800)
     end
 
     -- Not useful to us, but Ace3 needs to call it.
 		Widget.SetText = function(self)
-        -- print("SetText")
+      -- print("----------- SetText")
     end
 
 
 
     Widget.OnWidthSet = function(self)
-      -- print("----------- OnWidthSet", self.frame:GetWidth())
-      if self.resizing or (self.frame:GetWidth() == lastWidth) then return end
+      if self.resizing then return end
+      -- print("----------- OnWidthSet", self.frame:GetWidth(), self.frame.contentFrame:GetWidth())
 
-      -- We need to manually set the FontString width after the frame width has changed.
-      for _, v in pairs(self.fontStrings) do
-        local label, frame = unpack(v)
-        label:SetWidth(frame:GetWidth())
-      end
-
-      lastWidth = self.frame:GetWidth()
-
-      -- Whenever OnWidthSet() is called, adjust the height of the parent frame to contain all child frames.
+      -- Whenever OnWidthSet() is called, adjust the height of the frames to contain all child frames.
       if self.AdjustHeightFunction then self:AdjustHeightFunction() end
-
     end
 
 
@@ -4536,18 +4569,46 @@ end
 
 
 
+
+
+-- Remember which view is active and which as been reset,
+-- so when the user activates cameraSmoothStyle, we only reset to view 1 once.
+local viewIsActive = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
+local viewIsReset = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
+hooksecurefunc("SetView", function(view)
+    for i = 1, 5 do
+        if i == tonumber(view) then
+            viewIsActive[i] = true
+        else
+            viewIsActive[i] = false
+        end
+    end
+end)
+hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
+hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
+
+
+
 local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
--- Automatically undo forbidden cvar changes.
 hooksecurefunc("SetCVar", function(cvar, value)
+
+    -- Automatically undo forbidden cvar changes.
     if cvar == "CameraKeepCharacterCentered" and value == "1" then
         print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
         SetCVar("CameraKeepCharacterCentered", 0)
-
     -- https://github.com/Mpstark/DynamicCam/issues/40
     elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
         print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
         SetCVar("cameraView", GetCVarDefault("cameraView"))
+
+    -- Switch to a default view, if user switches to cameraSmoothStyle.
+    elseif cvar == "cameraSmoothStyle" and value ~= "0" then
+        -- The order (first reset then set) is important, because if you are already
+        -- in view 1 and do a reset, it also sets the view. If this is followed by
+        -- another setView, you get an undesired instant view switch.
+        if not viewIsReset[1] then ResetView(1) end
+        if not viewIsActive[1] then SetView(1) end
     end
 end)
 
