@@ -125,21 +125,25 @@ local defaultHiddenFrames = {
   ["BuffFrame"] = true,
   ["DebuffFrame"] = true,
 }
+
+
+
+-- TODO: Make it work with bartender again.
 if Bartender4 then
-  defaultHiddenFrames["BT4Bar1"] = true
-  defaultHiddenFrames["BT4Bar2"] = true
-  defaultHiddenFrames["BT4Bar3"] = true
-  defaultHiddenFrames["BT4Bar4"] = true
-  defaultHiddenFrames["BT4Bar5"] = true
-  defaultHiddenFrames["BT4Bar6"] = true
-  defaultHiddenFrames["BT4Bar7"] = true
-  defaultHiddenFrames["BT4Bar8"] = true
-  defaultHiddenFrames["BT4Bar9"] = true
-  defaultHiddenFrames["BT4Bar10"] = true
-  defaultHiddenFrames["BT4BarBagBar"] = true
-  defaultHiddenFrames["BT4BarMicroMenu"] = true
-  defaultHiddenFrames["BT4BarStanceBar"] = true
-  defaultHiddenFrames["BT4BarPetBar"] = true
+  -- defaultHiddenFrames["BT4Bar1"] = true
+  -- defaultHiddenFrames["BT4Bar2"] = true
+  -- defaultHiddenFrames["BT4Bar3"] = true
+  -- defaultHiddenFrames["BT4Bar4"] = true
+  -- defaultHiddenFrames["BT4Bar5"] = true
+  -- defaultHiddenFrames["BT4Bar6"] = true
+  -- defaultHiddenFrames["BT4Bar7"] = true
+  -- defaultHiddenFrames["BT4Bar8"] = true
+  -- defaultHiddenFrames["BT4Bar9"] = true
+  -- defaultHiddenFrames["BT4Bar10"] = true
+  -- defaultHiddenFrames["BT4BarBagBar"] = true
+  -- defaultHiddenFrames["BT4BarMicroMenu"] = true
+  -- defaultHiddenFrames["BT4BarStanceBar"] = true
+  -- defaultHiddenFrames["BT4BarPetBar"] = true
 else
   defaultHiddenFrames["ExtraActionBarFrame"] = true
   defaultHiddenFrames["MainMenuBarArtFrame"] = true
@@ -284,9 +288,9 @@ end
 
 
 if Bartender4 then
-  hooksecurefunc(Bartender4:GetModule("StatusTrackingBar"), "OnEnable", function()
-    SetMouseOverFading(BT4StatusBarTrackingManager)
-  end)
+  -- hooksecurefunc(Bartender4:GetModule("StatusTrackingBar"), "OnEnable", function()
+    -- SetMouseOverFading(BT4StatusBarTrackingManager)
+  -- end)
 else
   hooksecurefunc(StatusTrackingBarManager, "AddBarFromTemplate", SetMouseOverFading)
 end
