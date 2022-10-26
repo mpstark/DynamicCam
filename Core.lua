@@ -749,28 +749,28 @@ DynamicCam.defaults = {
                 name = "Hearth/Teleport",
                 priority = 20,
                 executeOnInit = [[this.spells = {
-  556,     -- Astral Recall
-  3561,    -- Teleport: Stormwind
-  3562,    -- Teleport: Ironforge
-  3563,    -- Teleport: Undercity
-  3565,    -- Teleport: Darnassus
-  3566,    -- Teleport: Thunder Bluff
-  3567,    -- Teleport: Orgrimmar
-  8690,    -- Hearthstone
-  32271,   -- Teleport: Exodar
-  32272,   -- Teleport: Silvermoon
-  33690,   -- Teleport: Shattrath
-  35715,   -- Teleport: Shattrath
-  49358,   -- Teleport: Stonard
-  49359,   -- Teleport: Theramore
-  49844,   -- Using Direbrew's Remote
-  50977,   -- Death Gate
-  53140,   -- Teleport: Dalaran - Northrend
-  54406,   -- Teleport: Dalaran
-  75136,   -- Ethereal Portal
-  88342,   -- Teleport: Tol Barad
-  88344,   -- Teleport: Tol Barad
-  94719,   -- The Innkeeper's Daughter
+     556,  -- Astral Recall
+    3561,  -- Teleport: Stormwind
+    3562,  -- Teleport: Ironforge
+    3563,  -- Teleport: Undercity
+    3565,  -- Teleport: Darnassus
+    3566,  -- Teleport: Thunder Bluff
+    3567,  -- Teleport: Orgrimmar
+    8690,  -- Hearthstone
+   32271,  -- Teleport: Exodar
+   32272,  -- Teleport: Silvermoon
+   33690,  -- Teleport: Shattrath
+   35715,  -- Teleport: Shattrath
+   49358,  -- Teleport: Stonard
+   49359,  -- Teleport: Theramore
+   49844,  -- Using Direbrew's Remote
+   50977,  -- Death Gate
+   53140,  -- Teleport: Dalaran - Northrend
+   54406,  -- Teleport: Dalaran
+   75136,  -- Ethereal Portal
+   88342,  -- Teleport: Tol Barad
+   88344,  -- Teleport: Tol Barad
+   94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
@@ -828,8 +828,10 @@ DynamicCam.defaults = {
   346170,  -- Attendant's Pocket Portal: Ardenweald
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
+  363799,  -- Dominated Hearthstone
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
+  375357,  -- Timewalker's Hearthstone
 }]],
                 executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = ((endTime - startTime)/1000) - .25]],
