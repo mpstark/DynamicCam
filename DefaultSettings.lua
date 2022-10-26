@@ -99,7 +99,7 @@ DynamicCam.defaults = {
         firstRun = true,
 
         zoomRestoreSetting = "adaptive",
-        interfaceOptionsFrameIgnoreParentAlpha = true,
+        settingsPanelIgnoreParentAlpha = true,
 
         -- Standard settings (for when no situation is overriding them).
         standardSettings = {

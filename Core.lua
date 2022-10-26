@@ -820,13 +820,13 @@ function DynamicCam:Startup()
     end
 
 
-    self:InterfaceOptionsFrameSetIgnoreParentAlpha(DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha)
+    self:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
     hooksecurefunc(
       LibStub("AceGUI-3.0"),
       "Create",
       function(_, widgetType)
         if widgetType == "Dropdown-Pullout" then
-          DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha)
+          DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
         end
       end
     )
@@ -840,7 +840,8 @@ function DynamicCam:Startup()
     -- C_Timer.After(0, function()
         -- self:OpenMenu()
         -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
-        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+        -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
     -- end)
 
     -- C_Timer.After(3, function()
@@ -2041,7 +2042,7 @@ function DynamicCam:ModernizeProfile(p)
         -- p.standardSettings.reactiveZoomEasingFunc
 
         -- Newly introduced setting also assumes default.
-        -- p.interfaceOptionsFrameIgnoreParentAlpha
+        -- p.settingsPanelIgnoreParentAlpha
 
         p.standardSettings = {cvars = {},}
 
@@ -2684,7 +2685,7 @@ function DynamicCam:ToggleRZVA()
         rzvaFrame:SetWidth(rzvaWidth)
         rzvaFrame:SetHeight(rzvaHeight)
         rzvaFrame:ClearAllPoints()
-        rzvaFrame:SetPoint("BOTTOMLEFT", InterfaceOptionsFramePanelContainer, "BOTTOMLEFT", 45, 35)
+        rzvaFrame:SetPoint("BOTTOMLEFT", SettingsPanel.Container, "BOTTOMLEFT", 45, 35)
 
         rzvaFrame.t = rzvaFrame:CreateTexture()
         rzvaFrame.t:SetAllPoints()

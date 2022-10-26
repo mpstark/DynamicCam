@@ -244,9 +244,9 @@ end
 
 
 
-function DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(ignoreParentAlpha)
+function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
     GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
-    InterfaceOptionsFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
+    SettingsPanel:SetIgnoreParentAlpha(ignoreParentAlpha)
     for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do
       if _G["AceGUI30Pullout" .. i] then _G["AceGUI30Pullout" .. i]:SetIgnoreParentAlpha(ignoreParentAlpha) end
     end
@@ -3052,17 +3052,17 @@ to show the UI without any delay.]],
                                         name = "While setting up your desired UI fade effects, it can be annoying when this \"Interface\" settings frame fades out as well. If this box is checked, it will not be faded out.\n\nThis setting is global for all situations.",
                                         order = 1,
                                     },
-                                    interfaceOptionsFrameIgnoreParentAlpha = {
+                                    settingsPanelIgnoreParentAlpha = {
                                         type = "toggle",
                                         name = "Do not fade out this \"Interface\" settings frame.",
                                         get =
                                             function()
-                                                return InterfaceOptionsFrame:IsIgnoringParentAlpha()
+                                                return SettingsPanel:IsIgnoringParentAlpha()
                                             end,
                                         set =
                                             function(_, newValue)
-                                                DynamicCam.db.profile.interfaceOptionsFrameIgnoreParentAlpha = newValue
-                                                DynamicCam:InterfaceOptionsFrameSetIgnoreParentAlpha(newValue)
+                                                DynamicCam.db.profile.settingsPanelIgnoreParentAlpha = newValue
+                                                DynamicCam:SettingsPanelSetIgnoreParentAlpha(newValue)
                                             end,
                                         width = "full",
                                         order = 2,
@@ -4612,117 +4612,152 @@ hooksecurefunc("SetCVar", function(cvar, value)
     end
 end)
 
+
+
+
+
+
+local mouseLookSpeedSlider = nil
+hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
+    if not mouseLookSpeedSlider then 
+      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+      for i, child in ipairs(children) do
+        if child.Text then
+          if child.Text:GetText() == MOUSE_LOOK_SPEED then
+            -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
+            mouseLookSpeedSlider = child.SliderWithSteppers
+                        
+            
+            
+            -- TODO: Change tooltip.
+            -- mouseLookSpeedSlider:SetScript("OnEnter", function(self)
+                -- GameTooltip:SetOwner(self, "ANCHOR_BOTTOM", 0, -10)
+                -- GameTooltip:SetText("Overridden by \"Mouse Look\" settings\nof the addon DynamicCam!")
+            -- end)
+            -- mouseLookSpeedSlider:SetScript("OnLeave", function(self)
+                -- GameTooltip:Hide()
+            -- end)
+            
+            
+            
+            break
+          end
+        end
+      end
+    else
+      if mouseLookSpeedSlider.Slider:IsEnabled() then
+        mouseLookSpeedSlider:SetEnabled_(false)
+        
+        -- TODO: Make sure tooltip change presits or do it here.
+        
+      end
+    end
+end)
+
+
 -- Wait some time to be on the safe side...
 C_Timer.After(1, function()
 
-    -- Disable the standard UI's mouse look slider.
-    InterfaceOptionsMousePanelMouseLookSpeedSlider:Disable()
-    InterfaceOptionsMousePanelMouseLookSpeedSlider:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM", 0, -10)
-        GameTooltip:SetText("Overridden by \"Mouse Look\" settings\nof the addon DynamicCam!")
-    end)
-    InterfaceOptionsMousePanelMouseLookSpeedSlider:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-
-
+    
+    -- TODO: Modify the default settings UI!
+    
 
     -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
 
-    -- Hide the original motion sickness drop down.
-    InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:Hide()
+    -- -- Hide the original motion sickness drop down.
+    -- InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:Hide()
 
-    -- Replace it with my own copy, such that there will be no taint.
-    local cameraKeepCharacterCentered = "CameraKeepCharacterCentered";
-    local cameraReduceUnexpectedMovement = "CameraReduceUnexpectedMovement";
-    local motionSicknessOptions = {
-        {
-            text = MOTION_SICKNESS_NONE,
-            [cameraKeepCharacterCentered] = "0",
-            [cameraReduceUnexpectedMovement] = "0"
-        },
-        {
-            text = MOTION_SICKNESS_REDUCE_CAMERA_MOTION,
-            [cameraKeepCharacterCentered] = "0",
-            [cameraReduceUnexpectedMovement] = "1"
-        },
-        {
-            text = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r",
-            [cameraKeepCharacterCentered] = "1",
-            [cameraReduceUnexpectedMovement] = "0"
-        },
-        {
-            text = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r",
-            [cameraKeepCharacterCentered] = "1",
-            [cameraReduceUnexpectedMovement] = "1"
-        },
-    }
-    local function GetMotionSicknessSelected()
-        local SelectedcameraKeepCharacterCentered = GetCVar(cameraKeepCharacterCentered)
-        local SelectedcameraReduceUnexpectedMovement = GetCVar(cameraReduceUnexpectedMovement)
+    -- -- Replace it with my own copy, such that there will be no taint.
+    -- local cameraKeepCharacterCentered = "CameraKeepCharacterCentered";
+    -- local cameraReduceUnexpectedMovement = "CameraReduceUnexpectedMovement";
+    -- local motionSicknessOptions = {
+        -- {
+            -- text = MOTION_SICKNESS_NONE,
+            -- [cameraKeepCharacterCentered] = "0",
+            -- [cameraReduceUnexpectedMovement] = "0"
+        -- },
+        -- {
+            -- text = MOTION_SICKNESS_REDUCE_CAMERA_MOTION,
+            -- [cameraKeepCharacterCentered] = "0",
+            -- [cameraReduceUnexpectedMovement] = "1"
+        -- },
+        -- {
+            -- text = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r",
+            -- [cameraKeepCharacterCentered] = "1",
+            -- [cameraReduceUnexpectedMovement] = "0"
+        -- },
+        -- {
+            -- text = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r",
+            -- [cameraKeepCharacterCentered] = "1",
+            -- [cameraReduceUnexpectedMovement] = "1"
+        -- },
+    -- }
+    -- local function GetMotionSicknessSelected()
+        -- local SelectedcameraKeepCharacterCentered = GetCVar(cameraKeepCharacterCentered)
+        -- local SelectedcameraReduceUnexpectedMovement = GetCVar(cameraReduceUnexpectedMovement)
 
-        for option, cvars in pairs(motionSicknessOptions) do
-            if ( cvars[cameraKeepCharacterCentered] == SelectedcameraKeepCharacterCentered and cvars[cameraReduceUnexpectedMovement] == SelectedcameraReduceUnexpectedMovement ) then
-                return option;
-            end
-        end
-    end
-
-
-    local DynamicCamMotionSicknessDropdown = CreateFrame("Frame", "DynamicCamMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
-    DynamicCamMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, "TOPLEFT", 0, 0)
-    -- Use in place of dropDown:SetWidth.
-    -- (Could not find where the original takes its width from, but 130 seems to be it.)
-    UIDropDownMenu_SetWidth(DynamicCamMotionSicknessDropdown, 130)
-    DynamicCamMotionSicknessDropdown.label = DynamicCamMotionSicknessDropdown:CreateFontString("DynamicCamMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
-    DynamicCamMotionSicknessDropdown.label:SetPoint("BOTTOMLEFT", DynamicCamMotionSicknessDropdown, "TOPLEFT", 17, 3)
-    DynamicCamMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
-
-    local function DynamicCamMotionSicknessDropdown_Initialize()
-
-      -- This lead to taint when using the LFG "Start a group" button.
-      -- local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
-      -- But this function does nothing but this:
-      local selectedValue = DynamicCamMotionSicknessDropdown.selectedValue
-
-      local info = UIDropDownMenu_CreateInfo()
-
-      -- Called when this option is selected.
-      info.func = function(self)
-          -- Try to set the cvars. They will be rectified by the cvar hook above.
-          BlizzardOptionsPanel_SetCVarSafe(cameraKeepCharacterCentered, motionSicknessOptions[self.value][cameraKeepCharacterCentered])
-          BlizzardOptionsPanel_SetCVarSafe(cameraReduceUnexpectedMovement, motionSicknessOptions[self.value][cameraReduceUnexpectedMovement])
-          -- Then set the selected item accordingly.
-          DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
-          UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
-        end
-
-      for k, v in ipairs(motionSicknessOptions) do
-          info.text = v.text
-          info.value = k
-          info.checked = k == selectedValue
-          -- UIDropDownMenu_AddButton(info)
-
-          MyUIDropDownMenu_AddButton(info)
-      end
-
-    end
+        -- for option, cvars in pairs(motionSicknessOptions) do
+            -- if ( cvars[cameraKeepCharacterCentered] == SelectedcameraKeepCharacterCentered and cvars[cameraReduceUnexpectedMovement] == SelectedcameraReduceUnexpectedMovement ) then
+                -- return option;
+            -- end
+        -- end
+    -- end
 
 
-    UIDropDownMenu_Initialize(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown_Initialize)
+    -- local DynamicCamMotionSicknessDropdown = CreateFrame("Frame", "DynamicCamMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
+    -- DynamicCamMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, "TOPLEFT", 0, 0)
+    -- -- Use in place of dropDown:SetWidth.
+    -- -- (Could not find where the original takes its width from, but 130 seems to be it.)
+    -- UIDropDownMenu_SetWidth(DynamicCamMotionSicknessDropdown, 130)
+    -- DynamicCamMotionSicknessDropdown.label = DynamicCamMotionSicknessDropdown:CreateFontString("DynamicCamMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
+    -- DynamicCamMotionSicknessDropdown.label:SetPoint("BOTTOMLEFT", DynamicCamMotionSicknessDropdown, "TOPLEFT", 17, 3)
+    -- DynamicCamMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
 
-    DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
-    UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
+    -- local function DynamicCamMotionSicknessDropdown_Initialize()
+
+      -- -- This lead to taint when using the LFG "Start a group" button.
+      -- -- local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
+      -- -- But this function does nothing but this:
+      -- local selectedValue = DynamicCamMotionSicknessDropdown.selectedValue
+
+      -- local info = UIDropDownMenu_CreateInfo()
+
+      -- -- Called when this option is selected.
+      -- info.func = function(self)
+          -- -- Try to set the cvars. They will be rectified by the cvar hook above.
+          -- BlizzardOptionsPanel_SetCVarSafe(cameraKeepCharacterCentered, motionSicknessOptions[self.value][cameraKeepCharacterCentered])
+          -- BlizzardOptionsPanel_SetCVarSafe(cameraReduceUnexpectedMovement, motionSicknessOptions[self.value][cameraReduceUnexpectedMovement])
+          -- -- Then set the selected item accordingly.
+          -- DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
+          -- UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
+        -- end
+
+      -- for k, v in ipairs(motionSicknessOptions) do
+          -- info.text = v.text
+          -- info.value = k
+          -- info.checked = k == selectedValue
+          -- -- UIDropDownMenu_AddButton(info)
+
+          -- MyUIDropDownMenu_AddButton(info)
+      -- end
+
+    -- end
 
 
-    -- Place a tooltip warning.
-    DynamicCamMotionSicknessDropdown:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
-        GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.")
-    end)
-    DynamicCamMotionSicknessDropdown:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
+    -- UIDropDownMenu_Initialize(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown_Initialize)
+
+    -- DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
+    -- UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
+
+
+    -- -- Place a tooltip warning.
+    -- DynamicCamMotionSicknessDropdown:SetScript("OnEnter", function(self)
+        -- GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
+        -- GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.")
+    -- end)
+    -- DynamicCamMotionSicknessDropdown:SetScript("OnLeave", function(self)
+        -- GameTooltip:Hide()
+    -- end)
 
 end)
 
