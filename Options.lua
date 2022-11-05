@@ -1039,7 +1039,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                                     shoulderOffsetZoomDescription = {
                                         type = "description",
-                                        name = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place.",
+                                        name = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place. This setting is global and not situation-specific.",
                                         order = 4,
                                     },
 
@@ -4070,7 +4070,7 @@ local function BuildSituationExportFrame(widget)
   -- Description text on top of the page. Using the same font as AceConfig description text.
   if not f.help then
 
-    f.help = f:CreateFontString(nil, "HIGH")
+    f.help = f:CreateFontString(nil, "OVERLAY")
     f.help:SetFontObject("GameFontHighlightSmall")
     f.help:SetJustifyH("LEFT")
     f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
@@ -4129,7 +4129,7 @@ local function BuildSituationExportFrame(widget)
 
   -- testFrame = f.contentFrame.situationControlsFrame
   -- if not testFrame.myLabel then
-    -- testFrame.myLabel = testFrame:CreateFontString(nil, "HIGH")
+    -- testFrame.myLabel = testFrame:CreateFontString(nil, "OVERLAY")
     -- testFrame.myLabel:SetFont("Fonts\\FRIZQT__.TTF", 12)
     -- testFrame.myLabel:SetTextColor(0.8, 0.8, 0.8)
     -- testFrame.myLabel:SetJustifyH("LEFT")
@@ -4571,6 +4571,122 @@ end
 
 
 
+
+-- Disable the Mouse Speed Slider and leave a tooltip note in the default UI settings.
+local mouseLookSpeedSlider = nil
+
+-- Partially disable motion sickness options and leave a tooltip note in the default UI settings.
+local motionSicknessDropDown = nil
+local indexCentered = nil
+local indexReduced = nil
+local indexBoth = nil
+local indexNone = nil
+
+
+hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
+
+  if not motionSicknessDropDown then
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
+          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
+          motionSicknessDropDown = child.DropDown.Button
+
+          -- Change tooltip.
+          motionSicknessDropDown:SetScript("OnEnter", function(self)
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
+              GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.", _, _, _, true)
+              GameTooltip:Show()
+          end)
+          motionSicknessDropDown:SetScript("OnLeave", function(self)
+              GameTooltip:Hide()
+          end)
+
+          -- Prevent unallowed selections.
+          hooksecurefunc(motionSicknessDropDown, "SetSelectedIndex", function(self, value)
+            -- print("SetSelectedIndex", value)
+            if value == indexBoth then
+              self.selectedIndex = indexReduced
+            elseif value == indexCentered then
+              self.selectedIndex = indexNone
+            end
+            self:Update();
+          end)
+
+          break
+        end
+      end
+    end
+  end
+
+  -- Got to make sure the labels stay modified.
+  if motionSicknessDropDown then
+    for i, k in pairs(motionSicknessDropDown.selections) do
+      -- print(i, k)
+
+      if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
+        k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
+        indexCentered = k.value
+      elseif k.label == MOTION_SICKNESS_BOTH then
+        k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
+        indexBoth = k.value
+      elseif k.label == MOTION_SICKNESS_NONE then
+        -- k.label = MOTION_SICKNESS_NONE
+        indexNone = k.value
+      elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
+        -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
+        indexReduced = k.value
+      end
+
+      -- for i2, k2 in pairs(k) do
+        -- print("    ", i2, k2)
+      -- end
+    end
+  end
+
+
+
+
+
+
+  if not mouseLookSpeedSlider then
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOUSE_LOOK_SPEED then
+          -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
+          mouseLookSpeedSlider = child.SliderWithSteppers
+
+          -- Change tooltip.
+          mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000Disabled!|r", _, _, _, true)
+              GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually!", _, _, _, true)
+              GameTooltip:Show()
+          end)
+
+          break
+        end
+      end
+    end
+  end
+
+  -- Got to make sure that the slider stays disabled.
+  if mouseLookSpeedSlider then
+    if mouseLookSpeedSlider.Slider:IsEnabled() then
+      mouseLookSpeedSlider:SetEnabled_(false)
+    end
+  end
+
+
+end)
+
+
+
+
+
 -- Remember which view is active and which as been reset,
 -- so when the user activates cameraSmoothStyle, we only reset to view 1 once.
 local viewIsActive = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
@@ -4592,15 +4708,19 @@ hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true en
 local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
 hooksecurefunc("SetCVar", function(cvar, value)
+    -- print(cvar, value)
 
-    -- Automatically undo forbidden cvar changes.
-    if cvar == "CameraKeepCharacterCentered" and value == "1" then
+    -- Automatically undo forbidden motion sickness setting.
+    if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1) then
         print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
         SetCVar("CameraKeepCharacterCentered", 0)
+
+
     -- https://github.com/Mpstark/DynamicCam/issues/40
     elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
         print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
         SetCVar("cameraView", GetCVarDefault("cameraView"))
+
 
     -- Switch to a default view, if user switches to cameraSmoothStyle.
     elseif cvar == "cameraSmoothStyle" and value ~= "0" then
@@ -4610,159 +4730,9 @@ hooksecurefunc("SetCVar", function(cvar, value)
         if not viewIsReset[1] then ResetView(1) end
         if not viewIsActive[1] then SetView(1) end
     end
-end)
 
-
-
-
-
-
-local mouseLookSpeedSlider = nil
-hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
-    if not mouseLookSpeedSlider then 
-      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-      for i, child in ipairs(children) do
-        if child.Text then
-          if child.Text:GetText() == MOUSE_LOOK_SPEED then
-            -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
-            mouseLookSpeedSlider = child.SliderWithSteppers
-                        
-            
-            
-            -- TODO: Change tooltip.
-            -- mouseLookSpeedSlider:SetScript("OnEnter", function(self)
-                -- GameTooltip:SetOwner(self, "ANCHOR_BOTTOM", 0, -10)
-                -- GameTooltip:SetText("Overridden by \"Mouse Look\" settings\nof the addon DynamicCam!")
-            -- end)
-            -- mouseLookSpeedSlider:SetScript("OnLeave", function(self)
-                -- GameTooltip:Hide()
-            -- end)
-            
-            
-            
-            break
-          end
-        end
-      end
-    else
-      if mouseLookSpeedSlider.Slider:IsEnabled() then
-        mouseLookSpeedSlider:SetEnabled_(false)
-        
-        -- TODO: Make sure tooltip change presits or do it here.
-        
-      end
-    end
-end)
-
-
--- Wait some time to be on the safe side...
-C_Timer.After(1, function()
-
-    
-    -- TODO: Modify the default settings UI!
-    
-
-    -- Prevent the user from activating MOTION_SICKNESS_CHARACTER_CENTERED.
-
-    -- -- Hide the original motion sickness drop down.
-    -- InterfaceOptionsAccessibilityPanelMotionSicknessDropdown:Hide()
-
-    -- -- Replace it with my own copy, such that there will be no taint.
-    -- local cameraKeepCharacterCentered = "CameraKeepCharacterCentered";
-    -- local cameraReduceUnexpectedMovement = "CameraReduceUnexpectedMovement";
-    -- local motionSicknessOptions = {
-        -- {
-            -- text = MOTION_SICKNESS_NONE,
-            -- [cameraKeepCharacterCentered] = "0",
-            -- [cameraReduceUnexpectedMovement] = "0"
-        -- },
-        -- {
-            -- text = MOTION_SICKNESS_REDUCE_CAMERA_MOTION,
-            -- [cameraKeepCharacterCentered] = "0",
-            -- [cameraReduceUnexpectedMovement] = "1"
-        -- },
-        -- {
-            -- text = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r",
-            -- [cameraKeepCharacterCentered] = "1",
-            -- [cameraReduceUnexpectedMovement] = "0"
-        -- },
-        -- {
-            -- text = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r",
-            -- [cameraKeepCharacterCentered] = "1",
-            -- [cameraReduceUnexpectedMovement] = "1"
-        -- },
-    -- }
-    -- local function GetMotionSicknessSelected()
-        -- local SelectedcameraKeepCharacterCentered = GetCVar(cameraKeepCharacterCentered)
-        -- local SelectedcameraReduceUnexpectedMovement = GetCVar(cameraReduceUnexpectedMovement)
-
-        -- for option, cvars in pairs(motionSicknessOptions) do
-            -- if ( cvars[cameraKeepCharacterCentered] == SelectedcameraKeepCharacterCentered and cvars[cameraReduceUnexpectedMovement] == SelectedcameraReduceUnexpectedMovement ) then
-                -- return option;
-            -- end
-        -- end
-    -- end
-
-
-    -- local DynamicCamMotionSicknessDropdown = CreateFrame("Frame", "DynamicCamMotionSicknessDropdown", InterfaceOptionsAccessibilityPanel, "UIDropDownMenuTemplate")
-    -- DynamicCamMotionSicknessDropdown:SetPoint("TOPLEFT", InterfaceOptionsAccessibilityPanelMotionSicknessDropdown, "TOPLEFT", 0, 0)
-    -- -- Use in place of dropDown:SetWidth.
-    -- -- (Could not find where the original takes its width from, but 130 seems to be it.)
-    -- UIDropDownMenu_SetWidth(DynamicCamMotionSicknessDropdown, 130)
-    -- DynamicCamMotionSicknessDropdown.label = DynamicCamMotionSicknessDropdown:CreateFontString("DynamicCamMotionSicknessDropdownLabel", "BACKGROUND", "OptionsFontSmall")
-    -- DynamicCamMotionSicknessDropdown.label:SetPoint("BOTTOMLEFT", DynamicCamMotionSicknessDropdown, "TOPLEFT", 17, 3)
-    -- DynamicCamMotionSicknessDropdown.label:SetText(MOTION_SICKNESS_DROPDOWN)
-
-    -- local function DynamicCamMotionSicknessDropdown_Initialize()
-
-      -- -- This lead to taint when using the LFG "Start a group" button.
-      -- -- local selectedValue = UIDropDownMenu_GetSelectedValue(DynamicCamMotionSicknessDropdown)
-      -- -- But this function does nothing but this:
-      -- local selectedValue = DynamicCamMotionSicknessDropdown.selectedValue
-
-      -- local info = UIDropDownMenu_CreateInfo()
-
-      -- -- Called when this option is selected.
-      -- info.func = function(self)
-          -- -- Try to set the cvars. They will be rectified by the cvar hook above.
-          -- BlizzardOptionsPanel_SetCVarSafe(cameraKeepCharacterCentered, motionSicknessOptions[self.value][cameraKeepCharacterCentered])
-          -- BlizzardOptionsPanel_SetCVarSafe(cameraReduceUnexpectedMovement, motionSicknessOptions[self.value][cameraReduceUnexpectedMovement])
-          -- -- Then set the selected item accordingly.
-          -- DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
-          -- UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
-        -- end
-
-      -- for k, v in ipairs(motionSicknessOptions) do
-          -- info.text = v.text
-          -- info.value = k
-          -- info.checked = k == selectedValue
-          -- -- UIDropDownMenu_AddButton(info)
-
-          -- MyUIDropDownMenu_AddButton(info)
-      -- end
-
-    -- end
-
-
-    -- UIDropDownMenu_Initialize(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown_Initialize)
-
-    -- DynamicCamMotionSicknessDropdown.value = GetMotionSicknessSelected()
-    -- UIDropDownMenu_SetSelectedValue(DynamicCamMotionSicknessDropdown, DynamicCamMotionSicknessDropdown.value)
-
-
-    -- -- Place a tooltip warning.
-    -- DynamicCamMotionSicknessDropdown:SetScript("OnEnter", function(self)
-        -- GameTooltip:SetOwner(self, "ANCHOR_TOP", 0, 10)
-        -- GameTooltip:SetText("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" would disable many features of the\naddon DynamicCam and is therefore disabled.")
-    -- end)
-    -- DynamicCamMotionSicknessDropdown:SetScript("OnLeave", function(self)
-        -- GameTooltip:Hide()
-    -- end)
 
 end)
-
-
-
 
 
 
