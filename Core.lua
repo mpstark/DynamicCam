@@ -811,6 +811,11 @@ function DynamicCam:Startup()
         -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
         SetCVar("CameraKeepCharacterCentered", 0)
     end
+    
+    if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 0 then
+        -- print("|cFFFF0000CameraReduceUnexpectedMovement = 0 prevented by DynamicCam!|r")
+        SetCVar("CameraReduceUnexpectedMovement", 1)
+    end
 
     -- https://github.com/Mpstark/DynamicCam/issues/40
     local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
