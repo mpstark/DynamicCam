@@ -128,33 +128,44 @@ local defaultHiddenFrames = {
 
 
 
--- TODO: Make it work with bartender again.
+
 if Bartender4 then
-  -- defaultHiddenFrames["BT4Bar1"] = true
-  -- defaultHiddenFrames["BT4Bar2"] = true
-  -- defaultHiddenFrames["BT4Bar3"] = true
-  -- defaultHiddenFrames["BT4Bar4"] = true
-  -- defaultHiddenFrames["BT4Bar5"] = true
-  -- defaultHiddenFrames["BT4Bar6"] = true
-  -- defaultHiddenFrames["BT4Bar7"] = true
-  -- defaultHiddenFrames["BT4Bar8"] = true
-  -- defaultHiddenFrames["BT4Bar9"] = true
-  -- defaultHiddenFrames["BT4Bar10"] = true
-  -- defaultHiddenFrames["BT4BarBagBar"] = true
-  -- defaultHiddenFrames["BT4BarMicroMenu"] = true
-  -- defaultHiddenFrames["BT4BarStanceBar"] = true
-  -- defaultHiddenFrames["BT4BarPetBar"] = true
+  defaultHiddenFrames["BT4Bar1"] = true
+  defaultHiddenFrames["BT4Bar2"] = true
+  defaultHiddenFrames["BT4Bar3"] = true
+  defaultHiddenFrames["BT4Bar4"] = true
+  defaultHiddenFrames["BT4Bar5"] = true
+  defaultHiddenFrames["BT4Bar6"] = true
+  defaultHiddenFrames["BT4Bar7"] = true
+  defaultHiddenFrames["BT4Bar8"] = true
+  defaultHiddenFrames["BT4Bar9"] = true
+  defaultHiddenFrames["BT4Bar10"] = true
+  defaultHiddenFrames["BT4Bar11"] = true
+  defaultHiddenFrames["BT4Bar12"] = true
+  defaultHiddenFrames["BT4Bar13"] = true
+  defaultHiddenFrames["BT4Bar14"] = true
+  defaultHiddenFrames["BT4Bar15"] = true
+  defaultHiddenFrames["BT4BarBagBar"] = true
+  defaultHiddenFrames["BT4BarMicroMenu"] = true
+  defaultHiddenFrames["BT4BarStanceBar"] = true
+  defaultHiddenFrames["BT4BarPetBar"] = true
 else
+  defaultHiddenFrames["MainMenuBar"] = true
+  defaultHiddenFrames["MultiBarLeft"] = true
+  defaultHiddenFrames["MultiBarRight"] = true
+  defaultHiddenFrames["MultiBarBottomLeft"] = true
+  defaultHiddenFrames["MultiBarBottomRight"] = true
+  defaultHiddenFrames["MultiBar5"] = true
+  defaultHiddenFrames["MultiBar6"] = true
+  defaultHiddenFrames["MultiBar7"] = true
+  defaultHiddenFrames["MultiBar8"] = true
   defaultHiddenFrames["ExtraActionBarFrame"] = true
-  defaultHiddenFrames["MainMenuBarArtFrame"] = true
   defaultHiddenFrames["MainMenuBarVehicleLeaveButton"] = true
   defaultHiddenFrames["MicroButtonAndBagsBar"] = true
   defaultHiddenFrames["MultiCastActionBarFrame"] = true
-  defaultHiddenFrames["PetActionBarFrame"] = true
-  defaultHiddenFrames["PossessBarFrame"] = true
-  defaultHiddenFrames["StanceBarFrame"] = true
-  defaultHiddenFrames["MultiBarRight"] = true
-  defaultHiddenFrames["MultiBarLeft"] = true
+  defaultHiddenFrames["StanceBar"] = true
+  defaultHiddenFrames["PetActionBar"] = true
+  defaultHiddenFrames["PossessBar"] = true
 end
 
 
