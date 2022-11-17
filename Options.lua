@@ -4697,8 +4697,11 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
           mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
               GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
               GameTooltip:AddLine("|cFFFF0000Disabled!|r", _, _, _, true)
-              GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually!", _, _, _, true)
+              GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
               GameTooltip:Show()
+          end)
+          mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
+              GameTooltip:Hide()
           end)
 
           break

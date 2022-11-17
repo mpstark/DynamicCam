@@ -1843,10 +1843,6 @@ function DynamicCam:EventHandler(event)
         evaluateSituationsNextFrame = true
     end
 
-    -- double the event, since a lot of events happen before the condition turns out to be true
-    -- Ludius (17.10.2020): Probably not needed any more now that we are
-    -- calling EvaluateSituations() in the next frame..
-    -- self:ScheduleTimer(function() evaluateSituationsNextFrame = true end, 0.2)
 end
 
 function DynamicCam:RegisterEvents()

@@ -277,7 +277,7 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 
             ["100"] = {
                 name = "Mounted",
-                events = {"SPELL_UPDATE_USABLE", "UNIT_AURA"},
+                events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
                 priority = 100,
                 condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
             },
