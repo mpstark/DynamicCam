@@ -711,7 +711,7 @@ end
 
 function DynamicCam:FadeInUI(fadeInTime)
 
-    print("FadeInUI", fadeInTime, GetTime())
+    -- print("FadeInUI", fadeInTime, GetTime())
 
     if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
 
@@ -1193,7 +1193,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- FadeInUI() above. Only if we are neither entering nor exiting a situation
         -- with UI fade, we show the UI, to be on the safe side.
         elseif not oldSituation or not oldSituation.hideUI.enabled then
-            print("be on safe side")
             self:FadeInUI(0)
         end
 
