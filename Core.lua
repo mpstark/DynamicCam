@@ -640,7 +640,23 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
     -- we are not updating ludius_alphaBeforeFadeOut.
     -- Because ludius_alphaBeforeFadeOut is only set to nil after a fade-in is complete.
     if UIParent.ludius_alphaBeforeFadeOut == nil then
-      UIParent.ludius_alphaBeforeFadeOut = UIParent:GetAlpha()
+
+      -- If fading of another source (e.g. Immersion) is in progress.
+      if UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
+
+        -- When fading out we take the maximum alpha of the other fade as our alpha before fade out.
+        UIParent.ludius_alphaBeforeFadeOut = math.max(UIParent.fadeInfo.startAlpha, UIParent.fadeInfo.endAlpha)
+
+        -- Stop the other fade progress.
+        -- (We do not want to use the UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn()
+        -- which we  have seen to cause errors in combat lockdown when used with UIParent.)
+        UIParent.fadeInfo.startAlpha = UIParent:GetAlpha()
+        UIParent.fadeInfo.endAlpha = UIParent:GetAlpha()
+        UIParent.fadeInfo.timeToFade = -1
+
+      else
+        UIParent.ludius_alphaBeforeFadeOut = UIParent:GetAlpha()
+      end
       -- print("Remembering", UIParent.ludius_alphaBeforeFadeOut)
     end
 
@@ -705,6 +721,14 @@ function DynamicCam:FadeInUI(fadeInTime)
         uiParentHidden = false
     end
 
+    -- If fading of another source (e.g. Immersion) is in progress, stop it.
+    if UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
+        UIParent.fadeInfo.startAlpha = UIParent:GetAlpha()
+        UIParent.fadeInfo.endAlpha = UIParent:GetAlpha()
+        UIParent.fadeInfo.timeToFade = -1
+    end
+
+
     if UIParent.ludius_alphaBeforeFadeOut then
 
         UIEscapeHandlerDisable()
@@ -714,6 +738,7 @@ function DynamicCam:FadeInUI(fadeInTime)
             UIParent.ludius_alphaBeforeFadeOut = nil
         end
 
+        -- print("UIParent.ludius_alphaBeforeFadeOut", UIParent.ludius_alphaBeforeFadeOut)
         EaseUIParentAlpha(UIParent.ludius_alphaBeforeFadeOut, fadeInTime, FadeInCallback)
 
         Addon.ShowUI(fadeInTime, false)
@@ -811,7 +836,7 @@ function DynamicCam:Startup()
         -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
         SetCVar("CameraKeepCharacterCentered", 0)
     end
-    
+
     if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 0 then
         -- print("|cFFFF0000CameraReduceUnexpectedMovement = 0 prevented by DynamicCam!|r")
         SetCVar("CameraReduceUnexpectedMovement", 1)
