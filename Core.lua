@@ -642,7 +642,7 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
     if UIParent.ludius_alphaBeforeFadeOut == nil then
 
       -- If fading of another source (e.g. Immersion) is in progress.
-      if UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
+      if fadeOutTime > 0 and UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
 
         -- When fading out we take the maximum alpha of the other fade as our alpha before fade out.
         UIParent.ludius_alphaBeforeFadeOut = math.max(UIParent.fadeInfo.startAlpha, UIParent.fadeInfo.endAlpha)
@@ -711,7 +711,7 @@ end
 
 function DynamicCam:FadeInUI(fadeInTime)
 
-    -- print("FadeInUI", fadeInTime, GetTime())
+    print("FadeInUI", fadeInTime, GetTime())
 
     if self.hideEntireUITimer then LibStub("AceTimer-3.0"):CancelTimer(self.hideEntireUITimer) end
 
@@ -722,7 +722,7 @@ function DynamicCam:FadeInUI(fadeInTime)
     end
 
     -- If fading of another source (e.g. Immersion) is in progress, stop it.
-    if UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
+    if fadeInTime > 0 and UIParent.fadeInfo and UIParent.fadeInfo.fadeTimer ~= nil and UIParent.fadeInfo.timeToFade ~= nil and tonumber(UIParent.fadeInfo.fadeTimer) < tonumber(UIParent.fadeInfo.timeToFade) then
         UIParent.fadeInfo.startAlpha = UIParent:GetAlpha()
         UIParent.fadeInfo.endAlpha = UIParent:GetAlpha()
         UIParent.fadeInfo.timeToFade = -1
@@ -1193,6 +1193,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
         -- FadeInUI() above. Only if we are neither entering nor exiting a situation
         -- with UI fade, we show the UI, to be on the safe side.
         elseif not oldSituation or not oldSituation.hideUI.enabled then
+            print("be on safe side")
             self:FadeInUI(0)
         end
 
