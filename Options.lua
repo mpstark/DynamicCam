@@ -22,7 +22,9 @@ end
 
 local Options = DynamicCam.Options
 local _
-local S, SID
+
+-- To store the currently selected situation and situation ID.
+local S, SID, lastSelectedSID
 local copiedSituationID
 local exportName, exportAuthor
 
@@ -410,6 +412,13 @@ local function SetGroupVars(groupVarsTable, override)
     Options:SendMessage("DC_BASE_CAMERA_UPDATED")
 end
 
+
+local function GreyWhenInactive(name, enabled)
+  if not enabled then
+    return "|cff909090"..name.."|r"
+  end
+  return name
+end 
 
 local function ColoredNames(name, groupVarsTable, forSituations)
     if not forSituations then
@@ -1716,12 +1725,14 @@ local function CreateSituationSettingsTab(tabOrder)
                 desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\" (reset recommended).|r\n|cFFEE0000- Erroneous \"Situation Controls\" (changes required).|r",
                 get =
                     function()
+                        lastSelectedSID = SID
                         return SID
                     end,
                 set =
                     function(_, newValue)
                         S = DynamicCam.db.profile.situations[newValue]
                         SID = newValue
+                        lastSelectedSID = newValue
                     end,
                 values =
                     function()
@@ -1820,7 +1831,10 @@ local function CreateSituationSettingsTab(tabOrder)
 
                     viewZoomSettings = {
                         type = "group",
-                        name = "Zoom/View",
+                        name =
+                            function()
+                                return GreyWhenInactive("Zoom/View", S.viewZoom.enabled)
+                            end,
                         order = 1,
                         args = {
 
@@ -2389,7 +2403,10 @@ Or for short:
 
                     rotationSettings = {
                         type = "group",
-                        name = "Rotation",
+                        name =
+                            function()
+                                return GreyWhenInactive("Rotation", S.rotation.enabled)
+                            end,
                         order = 2,
                         args = {
 
@@ -2639,7 +2656,10 @@ Or for short:
 
                     hideUISettings = {
                         type = "group",
-                        name = "Fade Out UI",
+                        name =
+                            function()
+                                return GreyWhenInactive("Fade Out UI", S.hideUI.enabled)
+                            end,
                         order = 3,
                         args = {
                             hideUIToggle = {
@@ -4012,21 +4032,20 @@ function Options:ReselectSituation()
     self:SelectSituation()
 end
 
+
+-- If there has been user interaction with situation settings before (lastSelectedSID ~= nil),
+-- do not change the currently selected situation.
 function Options:SelectSituation(selectMe)
     if selectMe and DynamicCam.db.profile.situations[selectMe] then
         S = DynamicCam.db.profile.situations[selectMe]
         SID = selectMe
-    else
-        if DynamicCam.currentSituationID then
-            S = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
-            SID = DynamicCam.currentSituationID
-        else
-            if not SID or not S then
-                SID, S = next(DynamicCam.db.profile.situations)
-            end
-        end
+    elseif not lastSelectedSID and DynamicCam.currentSituationID then
+        S = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
+        SID = DynamicCam.currentSituationID
+    elseif not SID or not S then
+        SID, S = next(DynamicCam.db.profile.situations)
     end
-
+    
     LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
 end
 
