@@ -465,7 +465,7 @@ end
 local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
   -- print("ConditionalSetIgnoreParentAlpha", frame, ignoreParentAlpha)
 
-  if not frame then return end
+  if not frame or ignoreParentAlpha == nil then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
     frame.ludius_ignoreParentAlphaBeforeFadeOut = frame:IsIgnoringParentAlpha()
