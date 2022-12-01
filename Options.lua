@@ -501,34 +501,42 @@ local function GetSituationList()
     local situationList = {}
 
     for id, situation in pairs(DynamicCam.db.profile.situations) do
-        local prefix = ""
-        local suffix = ""
-        local customPrefix = ""
-        local modifiedSuffix = ""
+    
+        if not situation.name then
+            DynamicCam.db.profile.situations[id] = nil
+            -- print("Purging situation", id)
+        else
+    
+            local prefix = ""
+            local suffix = ""
+            local customPrefix = ""
+            local modifiedSuffix = ""
 
-        if situation.errorEncountered then
-            prefix = "|cFFEE0000"
-            suffix = "|r"
-        elseif DynamicCam.currentSituationID == id then
-            prefix = "|cFF00FF00"
-            suffix = "|r"
-        elseif not situation.enabled then
-            prefix = "|cFF808A87"
-            suffix = "|r"
-        elseif DynamicCam.conditionExecutionCache[id] then
-            prefix = "|cFF63B8FF"
-            suffix = "|r"
+            if situation.errorEncountered then
+                prefix = "|cFFEE0000"
+                suffix = "|r"
+            elseif DynamicCam.currentSituationID == id then
+                prefix = "|cFF00FF00"
+                suffix = "|r"
+            elseif not situation.enabled then
+                prefix = "|cFF808A87"
+                suffix = "|r"
+            elseif DynamicCam.conditionExecutionCache[id] then
+                prefix = "|cFF63B8FF"
+                suffix = "|r"
+            end
+
+            if string.find(id, "custom") then
+                customPrefix = "Custom: "
+            end
+
+            if not SituationControlsAreDefault(id) then
+                modifiedSuffix = "|cFFFF6600" .. "  (modified)" .. "|r"
+            end
+
+            -- print(id, situation.name)
+            situationList[id] = prefix .. customPrefix .. situation.name .. " [Priority: " .. situation.priority .. "]" .. suffix .. modifiedSuffix
         end
-
-        if string.find(id, "custom") then
-            customPrefix = "Custom: "
-        end
-
-        if not SituationControlsAreDefault(id) then
-            modifiedSuffix = "|cFFFF6600" .. "  (modified)" .. "|r"
-        end
-
-        situationList[id] = prefix .. customPrefix .. situation.name .. " [Priority: " .. situation.priority .. "]" .. suffix .. modifiedSuffix
     end
 
     return situationList
