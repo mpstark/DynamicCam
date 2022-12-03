@@ -75,6 +75,8 @@ DynamicCam.situationDefaults = {
             ["BuffFrame"]    = true,
             ["DebuffFrame"]  = true,
             ["GossipFrame"]  = true,
+            ["QuestFrame"]  = true,
+            ["MerchantFrame"]  = true,
           },
 
 

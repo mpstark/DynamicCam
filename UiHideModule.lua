@@ -365,9 +365,8 @@ local function GameTooltipHider(self)
   end
 end
 
+TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, GameTooltipHider)
 GameTooltip:HookScript("OnTooltipSetDefaultAnchor", GameTooltipHider)
--- TODO: Removed in 10.0. Do we still need it? https://wowpedia.fandom.com/wiki/Patch_10.0.2/API_changes
--- GameTooltip:HookScript("OnTooltipSetItem", GameTooltipHider)
 GameTooltip:HookScript("OnShow", GameTooltipHider)
 
 

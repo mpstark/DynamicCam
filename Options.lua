@@ -502,7 +502,7 @@ local function GetSituationList()
 
     for id, situation in pairs(DynamicCam.db.profile.situations) do
     
-        if not situation.name then
+        if not situation.name or not situation.priority then
             DynamicCam.db.profile.situations[id] = nil
             -- print("Purging situation", id)
         else

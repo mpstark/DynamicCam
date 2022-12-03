@@ -31,10 +31,3 @@ externals:
         url: https://github.com/Mpstark/LibEasing.git
     Libs/LibCompress:
         url: https://repos.wowace.com/wow/libcompress/trunk
-
-enable-nolib-creation: no
-
-ludius-changelog: yes
-
-ignore:
- - README.md
