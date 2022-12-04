@@ -4665,7 +4665,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
           motionSicknessDropDown:SetScript("OnEnter", function(self)
               GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
               GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
-              GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the\naddon DynamicCam and is therefore disabled.\n\nFurthermore, since WoW 10.0 not using the \"" ..MOTION_SICKNESS_REDUCE_CAMERA_MOTION .. "\" setting heavily disrupts the zoom-in of DynamicCam's Reactive Zoom and view changes, which is why this setting is enforced.", _, _, _, true)
+              GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
               GameTooltip:Show()
           end)
           motionSicknessDropDown:SetScript("OnLeave", function(self)
@@ -4674,21 +4674,16 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
 
           -- Prevent unallowed selections.
-          local function UndoSelections(self, value)
-            -- print("UndoSelections")
+          local function UndoSelections(self, valueTable)
 
             -- Only do this while the drop down is modified.
             if not motionSicknessDropDown then return end
 
-            -- There is only one allowed selection!
-            self:SetSelectedIndex(indexReduced)
-
-            -- Before 10.0.0, CameraReduceUnexpectedMovement was not messing with the zoom in and could be allowed.
-            -- if value == indexBoth then
-              -- self:SetSelectedIndex(indexReduced)
-            -- elseif value == indexCentered then
-              -- self:SetSelectedIndex(indexNone)
-            -- end
+            if valueTable.value == indexBoth then
+              self:SetSelectedIndex(indexReduced)
+            elseif valueTable.value == indexCentered then
+              self:SetSelectedIndex(indexNone)
+            end
           end
 
           hooksecurefunc(motionSicknessDropDown, "OnEntryClicked", UndoSelections)
@@ -4708,7 +4703,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
             k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
             indexBoth = k.value
           elseif k.label == MOTION_SICKNESS_NONE then
-            k.label = "|cFFFF0000" .. MOTION_SICKNESS_NONE .. " (disabled)|r"
+            -- k.label = MOTION_SICKNESS_NONE
             indexNone = k.value
           elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
             -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
@@ -4822,9 +4817,6 @@ hooksecurefunc("SetCVar", function(cvar, value)
         print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
         SetCVar("CameraKeepCharacterCentered", 0)
 
-    elseif cvar == "CameraReduceUnexpectedMovement" and (value == "0" or value == 0) then
-        print("|cFFFF0000CameraReduceUnexpectedMovement = 0 prevented by DynamicCam!|r")
-        SetCVar("CameraReduceUnexpectedMovement", 1)
 
     -- https://github.com/Mpstark/DynamicCam/issues/40
     elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
