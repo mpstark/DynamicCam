@@ -61,28 +61,31 @@ DynamicCam.situationDefaults = {
         fadeOutTime        = 1,
         fadeInTime         = 1,
 
-        keepTooltip        = true,
-        keepAlertFrames    = true,
-        keepFrameRate      = false,
-        keepChatFrame      = false,
-        keepTrackingBar    = false,
+        emergencyShowEscEnabled = true,
 
+        hideEntireUI       = false,
+        keepFrameRate      = false,
+
+        keepAlertFrames    = true,
+        keepTooltip        = true,
         keepMinimap        = false,
+        keepChatFrame      = false,
         keepPartyRaidFrame = false,
+        keepTrackingBar    = false,
+        keepEncounterBar   = false,
 
         keepCustomFrames   = false,
         customFramesToKeep = {
-            ["BuffFrame"]    = true,
-            ["DebuffFrame"]  = true,
-            ["GossipFrame"]  = true,
-            ["QuestFrame"]  = true,
-            ["MerchantFrame"]  = true,
+            ["AuctionHouseFrame"] = true,
+            ["BuffFrame"]         = true,
+            ["DebuffFrame"]       = true,
+            ["GossipFrame"]       = true,
+            ["MerchantFrame"]     = true,
+            ["PetStableFrame"]    = true,
+            ["QuestFrame"]        = true,
+            ["StaticPopup1"]      = true,
           },
 
-
-        hideEntireUI = false,
-
-        emergencyShowEscEnabled = true,
     },
 
 
@@ -98,7 +101,6 @@ DynamicCam.defaults = {
     profile = {
 
         -- Global settings.
-        firstRun = true,
 
         zoomRestoreSetting = "adaptive",
         settingsPanelIgnoreParentAlpha = true,
@@ -300,13 +302,13 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 
             ["103"] = {
                 name = "Druid Travel Form",
+                events = {"UPDATE_SHAPESHIFT_FORM"},
                 executeOnInit = [[this.travelFormIds = {
   [3] = true,  -- Travel
   [4] = true,  -- Aquatic
   [27] = true, -- Swift Flight
   [29] = true, -- Flight
 }]],
-                events = {"UPDATE_SHAPESHIFT_FORM"},
                 priority = 100,
                 condition = [[local formId = GetShapeshiftFormID()
 if formId and this.travelFormIds[formId] then
@@ -315,7 +317,6 @@ else
   return false
 end]],
             },
-
 
             ["120"] = {
                 name = "Dracthyr Soar",
@@ -328,8 +329,62 @@ end
 return false]],
             },
 
+            ["125"] = {
+                name = "Dragonriding",
+                events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
+                executeOnInit = [[this.lastActiveMount = nil
+
+this.GetCurrentMount = function()
+  if this.lastActiveMount then
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
+    if active then
+      return isForDragonRiding
+    end
+  end
+
+  for _, v in pairs (C_MountJournal.GetMountIDs()) do
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
+    if isActive then
+      this.lastActiveMount = v
+      return isForDragonriding
+    end
+  end
+
+  return nil
+end]],
+                priority = 101,
+                condition = [[return IsMounted() and this.GetCurrentMount()]],
+            },
+            ["126"] = {
+                name = "Dragonriding (flying)",
+                events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+                executeOnInit = [[this.lastActiveMount = nil
+
+this.GetCurrentMount = function()
+  if this.lastActiveMount then
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
+    if active then
+      return isForDragonRiding
+    end
+  end
+
+  for _, v in pairs (C_MountJournal.GetMountIDs()) do
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
+    if isActive then
+      this.lastActiveMount = v
+      return isForDragonriding
+    end
+  end
+
+  return nil
+end]],
+                priority = 102,
+                condition = [[return IsMounted() and IsFlying() and this.GetCurrentMount()]],
+            },
+
             ["200"] = {
                 name = "Hearth/Teleport",
+                events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 executeOnInit = [[this.spells = {
      556,  -- Astral Recall
     3561,  -- Teleport: Stormwind
@@ -414,12 +469,14 @@ return false]],
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
   375357,  -- Timewalker's Hearthstone
+  395277,  -- Teleport: Valdrakken
 
 }]],
-                events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
                 priority = 130,
-                condition = [[for k,v in pairs(this.spells) do
-    if GetSpellInfo(v) and GetSpellInfo(v) == UnitCastingInfo("player") then
+                condition = [[local name = UnitCastingInfo("player")
+for _, v in pairs(this.spells) do
+    local hearthName = GetSpellInfo(v)
+    if hearthName and hearthName == name then
         return true
     end
 end
@@ -431,10 +488,16 @@ this.rotationTime = this.transitionTime]],
 
             ["201"] = {
                 name = "Annoying Spells",
-                executeOnInit = "this.buffs = {46924, 51690, 188499, 210152}",
                 events = {"UNIT_AURA"},
+                executeOnInit = [[this.buffs = {
+   46924,  -- Bladestorm
+   51690,  -- Killing Spree
+  188499,  -- Blade Dance
+  210152,  -- Death Sweep
+}
+]],
                 priority = 1000,
-                condition = [[for k,v in pairs(this.buffs) do
+                condition = [[for _, v in pairs(this.buffs) do
     local name = GetSpellInfo(v)
     if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
         return true
@@ -445,7 +508,8 @@ return false]],
 
             ["300"] = {
                 name = "NPC Interaction",
-                executeOnInit = [[this.frames = {"BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "AuctionHouseFrame", "GarrisonCapacitiveDisplayFrame", "WardrobeFrame"}
+                events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRAINER_CLOSED", "TRAINER_SHOW", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN"},
+                executeOnInit = [[this.frames = {"AuctionHouseFrame", "BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GarrisonCapacitiveDisplayFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "WardrobeFrame"}
 
 this.mountVendors = {
   ["62821"] = 460, -- Grand Expedition Yak
@@ -470,7 +534,6 @@ function this:GetCurrentMount()
   end
   return nil
 end]],
-                events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "CLOSE_TABARD_FRAME", "OPEN_TABARD_FRAME", "TRAINER_CLOSED", "TRAINER_SHOW", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE"},
                 priority = 110,
                 condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
@@ -485,13 +548,13 @@ if IsMounted() then
 end
 
 local shown = false
-for k, v in pairs(this.frames) do
+for _, v in pairs(this.frames) do
   if (_G[v] and _G[v]:IsShown()) then
     shown = true
     break
   end
 end
-return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
+return shown and UnitExists("npc")]],
             },
 
             ["301"] = {
@@ -507,6 +570,28 @@ return shown and UnitExists("npc") and UnitIsUnit("npc", "target")]],
                 priority = 20,
                 condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
                 delay = 1,
+            },
+
+            ["320"] = {
+                name = "Gathering",
+                events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
+                executeOnInit = [[this.spells = {
+      10768,  -- Skinning
+     265819,  -- Herb Gathering
+     366260,  -- Mining
+
+}]],
+                priority = 120,
+                condition = [[local name, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
+-- Uncomment this to find out more spell IDs.
+-- print(name, spellId)
+for _, v in pairs(this.spells) do
+    gatheringName = GetSpellInfo(v)
+    if gatheringName and gatheringName == name then
+        return true
+    end
+end
+return false]]
             },
 
             ["303"] = {

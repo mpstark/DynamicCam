@@ -418,7 +418,7 @@ local function GreyWhenInactive(name, enabled)
     return "|cff909090"..name.."|r"
   end
   return name
-end 
+end
 
 local function ColoredNames(name, groupVarsTable, forSituations)
     if not forSituations then
@@ -501,12 +501,12 @@ local function GetSituationList()
     local situationList = {}
 
     for id, situation in pairs(DynamicCam.db.profile.situations) do
-    
+
         if not situation.name or not situation.priority then
             DynamicCam.db.profile.situations[id] = nil
             -- print("Purging situation", id)
         else
-    
+
             local prefix = ""
             local suffix = ""
             local customPrefix = ""
@@ -786,7 +786,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                         inline = true,
                         args = {
 
-                            export = {
+                            toggleVisualAid = {
                                 type = "execute",
                                 name = "Toggle Visual Aid",
                                 func = function() DynamicCam:ToggleRZVA() end,
@@ -2716,7 +2716,26 @@ Or for short:
                                         return true
                                     end,
                             },
-                            blank1 = {type = "description", name = " ", order = 1.7, },
+                            blank0 = {type = "description", name = "", width = 0.3, order = 1.6, },
+
+                            adjustToImmersion = {
+                                type = "execute",
+                                name = "Adjust to Immersion",
+                                desc = "Many people use the Addon Immersion in combination with DynamicCam. Immersion has some hide UI features of its own which come into effect during NPC interaction. Under certain circumstances, DynamicCam's hide UI overrides that of Immersion. To prevent this, make your desired setting here in DynamicCam. Click this button to use the same fade-in and fade-out times as Immersion. For even more options, check out Ludius's other addon called \"Immersion ExtraFade\".",
+                                func =
+                                    function()
+                                        S.hideUI.fadeOutTime = 0.2
+                                        S.hideUI.fadeInTime = 0.5
+                                    end,
+                                order = 1.7,
+                                width = 1,
+                                hidden =
+                                    function()
+                                        return SID ~= "300"
+                                    end,
+                            },
+
+                            blank1 = {type = "description", name = " ", order = 1.9, },
 
                             hideUIGroup = {
                                 type = "group",
@@ -2823,7 +2842,7 @@ Or for short:
                                         name = "Fade Opacity",
                                         desc = "Fade the UI to this opacity when entering the situation.",
                                         min = 0,
-                                        max = .99,
+                                        max = 1,
                                         step = .01,
                                         disabled =
                                             function()
@@ -2961,7 +2980,25 @@ Or for short:
                                                 width = 0.9,
                                             },
 
-                                            n6 = {order = 6, type = "description", name = " ",},
+                                            keepEncounterBar = {
+                                                type = "toggle",
+                                                name = "Keep Encounter Frame (Dragonriding Vigor)",
+                                                desc = "Do not fade out the Encounter Frame, which while dragonriding is the Vigor display.",
+                                                get =
+                                                    function()
+                                                        if S.hideUI.hideEntireUI then return false end
+                                                        return S.hideUI.keepEncounterBar
+                                                    end,
+                                                set =
+                                                    function(_, newValue)
+                                                        S.hideUI.keepEncounterBar = newValue
+                                                        ApplyUIFade()
+                                                    end,
+                                                order = 6,
+                                                width = "full",
+                                            },
+
+                                            n7 = {order = 7, type = "description", name = " ",},
 
                                             keepCustomFrames = {
                                                 type = 'toggle',
@@ -2977,7 +3014,7 @@ Or for short:
                                                         S.hideUI.keepCustomFrames = newValue
                                                         ApplyUIFade()
                                                     end,
-                                                order = 7,
+                                                order = 8,
                                                 width = 2,
                                             },
                                             customFramesToKeep = {
@@ -2987,11 +3024,13 @@ Or for short:
                                                 get =
                                                     function()
                                                         returnString = ""
-                                                        for k, _ in pairs(S.hideUI.customFramesToKeep) do
-                                                            if returnString ~= "" then
-                                                                returnString = returnString .. ", "
+                                                        for k, v in pairs(S.hideUI.customFramesToKeep) do
+                                                            if v == true then
+                                                                if returnString ~= "" then
+                                                                    returnString = returnString .. ", "
+                                                                end
+                                                                returnString = returnString .. k
                                                             end
-                                                            returnString = returnString .. k
                                                         end
                                                         return returnString
                                                     end,
@@ -3004,12 +3043,20 @@ Or for short:
                                                             -- Not checking if frame exists, because some frames are only created when needed (e.g. DebuffFrame).
                                                             S.hideUI.customFramesToKeep[v] = true
                                                         end
+
+                                                        -- We have to set unused default frames explicitly to false, otherwise they will be put back on reload.
+                                                        for k, _ in pairs(DynamicCam.situationDefaults.hideUI.customFramesToKeep) do
+                                                            if S.hideUI.customFramesToKeep[k] == nil then
+                                                                S.hideUI.customFramesToKeep[k] = false
+                                                            end
+                                                        end
+
                                                         ApplyUIFade()
                                                     end,
                                                 disabled = function() return not S.hideUI.keepCustomFrames end,
                                                 multiline = 3,
-                                                order = 8,
-                                                width = "double",
+                                                order = 9,
+                                                width = "full",
                                             },
 
 
@@ -4053,7 +4100,7 @@ function Options:SelectSituation(selectMe)
     elseif not SID or not S then
         SID, S = next(DynamicCam.db.profile.situations)
     end
-    
+
     LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
 end
 

@@ -159,8 +159,8 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
     -- Also using the frame to evaluate situations one frame after an event
     -- is triggered (see EventHandler()). This way we are never too early.
     if evaluateSituationsNextFrame then
-        evaluateSituationsNextFrame = false
         DynamicCam:EvaluateSituations()
+        evaluateSituationsNextFrame = false
     end
 
     -- When we are going into a view, the zoom level of the new view is returned
@@ -187,14 +187,19 @@ local function DC_RunScript(situationID, scriptID)
     if not script or script == "" then return end
 
     -- make sure that we're not creating tables willy nilly
-    if not functionCache[script] then
+    if not functionCache[situationID] then
+        functionCache[situationID] = {}
+    end
+
+
+    if not functionCache[situationID][scriptID] or functionCache[situationID][scriptID] ~= script then
 
         local f, msg = loadstring(script)
         if not f then
             DynamicCam:ScriptError(situationID, scriptID, "syntax", msg)
             return nil
         else
-            functionCache[script] = f
+            functionCache[situationID][scriptID] = f
         end
 
         -- if env, set the environment to that
@@ -214,12 +219,12 @@ local function DC_RunScript(situationID, scriptID)
                 situationEnvironments[situationID].this = {}
             end
 
-            setfenv(functionCache[script], situationEnvironments[situationID])
+            setfenv(functionCache[situationID][scriptID], situationEnvironments[situationID])
         end
     end
 
 
-    local result = {pcall(functionCache[script])}
+    local result = {pcall(functionCache[situationID][scriptID])}
 
     if result[1] == false then
         DynamicCam:ScriptError(situationID, scriptID, "runtime", result[2])
@@ -495,7 +500,7 @@ fadeUIEscapeHandlerFrame:SetScript("OnHide", function(self)
     if not DynamicCam.db.profile.situations[DynamicCam.currentSituationID].hideUI.emergencyShowEscEnabled then return end
 
     -- We do not even have to Show() UIParent here, because whenever
-    -- UIParent is hidden the first press of ESCAPE will bring the
+    -- UIParent is hidden the first press of ESCAPE will bring
     -- UIParent back. Only a second ESCAPE press would then hide
     -- all shown UISpecialFrames. That's why we are always hiding
     -- fadeUIEscapeHandlerFrame after UIParent's OnHide handler.
@@ -526,6 +531,7 @@ UIParent:HookScript("OnShow", function()
 end)
 
 
+
 -- To hide fadeUIEscapeHandlerFrame without triggering its OnHide script.
 local function UIEscapeHandlerDisable()
     if fadeUIEscapeHandlerFrame:IsShown() then
@@ -537,6 +543,11 @@ local function UIEscapeHandlerDisable()
 end
 -- When the UI is loaded fadeUIEscapeHandlerFrame is shown, so we hide it.
 UIEscapeHandlerDisable()
+
+
+
+-- To prevent unintended showing of UIParent, we set this flag whenever we have hidden it.
+local uiParentHidden = false
 
 
 
@@ -552,8 +563,8 @@ enterCombatFrame:SetScript("OnEvent", function()
     if not UIParent:IsShown() then
         local fadeUIEscapeHandlerShown = fadeUIEscapeHandlerFrame:IsShown()
         if fadeUIEscapeHandlerShown then UIEscapeHandlerDisable() end
-        UIParent:Show()
         uiParentHidden = false
+        UIParent:Show()
         if fadeUIEscapeHandlerShown then fadeUIEscapeHandlerFrame:Show() end
     end
 
@@ -607,12 +618,19 @@ cinematicTrackingFrame:SetScript("OnEvent", function(_, event)
 end)
 
 
--- To furthermore prevent unintended showing of UIParent, we set this flag whenever we have hidden it.
-local uiParentHidden = false
 
-
-
-
+-- To prevent other addons (Immersion, I'm looking in your direction) from
+-- fading-in UIParent while DynamicCam has hidden it.
+local intendedUIParentAlpha = nil
+hooksecurefunc(UIParent, "SetAlpha", function(self, alpha)
+  -- print("UIParent SetAlpha", alpha, intendedUIParentAlpha)
+  if intendedUIParentAlpha ~= nil and alpha ~= intendedUIParentAlpha then
+      -- print("no")
+      UIParent:SetAlpha(intendedUIParentAlpha)
+  -- else
+      -- print("ok")
+  end
+end)
 
 
 -- WoW's UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn() cause errors in combat lockdown when used with UIParent.
@@ -625,7 +643,22 @@ local function EaseUIParentAlpha(endValue, duration, callback)
     end
 
     if UIParent:GetAlpha() ~= endValue then
-        easeUIParentAlphaHandle = LibEasing:Ease(function(alpha) UIParent:SetAlpha(alpha) end, UIParent:GetAlpha(), endValue, duration, LibEasing.Linear, callback)
+        easeUIParentAlphaHandle = LibEasing:Ease(
+            function(alpha)
+                if alpha == 1 then
+                    intendedUIParentAlpha = nil
+                else
+                    intendedUIParentAlpha = alpha
+                end
+
+                UIParent:SetAlpha(alpha)
+            end,
+            UIParent:GetAlpha(),
+            endValue,
+            duration,
+            LibEasing.Linear,
+            callback
+        )
     else
         if callback then callback() end
     end
@@ -649,7 +682,7 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
 
         -- Stop the other fade progress.
         -- (We do not want to use the UIFrameFade(), UIFrameFadeOut() and UIFrameFadeIn()
-        -- which we  have seen to cause errors in combat lockdown when used with UIParent.)
+        -- which we have seen to cause errors in combat lockdown when used with UIParent.)
         UIParent.fadeInfo.startAlpha = UIParent:GetAlpha()
         UIParent.fadeInfo.endAlpha = UIParent:GetAlpha()
         UIParent.fadeInfo.timeToFade = -1
@@ -682,22 +715,21 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
             UIParentAlpha = settings.fadeOpacity,
 
             hideFrameRate = not settings.keepFrameRate,
-            keepChatFrame = settings.keepChatFrame,
-            keepAlertFrames = settings.keepAlertFrames,
 
+            keepAlertFrames = settings.keepAlertFrames,
+            keepTooltip = settings.keepTooltip,
+            keepMinimap = settings.keepMinimap,
+            keepChatFrame = settings.keepChatFrame,
+            keepPartyRaidFrame = settings.keepPartyRaidFrame,
             keepTrackingBar = settings.keepTrackingBar,
             -- This only has an effect when keepTrackingBar is true.
             -- (For now we are not allowing DynamicCam users to partially fade out single frames.
             -- That's just for "Immersion ExtraFade".)
             trackingBarAlpha = 1,
-
-            keepMinimap = settings.keepMinimap,
-            keepTooltip = settings.keepTooltip,
+            keepEncounterBar = settings.keepEncounterBar,
 
             keepCustomFrames   = settings.keepCustomFrames,
             customFramesToKeep = settings.customFramesToKeep,
-
-            keepPartyRaidFrame = settings.keepPartyRaidFrame,
         }
 
         -- Use the UiHideModule to keep configured frames and properly hide the others.
@@ -717,8 +749,8 @@ function DynamicCam:FadeInUI(fadeInTime)
 
     -- Actually allow the last PLAY_MOVIE to be at most 2 seconds ago. You never know...
     if not UIParent:IsShown() and uiParentHidden and not ingameCinematicRunning and lastPlayMovie + 2 < GetTime() then
-        UIParent:Show()
         uiParentHidden = false
+        UIParent:Show()
     end
 
     -- If fading of another source (e.g. Immersion) is in progress, stop it.
@@ -736,6 +768,7 @@ function DynamicCam:FadeInUI(fadeInTime)
         local function FadeInCallback()
             -- print("Fade in finished")
             UIParent.ludius_alphaBeforeFadeOut = nil
+            intendedUIParentAlpha = nil
         end
 
         -- print("UIParent.ludius_alphaBeforeFadeOut", UIParent.ludius_alphaBeforeFadeOut)
@@ -861,12 +894,12 @@ function DynamicCam:Startup()
     started = true
 
 
-    -- For coding
+    -- -- For coding
     -- C_Timer.After(0, function()
         -- self:OpenMenu()
-        -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
+        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
         -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
-        -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
+        -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
     -- end)
 
     -- C_Timer.After(3, function()
@@ -926,9 +959,155 @@ local lastSituation = {}
 -- to the same situation we came from.
 
 
+
+
+-- When an NPC has more than one quest, after accepting/returning the first quest,
+-- the QuestFrame disappears for a short time, which momentarily exits
+-- the NPC interaction situation (not looking nice).
+-- Unfortunately, when exiting the situation, there is no direct way to determine if
+-- the NPC still has quests or if a quest was just accepted.
+-- The QUEST_ACCEPTED event comes a few frames after the PLAYER_INTERACTION_MANAGER_FRAME_HIDE
+-- and QUEST_FINISHED events which are also the only indicators of the quest frame closing
+-- without accepting a quest.
+-- That's why we have to do some tricks to know that the NPC still has quests when exiting
+-- the situation, so we can enforce an extra delay of 0.3 seconds (should be enough).
+local moreQuestDialog = false
+local questFrameClosed = true
+local lastQuestFrameCloseTime = GetTime()
+
+local moreQuestDialogFrame = CreateFrame("Frame")
+moreQuestDialogFrame:RegisterEvent("QUEST_GREETING")
+moreQuestDialogFrame:RegisterEvent("GOSSIP_SHOW")
+moreQuestDialogFrame:RegisterEvent("QUEST_DETAIL")
+moreQuestDialogFrame:RegisterEvent("QUEST_ACCEPTED")
+moreQuestDialogFrame:RegisterEvent("QUEST_REMOVED")  -- For finishing quests.
+moreQuestDialogFrame:RegisterEvent("QUEST_COMPLETE") -- To check if a quest about to be finished in is part of a quest line.
+moreQuestDialogFrame:SetScript("OnEvent", function(_, event)
+
+    if event == "QUEST_GREETING" or event == "GOSSIP_SHOW" then
+
+        -- print(event, "available quests", C_GossipInfo.GetNumAvailableQuests(), GetNumAvailableQuests())
+        -- print(event, "active quests", C_GossipInfo.GetNumActiveQuests(), GetNumActiveQuests())
+        -- Find out if the active quests can actually be turned in. Because only then do we want to count them.
+        local completeQuests = 0
+        if C_GossipInfo.GetNumActiveQuests() > 0 then
+            for _, v in pairs(C_GossipInfo.GetActiveQuests()) do
+                -- print(v.title, v.isComplete)
+                if v.isComplete then
+                    completeQuests = completeQuests + 1
+                end
+            end
+        elseif GetNumActiveQuests() > 0 then
+            for i=1, GetNumActiveQuests() do
+                local title, isComplete = GetActiveTitle(i)
+                -- print(title, isComplete)
+                if isComplete then
+                    completeQuests = completeQuests + 1
+                end
+            end
+        end
+
+        -- print(event, "(probably) complete quests", completeQuests)
+
+
+        if (C_GossipInfo.GetNumAvailableQuests() + completeQuests > 1) or (GetNumAvailableQuests() + completeQuests > 1) then
+            moreQuestDialog = true
+            questFrameClosed = false
+        end
+
+
+    -- When the quest detail view is shown, we reset moreQuestDialog,
+    -- unless we have set moreQuestDialog before without the quest
+    -- frame being closed.
+    elseif event == "QUEST_DETAIL" then
+        if questFrameClosed then
+            -- print(event, "setting moreQuestDialog to false.")
+            moreQuestDialog = false
+        end
+
+    elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" then
+        -- print(event, "setting moreQuestDialog to false.")
+        questFrameClosed = true
+        moreQuestDialog = false
+
+
+    -- TODO: Use grail to determine if NPC has a follow-up quest.
+    -- elseif event == "QUEST_COMPLETE" then
+        -- print(event, "About to turn in a quest.")
+
+
+        -- questID = GetQuestID()
+
+        -- print(GetTitleText(), questID)
+
+        -- local questLineInfo = C_QuestLine.GetQuestLineInfo(questID, C_Map.GetBestMapForUnit("player"))
+
+        -- DynamicCam:PrintTable(questLineInfo, 0)
+
+        -- local questLineID = questLineInfo.questLineID
+
+
+
+        -- print(questLineID)
+
+
+        -- local questIDs = C_QuestLine.GetQuestLineQuests(questLineID)
+
+        -- for k, v in pairs(questIDs) do
+
+          -- print("----------------------", v)
+
+          -- local questLineInfo = C_QuestLine.GetQuestLineInfo(v, C_Map.GetBestMapForUnit("player"))
+
+          -- if questLineInfo then
+            -- DynamicCam:PrintTable(questLineInfo, 0)
+          -- end
+
+          -- print("----------------------")
+
+        -- end
+
+
+        -- DynamicCam:PrintTable(questIDs, 0)
+
+        -- print("ha", C_QuestLog.GetNextWaypoint(questID))
+
+
+    end
+
+end)
+
+
+-- Cannot use PLAYER_INTERACTION_MANAGER_FRAME_HIDE or QUEST_FINISHED to update
+-- questFrameClosed, because this gets called at every QuestFrame transition.
+-- We therefore check if the QuestFrame was really closed.
+QuestFrame:HookScript("OnHide", function()
+    -- print("QuestFrame closed", GetTime())
+    questFrameClosed = true
+    lastQuestFrameCloseTime = GetTime()
+end)
+-- When switching to the quest detail view the QuestFrame gets closed and reopened within one frame.
+QuestFrame:HookScript("OnShow", function()
+    -- print("QuestFrame shown", GetTime())
+    if lastQuestFrameCloseTime == GetTime() then
+      questFrameClosed = false
+    end
+end)
+
+if ImmersionFrame then
+    ImmersionFrame:HookScript("OnHide", function()
+        -- print("ImmersionFrame closed", GetTime())
+        questFrameClosed = true
+    end)
+end
+
+
+
+
 function DynamicCam:EvaluateSituations()
 
     -- print("EvaluateSituations", enteredSituationAtLogin, GetTime())
+
 
     local highestPriority = -100
     local topSituation
@@ -967,16 +1146,22 @@ function DynamicCam:EvaluateSituations()
     local swap = true
     if self.currentSituationID and (not topSituation or topSituation ~= self.currentSituationID) then
         -- we're in a situation that isn't the topSituation or there is no topSituation
+
         local delay = self.db.profile.situations[self.currentSituationID].delay
+        if self.currentSituationID == "300" and moreQuestDialog and delay < 0.3 then
+            delay = 0.3
+        end
+
         if delay > 0 then
             if not delayTime then
                 -- not yet cooling down, make sure to guarentee an evaluate, don't swap
+                -- print(delayTime, GetTime(), "Not changing situation because of a delay")
                 delayTime = GetTime() + delay
                 delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER")
-                -- print("Not changing situation because of a delay")
                 swap = false
-            elseif delayTime > GetTime() then
-                -- still cooling down, don't swap
+            -- Need to round, otherwise same times are sometimes not recognised as such.
+            elseif round(delayTime, 3) > round(GetTime(), 3) then
+                -- print(delayTime, GetTime(), "still cooling down, don't swap")
                 swap = false
             end
         end
@@ -1479,7 +1664,7 @@ function DynamicCam:ApplySettings(noShoulderOffsetChange)
             value = curSituation.situationSettings.cvars[cvar]
         end
 
-        -- ApplySettings() is called in the beginning of ExitSituation().
+        -- ApplySettings() is called in ChangeSituation().
         -- But when exiting a situation, we want to ease-restore the shoulderOffset
         -- instead of setting it instantaneously here.
         if cvar ~= "test_cameraOverShoulder" or not noShoulderOffsetChange then
@@ -1850,6 +2035,9 @@ end
 
 
 
+
+
+
 ------------
 -- EVENTS --
 ------------
@@ -1927,39 +2115,6 @@ end
 --------------
 -- DATABASE --
 --------------
-local firstDynamicCamLaunch = false
-StaticPopupDialogs["DYNAMICCAM_FIRST_RUN"] = {
-    text = "Welcome to your first launch of DynamicCam!\n\nIt is highly suggested to load a preset to start, since the addon starts completely unconfigured. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
-    button1 = "OK",
-    button2 = "Cancel",
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnAccept = function()
-        DynamicCam:OpenMenu()
-    end,
-    OnCancel = function(_, reason)
-    end,
-}
-
-
-StaticPopupDialogs["DYNAMICCAM_FIRST_LOAD_PROFILE"] = {
-    text = "The current DynamicCam profile is fresh and probably empty. Go to the \"Profiles\"->\"Profile presets\" tab to find some presets.",
-    button1 = "OK",
-    button2 = "Cancel",
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-    OnAccept = function()
-        DynamicCam:OpenMenu()
-    end,
-    OnCancel = function(_, reason)
-    end,
-}
-
-
 
 function DynamicCam:InitDatabase()
     self.db = LibStub("AceDB-3.0"):New("DynamicCamDB", self.defaults, true)
@@ -1969,10 +2124,7 @@ function DynamicCam:InitDatabase()
     self.db.RegisterCallback(self, "OnDatabaseShutdown", "Shutdown")
 
 
-    if not DynamicCamDB.profiles then
-        firstDynamicCamLaunch = true
-    else
-
+    if DynamicCamDB.profiles then
 
         -- reset db if we've got a really old version
         for profileName, profile in pairs(DynamicCamDB.profiles) do
@@ -2036,7 +2188,6 @@ function DynamicCam:ModernizeProfile(p)
         if p.defaultCvars and p.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil then
             p.defaultCvars["test_cameraLockedTargetFocusing"] = nil
         end
-        p.firstRun = false
 
         -- modernize each situation
         if p.situations then
@@ -2053,7 +2204,6 @@ function DynamicCam:ModernizeProfile(p)
     if p.version == 2 then
 
         -- Not changing:
-        -- p.firstRun
         -- p.zoomRestoreSetting
 
         -- These existed before. But as the user is currently not supposed to change the values, we do not set them (i.e. they assume the default).
@@ -2314,16 +2464,6 @@ function DynamicCam:RefreshConfig()
         Options:SelectSituation()
     end
 
-    -- present a menu that loads a set of defaults, if this is the profiles first run
-    if self.db.profile.firstRun then
-        if firstDynamicCamLaunch then
-            StaticPopup_Show("DYNAMICCAM_FIRST_RUN")
-            firstDynamicCamLaunch = false
-        else
-            StaticPopup_Show("DYNAMICCAM_FIRST_LOAD_PROFILE")
-        end
-        self.db.profile.firstRun = false
-    end
 
     -- start the addon back up
     if not started then
@@ -2939,40 +3079,6 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
 end
 
 
-
-
-
--- Keep this around, if you ever need a broader dialog again.
--- local betaWarningOuterFrame = CreateFrame("Frame")
--- betaWarningOuterFrame:SetSize(650, 1)
--- StaticPopupDialogs["DYNAMICCAM_BETA_WARNING"] = {
-    -- text = "lorem",
-    -- button1 = "OK",
-    -- button2 = "Cancel",
-    -- timeout = 0,
-    -- whileDead = true,
-    -- hideOnEscape = true,
-    -- preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-
-    -- OnShow = function (self)
-        -- self.ludius_originalTextWidth = self.text:GetWidth()
-        -- self.text:SetWidth(betaWarningOuterFrame:GetWidth() - 30)
-    -- end,
-    -- OnHide = function(self)
-        -- self.text:SetWidth(self.ludius_originalTextWidth)
-        -- self.ludius_originalTextWidth = nil
-    -- end,
-
-    -- OnAccept = function()
-        -- print("ok")
-    -- end,
-    -- OnCancel = function()
-        -- print("cancel")
-    -- end,
--- }
--- function DynamicCam:ShowBetaWarning()
-    -- StaticPopup_Show("DYNAMICCAM_BETA_WARNING", _, _, _, betaWarningOuterFrame)
--- end
 
 
 
