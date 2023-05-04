@@ -288,10 +288,13 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
 
     return {
         type = "execute",
+        
+        -- -- You could also take the icon in the name, but this is not clickable.
         -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
+        
         name = "Reset",
         image = "Interface\\Transmogrify\\Transmogrify",
-        imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+        imageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125},
         imageWidth = 25/1.5,
         imageHeight = 24/1.5,
         desc = "Reset to global default: " .. tooltipDefaultValue .."\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
@@ -4722,6 +4725,10 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
           -- Prevent unallowed selections.
           local function UndoSelections(self, valueTable)
+
+            -- Could apparently happen.
+            -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
+            if not valueTable then return end
 
             -- Only do this while the drop down is modified.
             if not motionSicknessDropDown then return end

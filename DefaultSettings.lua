@@ -77,13 +77,17 @@ DynamicCam.situationDefaults = {
         keepCustomFrames   = false,
         customFramesToKeep = {
             ["AuctionHouseFrame"] = true,
+            ["BankFrame"]         = true,
+            ["BagnonBankFrame1"]  = true,
             ["BuffFrame"]         = true,
+            ["ClassTrainerFrame"] = true,
             ["DebuffFrame"]       = true,
             ["GossipFrame"]       = true,
             ["MerchantFrame"]     = true,
             ["PetStableFrame"]    = true,
             ["QuestFrame"]        = true,
             ["StaticPopup1"]      = true,
+            ["WardrobeFrame"]     = true,
           },
 
     },
@@ -470,6 +474,7 @@ end]],
   368788,  -- Hearth to Brill
   375357,  -- Timewalker's Hearthstone
   395277,  -- Teleport: Valdrakken
+  398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
 
 }]],
                 priority = 130,
@@ -510,6 +515,8 @@ return false]],
                 name = "NPC Interaction",
                 events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRAINER_CLOSED", "TRAINER_SHOW", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN"},
                 executeOnInit = [[this.frames = {"AuctionHouseFrame", "BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GarrisonCapacitiveDisplayFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "WardrobeFrame"}
+
+this.excludedFrames = {"FlightMapFrame"}
 
 this.mountVendors = {
   ["62821"] = 460, -- Grand Expedition Yak
@@ -554,6 +561,14 @@ for _, v in pairs(this.frames) do
     break
   end
 end
+
+for _, v in pairs(this.excludedFrames) do
+  if (_G[v] and _G[v]:IsShown()) then
+    shown = false
+    break
+  end
+end
+
 return shown and UnitExists("npc")]],
             },
 

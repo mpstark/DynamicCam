@@ -571,7 +571,7 @@ enterCombatFrame:SetScript("OnEvent", function()
     -- If entering combat while frames are faded to 0 *and hidden*,
     -- we have to show the hidden frames again, because Show() is
     -- not allowed for protected frames during combat.
-    if Addon.uiHiddenTime ~= 0 then
+    if ludius_UiHideModule.uiHiddenTime ~= 0 then
         Addon.ShowUI(0, true)
     end
 end)
@@ -621,12 +621,11 @@ end)
 
 -- To prevent other addons (Immersion, I'm looking in your direction) from
 -- fading-in UIParent while DynamicCam has hidden it.
-local intendedUIParentAlpha = nil
 hooksecurefunc(UIParent, "SetAlpha", function(self, alpha)
-  -- print("UIParent SetAlpha", alpha, intendedUIParentAlpha)
-  if intendedUIParentAlpha ~= nil and alpha ~= intendedUIParentAlpha then
+  -- print("UIParent SetAlpha", alpha, UIParent.ludius_intendedUIParentAlpha)
+  if UIParent.ludius_intendedUIParentAlpha ~= nil and UIParent.ludius_intendedUIParentAlpha ~= alpha then
       -- print("no")
-      UIParent:SetAlpha(intendedUIParentAlpha)
+      UIParent:SetAlpha(UIParent.ludius_intendedUIParentAlpha)
   -- else
       -- print("ok")
   end
@@ -646,9 +645,9 @@ local function EaseUIParentAlpha(endValue, duration, callback)
         easeUIParentAlphaHandle = LibEasing:Ease(
             function(alpha)
                 if alpha == 1 then
-                    intendedUIParentAlpha = nil
+                    UIParent.ludius_intendedUIParentAlpha = nil
                 else
-                    intendedUIParentAlpha = alpha
+                    UIParent.ludius_intendedUIParentAlpha = alpha
                 end
 
                 UIParent:SetAlpha(alpha)
@@ -768,7 +767,7 @@ function DynamicCam:FadeInUI(fadeInTime)
         local function FadeInCallback()
             -- print("Fade in finished")
             UIParent.ludius_alphaBeforeFadeOut = nil
-            intendedUIParentAlpha = nil
+            UIParent.ludius_intendedUIParentAlpha = nil
         end
 
         -- print("UIParent.ludius_alphaBeforeFadeOut", UIParent.ludius_alphaBeforeFadeOut)
@@ -889,7 +888,7 @@ function DynamicCam:Startup()
       end
     )
 
-    shoulderOffsetEasingFrame:SetScript("onUpdate", ShoulderOffsetEasingFunction)
+    shoulderOffsetEasingFrame:SetScript("OnUpdate", ShoulderOffsetEasingFunction)
 
     started = true
 
@@ -929,7 +928,7 @@ function DynamicCam:Shutdown()
 
     self:ReactiveZoomOff()
 
-    shoulderOffsetEasingFrame:SetScript("onUpdate", nil)
+    shoulderOffsetEasingFrame:SetScript("OnUpdate", nil)
 
     started = false
 end
@@ -2016,7 +2015,7 @@ function DynamicCam:ReactiveZoomOn()
     CameraZoomOut = ReactiveZoomOut
 
     reactiveZoomTarget = GetCameraZoom()
-    reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", ReactiveZoomTargetCorrectionFunction)
+    reactiveZoomTargetCorrectionFrame:SetScript("OnUpdate", ReactiveZoomTargetCorrectionFunction)
 end
 
 function DynamicCam:ReactiveZoomOff()
@@ -2030,7 +2029,7 @@ function DynamicCam:ReactiveZoomOff()
     CameraZoomOut = NonReactiveZoomOut
 
     reactiveZoomTarget = nil
-    reactiveZoomTargetCorrectionFrame:SetScript("onUpdate", nil)
+    reactiveZoomTargetCorrectionFrame:SetScript("OnUpdate", nil)
 end
 
 
@@ -2921,11 +2920,11 @@ function DynamicCam:ToggleRZVA()
 
 
         rzvaFrame:HookScript("OnShow", function()
-            reactiveZoomGraphUpdateFrame:SetScript("onUpdate", ReactiveZoomGraphUpdateFunction)
+            reactiveZoomGraphUpdateFrame:SetScript("OnUpdate", ReactiveZoomGraphUpdateFunction)
         end)
 
         rzvaFrame:HookScript("OnHide", function()
-            reactiveZoomGraphUpdateFrame:SetScript("onUpdate", nil)
+            reactiveZoomGraphUpdateFrame:SetScript("OnUpdate", nil)
         end)
     end
 
