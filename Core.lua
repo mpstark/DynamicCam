@@ -73,6 +73,12 @@ local OldCameraZoomOut = CameraZoomOut
 
 
 
+-- Forward declaration.
+local UpdateCurrentShoulderOffset
+local SetCorrectedShoulderOffset
+
+
+
 -- The mimimal third person zoom value depends on the current model.
 local minZoomMounted = 1.5
 
@@ -99,7 +105,6 @@ local nonReactiveZoomInProgress = false
 local nonReactiveZoomStartValue = GetCameraZoom()
 
 
-
 -- We have to be able to set this to nil whenever
 -- SetZoom() or SetView() happens. Otherwise, the
 -- next scroll wheel turn will scroll back
@@ -115,28 +120,45 @@ local reactiveZoomTarget = nil
 local virtualCameraZoom = nil
 
 
+
+-- We use this to suppress situation entering easing at login!
+local enteredSituationAtLogin = false
+
+
+
+-- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
+-- This is more accurate than the game framerate, which is the average over several recent frames.
+local secondsPerFrame = 1.0 / GetFramerate()
+
 -- To evaluate situations one frame after an event is triggered
 -- (see EventHandler() and ShoulderOffsetEasingFunction()).
 local evaluateSituationsNextFrame = false
 
 
--- Forward declaration.
-local UpdateCurrentShoulderOffset
-local SetCorrectedShoulderOffset
+local function ConstantlyRunningFrameFunction(self, elapsed)
+    -- Using this frame to log secondsPerFrame,
+    -- which we need below to determine if easing is worthwhile.
+    secondsPerFrame = elapsed
+
+    -- Using this frame to evaluate situations one frame after an event
+    -- is triggered (see EventHandler()). This way we are never too early.
+    if evaluateSituationsNextFrame then
+        DynamicCam:EvaluateSituations()
+        evaluateSituationsNextFrame = false
+    end
+end
+local constantlyRunningFrame = CreateFrame("Frame")
 
 
--- We use this to suppress situation entering easing at login!
-local enteredSituationAtLogin = false
-
--- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
--- This is more accurate than the game framerate, which is the average over several recent frames.
-local secondsPerFrame = 1.0 / GetFramerate()
 
 
 
 -- For other Addons (like Narcissus) to temporarily disable
 -- "Adjust Shoulder offset according to zoom level" without
 -- having to change the user's permanent DynamicCam profile.
+-- We also disable the ShoulderOffsetEasingFunction completely
+-- because it will always restore the DynamicCam shoulder offset
+-- value (regardless of zoom level).
 local shoulderOffsetZoomTmpDisable = false
 function DynamicCam:BlockShoulderOffsetZoom()
     shoulderOffsetZoomTmpDisable = true
@@ -146,34 +168,22 @@ function DynamicCam:AllowShoulderOffsetZoom()
 end
 
 
-
 -- This frame continuously applies the new shoulder offset while easing of zoom or shoulder offset is in progress.
 -- The easing functions just modify the zoom or currentShoulderOffset which are taken
 -- into account here.
 local function ShoulderOffsetEasingFunction(self, elapsed)
-
-    -- Also using this frame also to log secondsPerFrame,
-    -- which we need below to determine if easing is worthwhile.
-    secondsPerFrame = elapsed
-
-    -- Also using the frame to evaluate situations one frame after an event
-    -- is triggered (see EventHandler()). This way we are never too early.
-    if evaluateSituationsNextFrame then
-        DynamicCam:EvaluateSituations()
-        evaluateSituationsNextFrame = false
+    if LibCamera:IsZooming() or DynamicCam.easeShoulderOffsetInProgress and not shoulderOffsetZoomTmpDisable then
+        -- When we are going into a view, the zoom level of the new view is returned
+        -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
+        -- camera zoom easing for SET_VIEW_TRANSITION_TIME.
+        local cameraZoom
+        if virtualCameraZoom ~= nil then
+            cameraZoom = virtualCameraZoom
+        else
+            cameraZoom = GetCameraZoom()
+        end
+        SetCorrectedShoulderOffset(cameraZoom)
     end
-
-    -- When we are going into a view, the zoom level of the new view is returned
-    -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
-    -- camera zoom easing for SET_VIEW_TRANSITION_TIME.
-    local cameraZoom
-    if virtualCameraZoom ~= nil then
-        cameraZoom = virtualCameraZoom
-    else
-        cameraZoom = GetCameraZoom()
-    end
-    SetCorrectedShoulderOffset(cameraZoom)
-
 end
 local shoulderOffsetEasingFrame = CreateFrame("Frame")
 
@@ -446,7 +456,7 @@ local function EaseShoulderOffset(newValue, duration, easingFunc, callback)
 
     -- When the duration is 0, the easeShoulderOffsetInProgress = false callback will
     -- be called before shoulderOffsetEasingFrame can set the new value. So we do it here!
-    -- A return below will happen, because UpdateCurrentShoulderOffset sets currentShoulderOffset = newVale.
+    -- A return below will happen, because UpdateCurrentShoulderOffset sets currentShoulderOffset = newValue.
     if duration == 0 then
         UpdateCurrentShoulderOffset(newValue)
         SetCorrectedShoulderOffset(GetCameraZoom())
@@ -888,6 +898,8 @@ function DynamicCam:Startup()
       end
     )
 
+    constantlyRunningFrame:SetScript("OnUpdate", ConstantlyRunningFrameFunction)
+
     shoulderOffsetEasingFrame:SetScript("OnUpdate", ShoulderOffsetEasingFunction)
 
     started = true
@@ -928,6 +940,7 @@ function DynamicCam:Shutdown()
 
     self:ReactiveZoomOff()
 
+    constantlyRunningFrame:SetScript("OnUpdate", nil)
     shoulderOffsetEasingFrame:SetScript("OnUpdate", nil)
 
     started = false
