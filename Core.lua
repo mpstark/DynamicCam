@@ -172,18 +172,24 @@ end
 -- The easing functions just modify the zoom or currentShoulderOffset which are taken
 -- into account here.
 local function ShoulderOffsetEasingFunction(self, elapsed)
-    if LibCamera:IsZooming() or DynamicCam.easeShoulderOffsetInProgress and not shoulderOffsetZoomTmpDisable then
-        -- When we are going into a view, the zoom level of the new view is returned
-        -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
-        -- camera zoom easing for SET_VIEW_TRANSITION_TIME.
-        local cameraZoom
-        if virtualCameraZoom ~= nil then
-            cameraZoom = virtualCameraZoom
-        else
-            cameraZoom = GetCameraZoom()
-        end
-        SetCorrectedShoulderOffset(cameraZoom)
+
+    if shoulderOffsetZoomTmpDisable then return end
+    
+    -- If reactive zoom is used, we know when a zoom is happening so we can skip whenever there is no zoom
+    -- and not shoulder offset easing taking place. If reactive zoom is not used, we always have to run.
+    if CameraZoomIn == ReactiveZoomIn and not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then return end
+    
+    -- When we are going into a view, the zoom level of the new view is returned
+    -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
+    -- camera zoom easing for SET_VIEW_TRANSITION_TIME.
+    local cameraZoom
+    if virtualCameraZoom ~= nil then
+        cameraZoom = virtualCameraZoom
+    else
+        cameraZoom = GetCameraZoom()
     end
+    SetCorrectedShoulderOffset(cameraZoom)
+
 end
 local shoulderOffsetEasingFrame = CreateFrame("Frame")
 
