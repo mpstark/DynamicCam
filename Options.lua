@@ -278,6 +278,8 @@ local function GetInheritedDisabledStatus(info)
 end
 
 
+local resetButtonImageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
+
 local function CreateSliderResetButton(order, forSituations, index1, index2, tooltipDefaultValue)
 
     -- We allow to pass the tooltipDefaultValue as an extra argument, because for some
@@ -294,7 +296,7 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
         
         name = "Reset",
         image = "Interface\\Transmogrify\\Transmogrify",
-        imageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125},
+        imageCoords = resetButtonImageCoords,
         imageWidth = 25/1.5,
         imageHeight = 24/1.5,
         desc = "Reset to global default: " .. tooltipDefaultValue .."\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
@@ -982,7 +984,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                                         type = "execute",
                                         name = "Reset",
                                         image = "Interface\\Transmogrify\\Transmogrify",
-                                        imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                        imageCoords = resetButtonImageCoords,
                                         imageWidth = 25/1.5,
                                         imageHeight = 24/1.5,
                                         desc = "Reset to global defaults: " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .." and " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
@@ -1869,7 +1871,7 @@ local function CreateSituationSettingsTab(tabOrder)
                                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                                 name = "Reset",
                                 image = "Interface\\Transmogrify\\Transmogrify",
-                                imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                imageCoords = resetButtonImageCoords,
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
                                 desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
@@ -2442,7 +2444,7 @@ Or for short:
                                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                                 name = "Reset",
                                 image = "Interface\\Transmogrify\\Transmogrify",
-                                imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                imageCoords = resetButtonImageCoords,
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
                                 desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
@@ -2694,7 +2696,7 @@ Or for short:
                                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                                 name = "Reset",
                                 image = "Interface\\Transmogrify\\Transmogrify",
-                                imageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875},
+                                imageCoords = resetButtonImageCoords,
                                 imageWidth = 25/1.5,
                                 imageHeight = 24/1.5,
                                 desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
