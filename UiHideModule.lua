@@ -63,8 +63,8 @@ local GetTime            = _G.GetTime
 local InCombatLockdown   = _G.InCombatLockdown
 local UnitInParty        = _G.UnitInParty
 
--- TODO: Adopt new UI!
--- local CompactRaidFrameContainer = _G.CompactRaidFrameContainer
+
+local CompactRaidFrameContainer = _G.CompactRaidFrameContainer
 
 
 
@@ -121,18 +121,6 @@ for i = 1, 4, 1 do
   flagFrames["PartyMemberFrame" .. i] = true
   flagFrames["PartyMemberFrame" .. i .. "NotPresentIcon"] = true
 end
-
-
--- TODO: Adopt new UI!
--- flagFrames["CompactRaidFrameContainer"] = true
--- for i = 1, 40, 1 do
-  -- flagFrames["CompactRaidFrame" .. i .. "Background"] = true
-  -- flagFrames["CompactRaidFrame" .. i .. "HorizTopBorder"] = true
-  -- flagFrames["CompactRaidFrame" .. i .. "HorizBottomBorder"] = true
-  -- flagFrames["CompactRaidFrame" .. i .. "VertLeftBorder"] = true
-  -- flagFrames["CompactRaidFrame" .. i .. "VertRightBorder"] = true
-  -- flagFrames["CompactRaidFrame" .. i .. "SelectionHighlight"] = true
--- end
 
 
 
@@ -336,7 +324,7 @@ local function SetMouseOverFading(barManager)
       frame.ludius_hooked = true
     end
   end
-  
+
 end
 
 
@@ -458,15 +446,14 @@ local function ConditionalShow(frame)
       end
 
 
-    -- TODO: Adopt new UI.
-    -- Only show the CompactRaidFrameManager, if the player is still in a party.
-    -- elseif frame == CompactRaidFrameManager then
+    -- Only show the CompactRaidFrameContainer, if the player is still in a party.
+    elseif frame == CompactRaidFrameContainer then
 
-      -- -- (Again also use CompactRaidFrameContainer:IsShown() because people might use
-      -- -- an addon like SoloRaidFrame to show the raid frame even while not in raid.)
-      -- if UnitInParty("player") or CompactRaidFrameContainer:IsShown() then
-        -- frame:Show()
-      -- end
+      -- (Again also use CompactRaidFrameContainer:IsShown() because people might use
+      -- an addon like SoloRaidFrame to show the raid frame even while not in raid.)
+      if UnitInParty("player") or CompactRaidFrameContainer:IsShown() then
+        frame:Show()
+      end
 
 
     elseif frame.ludius_shownBeforeFadeOut then
@@ -627,7 +614,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
       -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", finishedArg2) end
       ConditionalHide(finishedArg1)
     end
-    
+
     finishedArg1.ludius_alreadyOnIt = nil
   end
 
@@ -686,7 +673,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
         if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) then
           ConditionalHide(finishedArg1)
         end
-        
+
         finishedArg1.ludius_alreadyOnIt = nil
       end
 
@@ -850,7 +837,7 @@ Addon.HideUI = function(fadeOutTime, config)
   -- Remember that the UI is faded.
   ludius_UiHideModule.uiHiddenTime = GetTime()
   ludius_UiHideModule.addonsHiddenStatus[folderName] = true
-  
+
   currentConfig = config
 
   if config.hideFrameRate then
@@ -894,51 +881,8 @@ Addon.HideUI = function(fadeOutTime, config)
 
   FadeOutFrame(EncounterBar, fadeOutTime, config.keepEncounterBar, config.keepEncounterBar and 1 or config.UIParentAlpha)
 
+  FadeOutFrame(CompactRaidFrameContainer, fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
 
-  -- TODO: Adopt new UI.
-  -- CompactRaidFrameManager:Hide() is disabled, if the addon SoloRaidFrame is used.
-  -- But we are not taking care of this!
-  -- FadeOutFrame(CompactRaidFrameManager, fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
-
-  for i = 1, 4, 1 do
-    if _G["PartyMemberFrame" .. i] then
-
-      -- This frame is by default ignoring its parent's alpha. So we have to fade it manually.
-      -- So we always set targetIgnoreParentAlpha to true. But depending on config.keepPartyRaidFrame
-      -- we set the targetAlpha to 1 or to the UIParentAlpha.
-      FadeOutFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], fadeOutTime, true, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
-
-      -- PartyMemberFrames are direct children of UIParent (unlike CompactRaidFrames, which are children of
-      -- CompactRaidFrameContainer, which is a child of CompactRaidFrameManager).
-      -- Hence, we have to hide PartyMemberFrames manually.
-      FadeOutFrame(_G["PartyMemberFrame" .. i], fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
-    end
-  end
-
-
-  -- TODO: Adopt new UI.
-  -- Do not use GetNumGroupMembers() here, because as people join and leave the raid the frame numbers get mixed up.
-  -- for i = 1, 40, 1 do
-    -- if _G["CompactRaidFrame" .. i .. "Background"] then
-
-      -- -- These frames are by default ignoring their parent's (i.e. "CompactRaidFrame"..i's) alpha.
-      -- -- So we have to fade them out manually, when we want to hide the raid frame.
-      -- -- So we always set targetIgnoreParentAlpha to true.
-      -- if config.keepPartyRaidFrame == false then
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeOutTime, true, config.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeOutTime, true, config.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], fadeOutTime, true, config.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], fadeOutTime, true, config.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], fadeOutTime, true, config.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], fadeOutTime, true, config.UIParentAlpha)
-
-        -- -- I first thought, there is no need to fade out "CompactRaidFrame"..i, as it is taken care of through its parent
-        -- -- CompactRaidFrameManager. However, it turns out that the CompactRaidFrames produce tooltips again after the
-        -- -- raid roster changes. So we have to do this here!
-      -- end
-
-    -- end
-  -- end
 
 
   -- Non-configurable frames that we just want to hide in case UIParentAlpha is 0.
@@ -954,7 +898,7 @@ Addon.HideUI = function(fadeOutTime, config)
     for k in pairs(config.customFramesToKeep) do
       -- print(k, _G[k])
       if not defaultHiddenFrames[k] and not flagFrames[k] then
-      
+
         -- If the frame does not exist yet (e.g. ClassTrainerFrame), try again after a short time.
         if not _G[k] then
           C_Timer.After(0.3, function() FadeOutFrame(_G[k], fadeOutTime, true, 1) end)
@@ -994,25 +938,7 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
   FadeInFrame(FramerateText, fadeInTime, enteringCombat)
 
 
-  FadeInFrame(CompactRaidFrameManager, fadeInTime, enteringCombat)
-
-  for i = 1, 4, 1 do
-    if _G["PartyMemberFrame" .. i] then
-      FadeInFrame(_G["PartyMemberFrame" .. i], fadeInTime, enteringCombat)
-      FadeInFrame(_G["PartyMemberFrame" .. i .. "NotPresentIcon"], fadeInTime, enteringCombat)
-    end
-  end
-
-  for i = 1, 40, 1 do
-    if _G["CompactRaidFrame" .. i] then
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "Background"], fadeInTime, enteringCombat)
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], fadeInTime, enteringCombat)
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], fadeInTime, enteringCombat)
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], fadeInTime, enteringCombat)
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], fadeInTime, enteringCombat)
-      FadeInFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], fadeInTime, enteringCombat)
-    end
-  end
+  FadeInFrame(CompactRaidFrameContainer, fadeInTime, enteringCombat)
 
 
   for k in pairs(defaultHiddenFrames) do
@@ -1083,56 +1009,11 @@ end
 
 
 
--- TODO: Adopt new UI!
-
--- Unlike party member frames, the raid member frames are not there from the start.
--- So we have to do the onShow hook, when new ones arrive.
--- hooksecurefunc("CompactRaidFrameContainer_AddUnitFrame", function(_, unit, frameType)
-
-  -- for i = 1, 40, 1 do
-
-    -- -- Only look at those, which we have not hooked yet.
-    -- if _G["CompactRaidFrame" .. i .. "Background"] and not _G["CompactRaidFrame" .. i .. "Background"].ludius_hooked then
-
-      -- -- If it is a new frame and the UI is currently hidden, we may have to also hide the new frame.
-      -- if ludius_UiHideModule.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], 0, true, currentConfig.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], 0, true, currentConfig.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], 0, true, currentConfig.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], 0, true, currentConfig.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], 0, true, currentConfig.UIParentAlpha)
-        -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], 0, true, currentConfig.UIParentAlpha)
-      -- end
-
-      -- -- Do the hook.
-      -- _G["CompactRaidFrame" .. i]:HookScript("OnShow", function()
-
-        -- if ludius_UiHideModule.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "Background"], 0, true, currentConfig.UIParentAlpha)
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizTopBorder"], 0, true, currentConfig.UIParentAlpha)
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "HorizBottomBorder"], 0, true, currentConfig.UIParentAlpha)
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertLeftBorder"], 0, true, currentConfig.UIParentAlpha)
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "VertRightBorder"], 0, true, currentConfig.UIParentAlpha)
-          -- FadeOutFrame(_G["CompactRaidFrame" .. i .. "SelectionHighlight"], 0, true, currentConfig.UIParentAlpha)
-        -- end
-      -- end)
-
-      -- -- Remember that you hooked it.
-      -- _G["CompactRaidFrame" .. i .. "Background"].ludius_hooked = true
-
-    -- end
-  -- end
--- end)
-
-
-
--- The CompactRaidFrameManager frame gets shown every time the raid roster changes.
+-- The CompactRaidFrameContainer frame gets shown every time the raid roster changes.
 -- While the UI is hidden, we have to hide it again.
--- CompactRaidFrameManager:Hide() is disabled, if the addon SoloRaidFrame is used.
--- But we are not taking care of this!
--- CompactRaidFrameManager:HookScript("OnShow", function()
-  -- if ludius_UiHideModule.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
-    -- FadeOutFrame(CompactRaidFrameManager, 0, false, currentConfig.UIParentAlpha)
-  -- end
--- end)
+CompactRaidFrameContainer:HookScript("OnShow", function()
+  if ludius_UiHideModule.uiHiddenTime ~= 0 and currentConfig.keepPartyRaidFrame == false then
+    FadeOutFrame(CompactRaidFrameContainer, 0, false, currentConfig.UIParentAlpha)
+  end
+end)
 
