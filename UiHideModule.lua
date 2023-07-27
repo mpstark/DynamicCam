@@ -374,7 +374,13 @@ local function GameTooltipHider(self)
   end
 end
 
-TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, GameTooltipHider)
+
+
+if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+  TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, GameTooltipHider)
+else
+  GameTooltip:HookScript("OnTooltipSetItem", GameTooltipHider)
+end
 GameTooltip:HookScript("OnTooltipSetDefaultAnchor", GameTooltipHider)
 GameTooltip:HookScript("OnShow", GameTooltipHider)
 

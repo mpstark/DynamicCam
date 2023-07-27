@@ -246,6 +246,11 @@ end
 
 
 
+if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+    SettingsPanel = InterfaceOptionsFrame
+end
+
+
 function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
     GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
     SettingsPanel:SetIgnoreParentAlpha(ignoreParentAlpha)
@@ -279,6 +284,11 @@ end
 
 
 local resetButtonImageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+  resetButtonImageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875}
+end
+
+
 
 local function CreateSliderResetButton(order, forSituations, index1, index2, tooltipDefaultValue)
 
@@ -290,10 +300,10 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
 
     return {
         type = "execute",
-        
+
         -- -- You could also take the icon in the name, but this is not clickable.
         -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
-        
+
         name = "Reset",
         image = "Interface\\Transmogrify\\Transmogrify",
         imageCoords = resetButtonImageCoords,
@@ -1722,7 +1732,7 @@ end
 
 local function CreateSituationSettingsTab(tabOrder)
 
-    return {
+    local returnOptions = {
 
         type = "group",
         name = "Situations",
@@ -3788,6 +3798,9 @@ The delay determines how many seconds to wait before exiting the situation. So f
 
         },
     }
+
+    return returnOptions
+
 end
 
 
@@ -3933,7 +3946,7 @@ local profileSettings = {
                     args = {
                         priorityDescription = {
                             type = "description",
-                            name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever settings change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can carelessly experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\n",
+                            name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\n",
                         },
                     },
                 },
@@ -4369,309 +4382,223 @@ end
 
 
 
--- Needed for my own copy of UIDropDownMenu_AddButton() without spreading taint...
--- https://www.wowinterface.com/forums/showthread.php?p=337966#post337966
-local function MyUIDropDownMenu_AddButton(info, level)
 
-	if ( not level ) then
-		level = 1;
-	end
+if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
 
-	local listFrame = _G["DropDownList"..level];
-	local index = listFrame and (listFrame.numButtons + 1) or 1;
-	local width;
 
-  -- Ludius: Cannot do this because UIDropDownMenuDelegate is local to UIDropDownMenu.lua
-  --         but it does not seem to hurt when I remove it...
-	-- UIDropDownMenuDelegate:SetAttribute("createframes-level", level);
-	-- UIDropDownMenuDelegate:SetAttribute("createframes-index", index);
-	-- UIDropDownMenuDelegate:SetAttribute("createframes", true);
+  local mouseLookSpeedSlider = nil
+  local MouseLookSpeedSliderOrignialTooltipEnter = nil
+  local MouseLookSpeedSliderOrignialTooltipLeave = nil
 
-	listFrame = listFrame or _G["DropDownList"..level];
-	local listFrameName = listFrame:GetName();
 
-	-- Set the number of buttons in the listframe
-	listFrame.numButtons = index;
+  -- Partially disable motion sickness options and leave a tooltip note in the default UI settings.
+  local motionSicknessDropDown = nil
+  local indexCentered = nil
+  local indexReduced = nil
+  local indexBoth = nil
+  local indexNone = nil
+  local MotionSicknessDropDownOriginalTooltipEnter = nil
+  local MotionSicknessDropDownOriginalTooltipLeave = nil
 
-	local button = _G[listFrameName.."Button"..index];
-	local normalText = _G[button:GetName().."NormalText"];
-	local icon = _G[button:GetName().."Icon"];
-	-- This button is used to capture the mouse OnEnter/OnLeave events if the dropdown button is disabled, since a disabled button doesn't receive any events
-	-- This is used specifically for drop down menu time outs
-	local invisibleButton = _G[button:GetName().."InvisibleButton"];
+  hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
 
-	-- Default settings
-	button:SetDisabledFontObject(GameFontDisableSmallLeft);
-	invisibleButton:Hide();
-	button:Enable();
+    local foundMouseMotionSicknessDropDown = false
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
+          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
+          foundMouseMotionSicknessDropDown = true
 
-	-- If not clickable then disable the button and set it white
-	if ( info.notClickable ) then
-		info.disabled = true;
-		button:SetDisabledFontObject(GameFontHighlightSmallLeft);
-	end
+          if not motionSicknessDropDown then
+            -- print("Disabling drop down")
+            motionSicknessDropDown = child.DropDown.Button
 
-	-- Set the text color and disable it if its a title
-	if ( info.isTitle ) then
-		info.disabled = true;
-		button:SetDisabledFontObject(GameFontNormalSmallLeft);
-	end
+            if not MotionSicknessDropDownOriginalTooltipEnter then
+              MotionSicknessDropDownOriginalTooltipEnter = motionSicknessDropDown:GetScript("OnEnter")
+              MotionSicknessDropDownOriginalTooltipLeave = motionSicknessDropDown:GetScript("OnLeave")
+            end
 
-	-- Disable the button if disabled and turn off the color code
-	if ( info.disabled ) then
-		button:Disable();
-		invisibleButton:Show();
-		info.colorCode = nil;
-	end
+            -- Change tooltip.
+            motionSicknessDropDown:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+                GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
+                GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
+                GameTooltip:Show()
+            end)
+            motionSicknessDropDown:SetScript("OnLeave", function(self)
+                GameTooltip:Hide()
+            end)
 
-	-- If there is a color for a disabled line, set it
-	if( info.disablecolor ) then
-		info.colorCode = info.disablecolor;
-	end
 
-	-- Configure button
-	if ( info.text ) then
-		-- look for inline color code this is only if the button is enabled
-		if ( info.colorCode ) then
-			button:SetText(info.colorCode..info.text.."|r");
-		else
-			button:SetText(info.text);
-		end
+            -- Prevent unallowed selections.
+            local function UndoSelections(self, valueTable)
 
-		-- Set icon
-		if ( info.icon or info.mouseOverIcon ) then
-			icon:SetSize(16,16);
-			icon:SetTexture(info.icon);
-			icon:ClearAllPoints();
-			icon:SetPoint("RIGHT");
+              -- Could apparently happen.
+              -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
+              if not valueTable then return end
 
-			if ( info.tCoordLeft ) then
-				icon:SetTexCoord(info.tCoordLeft, info.tCoordRight, info.tCoordTop, info.tCoordBottom);
-			else
-				icon:SetTexCoord(0, 1, 0, 1);
-			end
-			icon:Show();
-		else
-			icon:Hide();
-		end
+              -- Only do this while the drop down is modified.
+              if not motionSicknessDropDown then return end
 
-		-- Check to see if there is a replacement font
-		if ( info.fontObject ) then
-			button:SetNormalFontObject(info.fontObject);
-			button:SetHighlightFontObject(info.fontObject);
-		else
-			button:SetNormalFontObject(GameFontHighlightSmallLeft);
-			button:SetHighlightFontObject(GameFontHighlightSmallLeft);
-		end
-	else
-		button:SetText("");
-		icon:Hide();
-	end
+              if valueTable.value == indexBoth then
+                self:SetSelectedIndex(indexReduced)
+              elseif valueTable.value == indexCentered then
+                self:SetSelectedIndex(indexNone)
+              end
+            end
 
-	button.iconOnly = nil;
-	button.icon = nil;
-	button.iconInfo = nil;
+            hooksecurefunc(motionSicknessDropDown, "OnEntryClicked", UndoSelections)
+            hooksecurefunc(motionSicknessDropDown, "Increment", UndoSelections)
+            hooksecurefunc(motionSicknessDropDown, "Decrement", UndoSelections)
 
-	if (info.iconInfo) then
-		icon.tFitDropDownSizeX = info.iconInfo.tFitDropDownSizeX;
-	else
-		icon.tFitDropDownSizeX = nil;
-	end
-	if (info.iconOnly and info.icon) then
-		button.iconOnly = true;
-		button.icon = info.icon;
-		button.iconInfo = info.iconInfo;
+          end
 
-		UIDropDownMenu_SetIconImage(icon, info.icon, info.iconInfo);
-		icon:ClearAllPoints();
-		icon:SetPoint("LEFT");
-	end
+          -- Got to make sure the labels stay modified.
+          for i, k in pairs(motionSicknessDropDown.selections) do
+            -- print(i, k)
 
-	-- Pass through attributes
-	button.func = info.func;
-	button.funcOnEnter = info.funcOnEnter;
-	button.funcOnLeave = info.funcOnLeave;
-	button.owner = info.owner;
-	button.hasOpacity = info.hasOpacity;
-	button.opacity = info.opacity;
-	button.opacityFunc = info.opacityFunc;
-	button.cancelFunc = info.cancelFunc;
-	button.swatchFunc = info.swatchFunc;
-	button.keepShownOnClick = info.keepShownOnClick;
-	button.tooltipTitle = info.tooltipTitle;
-	button.tooltipText = info.tooltipText;
-	button.tooltipInstruction = info.tooltipInstruction;
-	button.tooltipWarning = info.tooltipWarning;
-	button.arg1 = info.arg1;
-	button.arg2 = info.arg2;
-	button.hasArrow = info.hasArrow;
-	button.hasColorSwatch = info.hasColorSwatch;
-	button.notCheckable = info.notCheckable;
-	button.menuList = info.menuList;
-	button.tooltipWhileDisabled = info.tooltipWhileDisabled;
-	button.noTooltipWhileEnabled = info.noTooltipWhileEnabled;
-	button.tooltipOnButton = info.tooltipOnButton;
-	button.noClickSound = info.noClickSound;
-	button.padding = info.padding;
-	button.icon = info.icon;
-	button.mouseOverIcon = info.mouseOverIcon;
-	button.ignoreAsMenuSelection = info.ignoreAsMenuSelection;
+            if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
+              k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
+              indexCentered = k.value
+            elseif k.label == MOTION_SICKNESS_BOTH then
+              k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
+              indexBoth = k.value
+            elseif k.label == MOTION_SICKNESS_NONE then
+              -- k.label = MOTION_SICKNESS_NONE
+              indexNone = k.value
+            elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
+              -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
+              indexReduced = k.value
+            end
 
-	if ( info.value ) then
-		button.value = info.value;
-	elseif ( info.text ) then
-		button.value = info.text;
-	else
-		button.value = nil;
-	end
+            -- for i2, k2 in pairs(k) do
+              -- print("    ", i2, k2)
+            -- end
+          end
 
-	local expandArrow = _G[listFrameName.."Button"..index.."ExpandArrow"];
-	expandArrow:SetShown(info.hasArrow);
-	expandArrow:SetEnabled(not info.disabled);
+          break
+        end
+      end
+    end
 
-	-- If not checkable move everything over to the left to fill in the gap where the check would be
-	local xPos = 5;
-	local yPos = -((button:GetID() - 1) * UIDROPDOWNMENU_BUTTON_HEIGHT) - UIDROPDOWNMENU_BORDER_HEIGHT;
-	local displayInfo = normalText;
-	if (info.iconOnly) then
-		displayInfo = icon;
-	end
+    -- If the drop down is used for something else and we have changed it before, undo the change.
+    if motionSicknessDropDown and not foundMouseMotionSicknessDropDown then
+      -- print("Re-enabling drop down")
+      motionSicknessDropDown:SetScript("OnEnter", MotionSicknessDropDownOriginalTooltipEnter)
+      motionSicknessDropDown:SetScript("OnLeave", MotionSicknessDropDownOriginalTooltipLeave)
 
-	displayInfo:ClearAllPoints();
-	if ( info.notCheckable ) then
-		if ( info.justifyH and info.justifyH == "CENTER" ) then
-			displayInfo:SetPoint("CENTER", button, "CENTER", -7, 0);
-		else
-			displayInfo:SetPoint("LEFT", button, "LEFT", 0, 0);
-		end
-		xPos = xPos + 10;
+      motionSicknessDropDown = nil
+    end
 
-	else
-		xPos = xPos + 12;
-		displayInfo:SetPoint("LEFT", button, "LEFT", 20, 0);
-	end
 
-	-- Adjust offset if displayMode is menu
-	local frame = UIDROPDOWNMENU_OPEN_MENU;
-	if ( frame and frame.displayMode == "MENU" ) then
-		if ( not info.notCheckable ) then
-			xPos = xPos - 6;
-		end
-	end
 
-	-- If no open frame then set the frame to the currently initialized frame
-	frame = frame or UIDROPDOWNMENU_INIT_MENU;
 
-	if ( info.leftPadding ) then
-		xPos = xPos + info.leftPadding;
-	end
-	button:SetPoint("TOPLEFT", button:GetParent(), "TOPLEFT", xPos, yPos);
 
-	-- See if button is selected by id or name
-	if ( frame ) then
-		if ( UIDropDownMenu_GetSelectedName(frame) ) then
-			if ( button:GetText() == UIDropDownMenu_GetSelectedName(frame) ) then
-				info.checked = 1;
-			end
-		elseif ( UIDropDownMenu_GetSelectedID(frame) ) then
-			if ( button:GetID() == UIDropDownMenu_GetSelectedID(frame) ) then
-				info.checked = 1;
-			end
-		elseif ( UIDropDownMenu_GetSelectedValue(frame) ) then
-			if ( button.value == UIDropDownMenu_GetSelectedValue(frame) ) then
-				info.checked = 1;
-			end
-		end
-	end
+    local foundMouseLookSpeedSlider = false
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOUSE_LOOK_SPEED then
+          -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
+          foundMouseLookSpeedSlider = true
 
-	if not info.notCheckable then
-		local check = _G[listFrameName.."Button"..index.."Check"];
-		local uncheck = _G[listFrameName.."Button"..index.."UnCheck"];
-		if ( info.disabled ) then
-			check:SetDesaturated(true);
-			check:SetAlpha(0.5);
-			uncheck:SetDesaturated(true);
-			uncheck:SetAlpha(0.5);
-		else
-			check:SetDesaturated(false);
-			check:SetAlpha(1);
-			uncheck:SetDesaturated(false);
-			uncheck:SetAlpha(1);
-		end
+          if not mouseLookSpeedSlider then
+            -- print("Disabling slider")
+            mouseLookSpeedSlider = child.SliderWithSteppers
 
-		if info.customCheckIconAtlas or info.customCheckIconTexture then
-			check:SetTexCoord(0, 1, 0, 1);
-			uncheck:SetTexCoord(0, 1, 0, 1);
+            if not MouseLookSpeedSliderOrignialTooltipEnter then
+              MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
+              MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
+            end
 
-			if info.customCheckIconAtlas then
-				check:SetAtlas(info.customCheckIconAtlas);
-				uncheck:SetAtlas(info.customUncheckIconAtlas or info.customCheckIconAtlas);
-			else
-				check:SetTexture(info.customCheckIconTexture);
-				uncheck:SetTexture(info.customUncheckIconTexture or info.customCheckIconTexture);
-			end
-		elseif info.isNotRadio then
-			check:SetTexCoord(0.0, 0.5, 0.0, 0.5);
-			check:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
-			uncheck:SetTexCoord(0.5, 1.0, 0.0, 0.5);
-			uncheck:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
-		else
-			check:SetTexCoord(0.0, 0.5, 0.5, 1.0);
-			check:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
-			uncheck:SetTexCoord(0.5, 1.0, 0.5, 1.0);
-			uncheck:SetTexture("Interface\\Common\\UI-DropDownRadioChecks");
-		end
+            -- Change tooltip.
+            mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000Disabled!|r", _, _, _, true)
+              GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
+              GameTooltip:Show()
+            end)
+            mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
+              GameTooltip:Hide()
+            end)
+          end
 
-		-- Checked can be a function now
-		local checked = info.checked;
-		if ( type(checked) == "function" ) then
-			checked = checked(button);
-		end
+          -- Got to make sure, the slider stays disabled.
+          if mouseLookSpeedSlider.Slider:IsEnabled() then
+            mouseLookSpeedSlider:SetEnabled_(false)
+          end
 
-		-- Show the check if checked
-		if ( checked ) then
-			button:LockHighlight();
-			check:Show();
-			uncheck:Hide();
-		else
-			button:UnlockHighlight();
-			check:Hide();
-			uncheck:Show();
-		end
-	else
-		_G[listFrameName.."Button"..index.."Check"]:Hide();
-		_G[listFrameName.."Button"..index.."UnCheck"]:Hide();
-	end
+          break
+        end
+      end
+    end
 
-  -- Ludius: This lead to spreading of taint:
-	-- button.checked = info.checked;
+    -- If the slider is used for something else and we have changed it before, undo the change.
+    if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
+      -- print("Re-enabling slider")
+      mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
+      mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
+      if not mouseLookSpeedSlider.Slider:IsEnabled() then
+        mouseLookSpeedSlider:SetEnabled_(true)
+      end
+      mouseLookSpeedSlider = nil
+    end
 
-	-- If has a colorswatch, show it and vertex color it
-	local colorSwatch = _G[listFrameName.."Button"..index.."ColorSwatch"];
-	if ( info.hasColorSwatch ) then
-		_G["DropDownList"..level.."Button"..index.."ColorSwatch"].Color:SetVertexColor(info.r, info.g, info.b);
-		button.r = info.r;
-		button.g = info.g;
-		button.b = info.b;
-		colorSwatch:Show();
-	else
-		colorSwatch:Hide();
-	end
+  end)
 
-	UIDropDownMenu_CheckAddCustomFrame(listFrame, button, info);
 
-	button:SetShown(button.customFrame == nil);
 
-	button.minWidth = info.minWidth;
 
-	width = max(UIDropDownMenu_GetButtonWidth(button), info.minWidth or 0);
-	--Set maximum button width
-	if ( width > listFrame.maxWidth ) then
-		listFrame.maxWidth = width;
-	end
 
-	-- Set the height of the listframe
-	listFrame:SetHeight((index * UIDROPDOWNMENU_BUTTON_HEIGHT) + (UIDROPDOWNMENU_BORDER_HEIGHT * 2));
+  -- Remember which view is active and which as been reset,
+  -- so when the user activates cameraSmoothStyle, we only reset to view 1 once.
+  local viewIsActive = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
+  local viewIsReset = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
+  hooksecurefunc("SetView", function(view)
+      for i = 1, 5 do
+          if i == tonumber(view) then
+              viewIsActive[i] = true
+          else
+              viewIsActive[i] = false
+          end
+      end
+  end)
+  hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
+  hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
+
+
+
+  local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
+
+  hooksecurefunc("SetCVar", function(cvar, value)
+      -- print(cvar, value)
+
+      -- Automatically undo forbidden motion sickness setting.
+      if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1) then
+          print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
+          SetCVar("CameraKeepCharacterCentered", 0)
+
+
+      -- https://github.com/Mpstark/DynamicCam/issues/40
+      elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
+          print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
+          SetCVar("cameraView", GetCVarDefault("cameraView"))
+
+
+      -- Switch to a default view, if user switches to cameraSmoothStyle.
+      elseif cvar == "cameraSmoothStyle" and value ~= "0" then
+          -- The order (first reset then set) is important, because if you are already
+          -- in view 1 and do a reset, it also sets the view. If this is followed by
+          -- another setView, you get an undesired instant view switch.
+          if not viewIsReset[1] then ResetView(1) end
+          if not viewIsActive[1] then SetView(1) end
+      end
+
+
+  end)
+
+
 end
 
 
@@ -4680,217 +4607,13 @@ end
 
 
 
-local mouseLookSpeedSlider = nil
-local MouseLookSpeedSliderOrignialTooltipEnter = nil
-local MouseLookSpeedSliderOrignialTooltipLeave = nil
-
-
--- Partially disable motion sickness options and leave a tooltip note in the default UI settings.
-local motionSicknessDropDown = nil
-local indexCentered = nil
-local indexReduced = nil
-local indexBoth = nil
-local indexNone = nil
-local MotionSicknessDropDownOriginalTooltipEnter = nil
-local MotionSicknessDropDownOriginalTooltipLeave = nil
-
-hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
-
-  local foundMouseMotionSicknessDropDown = false
-  local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-  for i, child in ipairs(children) do
-    if child.Text then
-      if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
-        -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
-        foundMouseMotionSicknessDropDown = true
-
-        if not motionSicknessDropDown then
-          -- print("Disabling drop down")
-          motionSicknessDropDown = child.DropDown.Button
-
-          if not MotionSicknessDropDownOriginalTooltipEnter then
-            MotionSicknessDropDownOriginalTooltipEnter = motionSicknessDropDown:GetScript("OnEnter")
-            MotionSicknessDropDownOriginalTooltipLeave = motionSicknessDropDown:GetScript("OnLeave")
-          end
-
-          -- Change tooltip.
-          motionSicknessDropDown:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
-              GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
-              GameTooltip:Show()
-          end)
-          motionSicknessDropDown:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-          end)
-
-
-          -- Prevent unallowed selections.
-          local function UndoSelections(self, valueTable)
-
-            -- Could apparently happen.
-            -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
-            if not valueTable then return end
-
-            -- Only do this while the drop down is modified.
-            if not motionSicknessDropDown then return end
-
-            if valueTable.value == indexBoth then
-              self:SetSelectedIndex(indexReduced)
-            elseif valueTable.value == indexCentered then
-              self:SetSelectedIndex(indexNone)
-            end
-          end
-
-          hooksecurefunc(motionSicknessDropDown, "OnEntryClicked", UndoSelections)
-          hooksecurefunc(motionSicknessDropDown, "Increment", UndoSelections)
-          hooksecurefunc(motionSicknessDropDown, "Decrement", UndoSelections)
-
-        end
-
-        -- Got to make sure the labels stay modified.
-        for i, k in pairs(motionSicknessDropDown.selections) do
-          -- print(i, k)
-
-          if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
-            k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
-            indexCentered = k.value
-          elseif k.label == MOTION_SICKNESS_BOTH then
-            k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
-            indexBoth = k.value
-          elseif k.label == MOTION_SICKNESS_NONE then
-            -- k.label = MOTION_SICKNESS_NONE
-            indexNone = k.value
-          elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
-            -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
-            indexReduced = k.value
-          end
-
-          -- for i2, k2 in pairs(k) do
-            -- print("    ", i2, k2)
-          -- end
-        end
-
-        break
-      end
-    end
-  end
-
-  -- If the drop down is used for something else and we have changed it before, undo the change.
-  if motionSicknessDropDown and not foundMouseMotionSicknessDropDown then
-    -- print("Re-enabling drop down")
-    motionSicknessDropDown:SetScript("OnEnter", MotionSicknessDropDownOriginalTooltipEnter)
-    motionSicknessDropDown:SetScript("OnLeave", MotionSicknessDropDownOriginalTooltipLeave)
-
-    motionSicknessDropDown = nil
-  end
 
 
 
 
 
-  local foundMouseLookSpeedSlider = false
-  local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-  for i, child in ipairs(children) do
-    if child.Text then
-      if child.Text:GetText() == MOUSE_LOOK_SPEED then
-        -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
-        foundMouseLookSpeedSlider = true
-
-        if not mouseLookSpeedSlider then
-          -- print("Disabling slider")
-          mouseLookSpeedSlider = child.SliderWithSteppers
-
-          if not MouseLookSpeedSliderOrignialTooltipEnter then
-            MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
-            MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
-          end
-
-          -- Change tooltip.
-          mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-            GameTooltip:AddLine("|cFFFF0000Disabled!|r", _, _, _, true)
-            GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
-            GameTooltip:Show()
-          end)
-          mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
-            GameTooltip:Hide()
-          end)
-        end
-
-        -- Got to make sure, the slider stays disabled.
-        if mouseLookSpeedSlider.Slider:IsEnabled() then
-          mouseLookSpeedSlider:SetEnabled_(false)
-        end
-
-        break
-      end
-    end
-  end
-
-  -- If the slider is used for something else and we have changed it before, undo the change.
-  if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
-    -- print("Re-enabling slider")
-    mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
-    mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
-    if not mouseLookSpeedSlider.Slider:IsEnabled() then
-      mouseLookSpeedSlider:SetEnabled_(true)
-    end
-    mouseLookSpeedSlider = nil
-  end
-
-end)
 
 
-
-
-
--- Remember which view is active and which as been reset,
--- so when the user activates cameraSmoothStyle, we only reset to view 1 once.
-local viewIsActive = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
-local viewIsReset = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
-hooksecurefunc("SetView", function(view)
-    for i = 1, 5 do
-        if i == tonumber(view) then
-            viewIsActive[i] = true
-        else
-            viewIsActive[i] = false
-        end
-    end
-end)
-hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
-hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
-
-
-
-local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
-
-hooksecurefunc("SetCVar", function(cvar, value)
-    -- print(cvar, value)
-
-    -- Automatically undo forbidden motion sickness setting.
-    if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1) then
-        print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
-        SetCVar("CameraKeepCharacterCentered", 0)
-
-
-    -- https://github.com/Mpstark/DynamicCam/issues/40
-    elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
-        print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
-        SetCVar("cameraView", GetCVarDefault("cameraView"))
-
-
-    -- Switch to a default view, if user switches to cameraSmoothStyle.
-    elseif cvar == "cameraSmoothStyle" and value ~= "0" then
-        -- The order (first reset then set) is important, because if you are already
-        -- in view 1 and do a reset, it also sets the view. If this is followed by
-        -- another setView, you get an undesired instant view switch.
-        if not viewIsReset[1] then ResetView(1) end
-        if not viewIsActive[1] then SetView(1) end
-    end
-
-
-end)
 
 
 

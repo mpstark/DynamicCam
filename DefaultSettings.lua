@@ -628,6 +628,42 @@ return false]]
 }
 
 
+-- Special modifications for classic.
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+
+    -- No pet battles before mists.
+    DynamicCam.defaults.profile.situations["310"] = nil
+
+    
+    -- No dragonriding or Dracthyr before Dragonflight.
+    DynamicCam.defaults.profile.situations["120"] = nil
+    DynamicCam.defaults.profile.situations["125"] = nil
+    DynamicCam.defaults.profile.situations["126"] = nil
+   
+
+    if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+
+        -- Cannot have SHIPMENT_CRAFTER_CLOSED, SHIPMENT_CRAFTER_OPENED, TRANSMOGRIFY_CLOSE, TRANSMOGRIFY_OPEN.
+        -- In classic also not PLAYER_INTERACTION_MANAGER_FRAME_HIDE and PLAYER_INTERACTION_MANAGER_FRAME_SHOW.
+        DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW", "TAXIMAP_OPENED", "TAXIMAP_CLOSED"}
+
+        DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
+        
+        -- No vehicles before wrath.
+        DynamicCam.defaults.profile.situations["102"] = nil
+
+    else
+
+        -- Cannot have "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN
+        DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}
+
+    end
+
+end
+
+
+
+
 -- Copy the defaults into each situation.
 for _, situation in pairs(DynamicCam.defaults.profile.situations) do
     for k, v in pairs(DynamicCam.situationDefaults) do
@@ -637,8 +673,6 @@ for _, situation in pairs(DynamicCam.defaults.profile.situations) do
         end
     end
 end
-
-
 
 
 

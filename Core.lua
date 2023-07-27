@@ -979,121 +979,126 @@ local lastSituation = {}
 
 
 
--- When an NPC has more than one quest, after accepting/returning the first quest,
--- the QuestFrame disappears for a short time, which momentarily exits
--- the NPC interaction situation (not looking nice).
--- Unfortunately, when exiting the situation, there is no direct way to determine if
--- the NPC still has quests or if a quest was just accepted.
--- The QUEST_ACCEPTED event comes a few frames after the PLAYER_INTERACTION_MANAGER_FRAME_HIDE
--- and QUEST_FINISHED events which are also the only indicators of the quest frame closing
--- without accepting a quest.
--- That's why we have to do some tricks to know that the NPC still has quests when exiting
--- the situation, so we can enforce an extra delay of 0.3 seconds (should be enough).
-local moreQuestDialog = false
-local questFrameClosed = true
-local lastQuestFrameCloseTime = GetTime()
+-- GetNumActiveQuests() does not exist in classic.
+if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
 
-local moreQuestDialogFrame = CreateFrame("Frame")
-moreQuestDialogFrame:RegisterEvent("QUEST_GREETING")
-moreQuestDialogFrame:RegisterEvent("GOSSIP_SHOW")
-moreQuestDialogFrame:RegisterEvent("QUEST_DETAIL")
-moreQuestDialogFrame:RegisterEvent("QUEST_ACCEPTED")
-moreQuestDialogFrame:RegisterEvent("QUEST_REMOVED")  -- For finishing quests.
-moreQuestDialogFrame:RegisterEvent("QUEST_COMPLETE") -- To check if a quest about to be finished in is part of a quest line.
-moreQuestDialogFrame:SetScript("OnEvent", function(_, event)
+    -- When an NPC has more than one quest, after accepting/returning the first quest,
+    -- the QuestFrame disappears for a short time, which momentarily exits
+    -- the NPC interaction situation (not looking nice).
+    -- Unfortunately, when exiting the situation, there is no direct way to determine if
+    -- the NPC still has quests or if a quest was just accepted.
+    -- The QUEST_ACCEPTED event comes a few frames after the PLAYER_INTERACTION_MANAGER_FRAME_HIDE
+    -- and QUEST_FINISHED events which are also the only indicators of the quest frame closing
+    -- without accepting a quest.
+    -- That's why we have to do some tricks to know that the NPC still has quests when exiting
+    -- the situation, so we can enforce an extra delay of 0.3 seconds (should be enough).
+    local moreQuestDialog = false
+    local questFrameClosed = true
+    local lastQuestFrameCloseTime = GetTime()
 
-    if event == "QUEST_GREETING" or event == "GOSSIP_SHOW" then
+    local moreQuestDialogFrame = CreateFrame("Frame")
+    moreQuestDialogFrame:RegisterEvent("QUEST_GREETING")
+    moreQuestDialogFrame:RegisterEvent("GOSSIP_SHOW")
+    moreQuestDialogFrame:RegisterEvent("QUEST_DETAIL")
+    moreQuestDialogFrame:RegisterEvent("QUEST_ACCEPTED")
+    moreQuestDialogFrame:RegisterEvent("QUEST_REMOVED")  -- For finishing quests.
+    moreQuestDialogFrame:RegisterEvent("QUEST_COMPLETE") -- To check if a quest about to be finished in is part of a quest line.
+    moreQuestDialogFrame:SetScript("OnEvent", function(_, event)
 
-        -- print(event, "available quests", C_GossipInfo.GetNumAvailableQuests(), GetNumAvailableQuests())
-        -- print(event, "active quests", C_GossipInfo.GetNumActiveQuests(), GetNumActiveQuests())
-        -- Find out if the active quests can actually be turned in. Because only then do we want to count them.
-        local completeQuests = 0
-        if C_GossipInfo.GetNumActiveQuests() > 0 then
-            for _, v in pairs(C_GossipInfo.GetActiveQuests()) do
-                -- print(v.title, v.isComplete)
-                if v.isComplete then
-                    completeQuests = completeQuests + 1
+        if event == "QUEST_GREETING" or event == "GOSSIP_SHOW" then
+
+            -- print(event, "available quests", C_GossipInfo.GetNumAvailableQuests(), GetNumAvailableQuests())
+            -- print(event, "active quests", C_GossipInfo.GetNumActiveQuests(), GetNumActiveQuests())
+            -- Find out if the active quests can actually be turned in. Because only then do we want to count them.
+            local completeQuests = 0
+            if C_GossipInfo.GetNumActiveQuests() > 0 then
+                for _, v in pairs(C_GossipInfo.GetActiveQuests()) do
+                    -- print(v.title, v.isComplete)
+                    if v.isComplete then
+                        completeQuests = completeQuests + 1
+                    end
+                end
+            elseif GetNumActiveQuests() > 0 then
+                for i=1, GetNumActiveQuests() do
+                    local title, isComplete = GetActiveTitle(i)
+                    -- print(title, isComplete)
+                    if isComplete then
+                        completeQuests = completeQuests + 1
+                    end
                 end
             end
-        elseif GetNumActiveQuests() > 0 then
-            for i=1, GetNumActiveQuests() do
-                local title, isComplete = GetActiveTitle(i)
-                -- print(title, isComplete)
-                if isComplete then
-                    completeQuests = completeQuests + 1
-                end
+
+            -- print(event, "(probably) complete quests", completeQuests)
+
+
+            if (C_GossipInfo.GetNumAvailableQuests() + completeQuests > 1) or (GetNumAvailableQuests() + completeQuests > 1) then
+                moreQuestDialog = true
+                questFrameClosed = false
             end
-        end
-
-        -- print(event, "(probably) complete quests", completeQuests)
 
 
-        if (C_GossipInfo.GetNumAvailableQuests() + completeQuests > 1) or (GetNumAvailableQuests() + completeQuests > 1) then
-            moreQuestDialog = true
-            questFrameClosed = false
-        end
+        -- When the quest detail view is shown, we reset moreQuestDialog,
+        -- unless we have set moreQuestDialog before without the quest
+        -- frame being closed.
+        elseif event == "QUEST_DETAIL" then
+            if questFrameClosed then
+                -- print(event, "setting moreQuestDialog to false.")
+                moreQuestDialog = false
+            end
 
-
-    -- When the quest detail view is shown, we reset moreQuestDialog,
-    -- unless we have set moreQuestDialog before without the quest
-    -- frame being closed.
-    elseif event == "QUEST_DETAIL" then
-        if questFrameClosed then
+        elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" then
             -- print(event, "setting moreQuestDialog to false.")
+            questFrameClosed = true
             moreQuestDialog = false
+
+
+        -- TODO: Use grail to determine if NPC has a follow-up quest.
+        -- elseif event == "QUEST_COMPLETE" then
+            -- print(event, "About to turn in a quest.")
+
+
+            -- questID = GetQuestID()
+
+            -- print(GetTitleText(), questID)
+
+            -- local questLineInfo = C_QuestLine.GetQuestLineInfo(questID, C_Map.GetBestMapForUnit("player"))
+
+            -- DynamicCam:PrintTable(questLineInfo, 0)
+
+            -- local questLineID = questLineInfo.questLineID
+
+
+
+            -- print(questLineID)
+
+
+            -- local questIDs = C_QuestLine.GetQuestLineQuests(questLineID)
+
+            -- for k, v in pairs(questIDs) do
+
+              -- print("----------------------", v)
+
+              -- local questLineInfo = C_QuestLine.GetQuestLineInfo(v, C_Map.GetBestMapForUnit("player"))
+
+              -- if questLineInfo then
+                -- DynamicCam:PrintTable(questLineInfo, 0)
+              -- end
+
+              -- print("----------------------")
+
+            -- end
+
+
+            -- DynamicCam:PrintTable(questIDs, 0)
+
+            -- print("ha", C_QuestLog.GetNextWaypoint(questID))
+
+
         end
 
-    elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" then
-        -- print(event, "setting moreQuestDialog to false.")
-        questFrameClosed = true
-        moreQuestDialog = false
+    end)
+end
 
-
-    -- TODO: Use grail to determine if NPC has a follow-up quest.
-    -- elseif event == "QUEST_COMPLETE" then
-        -- print(event, "About to turn in a quest.")
-
-
-        -- questID = GetQuestID()
-
-        -- print(GetTitleText(), questID)
-
-        -- local questLineInfo = C_QuestLine.GetQuestLineInfo(questID, C_Map.GetBestMapForUnit("player"))
-
-        -- DynamicCam:PrintTable(questLineInfo, 0)
-
-        -- local questLineID = questLineInfo.questLineID
-
-
-
-        -- print(questLineID)
-
-
-        -- local questIDs = C_QuestLine.GetQuestLineQuests(questLineID)
-
-        -- for k, v in pairs(questIDs) do
-
-          -- print("----------------------", v)
-
-          -- local questLineInfo = C_QuestLine.GetQuestLineInfo(v, C_Map.GetBestMapForUnit("player"))
-
-          -- if questLineInfo then
-            -- DynamicCam:PrintTable(questLineInfo, 0)
-          -- end
-
-          -- print("----------------------")
-
-        -- end
-
-
-        -- DynamicCam:PrintTable(questIDs, 0)
-
-        -- print("ha", C_QuestLog.GetNextWaypoint(questID))
-
-
-    end
-
-end)
 
 
 -- Cannot use PLAYER_INTERACTION_MANAGER_FRAME_HIDE or QUEST_FINISHED to update

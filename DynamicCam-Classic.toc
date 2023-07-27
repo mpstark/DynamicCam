@@ -1,0 +1,27 @@
+## Interface: 11403
+## Version: @project-version@
+## Title: DynamicCam
+## Author: mpstark, LudiusMaximus
+## Notes: A more dynamic camera.
+
+## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
+## SavedVariables: DynamicCamDB, minZoomValues
+
+## X-Curse-Project-ID: 101120
+## X-WoWI-ID: 25570
+
+## X-Donate: PayPal:ludiusmaximus@gmail.com
+## X-License: The MIT License (MIT)
+
+
+embeds.xml
+
+
+UiHideModule.lua
+
+Core.lua
+DefaultSettings.lua
+
+Sharing.lua
+Presets.lua
+Options.lua
