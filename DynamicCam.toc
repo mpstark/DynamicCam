@@ -19,7 +19,14 @@ embeds.xml
 
 UiHideModule.lua
 
+
+
+
+
 Core.lua
+
+Zoom.lua
+
 DefaultSettings.lua
 
 Sharing.lua

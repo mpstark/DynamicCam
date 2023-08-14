@@ -3,21 +3,12 @@ local folderName, Addon = ...
 ---------------
 -- LIBRARIES --
 ---------------
-local AceAddon = LibStub("AceAddon-3.0")
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
 
 
 
--- The user may try to register invalid events. In order to prevent AceEvent-3.0
--- from remembering invalid events, we have to check if an event exists ourselves!
--- https://www.wowinterface.com/forums/showthread.php?t=58681
-local eventExistsFrame = CreateFrame("Frame");
-local function EventExists(event)
-  local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
-  if exists then eventExistsFrame:UnregisterEvent(event) end
-  return exists
-end
+
 
 
 ---------------
@@ -32,7 +23,7 @@ local SET_VIEW_TRANSITION_TIME = 0.5
 -------------
 -- GLOBALS --
 -------------
-DynamicCam = AceAddon:NewAddon(folderName, "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
+DynamicCam = LibStub("AceAddon-3.0"):NewAddon(folderName, "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
 
 
 DynamicCam.currentSituationID = nil
@@ -60,16 +51,18 @@ DynamicCam.conditionExecutionCache = {}
 ------------
 -- LOCALS --
 ------------
-local _
-local Options
-local functionCache = {}
+
+local function round(num, numDecimalPlaces)
+  local mult = 10^(numDecimalPlaces or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
+
+
 local situationEnvironments = {}
 
-local next = next
 
 
-local OldCameraZoomIn = CameraZoomIn
-local OldCameraZoomOut = CameraZoomOut
 
 
 
@@ -79,37 +72,6 @@ local SetCorrectedShoulderOffset
 
 
 
--- The mimimal third person zoom value depends on the current model.
-local minZoomMounted = 1.5
-
-local modelFrame = CreateFrame("PlayerModel")
-local function GetModelId()
-  modelFrame:SetUnit("player")
-  return modelFrame:GetModelFileID()
-end
-local function GetMinZoom()
-  if IsMounted() then
-    return minZoomMounted
-  else
-    return minZoomValues[GetModelId()]
-  end
-end
-
--- Set to true when zooming out from first person, such that the next zoom is stored as min value.
-local storeMinZoom = false
-
-
--- To indicate if a non-reactive zoom is in progress.
-local nonReactiveZoomStarted = false
-local nonReactiveZoomInProgress = false
-local nonReactiveZoomStartValue = GetCameraZoom()
-
-
--- We have to be able to set this to nil whenever
--- SetZoom() or SetView() happens. Otherwise, the
--- next scroll wheel turn will scroll back
--- to the last zoom position.
-local reactiveZoomTarget = nil
 
 
 -- When SetView() happens, the zoom level of the new view is
@@ -135,9 +97,8 @@ local secondsPerFrame = 1.0 / GetFramerate()
 local evaluateSituationsNextFrame = false
 
 
-local function ConstantlyRunningFrameFunction(self, elapsed)
-  -- Using this frame to log secondsPerFrame,
-  -- which we need below to determine if easing is worthwhile.
+local function ConstantlyRunningFrameFunction(_, elapsed)
+  -- Also using this frame's OnUpdate to log secondsPerFrame.
   secondsPerFrame = elapsed
 
   -- Using this frame to evaluate situations one frame after an event
@@ -177,7 +138,7 @@ local function ShoulderOffsetEasingFunction(self, elapsed)
   
   -- If reactive zoom is used, we know when a zoom is happening so we can skip whenever there is no zoom
   -- and not shoulder offset easing taking place. If reactive zoom is not used, we always have to run.
-  if CameraZoomIn == ReactiveZoomIn and not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then return end
+  if DynamicCam:ReactiveZoomIsOn() and not LibCamera:IsZooming() and not DynamicCam.easeShoulderOffsetInProgress then return end
   
   -- When we are going into a view, the zoom level of the new view is returned
   -- by GetCameraZoom() immediately. Hence, we have to simulate a "virtual"
@@ -196,6 +157,7 @@ local shoulderOffsetEasingFrame = CreateFrame("Frame")
 
 
 
+local functionCache = {}
 local function DC_RunScript(situationID, scriptID)
 
   local script = DynamicCam.db.profile.situations[situationID][scriptID]
@@ -270,111 +232,9 @@ local function DC_SetCVar(cvar, setting)
   end
 end
 
-local function round(num, numDecimalPlaces)
-  local mult = 10^(numDecimalPlaces or 0)
-  return math.floor(num * mult + 0.5) / mult
-end
-
-local function gotoView(view, instant)
-  -- print("gotoView", view, instant)
-
-  if not view then return end
-
-  -- View change overrides all zooming and rotating.
-  LibCamera:StopZooming()
-  LibCamera:StopRotating()
-
-  -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
-  reactiveZoomTarget = nil
-
-
-  local cameraZoomBefore = GetCameraZoom()
-
-  -- if you call SetView twice, then it's instant
-  if instant then
-    SetView(view)
-  end
-  SetView(view)
-
-  local cameraZoomAfter = GetCameraZoom()
-  -- print("Going from", cameraZoomBefore, "to", cameraZoomAfter)
-
-  -- If "Adjust Shoulder offset according to zoom level" is activated,
-  -- the shoulder offset will be instantaneously set according to the new
-  -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
-    DynamicCam.easeShoulderOffsetInProgress = true
-    virtualCameraZoom = cameraZoomBefore
-
-    LibEasing:Ease(
-      function(newValue)
-        virtualCameraZoom = newValue
-      end,
-      cameraZoomBefore,
-      cameraZoomAfter,
-      SET_VIEW_TRANSITION_TIME,
-      LibEasing.Linear,
-      function()
-        DynamicCam.easeShoulderOffsetInProgress = false
-        virtualCameraZoom = nil
-      end
-    )
-  end
-end
-
-local function copyTable(originalTable)
-  local origType = type(originalTable)
-  local copy
-  if origType == 'table' then
-    -- this child is a table, copy the table recursively
-    copy = {}
-    for orig_key, orig_value in next, originalTable, nil do
-      copy[copyTable(orig_key)] = copyTable(orig_value)
-    end
-  else
-    -- this child is a value, copy it cover
-    copy = originalTable
-  end
-  return copy
-end
 
 
 
-
-
--- This is needed to correct reactiveZoomTarget in case the target is missed.
-local lastZoomForCorrection = GetCameraZoom()
-
-local function ReactiveZoomTargetCorrectionFunction()
-
-  if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
-
-  local currentZoom = GetCameraZoom()
-
-  if nonReactiveZoomStarted and nonReactiveZoomStartValue ~= currentZoom then
-    -- print("NonReactiveZoom just Started", nonReactiveZoomStartValue, GetTime())
-    nonReactiveZoomInProgress = true
-    nonReactiveZoomStarted = false
-  elseif nonReactiveZoomInProgress and lastZoomForCorrection == currentZoom then
-    -- print("NonReactiveZoom finished", GetTime())
-    nonReactiveZoomInProgress = false
-  end
-
-  if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= currentZoom then
-    -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", currentZoom, GetTime())
-    reactiveZoomTarget = currentZoom
-
-    if storeMinZoom then
-      -- print("Storing", currentZoom, "for", GetModelId())
-      minZoomValues[GetModelId()] = currentZoom
-      storeMinZoom = false
-    end
-  end
-
-  lastZoomForCorrection = currentZoom
-end
-
-local reactiveZoomTargetCorrectionFrame = CreateFrame("Frame")
 
 
 
@@ -830,11 +690,6 @@ function DynamicCam:OnInitialize()
   UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
 
 
-  -- The real minimal zoom values are kept in a SaveVariable.
-  if not minZoomValues then
-    minZoomValues = {}
-  end
-
 end
 
 function DynamicCam:OnEnable()
@@ -857,11 +712,6 @@ function DynamicCam:Startup()
 
   enteredSituationAtLogin = false
 
-
-  -- make sure that shortcuts have values
-  if not Options then
-    Options = self.Options
-  end
 
   -- register for dynamiccam messages
   self:RegisterMessage("DC_SITUATION_DISABLED")
@@ -1295,6 +1145,60 @@ end
 
 
 
+
+
+
+
+
+
+
+local function gotoView(view, instant)
+  -- print("gotoView", view, instant)
+
+  if not view then return end
+
+  -- View change overrides all zooming and rotating.
+  LibCamera:StopZooming()
+  LibCamera:StopRotating()
+
+  -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
+  DynamicCam:ResetReactiveZoomTarget()
+
+
+  local cameraZoomBefore = GetCameraZoom()
+
+  -- if you call SetView twice, then it's instant
+  if instant then
+    SetView(view)
+  end
+  SetView(view)
+
+  local cameraZoomAfter = GetCameraZoom()
+  -- print("Going from", cameraZoomBefore, "to", cameraZoomAfter)
+
+  -- If "Adjust Shoulder offset according to zoom level" is activated,
+  -- the shoulder offset will be instantaneously set according to the new
+  -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
+  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
+    DynamicCam.easeShoulderOffsetInProgress = true
+    virtualCameraZoom = cameraZoomBefore
+
+    LibEasing:Ease(
+      function(newValue)
+        virtualCameraZoom = newValue
+      end,
+      cameraZoomBefore,
+      cameraZoomAfter,
+      SET_VIEW_TRANSITION_TIME,
+      LibEasing.Linear,
+      function()
+        DynamicCam.easeShoulderOffsetInProgress = false
+        virtualCameraZoom = nil
+      end
+    )
+  end
+end
+
 function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
   -- print("ChangeSituation", oldSituationID, newSituationID, GetTime())
@@ -1522,7 +1426,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   else
     -- We only need to zoom when not going into a view.
     -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
-    reactiveZoomTarget = nil
+    DynamicCam:ResetReactiveZoomTarget()
     LibCamera:SetZoom(newZoomLevel, transitionTime, easeFunction)
   end
 
@@ -1613,6 +1517,26 @@ function DynamicCam:UpdateSituation(situationID)
   self:EvaluateSituations()
 end
 
+
+
+
+local function copyTable(originalTable)
+  local origType = type(originalTable)
+  local copy
+  if origType == 'table' then
+    -- this child is a table, copy the table recursively
+    copy = {}
+    for orig_key, orig_value in next, originalTable, nil do
+      copy[copyTable(orig_key)] = copyTable(orig_value)
+    end
+  else
+    -- this child is a value, copy it cover
+    copy = originalTable
+  end
+  return copy
+end
+
+
 function DynamicCam:CreateCustomSituation(name)
   -- search for a clear id
   local highest = 0
@@ -1641,8 +1565,8 @@ function DynamicCam:CreateCustomSituation(name)
   self.db.profile.situations[newSituationID] = newSituation
 
   -- make sure that the options panel reselects a situation
-  if Options then
-    Options:SelectSituation(newSituationID)
+  if self.Options then
+    self.Options:SelectSituation(newSituationID)
   end
 
   self:SendMessage("DC_SITUATION_UPDATED", newSituationID)
@@ -1667,9 +1591,9 @@ function DynamicCam:DeleteCustomSituation(situationID)
   self.db.profile.situations[situationID] = nil
 
   -- make sure that the options panel reselects a situation
-  if Options then
-    Options:ClearSelection()
-    Options:SelectSituation()
+  if self.Options then
+    self.Options:ClearSelection()
+    self.Options:SelectSituation()
   end
 
   -- EvaluateSituations because we might have changed the current situation
@@ -1827,249 +1751,27 @@ end
 
 
 
------------------------
--- NON-REACTIVE ZOOM --
------------------------
--- Notice: The feature of zooming to the smallest third person zoom level does only work good for ReactiveZoom.
--- In NonReactiveZoom it only works if you set the zoom speed to max.
--- That's why we are not doing it for NonReactiveZoom.
-local function NonReactiveZoom(zoomIn, increments)
-  -- print("NonReactiveZoom", zoomIn, increments, GetCameraZoom())
-
-  -- Stop zooming that might currently be in progress from a situation change.
-  LibCamera:StopZooming(true)
-
-  -- If we are not using this from within ReactiveZoom, we can also use the increment multiplier here.
-  if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
-    increments = increments + DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
-
-  else
-    -- This is needed to correct reactiveZoomTarget in case the target is missed.
-    -- print("NonReactiveZoom starting", GetCameraZoom(), GetTime())
-    nonReactiveZoomStarted = true
-    nonReactiveZoomInProgress = false
-    nonReactiveZoomStartValue = GetCameraZoom()
-  end
-
-  if zoomIn then
-    OldCameraZoomIn(increments)
-  else
-    OldCameraZoomOut(increments)
-  end
-end
-
-
-local function NonReactiveZoomIn(increments)
-  -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
-  if increments == 0 then return end
-  NonReactiveZoom(true, increments)
-end
-
-local function NonReactiveZoomOut(increments)
-  -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
-  if increments == 0 then return end
-
-  if storeMinZoom then
-    -- print("User zoomed out beyond min value. Interrupting store process.")
-    storeMinZoom = false
-  end
-
-  NonReactiveZoom(false, increments)
-end
-
-
--------------------
--- REACTIVE ZOOM --
--------------------
-
-local function clearZoomTarget(wasInterrupted)
-  if not wasInterrupted then
-    reactiveZoomTarget = nil
-  end
-end
-
-local function ReactiveZoom(zoomIn, increments)
-  -- print("ReactiveZoom", zoomIn, increments, reactiveZoomTarget)
-
-  increments = increments or 1
-
-  -- If this is a "mouse wheel" CameraZoomIn/CameraZoomOut, increments is 1.
-  -- Unlike a CameraZoomIn/CameraZoomOut from within LibCamera.SetZoomUsingCVar().
-  if increments == 1 then
-    local currentZoom = GetCameraZoom()
-
-    local addIncrementsAlways = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrementsAlways")
-    local addIncrements = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomAddIncrements")
-    local maxZoomTime = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomMaxZoomTime")
-    local incAddDifference = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomIncAddDifference")
-    local easingFunc = DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEasingFunc")
-
-
-    -- scale increments up
-    increments = increments + addIncrementsAlways
-
-    if reactiveZoomTarget and math.abs(reactiveZoomTarget - currentZoom) > incAddDifference then
-      increments = increments + addIncrements
-    end
-
-
-
-    -- if we've changed directions, make sure to reset
-    if zoomIn then
-      if reactiveZoomTarget and reactiveZoomTarget > currentZoom then
-        reactiveZoomTarget = nil
-      end
-    else
-      if reactiveZoomTarget and reactiveZoomTarget < currentZoom then
-        reactiveZoomTarget = nil
-      end
-    end
-
-    -- if there is already a target zoom, base off that one, or just use the current zoom
-    reactiveZoomTarget = reactiveZoomTarget or currentZoom
-
-
-    -- Always stop at closest third person zoom level.
-    local minZoom = GetMinZoom() or 1.5
-
-    if zoomIn then
-
-      if reactiveZoomTarget - increments < minZoom then
-
-        if reactiveZoomTarget > minZoom then
-          -- print("go to minZoom", minZoom)
-          reactiveZoomTarget = minZoom
-
-          -- Also update the increments if we need to make a NonReactiveZoom below,
-          -- in case of "zoomTime < secondsPerFrame".
-          increments = currentZoom - minZoom
-        else
-          -- print("go to 0")
-          reactiveZoomTarget = 0
-
-          -- No need to update increments because any zoom target below minZoom
-          -- will result in 0 automatically.
-        end
-
-      else
-        reactiveZoomTarget = math.max(0, reactiveZoomTarget - increments)
-      end
-
-
-    -- zoom out
-    else
-
-      -- From first person go directly into closest third person.
-      if currentZoom == 0 then
-        -- print("Giving this to non-reactive zoom")
-        NonReactiveZoomOut(0.05)
-
-        -- When this zoom is finished, store the minimal zoom distance,
-        -- such that we can also use it while zooming in.
-        if not IsMounted() then
-          storeMinZoom = true
-        end
-
-        return
-      else
-        reactiveZoomTarget = math.min(GetCVar("cameraDistanceMaxZoomFactor")*15, reactiveZoomTarget + increments)
-      end
-    end
-
-
-    -- if we don't need to zoom because we're at the max limits, then don't
-    if (reactiveZoomTarget == 39 and currentZoom == 39) or (reactiveZoomTarget == 0 and currentZoom == 0) then
-      return
-    end
-
-
-    -- get the current time to zoom if we were going linearly or use maxZoomTime, if that's too high
-    local zoomTime = math.min(maxZoomTime, math.abs(reactiveZoomTarget - currentZoom) / tonumber(GetCVar("cameraZoomSpeed")) )
-
-
-    -- print ("Want to get from", currentZoom, "to", reactiveZoomTarget, "in", zoomTime, "with one frame being", secondsPerFrame)
-    if zoomTime < secondsPerFrame then
-      -- print("No easing for you", zoomTime, secondsPerFrame, increments)
-
-      if zoomIn then
-        NonReactiveZoomIn(increments)
-      else
-        NonReactiveZoomOut(increments)
-      end
-    else
-      -- print("REACTIVE ZOOM start", GetTime())
-      -- LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc], function() print("REACTIVE ZOOM end", GetTime()) end)
-      LibCamera:SetZoom(reactiveZoomTarget, zoomTime, LibEasing[easingFunc])
-    end
-
-  else
-    -- Called from within LibCamera.SetZoomUsingCVar(), through SetZoom() when the target zoom was missed.
-    -- print("...this is no mouse wheel call!", increments)
-
-    if zoomIn then
-      NonReactiveZoomIn(increments)
-    else
-      NonReactiveZoomOut(increments)
-    end
-  end
-end
-
-
-local function ReactiveZoomIn(increments)
-  -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
-  if increments == 0 then return end
-  ReactiveZoom(true, increments)
-end
-
-local function ReactiveZoomOut(increments)
-  -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
-  if increments == 0 then return end
-
-  if storeMinZoom then
-    -- print("User zoomed out beyond min value. Interrupting store process.")
-    storeMinZoom = false
-  end
-
-  ReactiveZoom(false, increments)
-end
-
-
-function DynamicCam:ReactiveZoomOn()
-  -- print("ReactiveZoomOn()")
-  if CameraZoomIn == ReactiveZoomIn then
-    -- print("already on")
-    return
-  end
-
-  CameraZoomIn = ReactiveZoomIn
-  CameraZoomOut = ReactiveZoomOut
-
-  reactiveZoomTarget = GetCameraZoom()
-  reactiveZoomTargetCorrectionFrame:SetScript("OnUpdate", ReactiveZoomTargetCorrectionFunction)
-end
-
-function DynamicCam:ReactiveZoomOff()
-  -- print("ReactiveZoomOff()")
-  if CameraZoomIn == NonReactiveZoomIn then
-    -- print("already off")
-    return
-  end
-
-  CameraZoomIn = NonReactiveZoomIn
-  CameraZoomOut = NonReactiveZoomOut
-
-  reactiveZoomTarget = nil
-  reactiveZoomTargetCorrectionFrame:SetScript("OnUpdate", nil)
-end
-
-
-
 
 
 
 ------------
 -- EVENTS --
 ------------
+
+
+-- The user may try to register invalid events. In order to prevent AceEvent-3.0
+-- from remembering invalid events, we have to check if an event exists ourselves!
+-- https://www.wowinterface.com/forums/showthread.php?t=58681
+local eventExistsFrame = CreateFrame("Frame");
+local function EventExists(event)
+  local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
+  if exists then eventExistsFrame:UnregisterEvent(event) end
+  return exists
+end
+
+
+
+
 function DynamicCam:EventHandler(event)
   -- When entering combat, we have to act now.
   -- Otherwise, we might not be able to call protected functions like UIParent:Show().
@@ -2136,6 +1838,8 @@ end
 function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
   self:ApplySettings()
 end
+
+
 
 
 --------------
@@ -2485,9 +2189,9 @@ function DynamicCam:RefreshConfig()
 
   -- clear the options panel so that it reselects
   -- make sure that options panel selects a situation
-  if Options then
-    Options:ClearSelection()
-    Options:SelectSituation()
+  if self.Options then
+    self.Options:ClearSelection()
+    self.Options:SelectSituation()
   end
 
 
@@ -2565,15 +2269,11 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
 
 function DynamicCam:OpenMenu()
 
-  if not Options then
-    Options = self.Options
-  end
-
-  Options:SelectSituation()
+  self.Options:SelectSituation()
 
   -- just open to the frame, double call because blizz bug
-  InterfaceOptionsFrame_OpenToCategory(Options.menu)
-  InterfaceOptionsFrame_OpenToCategory(Options.menu)
+  InterfaceOptionsFrame_OpenToCategory(self.Options.menu)
+  InterfaceOptionsFrame_OpenToCategory(self.Options.menu)
 
 end
 
@@ -2636,7 +2336,7 @@ function DynamicCam:ZoomSlash(input)
     local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
 
     -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
-    reactiveZoomTarget = nil
+    DynamicCam:ResetReactiveZoomTarget()
     LibCamera:SetZoom(zoom, time or math.min(defaultTime, 0.75), easingFunc)
   end
 end
@@ -2750,222 +2450,6 @@ end
 
 
 
-------------------------------------
--- ReactiveZoom Visual Aid (RZVA) --
-------------------------------------
-
-local function DrawLine(f, startRelativeAnchor, startOffsetX, startOffsetY,
-                           endRelativeAnchor, endOffsetX, endOffsetY,
-                           thickness, r, g, b, a)
-
-  local line = f:CreateLine()
-  line:SetThickness(thickness)
-  line:SetColorTexture(r, g, b, a)
-  line:SetStartPoint(startRelativeAnchor, f, startOffsetX, startOffsetY)
-  line:SetEndPoint(endRelativeAnchor, f, endOffsetX, endOffsetY)
-
-end
-
-
-local function SetFrameBorder(f, thickness, r, g, b, a)
-  -- Bottom line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Top line.
-  DrawLine(f, "TOPLEFT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Left line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "TOPLEFT", 0, 0, thickness, r, g, b, a)
-  -- Right line.
-  DrawLine(f, "BOTTOMRIGHT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-end
-
-
-local rzvaWidth = 120
-local rzvaHeight = 200
-local rzvaHalfWidth = rzvaWidth/2
-
-local rzvaFrame = nil
-
-local lastReactiveZoomTarget = reactiveZoomTarget
-local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
-
-
-local function ReactiveZoomGraphUpdateFunction()
-
-  rzvaFrame.zm:ClearAllPoints()
-  rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / 39) )
-  rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
-
-  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
-
-    if not rzvaFrame.rzt:IsShown() then
-      rzvaFrame.rzt:Show()
-      rzvaFrame.rzi:Show()
-      rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-      rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
-    end
-
-    rzvaFrame.rzt:ClearAllPoints()
-    if reactiveZoomTarget then
-      rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / 39) )
-
-      rzvaFrame.reactiveZoomTargetValue:SetText(round(reactiveZoomTarget, 3))
-
-      if lastReactiveZoomTarget then
-      
-        local step = lastReactiveZoomTarget - reactiveZoomTarget
-
-        if step > 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
-          rzvaFrame.rzi:Show()
-        elseif step < 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
-          rzvaFrame.rzi:Show()
-        else
-          rzvaFrame.rzi:Hide()
-        end
-
-      end
-
-      lastReactiveZoomTarget = reactiveZoomTarget
-
-    else
-      rzvaFrame.rzi:Hide()
-      rzvaFrame.rzt:Hide()
-      rzvaFrame.reactiveZoomTargetValue:SetText("---")
-    end
-
-  else
-    if rzvaFrame.rzt:IsShown() then
-      rzvaFrame.rzt:Hide()
-      rzvaFrame.rzi:Hide()
-      rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, .3, 1)
-      rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, .3, 1)
-      rzvaFrame.reactiveZoomTargetValue:SetText("---")
-    end
-  end
-end
-
-
-
-function DynamicCam:ToggleRZVA()
-
-  if not rzvaFrame then
-
-    rzvaFrame = CreateFrame("Frame", "reactiveZoomVisualAid", UIParent)
-    rzvaFrame:SetFrameStrata("TOOLTIP")
-    rzvaFrame:SetMovable(true)
-    rzvaFrame:EnableMouse(true)
-    rzvaFrame:RegisterForDrag("LeftButton")
-    rzvaFrame:SetScript("OnDragStart", rzvaFrame.StartMoving)
-    rzvaFrame:SetScript("OnDragStop", rzvaFrame.StopMovingOrSizing)
-    rzvaFrame:SetClampedToScreen(true)
-
-    -- Closes with right button.
-    rzvaFrame:SetScript("OnMouseDown", function(self, button)
-      if button == "RightButton" then
-        self:Hide()
-      end
-    end)
-
-
-    rzvaFrame:SetWidth(rzvaWidth)
-    rzvaFrame:SetHeight(rzvaHeight)
-    rzvaFrame:ClearAllPoints()
-    rzvaFrame:SetPoint("BOTTOMLEFT", SettingsPanel.Container, "BOTTOMLEFT", 45, 35)
-
-    rzvaFrame.t = rzvaFrame:CreateTexture()
-    rzvaFrame.t:SetAllPoints()
-    rzvaFrame.t:SetTexture("Interface/BUTTONS/WHITE8X8")
-    rzvaFrame.t:SetColorTexture(1, 1, 1, .1)
-
-    SetFrameBorder(rzvaFrame, 2, 1, 1, 1, 1)
-
-
-    rzvaFrame.cameraZoomLabel = rzvaFrame:CreateFontString()
-    rzvaFrame.cameraZoomLabel:SetWidth(rzvaHalfWidth)
-    rzvaFrame.cameraZoomLabel:SetJustifyH("CENTER")
-    rzvaFrame.cameraZoomLabel:SetJustifyV("CENTER")
-    rzvaFrame.cameraZoomLabel:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 19)
-    rzvaFrame.cameraZoomLabel:SetFont("Fonts/FRIZQT__.TTF", 12)
-    rzvaFrame.cameraZoomLabel:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomLabel:SetText("Actual\nZoom\nValue")
-
-    rzvaFrame.cameraZoomValue = rzvaFrame:CreateFontString()
-    rzvaFrame.cameraZoomValue:SetWidth(rzvaHalfWidth)
-    rzvaFrame.cameraZoomValue:SetJustifyH("CENTER")
-    rzvaFrame.cameraZoomValue:SetJustifyV("CENTER")
-    rzvaFrame.cameraZoomValue:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 4)
-    rzvaFrame.cameraZoomValue:SetFont("Fonts/FRIZQT__.TTF", 14)
-    rzvaFrame.cameraZoomValue:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomValue:SetText(GetCameraZoom())
-
-
-    rzvaFrame.reactiveZoomTargetLabel = rzvaFrame:CreateFontString()
-    rzvaFrame.reactiveZoomTargetLabel:SetWidth(rzvaHalfWidth)
-    rzvaFrame.reactiveZoomTargetLabel:SetJustifyH("CENTER")
-    rzvaFrame.reactiveZoomTargetLabel:SetJustifyV("CENTER")
-    rzvaFrame.reactiveZoomTargetLabel:SetPoint("BOTTOMLEFT", rzvaFrame, "TOPLEFT", 0, 19)
-    rzvaFrame.reactiveZoomTargetLabel:SetFont("Fonts/FRIZQT__.TTF", 12)
-    rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-    rzvaFrame.reactiveZoomTargetLabel:SetText("Reactive\nZoom\nTarget")
-
-    rzvaFrame.reactiveZoomTargetValue = rzvaFrame:CreateFontString()
-    rzvaFrame.reactiveZoomTargetValue:SetWidth(rzvaHalfWidth)
-    rzvaFrame.reactiveZoomTargetValue:SetJustifyH("CENTER")
-    rzvaFrame.reactiveZoomTargetValue:SetJustifyV("CENTER")
-    rzvaFrame.reactiveZoomTargetValue:SetPoint("BOTTOMLEFT", rzvaFrame, "TOPLEFT", 0, 4)
-    rzvaFrame.reactiveZoomTargetValue:SetFont("Fonts/FRIZQT__.TTF", 14)
-    rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
-
-
-
-    rzvaFrame.zm = CreateFrame("Frame", "cameraZoomMarker", rzvaFrame)
-    rzvaFrame.zm:SetWidth(rzvaHalfWidth)
-    rzvaFrame.zm:SetHeight(1)
-    rzvaFrame.zm:Show()
-    DrawLine(rzvaFrame.zm, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, 5, 1, .3, .3, 1)
-
-
-    rzvaFrame.rzt = CreateFrame("Frame", "reactiveZoomTargetMarker", rzvaFrame)
-    rzvaFrame.rzt:SetWidth(rzvaHalfWidth)
-    rzvaFrame.rzt:SetHeight(1)
-    rzvaFrame.rzt:Show()
-    DrawLine(rzvaFrame.rzt, "BOTTOMRIGHT", 0, 0, "BOTTOMLEFT", 0, 0, 5, .3, .3, 1, 1)
-
-
-    rzvaFrame.rzi = CreateFrame("Frame", "reactiveZoomIncrementMarker", rzvaFrame)
-    rzvaFrame.rzi:SetWidth(rzvaHalfWidth)
-    -- Must set points here, otherwise the texture is not created...
-    rzvaFrame.rzi:SetPoint("TOP", rzvaFrame.rzt, "BOTTOM", 0, 0)
-    rzvaFrame.rzi.t = rzvaFrame.rzi:CreateTexture()
-    rzvaFrame.rzi.t:SetAllPoints()
-    rzvaFrame.rzi.t:SetTexture("Interface/BUTTONS/WHITE8X8")
-    rzvaFrame.rzi.t:SetColorTexture(1, 1, 0, 1)
-
-    rzvaFrame:Hide()
-
-
-    rzvaFrame:HookScript("OnShow", function()
-      reactiveZoomGraphUpdateFrame:SetScript("OnUpdate", ReactiveZoomGraphUpdateFunction)
-    end)
-
-    rzvaFrame:HookScript("OnHide", function()
-      reactiveZoomGraphUpdateFrame:SetScript("OnUpdate", nil)
-    end)
-  end
-
-  if not rzvaFrame:IsShown() then
-    rzvaFrame:Show()
-  else
-    rzvaFrame:Hide()
-  end
-
-end
-
-
-
-
-
 -- For errors in scripts.
 
 -- TODO: Later with localisation:
@@ -3040,7 +2524,7 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
     -- if data then print(data.situationID, data.scriptID) end
     DynamicCam:OpenMenu()
     LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationControls", data.scriptID)
-    Options:SelectSituation(data.situationID)
+    DynamicCam.Options:SelectSituation(data.situationID)
   end,
 
   button4 = "Reset to default",

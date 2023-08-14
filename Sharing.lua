@@ -265,9 +265,9 @@ function DynamicCam:Import(importString)
 
       self:SendMessage("DC_SITUATION_UPDATED", situationID)
       self:Print("Successfully imported situation", imported.situation.name)
-      
+
     end
-    
+
   elseif imported.type == "DC_PROFILE" then
     local name = imported.name or "Imported"
     -- this in an imported profile
