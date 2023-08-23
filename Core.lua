@@ -76,9 +76,10 @@ local enteredSituationAtLogin = false
 
 
 
--- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
+-- Use this variable to get the duration of the last frame.
 -- This is more accurate than the game framerate, which is the average over several recent frames.
-local secondsPerFrame = 1.0 / GetFramerate()
+-- (Needed in SituationManager.lua and MouseZoom.lua.)
+DynamicCam.secondsPerFrame = 1.0 / GetFramerate()
 
 -- To evaluate situations one frame after an event is triggered
 -- (see EventHandler() and ShoulderOffsetEasingFunction()).
@@ -87,7 +88,7 @@ local evaluateSituationsNextFrame = false
 
 local function ConstantlyRunningFrameFunction(_, elapsed)
   -- Also using this frame's OnUpdate to log secondsPerFrame.
-  secondsPerFrame = elapsed
+  DynamicCam.secondsPerFrame = elapsed
 
   -- Using this frame to evaluate situations one frame after an event
   -- is triggered (see EventHandler()). This way we are never too early.

@@ -136,16 +136,12 @@ function DynamicCam:ResetReactiveZoomTarget()
 end
 
 
--- Use this variable to get the duration of the last frame, to determine if easing is worthwhile.
--- This is more accurate than the game framerate, which is the average over several recent frames.
-local secondsPerFrame = 1.0 / GetFramerate()
+
 
 -- This is needed to correct reactiveZoomTarget in case the target is missed.
 local lastZoomForCorrection = GetCameraZoom()
 
 local function ReactiveZoomTargetCorrectionFunction(_, elapsed)
-  -- Also using this frame's OnUpdate to log secondsPerFrame.
-  secondsPerFrame = elapsed
 
   if not DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then return end
 
@@ -277,9 +273,9 @@ local function ReactiveZoom(zoomIn, increments)
     local zoomTime = math.min(maxZoomTime, math.abs(reactiveZoomTarget - currentZoom) / tonumber(GetCVar("cameraZoomSpeed")) )
 
 
-    -- print ("Want to get from", currentZoom, "to", reactiveZoomTarget, "in", zoomTime, "with one frame being", secondsPerFrame)
-    if zoomTime < secondsPerFrame then
-      -- print("No easing for you", zoomTime, secondsPerFrame, increments)
+    -- print ("Want to get from", currentZoom, "to", reactiveZoomTarget, "in", zoomTime, "with one frame being", DynamicCam.secondsPerFrame)
+    if zoomTime < DynamicCam.secondsPerFrame then
+      -- print("No easing for you", zoomTime, DynamicCam.secondsPerFrame, increments)
 
       if zoomIn then
         NonReactiveZoomIn(increments)
