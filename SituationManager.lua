@@ -716,7 +716,8 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
       local currentSpeed = self:GetSettingsValue(newSituationID, "cvars", "cameraZoomSpeed")
       if linearSpeed < currentSpeed then
         -- min time 10 frames
-        transitionTime = math.max(10*secondsPerFrame, difference / currentSpeed)
+        --transitionTime = math.max(10*secondsPerFrame, difference / currentSpeed)
+        transitionTime = math.max(10*(1.0 / GetFramerate()), difference / currentSpeed)
       end
     end
 
