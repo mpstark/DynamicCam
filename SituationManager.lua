@@ -916,20 +916,20 @@ end
 
 
 local function UpdateSituation(situationID)
-  local situation = self.db.profile.situations[situationID]
+  local situation = DynamicCam.db.profile.situations[situationID]
 
   -- Give this situation a new chance!
   situation.errorEncountered = nil
   situation.errorMessage = nil
 
-  if situation and situationID == self.currentSituationID then
-    self:ApplySettings()
+  if situation and situationID == DynamicCam.currentSituationID then
+    DynamicCam:ApplySettings()
   end
 
   DynamicCam:RunScript(situationID, "executeOnInit")
-  self:RegisterSituationEvents(situationID)
+  DynamicCam:RegisterSituationEvents(situationID)
 
-  self:EvaluateSituations()
+  DynamicCam:EvaluateSituations()
 end
 
 
