@@ -25,7 +25,8 @@ UiHideModule.lua
 
 Core.lua
 
-Zoom.lua
+MouseZoom.lua
+SituationManager.lua
 
 DefaultSettings.lua
 
