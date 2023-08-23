@@ -245,12 +245,6 @@ function DynamicCam:SetSettingsDefault(situationId, index1, index2)
 end
 
 
-
-if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
-  SettingsPanel = InterfaceOptionsFrame
-end
-
-
 function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
   GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
   SettingsPanel:SetIgnoreParentAlpha(ignoreParentAlpha)
