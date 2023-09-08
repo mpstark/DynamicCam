@@ -80,6 +80,7 @@ local enteredSituationAtLogin = false
 -- This is more accurate than the game framerate, which is the average over several recent frames.
 -- (Needed in SituationManager.lua and MouseZoom.lua.)
 DynamicCam.secondsPerFrame = 1.0 / GetFramerate()
+local secondsPerFrame = DynamicCam.secondsPerFrame     -- For performance.
 
 -- To evaluate situations one frame after an event is triggered
 -- (see EventHandler() and ShoulderOffsetEasingFunction()).
@@ -88,7 +89,7 @@ local evaluateSituationsNextFrame = false
 
 local function ConstantlyRunningFrameFunction(_, elapsed)
   -- Also using this frame's OnUpdate to log secondsPerFrame.
-  DynamicCam.secondsPerFrame = elapsed
+  secondsPerFrame = elapsed
 
   -- Using this frame to evaluate situations one frame after an event
   -- is triggered (see EventHandler()). This way we are never too early.
