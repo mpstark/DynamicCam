@@ -3461,7 +3461,7 @@ Like in this example, you can share any data object between the scripts of a sit
                     name =
 [[The condition script of a situation is run every time an in-game event of this situation is triggered. The script should return "true" if and only if this situation should be active.
 
-For example, the condition script of the "City" situation uses the WoW API function "IsResting()" to check if you are currently is a resting zone:
+For example, the condition script of the "City" situation uses the WoW API function "IsResting()" to check if you are currently in a resting zone:
 
   return IsResting()
 
