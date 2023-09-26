@@ -466,6 +466,7 @@ end]],
   375357,  -- Timewalker's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
+  412555,  -- Path of the Naaru
 
 }]],
         priority = 130,
