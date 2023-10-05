@@ -96,9 +96,11 @@ end
 
 
 
-
-
-
+-- For EvaluateSituations() below.
+-- So the transition has to wait a little.
+local moreQuestDialog = false
+local unsetMoreQuestDialogTimer = nil
+local waitForQuestFrameToReopen = 0.3
 
 
 -- GetNumActiveQuests() does not exist in classic.
@@ -114,7 +116,6 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
   -- without accepting a quest.
   -- That's why we have to do some tricks to know that the NPC still has quests when exiting
   -- the situation, so we can enforce an extra delay of 0.3 seconds (should be enough).
-  local moreQuestDialog = false
   local questFrameClosed = true
   local lastQuestFrameCloseTime = GetTime()
 
@@ -132,6 +133,8 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
       -- print(event, "available quests", C_GossipInfo.GetNumAvailableQuests(), GetNumAvailableQuests())
       -- print(event, "active quests", C_GossipInfo.GetNumActiveQuests(), GetNumActiveQuests())
       -- Find out if the active quests can actually be turned in. Because only then do we want to count them.
+      -- We need C_GossipInfo.GetNumAvailableQuests and GetNumAvailableQuests, because
+      -- apparently one is for normal quests and the other for campaign quests.
       local completeQuests = 0
       if C_GossipInfo.GetNumActiveQuests() > 0 then
         for _, v in pairs(C_GossipInfo.GetActiveQuests()) do
@@ -154,6 +157,8 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
 
 
       if (C_GossipInfo.GetNumAvailableQuests() + completeQuests > 1) or (GetNumAvailableQuests() + completeQuests > 1) then
+        -- print(GetTime(), event, "setting moreQuestDialog to TRUE.")
+        DynamicCam:CancelTimer(unsetMoreQuestDialogTimer)
         moreQuestDialog = true
         questFrameClosed = false
       end
@@ -164,14 +169,15 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
     -- frame being closed.
     elseif event == "QUEST_DETAIL" then
       if questFrameClosed then
-        -- print(event, "setting moreQuestDialog to false.")
+        -- print(GetTime(), event, "setting moreQuestDialog to FALSE.")
         moreQuestDialog = false
       end
 
-    elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" then
-      -- print(event, "setting moreQuestDialog to false.")
-      questFrameClosed = true
+    -- Sometimes QUEST_ACCEPTED comes after the quest frame has been reopened. Therefore we check GetNumAvailableQuests too.
+    elseif (event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED") and C_GossipInfo.GetNumAvailableQuests() == 0 and GetNumAvailableQuests() == 0 then
+      -- print(GetTime(), event, "setting moreQuestDialog to FALSE.")
       moreQuestDialog = false
+      questFrameClosed = true
 
 
 
@@ -772,11 +778,10 @@ end
 
 
 local delayTime
-local delayTimer
 
 function DynamicCam:EvaluateSituations()
 
-  -- print("EvaluateSituations", enteredSituationAtLogin, GetTime())
+  -- print("EvaluateSituations", enteredSituationAtLogin, moreQuestDialog, GetTime())
 
 
   local highestPriority = -100
@@ -818,8 +823,11 @@ function DynamicCam:EvaluateSituations()
     -- we're in a situation that isn't the topSituation or there is no topSituation
 
     local delay = self.db.profile.situations[self.currentSituationID].delay
-    if self.currentSituationID == "300" and moreQuestDialog and delay < 0.3 then
-      delay = 0.3
+    if self.currentSituationID == "300" and moreQuestDialog and delay < waitForQuestFrameToReopen then
+      -- print("got to wait for moreQuestDialog")
+      self:CancelTimer(unsetMoreQuestDialogTimer)
+      unsetMoreQuestDialogTimer = self:ScheduleTimer(function() moreQuestDialog = false end, waitForQuestFrameToReopen)
+      delay = waitForQuestFrameToReopen
     end
 
     if delay > 0 then
@@ -827,7 +835,7 @@ function DynamicCam:EvaluateSituations()
         -- not yet cooling down, make sure to guarentee an evaluate, don't swap
         -- print(delayTime, GetTime(), "Not changing situation because of a delay")
         delayTime = GetTime() + delay
-        delayTimer = self:ScheduleTimer("EvaluateSituations", delay, "DELAY_TIMER")
+        self:ScheduleTimer("EvaluateSituations", delay)
         swap = false
       -- Need to round, otherwise same times are sometimes not recognised as such.
       elseif round(delayTime, 3) > round(GetTime(), 3) then
@@ -909,13 +917,13 @@ function DynamicCam:CopySituationInto(fromID, toID)
     -- to.situationSettings.cvars[key] = from.situationSettings.cvars[key]
   -- end
 
-  -- self:SendMessage("DC_SITUATION_UPDATED", toID)
+  -- self:UpdateSituation(toID)
 end
 
 
 
 
-local function UpdateSituation(situationID)
+function DynamicCam:UpdateSituation(situationID)
   local situation = DynamicCam.db.profile.situations[situationID]
 
   -- Give this situation a new chance!
@@ -983,7 +991,7 @@ function DynamicCam:CreateCustomSituation(name)
     self.Options:SelectSituation(newSituationID)
   end
 
-  self:SendMessage("DC_SITUATION_UPDATED", newSituationID)
+  self:UpdateSituation(newSituationID)
   return newSituation, newSituationID
 end
 
@@ -1012,17 +1020,6 @@ function DynamicCam:DeleteCustomSituation(situationID)
 
   -- EvaluateSituations because we might have changed the current situation
   self:EvaluateSituations()
-end
-
-
-
-
-function DynamicCam:DC_SITUATION_DISABLED(message, situationID)
-  self:EvaluateSituations()
-end
-
-function DynamicCam:DC_SITUATION_UPDATED(message, situationID)
-  UpdateSituation(situationID)
 end
 
 

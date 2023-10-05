@@ -244,7 +244,8 @@ function DynamicCam:Import(importString)
       -- Set/override all settings defined by the imported situation.
       copyTable(imported.situation, situation)
 
-      self:SendMessage("DC_SITUATION_UPDATED", situationID)
+      self:UpdateSituation(situationID)
+      
       self:Print("Successfully imported custom situation", imported.situation.name)
 
     else
@@ -263,7 +264,8 @@ function DynamicCam:Import(importString)
       -- Set/override all settings defined by the imported situation.
       copyTable(imported.situation, self.db.profile.situations[situationID])
 
-      self:SendMessage("DC_SITUATION_UPDATED", situationID)
+      self:UpdateSituation(situationID)
+      
       self:Print("Successfully imported situation", imported.situation.name)
 
     end

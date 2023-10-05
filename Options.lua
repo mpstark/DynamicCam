@@ -104,7 +104,8 @@ local function SituationControlsToDefault(situationID)
   targetSituation.executeOnExit  = defaultSituation.executeOnExit
   targetSituation.delay          = defaultSituation.delay
 
-  Options:SendMessage("DC_SITUATION_UPDATED", situationID)
+  DynamicCam:UpdateSituation(situationID)
+  
 end
 
 
@@ -227,7 +228,7 @@ function DynamicCam:SetSettingsValue(newValue, situationId, index1, index2)
     settingsTable[index1] = newValue
   end
 
-  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+  self:ApplySettings()
 end
 
 function DynamicCam:SetSettingsDefault(situationId, index1, index2)
@@ -241,7 +242,7 @@ function DynamicCam:SetSettingsDefault(situationId, index1, index2)
     settingsTable[index1] = self.defaults.profile.standardSettings[index1]
   end
 
-  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+  self:ApplySettings()
 end
 
 
@@ -418,7 +419,7 @@ local function SetGroupVars(groupVarsTable, override)
     end
   end
 
-  Options:SendMessage("DC_BASE_CAMERA_UPDATED")
+  DynamicCam:ApplySettings()
 end
 
 
@@ -1775,9 +1776,9 @@ local function CreateSituationSettingsTab(tabOrder)
           function(_, newValue)
             S.enabled = newValue
             if newValue then
-              Options:SendMessage("DC_SITUATION_UPDATED", SID)
+              DynamicCam:UpdateSituation(SID)
             else
-              Options:SendMessage("DC_SITUATION_DISABLED", SID)
+              DynamicCam:EvaluateSituations()
             end
           end,
         width = 0.5,
@@ -3181,7 +3182,7 @@ to show the UI without any delay.]],
                     if tonumber(newValue) then
                       S.priority = tonumber(newValue)
                     end
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 order = 1,
               },
@@ -3195,7 +3196,7 @@ to show the UI without any delay.]],
                 func =
                   function()
                     S.priority = DynamicCam.defaults.profile.situations[SID].priority
-                      Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                      DynamicCam:UpdateSituation(SID)
                   end,
                 hidden =
                   function()
@@ -3257,7 +3258,7 @@ to show the UI without any delay.]],
                       newValue = string.gsub(newValue, "%s+", "")
                       S.events = {strsplit(",", newValue)}
                     end
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 multiline = 10,
                 width = "full",
@@ -3271,7 +3272,7 @@ to show the UI without any delay.]],
                 func =
                   function()
                     S.events = DynamicCam.defaults.profile.situations[SID].events
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 hidden =
                   function()
@@ -3348,7 +3349,7 @@ https://wow.gamepedia.com/Events
                 set =
                   function(_, newValue)
                     S.executeOnInit = newValue
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 multiline = 10,
                 width = "full",
@@ -3362,7 +3363,7 @@ https://wow.gamepedia.com/Events
                 func =
                   function()
                     S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 hidden =
                   function()
@@ -3426,7 +3427,7 @@ Like in this example, you can share any data object between the scripts of a sit
                 set =
                   function(_, newValue)
                     S.condition = newValue
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 multiline = 10,
                 width = "full",
@@ -3440,7 +3441,7 @@ Like in this example, you can share any data object between the scripts of a sit
                 func =
                   function()
                     S.condition = DynamicCam.defaults.profile.situations[SID].condition
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 hidden =
                   function()
@@ -3511,7 +3512,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                 set =
                   function(_, newValue)
                     S.executeOnEnter = newValue
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 multiline = 10,
                 width = "full",
@@ -3525,7 +3526,7 @@ https://wow.gamepedia.com/World_of_Warcraft_API
                 func =
                   function()
                     S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 hidden =
                   function()
@@ -3592,7 +3593,7 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                 set =
                   function(_, newValue)
                     S.executeOnExit = newValue
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 multiline = 10,
                 width = "full",
@@ -3612,7 +3613,7 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                     func =
                       function()
                         S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
-                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                        DynamicCam:UpdateSituation(SID)
                       end,
                   },
                 },
@@ -3633,7 +3634,7 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                     if tonumber(newValue) then
                       S.delay = tonumber(newValue)
                     end
-                    Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                    DynamicCam:UpdateSituation(SID)
                   end,
                 width = "half",
                 order = 3,
@@ -3652,7 +3653,7 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                     func =
                       function()
                         S.delay = DynamicCam.defaults.profile.situations[SID].delay
-                        Options:SendMessage("DC_SITUATION_UPDATED", SID)
+                        DynamicCam:UpdateSituation(SID)
                       end,
                   },
                 },

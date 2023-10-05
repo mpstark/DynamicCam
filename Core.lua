@@ -647,11 +647,6 @@ function DynamicCam:Startup()
   enteredSituationAtLogin = false
 
 
-  -- register for dynamiccam messages
-  self:RegisterMessage("DC_SITUATION_DISABLED")
-  self:RegisterMessage("DC_SITUATION_UPDATED")
-  self:RegisterMessage("DC_BASE_CAMERA_UPDATED")
-
   -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
   self:ScheduleTimer("ApplySettings", 0.1)
   self:ScheduleTimer("EvaluateSituations", 0.2)
@@ -866,13 +861,6 @@ function DynamicCam:RegisterSituationEvents(situationID)
   end
 end
 
-
-
-
-
-function DynamicCam:DC_BASE_CAMERA_UPDATED(message)
-  self:ApplySettings()
-end
 
 
 
@@ -1550,7 +1538,7 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
   button2 = "Disable situation",
   OnButton2 = function(_, data)
     DynamicCam.db.profile.situations[data.situationID].enabled = false
-    DynamicCam:SendMessage("DC_SITUATION_DISABLED")
+    DynamicCam:EvaluateSituations()
     LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
   end,
 
@@ -1566,7 +1554,7 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
   OnButton4 = function(_, data)
     -- if data then print(data.situationID, data.scriptID) end
     DynamicCam.db.profile.situations[data.situationID][data.scriptID] = DynamicCam.defaults.profile.situations[data.situationID][data.scriptID]
-    DynamicCam:SendMessage("DC_SITUATION_UPDATED", data.situationID)
+    DynamicCam:UpdateSituation(data.situationID)
     LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
   end,
   DisplayButton4 = function() return not hideDefaultButton end,
