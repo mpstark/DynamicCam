@@ -309,32 +309,32 @@ end
 
 
 
+if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 
-
-local function SetMouseOverFading(barManager)
-  -- Have to do this for the single bars.
-  -- Otherwise the text does not pop up any more when hovering over the bars.
-  -- It seems that OnEnter of a parent prevents the OnEnter of children to be triggered.
-  -- But only the OnEnter of single bars shows the bar text.
-  for _, frame in pairs(barManager.bars) do
-    if not frame.ludius_hooked then
-      frame:HookScript("OnEnter", function()
-        StatusTrackingBarManager.ludius_mouseOver = true
-        SetMouseOverAlpha(StatusTrackingBarManager)
-      end)
-      frame:HookScript("OnLeave", function()
-        StatusTrackingBarManager.ludius_mouseOver = false
-        SetMouseOverAlpha(StatusTrackingBarManager)
-      end)
-      frame.ludius_hooked = true
+  local function SetMouseOverFading(barManager)
+    -- Have to do this for the single bars.
+    -- Otherwise the text does not pop up any more when hovering over the bars.
+    -- It seems that OnEnter of a parent prevents the OnEnter of children to be triggered.
+    -- But only the OnEnter of single bars shows the bar text.
+    for _, frame in pairs(barManager.bars) do
+      if not frame.ludius_hooked then
+        frame:HookScript("OnEnter", function()
+          StatusTrackingBarManager.ludius_mouseOver = true
+          SetMouseOverAlpha(StatusTrackingBarManager)
+        end)
+        frame:HookScript("OnLeave", function()
+          StatusTrackingBarManager.ludius_mouseOver = false
+          SetMouseOverAlpha(StatusTrackingBarManager)
+        end)
+        frame.ludius_hooked = true
+      end
     end
+
   end
-
+  SetMouseOverFading(MainStatusTrackingBarContainer)
+  SetMouseOverFading(SecondaryStatusTrackingBarContainer)
+  
 end
-SetMouseOverFading(MainStatusTrackingBarContainer)
-SetMouseOverFading(SecondaryStatusTrackingBarContainer)
-
-
 
 
 
