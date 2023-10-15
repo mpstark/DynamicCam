@@ -13,7 +13,7 @@ DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0")
 
 DynamicCam.cameraDistanceMaxZoomFactor_max = 39
 if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
-  DynamicCam.cameraDistanceMaxZoomFactor_max = 60
+  DynamicCam.cameraDistanceMaxZoomFactor_max = 50
 end
 
 
