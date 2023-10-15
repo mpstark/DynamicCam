@@ -264,7 +264,7 @@ local function ReactiveZoom(zoomIn, increments)
 
 
     -- if we don't need to zoom because we're at the max limits, then don't
-    if (reactiveZoomTarget == 39 and currentZoom == 39) or (reactiveZoomTarget == 0 and currentZoom == 0) then
+    if (reactiveZoomTarget == DynamicCam.cameraDistanceMaxZoomFactor_max and currentZoom == DynamicCam.cameraDistanceMaxZoomFactor_max) or (reactiveZoomTarget == 0 and currentZoom == 0) then
       return
     end
 
@@ -397,7 +397,7 @@ local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
 local function ReactiveZoomGraphUpdateFunction()
 
   rzvaFrame.zm:ClearAllPoints()
-  rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / 39) )
+  rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / DynamicCam.cameraDistanceMaxZoomFactor_max) )
   rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
 
   if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
@@ -411,7 +411,7 @@ local function ReactiveZoomGraphUpdateFunction()
 
     rzvaFrame.rzt:ClearAllPoints()
     if reactiveZoomTarget then
-      rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / 39) )
+      rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / DynamicCam.cameraDistanceMaxZoomFactor_max) )
 
       rzvaFrame.reactiveZoomTargetValue:SetText(round(reactiveZoomTarget, 3))
 
@@ -420,10 +420,10 @@ local function ReactiveZoomGraphUpdateFunction()
         local step = lastReactiveZoomTarget - reactiveZoomTarget
 
         if step > 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
+          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / DynamicCam.cameraDistanceMaxZoomFactor_max)
           rzvaFrame.rzi:Show()
         elseif step < 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / 39)
+          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / DynamicCam.cameraDistanceMaxZoomFactor_max)
           rzvaFrame.rzi:Show()
         else
           rzvaFrame.rzi:Hide()

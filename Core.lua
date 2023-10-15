@@ -1355,7 +1355,7 @@ function DynamicCam:ZoomSlash(input)
     easingFunc = LibEasing[easingFuncName] or LibEasing.InOutQuad
   end
 
-  if zoom and (zoom <= 39 or zoom >= 0) then
+  if zoom and (zoom <= DynamicCam.cameraDistanceMaxZoomFactor_max or zoom >= 0) then
     local defaultTime = math.abs(zoom - GetCameraZoom()) / tonumber(GetCVar("cameraZoomSpeed"))
 
     -- Whenever the zoom changes we need to reset the reactiveZoomTarget.

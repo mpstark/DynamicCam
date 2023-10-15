@@ -11,6 +11,13 @@ assert(DynamicCam)
 DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0")
 
 
+DynamicCam.cameraDistanceMaxZoomFactor_max = 39
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+  DynamicCam.cameraDistanceMaxZoomFactor_max = 60
+end
+
+
+
 ------------
 -- LOCALS --
 ------------
@@ -630,7 +637,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 order = 1,
                 width = sliderWidth,
                 min = 15,
-                max = 39,
+                max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                 step = 0.5,
                 get =
                   function()
@@ -1014,7 +1021,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                     width = "full",
                     desc = "When the camera is closer than this zoom level, the offset has reached zero.",
                     min = 0.8,
-                    max = 39,
+                    max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                     step = 0.1,
                     disabled =
                       function(info)
@@ -1041,7 +1048,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                     width = "full",
                     desc = "When the camera is further away than this zoom level, the offset has reached its set value.",
                     min = 0.8,
-                    max = 39,
+                    max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                     step = 0.1,
                     disabled =
                       function(info)
@@ -1207,7 +1214,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
                 min = 0,
-                max = 39,
+                max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                 step = 0.5,
                 disabled =
                   function(info)
@@ -2239,7 +2246,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                             return S.viewZoom.zoomType == "range"
                           end,
                         min = 0,
-                        max = 39,
+                        max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                         step = .5,
                         get =
                           function()
@@ -2262,7 +2269,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                             return S.viewZoom.zoomType ~= "range"
                           end,
                         min = 0,
-                        max = 39,
+                        max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                         step = .5,
                         get =
                           function()
@@ -2296,7 +2303,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                             return S.viewZoom.zoomType ~= "range"
                           end,
                         min = 0,
-                        max = 39,
+                        max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                         step = .5,
                         get =
                           function()
