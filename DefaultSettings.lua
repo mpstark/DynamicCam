@@ -446,6 +446,7 @@ end]],
   286353,  -- Brewfest Reveler's Hearthstone
   298068,  -- Holographic Digitalization Hearthstone
   308742,  -- Eternal Traveler's Hearthstone
+  311643,  -- Hearth to Faol's Rest
   312372,  -- Return to Camp
   325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
