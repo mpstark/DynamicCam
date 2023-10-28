@@ -468,6 +468,7 @@ end]],
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
   412555,  -- Path of the Naaru
+  418549,  -- Teleporting to the Vindicaar
 
 }]],
         priority = 130,
