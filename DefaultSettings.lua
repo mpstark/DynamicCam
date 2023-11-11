@@ -467,6 +467,7 @@ end]],
   375357,  -- Timewalker's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
+  410148,  -- Lost Dragonscale
   412555,  -- Path of the Naaru
   418549,  -- Teleporting to the Vindicaar
 
