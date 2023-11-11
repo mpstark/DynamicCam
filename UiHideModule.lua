@@ -3,7 +3,7 @@ local folderName, Addon = ...
 
 -- For debugging:
 -- We have to work with frame name, because some frames do not exist yet at startup.
-local debugFrameName = "ClassTrainerFrame"
+-- local debugFrameName = "ClassTrainerFrame"
 
 
 -- Have to store uiHiddenTime and currentConfig globally,
@@ -97,9 +97,15 @@ local flagFrames = {
 
 
   -- config.keepTrackingBar
-  ["BT4BarStatus"] = true,
+  -- -- Retail
   ["StatusTrackingBarManager"] = true,
+  ["BT4BarStatus"] = true,
+  -- -- Classic
+  ["MainMenuExpBar"] = true,
+  ["ReputationWatchBar"] = true,
+  -- -- GW2 UI
   ["GwExperienceFrame"] = true,
+
 
   -- config.keepEncounterBar
   ["EncounterBar"] = true,
@@ -181,6 +187,7 @@ else
 end
 
 
+local keepDefaultHiddenFramesAsParent = {}
 
 
 -- We need a function to change a frame's alpha without automatically showing the frame
@@ -333,7 +340,34 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
   end
   SetMouseOverFading(MainStatusTrackingBarContainer)
   SetMouseOverFading(SecondaryStatusTrackingBarContainer)
-  
+
+else
+
+  for _, frame in pairs({ReputationWatchBar, MainMenuExpBar}) do
+
+    local originalEnter = frame:GetScript("OnEnter")
+    local originalLeave = frame:GetScript("OnLeave")
+
+    frame:SetScript("OnEnter", function()
+      originalEnter(frame)
+      ReputationWatchBar.IEF_tempAlpha = ReputationWatchBar:GetAlpha()
+      ReputationWatchBar:SetAlpha(1)
+      MainMenuExpBar.IEF_tempAlpha = MainMenuExpBar:GetAlpha()
+      MainMenuExpBar:SetAlpha(1)
+    end )
+
+    frame:SetScript("OnLeave", function()
+      originalLeave(frame)
+      if (ReputationWatchBar.IEF_tempAlpha ~= nil) then
+        ReputationWatchBar:SetAlpha(ReputationWatchBar.IEF_tempAlpha)
+      end
+      if (MainMenuExpBar.IEF_tempAlpha ~= nil) then
+        MainMenuExpBar:SetAlpha(MainMenuExpBar.IEF_tempAlpha)
+      end
+    end )
+
+  end
+
 end
 
 
@@ -604,6 +638,20 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
 
   -- if frame:GetName() == debugFrameName then print("FadeOutFrame", frame:GetName(), duration, targetIgnoreParentAlpha, frame:IsIgnoringParentAlpha(), targetAlpha, frame:GetAlpha()) end
 
+
+  -- If a frame to be kept is not a direct child of UIParent,
+  -- we have to make sure that the parent gets not hidden later.
+  -- (e.g. In classic, the status tracking bars are children of MainMenuBar,
+  -- which normally is in defaultHiddenFrames.)
+  if targetIgnoreParentAlpha and targetAlpha > 0 then
+    local currentParent = frame:GetParent()
+    while currentParent ~= UIParent and currentParrent ~= WorldFrame do
+      keepDefaultHiddenFramesAsParent[currentParent] = true
+      currentParent = currentParent:GetParent()
+    end
+  end
+
+
   -- ludius_alphaBeforeFadeOut is only set, if this is a fresh FadeOutFrame().
   -- It is set to nil after a FadeOutFrame() is completed.
   -- Otherwise, we might falsely asume a wrong ludius_alphaBeforeFadeOut
@@ -621,7 +669,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
   fadeInfo.finishedArg2 = targetAlpha
   fadeInfo.finishedFunc = function(finishedArg1, finishedArg2)
     -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), finishedArg2) end
-    if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) then
+    if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
       -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", finishedArg2) end
       ConditionalHide(finishedArg1)
     end
@@ -681,7 +729,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
         -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), finishedArg2) end
         finishedArg1:SetAlpha(1)
         ConditionalSetIgnoreParentAlpha(finishedArg1, false)
-        if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) then
+        if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
           ConditionalHide(finishedArg1)
         end
 
@@ -845,6 +893,9 @@ Addon.HideUI = function(fadeOutTime, config)
 
   -- print("HideUI", folderName, fadeOutTime, config.UIParentAlpha)
 
+  keepDefaultHiddenFramesAsParent = {}
+
+
   -- Remember that the UI is faded.
   ludius_UiHideModule.uiHiddenTime = GetTime()
   ludius_UiHideModule.addonsHiddenStatus[folderName] = true
@@ -888,8 +939,14 @@ Addon.HideUI = function(fadeOutTime, config)
   end
 
 
-  FadeOutFrame(BT4BarStatus, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  -- Status tracking bars.
+  -- -- Retail
   FadeOutFrame(StatusTrackingBarManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  FadeOutFrame(BT4BarStatus, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  -- -- Classic
+  FadeOutFrame(MainMenuExpBar, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  FadeOutFrame(ReputationWatchBar, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
+  -- -- GW2 UI
   FadeOutFrame(GwExperienceFrame, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
 
 
@@ -936,6 +993,9 @@ end
 -- This can be done when the intended ShowUI() is called.
 Addon.ShowUI = function(fadeInTime, enteringCombat)
 
+  -- Just to be on the safe side.
+  keepDefaultHiddenFramesAsParent = {}
+
   ludius_UiHideModule.addonsHiddenStatus[folderName] = false
 
   -- Only do something once per closing.
@@ -961,9 +1021,15 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
 
 
   -- Fade in the (possibly only partially) faded status bar.
-  FadeInFrame(BT4BarStatus, fadeInTime, enteringCombat)
+  -- -- Retail.
   FadeInFrame(StatusTrackingBarManager, fadeInTime, enteringCombat)
+  FadeInFrame(BT4BarStatus, fadeInTime, enteringCombat)
+  -- Classic
+  FadeInFrame(MainMenuExpBar, fadeInTime, enteringCombat)
+  FadeInFrame(ReputationWatchBar, fadeInTime, enteringCombat)
+  -- GW2 UI
   FadeInFrame(GwExperienceFrame, fadeInTime, enteringCombat)
+
 
   FadeInFrame(CovenantRenownToast, fadeInTime, enteringCombat)
 
