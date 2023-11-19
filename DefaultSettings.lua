@@ -444,6 +444,7 @@ end]],
   286031,  -- Noble Gardener's Hearthstone
   286331,  -- Fire Eater's Hearthstone
   286353,  -- Brewfest Reveler's Hearthstone
+  292764,  -- Returning (BfA Quest)
   298068,  -- Holographic Digitalization Hearthstone
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest

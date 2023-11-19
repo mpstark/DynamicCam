@@ -3306,7 +3306,7 @@ To open it, type this into the console:
   /eventtrace
 
 A list of all possible events can also be found here:
-https://wow.gamepedia.com/Events
+https://warcraft.wiki.gg/wiki/Events
 
 ]],
 
@@ -3478,7 +3478,7 @@ Likewise, the condition script of the "City - Indoors" situation also uses the W
   return IsResting() and IsIndoors()
 
 A list of WoW API functions can be found here:
-https://wow.gamepedia.com/World_of_Warcraft_API
+https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
 
 ]],
                   },
@@ -4386,6 +4386,8 @@ local MotionSicknessDropDownOriginalTooltipEnter = nil
 local MotionSicknessDropDownOriginalTooltipLeave = nil
 
 hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
+
+  if SettingsPanel.Container.SettingsList.Header.Title:GetText() ~= ACCESSIBILITY_GENERAL_LABEL then return end
 
   local foundMouseMotionSicknessDropDown = false
   local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
