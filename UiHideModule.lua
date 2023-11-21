@@ -645,7 +645,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
   -- which normally is in defaultHiddenFrames.)
   if targetIgnoreParentAlpha and targetAlpha > 0 then
     local currentParent = frame:GetParent()
-    while currentParent ~= UIParent and currentParrent ~= WorldFrame do
+    while currentParent and currentParent ~= UIParent and currentParrent ~= WorldFrame do
       keepDefaultHiddenFramesAsParent[currentParent] = true
       currentParent = currentParent:GetParent()
     end
