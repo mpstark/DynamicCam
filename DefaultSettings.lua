@@ -330,10 +330,10 @@ return false]],
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
         executeOnInit = [[this.lastActiveMount = nil
 
-this.GetCurrentMount = function()
+this.IsCurrentMountForDragonriding = function()
   if this.lastActiveMount then
     local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if active then
+    if isActive then
       return isForDragonRiding
     end
   end
@@ -349,17 +349,17 @@ this.GetCurrentMount = function()
   return nil
 end]],
         priority = 101,
-        condition = [[return IsMounted() and this.GetCurrentMount()]],
+        condition = [[return IsMounted() and this.IsCurrentMountForDragonriding()]],
       },
       ["126"] = {
         name = "Dragonriding (flying)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         executeOnInit = [[this.lastActiveMount = nil
 
-this.GetCurrentMount = function()
+this.IsCurrentMountForDragonriding = function()
   if this.lastActiveMount then
     local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if active then
+    if isActive then
       return isForDragonRiding
     end
   end
@@ -375,7 +375,7 @@ this.GetCurrentMount = function()
   return nil
 end]],
         priority = 102,
-        condition = [[return IsMounted() and IsFlying() and this.GetCurrentMount()]],
+        condition = [[return IsMounted() and IsFlying() and this.IsCurrentMountForDragonriding()]],
       },
       ["200"] = {
         name = "Hearth/Teleport",
