@@ -334,7 +334,7 @@ this.IsCurrentMountForDragonriding = function()
   if this.lastActiveMount then
     local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
     if isActive then
-      return isForDragonRiding
+      return isForDragonriding
     end
   end
 
@@ -360,7 +360,7 @@ this.IsCurrentMountForDragonriding = function()
   if this.lastActiveMount then
     local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
     if isActive then
-      return isForDragonRiding
+      return isForDragonriding
     end
   end
 
