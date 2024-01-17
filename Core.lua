@@ -684,6 +684,13 @@ function DynamicCam:Startup()
     end
   )
 
+
+  -- A frame to determine the current player model.
+  if DynamicCam.db.profile.reactiveZoomEnhancedMinZoom then
+    DynamicCam.modelFrame = CreateFrame("PlayerModel")
+  end
+
+
   constantlyRunningFrame:SetScript("OnUpdate", ConstantlyRunningFrameFunction)
 
   shoulderOffsetEasingFrame:SetScript("OnUpdate", ShoulderOffsetEasingFunction)

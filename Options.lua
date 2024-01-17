@@ -112,7 +112,7 @@ local function SituationControlsToDefault(situationID)
   targetSituation.delay          = defaultSituation.delay
 
   DynamicCam:UpdateSituation(situationID)
-  
+
 end
 
 
@@ -816,6 +816,43 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
                 order = 2,
               },
+
+              blank2 = {type = "description", name = "\n\n", order = 2.1, },
+
+              enhancedMinZoom = {
+                type = "toggle",
+                name = "Enhanced minimal zoom-in",
+                desc = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\nIf you do not care about this minimal zoom, you can globally disable \"Enhanced minimal zoom-in\" here, which may safe you about 7% FPS under rare circumstances.",
+                order = 3,
+                width = "full",
+                get =
+                  function()
+                    return DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
+                  end,
+                set =
+                  function(_, newValue)
+                    DynamicCam.db.profile.reactiveZoomEnhancedMinZoom = newValue
+                  end,
+              },
+
+              reloadMessage = {
+                type = "description",
+                name = "|cFFFF0000/reload of the UI required!|r",
+                hidden =
+                  function()
+                    return DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or not DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
+                  end,
+                order = 4,
+              },
+              blank4 = {
+                type = "description",
+                name = " ",
+                hidden =
+                  function()
+                    return not DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
+                  end,
+                order = 4, },
+
             },
           },
         },

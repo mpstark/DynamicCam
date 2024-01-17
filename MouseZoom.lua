@@ -28,13 +28,13 @@ if not minZoomValues then
   minZoomValues = {}
 end
 
--- A frame to determine the current player model.
-local modelFrame = CreateFrame("PlayerModel")
 
 local function SetMinZoom(zoom)
-  modelFrame:SetUnit("player")
-  -- print("Storing", zoom, "for", modelFrame:GetModelFileID())
-  minZoomValues[modelFrame:GetModelFileID()] = zoom
+  if not DynamicCam.modelFrame then return end
+
+  DynamicCam.modelFrame:SetUnit("player")
+  -- print("Storing", zoom, "for", DynamicCam.modelFrame:GetModelFileID())
+  minZoomValues[DynamicCam.modelFrame:GetModelFileID()] = zoom
 end
 
 local function GetMinZoom()
@@ -42,9 +42,12 @@ local function GetMinZoom()
     -- For mounted we just take a default instead of storing the value for each mount and player-model.
     return 1.5
   else
+
+    if not DynamicCam.modelFrame then return 0.5 end
+
     -- If we have already stored the minimum value, return it. Else use a default.
-    modelFrame:SetUnit("player")
-    return minZoomValues[modelFrame:GetModelFileID()] or 1.5
+    DynamicCam.modelFrame:SetUnit("player")
+    return minZoomValues[DynamicCam.modelFrame:GetModelFileID()] or 1.5
   end
 end
 
