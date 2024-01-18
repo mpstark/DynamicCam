@@ -822,7 +822,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               enhancedMinZoom = {
                 type = "toggle",
                 name = "Enhanced minimal zoom-in",
-                desc = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\nIf you do not care about this minimal zoom, you can globally disable \"Enhanced minimal zoom-in\" here, which may safe you about 7% FPS under rare circumstances.",
+                desc = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\n|cFFFF0000Enabling \"Enhanced minimal zoom-in\" may cost up to 15% FPS when in CPU limited situations.|r",
                 order = 3,
                 width = "full",
                 get =
