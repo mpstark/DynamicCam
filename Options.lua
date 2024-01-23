@@ -4465,17 +4465,17 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
           break
         end
-      end 
+      end
     end
-    
-    
-    
+
+
+
   -- ###################### Motion Sickness ######################
   elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
 
     -- Retail got rid of the drop down and only uses a single checkbox now.
     if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-    
+
       local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
       for i, child in ipairs(children) do
         if child.Text then
@@ -4492,7 +4492,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
                 motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
               end
 
-              
+
               -- Change tooltip.
               motionSicknessElement:SetScript("OnEnter", function(self)
                   GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
@@ -4510,11 +4510,11 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
           end
         end
       end
-      
-      
+
+
     -- Classic still uses the drop down.
     else
-    
+
       local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
       for i, child in ipairs(children) do
         if child.Text then
@@ -4534,7 +4534,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
               -- Change tooltip.
               motionSicknessElement:SetScript("OnEnter", function(self)
                   GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
+                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
                   GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
                   GameTooltip:Show()
               end)
@@ -4546,12 +4546,13 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
               -- Prevent unallowed selections.
               local function UndoSelections(self, valueTable)
 
-                -- Could apparently happen.
-                -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
-                if not valueTable then return end
-
                 -- Only do this while the drop down is modified.
                 if not motionSicknessElement then return end
+
+                -- When using Increment/Decrement there is no valueTable as argument.
+                if not valueTable then
+                  valueTable = self:GetCurrentSelectedData()
+                end
 
                 if valueTable.value == indexBoth then
                   self:SetSelectedIndex(indexReduced)
@@ -4593,13 +4594,13 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
           end
         end
       end
-    
+
     end
 
   end
-  
-  
-  
+
+
+
   -- If the slider is used for something else and we have changed it before, undo the change.
   if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
     -- print("Re-enabling slider")
@@ -4610,8 +4611,8 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     end
     mouseLookSpeedSlider = nil
   end
-  
-  
+
+
   -- If the checkbox is used for something else and we have changed it before, undo the change.
   if motionSicknessElement and not foundMotionSicknessElement then
     -- print("Re-enabling checkbox")
@@ -4621,8 +4622,8 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     motionSicknessElement = nil
   end
 
-  
-  
+
+
 
 end)
 
