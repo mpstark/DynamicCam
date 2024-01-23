@@ -1835,7 +1835,7 @@ local function CreateSituationSettingsTab(tabOrder)
         name = "-",
         desc =
           function()
-            return "Delete custom situation \"" .. S.name .. "\".\n(There is no 'Are you sure?' prompt!)"
+            return "Delete custom situation \"" .. S.name .. "\".\n(There will be no 'Are you sure?' prompt!)"
           end,
         hidden =
           function()
@@ -3975,7 +3975,7 @@ local profileSettings = {
           args = {
             priorityDescription = {
               type = "description",
-              name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\n",
+              name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\nIf you want to switch profiles via macro, you can use the following:\n/run DynamicCam.db:SetProfile(\"Profile name here\")\n\n",
             },
           },
         },
@@ -4414,150 +4414,192 @@ local mouseLookSpeedSlider = nil
 local MouseLookSpeedSliderOrignialTooltipEnter = nil
 local MouseLookSpeedSliderOrignialTooltipLeave = nil
 
-local motionSicknessDropDown = nil
+local motionSicknessElement = nil
 local indexCentered = nil
 local indexReduced = nil
 local indexBoth = nil
 local indexNone = nil
-local MotionSicknessDropDownOriginalTooltipEnter = nil
-local MotionSicknessDropDownOriginalTooltipLeave = nil
+local motionSicknessElementOriginalTooltipEnter = nil
+local motionSicknessElementOriginalTooltipLeave = nil
 
 hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
 
-  if SettingsPanel.Container.SettingsList.Header.Title:GetText() ~= ACCESSIBILITY_GENERAL_LABEL then return end
-
-  local foundMouseMotionSicknessDropDown = false
-  local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-  for i, child in ipairs(children) do
-    if child.Text then
-      if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
-        -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
-        foundMouseMotionSicknessDropDown = true
-
-        if not motionSicknessDropDown then
-          -- print("Disabling drop down")
-          motionSicknessDropDown = child.DropDown.Button
-
-          if not MotionSicknessDropDownOriginalTooltipEnter then
-            MotionSicknessDropDownOriginalTooltipEnter = motionSicknessDropDown:GetScript("OnEnter")
-            MotionSicknessDropDownOriginalTooltipLeave = motionSicknessDropDown:GetScript("OnLeave")
-          end
-
-          -- Change tooltip.
-          motionSicknessDropDown:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
-              GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
-              GameTooltip:Show()
-          end)
-          motionSicknessDropDown:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-          end)
-
-
-          -- Prevent unallowed selections.
-          local function UndoSelections(self, valueTable)
-
-            -- Could apparently happen.
-            -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
-            if not valueTable then return end
-
-            -- Only do this while the drop down is modified.
-            if not motionSicknessDropDown then return end
-
-            if valueTable.value == indexBoth then
-              self:SetSelectedIndex(indexReduced)
-            elseif valueTable.value == indexCentered then
-              self:SetSelectedIndex(indexNone)
-            end
-          end
-
-          hooksecurefunc(motionSicknessDropDown, "OnEntryClicked", UndoSelections)
-          hooksecurefunc(motionSicknessDropDown, "Increment", UndoSelections)
-          hooksecurefunc(motionSicknessDropDown, "Decrement", UndoSelections)
-
-        end
-
-        -- Got to make sure the labels stay modified.
-        for i, k in pairs(motionSicknessDropDown.selections) do
-          -- print(i, k)
-
-          if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
-            k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
-            indexCentered = k.value
-          elseif k.label == MOTION_SICKNESS_BOTH then
-            k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
-            indexBoth = k.value
-          elseif k.label == MOTION_SICKNESS_NONE then
-            -- k.label = MOTION_SICKNESS_NONE
-            indexNone = k.value
-          elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
-            -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
-            indexReduced = k.value
-          end
-
-          -- for i2, k2 in pairs(k) do
-            -- print("    ", i2, k2)
-          -- end
-        end
-
-        break
-      end
-    end
-  end
-
-  -- If the drop down is used for something else and we have changed it before, undo the change.
-  if motionSicknessDropDown and not foundMouseMotionSicknessDropDown then
-    -- print("Re-enabling drop down")
-    motionSicknessDropDown:SetScript("OnEnter", MotionSicknessDropDownOriginalTooltipEnter)
-    motionSicknessDropDown:SetScript("OnLeave", MotionSicknessDropDownOriginalTooltipLeave)
-
-    motionSicknessDropDown = nil
-  end
-
-
-
-
-
   local foundMouseLookSpeedSlider = false
-  local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-  for i, child in ipairs(children) do
-    if child.Text then
-      if child.Text:GetText() == MOUSE_LOOK_SPEED then
-        -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
-        foundMouseLookSpeedSlider = true
+  local foundMotionSicknessElement = false
 
-        if not mouseLookSpeedSlider then
-          -- print("Disabling slider")
-          mouseLookSpeedSlider = child.SliderWithSteppers
+  -- ###################### Mouse ######################
+  if SettingsPanel.Container.SettingsList.Header.Title:GetText() == CONTROLS_LABEL then
 
-          if not MouseLookSpeedSliderOrignialTooltipEnter then
-            MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
-            MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOUSE_LOOK_SPEED then
+          -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
+          foundMouseLookSpeedSlider = true
+
+          if not mouseLookSpeedSlider then
+            -- print("Disabling slider")
+            mouseLookSpeedSlider = child.SliderWithSteppers
+
+            if not MouseLookSpeedSliderOrignialTooltipEnter then
+              MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
+              MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
+            end
+
+            -- Change tooltip.
+            mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
+              GameTooltip:AddLine("Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
+              GameTooltip:Show()
+            end)
+            mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
+              GameTooltip:Hide()
+            end)
           end
 
-          -- Change tooltip.
-          mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-            GameTooltip:AddLine("|cFFFF0000Disabled!|r", _, _, _, true)
-            GameTooltip:AddLine("Your Addon DynamicCam lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
-            GameTooltip:Show()
-          end)
-          mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
-            GameTooltip:Hide()
-          end)
-        end
+          -- Got to make sure, the slider stays disabled.
+          if mouseLookSpeedSlider.Slider:IsEnabled() then
+            mouseLookSpeedSlider:SetEnabled_(false)
+          end
 
-        -- Got to make sure, the slider stays disabled.
-        if mouseLookSpeedSlider.Slider:IsEnabled() then
-          mouseLookSpeedSlider:SetEnabled_(false)
+          break
         end
-
-        break
-      end
+      end 
     end
-  end
+    
+    
+    
+  -- ###################### Motion Sickness ######################
+  elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
 
+    -- Retail got rid of the drop down and only uses a single checkbox now.
+    if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+    
+      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+      for i, child in ipairs(children) do
+        if child.Text then
+          if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
+            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
+            foundMotionSicknessElement = true
+
+            if not motionSicknessElement then
+              -- print("Disabling drop down")
+              motionSicknessElement = child.CheckBox
+
+              if not motionSicknessElementOriginalTooltipEnter then
+                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
+                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
+              end
+
+              
+              -- Change tooltip.
+              motionSicknessElement:SetScript("OnEnter", function(self)
+                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
+                  GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" feature of \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by your DynamicCam addon. But you can still use \"" .. MOTION_SICKNESS_CHECKBOX .. "\" to prevent unexptected character movement.", _, _, _, true)
+                  GameTooltip:Show()
+              end)
+              motionSicknessElement:SetScript("OnLeave", function(self)
+                  GameTooltip:Hide()
+              end)
+
+            end
+
+            break
+          end
+        end
+      end
+      
+      
+    -- Classic still uses the drop down.
+    else
+    
+      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+      for i, child in ipairs(children) do
+        if child.Text then
+          if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
+            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
+            foundMotionSicknessElement = true
+
+            if not motionSicknessElement then
+              -- print("Disabling drop down")
+              motionSicknessElement = child.DropDown.Button
+
+              if not motionSicknessElementOriginalTooltipEnter then
+                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
+                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
+              end
+
+              -- Change tooltip.
+              motionSicknessElement:SetScript("OnEnter", function(self)
+                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+                  GameTooltip:AddLine("|cFFFF0000Partially disabled!|r", _, _, _, true)
+                  GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
+                  GameTooltip:Show()
+              end)
+              motionSicknessElement:SetScript("OnLeave", function(self)
+                  GameTooltip:Hide()
+              end)
+
+
+              -- Prevent unallowed selections.
+              local function UndoSelections(self, valueTable)
+
+                -- Could apparently happen.
+                -- https://www.curseforge.com/wow/addons/dynamiccam#c1267
+                if not valueTable then return end
+
+                -- Only do this while the drop down is modified.
+                if not motionSicknessElement then return end
+
+                if valueTable.value == indexBoth then
+                  self:SetSelectedIndex(indexReduced)
+                elseif valueTable.value == indexCentered then
+                  self:SetSelectedIndex(indexNone)
+                end
+              end
+
+              hooksecurefunc(motionSicknessElement, "OnEntryClicked", UndoSelections)
+              hooksecurefunc(motionSicknessElement, "Increment", UndoSelections)
+              hooksecurefunc(motionSicknessElement, "Decrement", UndoSelections)
+
+            end
+
+            -- Got to make sure the labels stay modified.
+            for i, k in pairs(motionSicknessElement.selections) do
+              -- print(i, k)
+
+              if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
+                k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
+                indexCentered = k.value
+              elseif k.label == MOTION_SICKNESS_BOTH then
+                k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
+                indexBoth = k.value
+              elseif k.label == MOTION_SICKNESS_NONE then
+                -- k.label = MOTION_SICKNESS_NONE
+                indexNone = k.value
+              elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
+                -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
+                indexReduced = k.value
+              end
+
+              -- for i2, k2 in pairs(k) do
+                -- print("    ", i2, k2)
+              -- end
+            end
+
+            break
+          end
+        end
+      end
+    
+    end
+
+  end
+  
+  
+  
   -- If the slider is used for something else and we have changed it before, undo the change.
   if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
     -- print("Re-enabling slider")
@@ -4568,6 +4610,19 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     end
     mouseLookSpeedSlider = nil
   end
+  
+  
+  -- If the checkbox is used for something else and we have changed it before, undo the change.
+  if motionSicknessElement and not foundMotionSicknessElement then
+    -- print("Re-enabling checkbox")
+    motionSicknessElement:SetScript("OnEnter", motionSicknessElementOriginalTooltipEnter)
+    motionSicknessElement:SetScript("OnLeave", motionSicknessElementOriginalTooltipLeave)
+
+    motionSicknessElement = nil
+  end
+
+  
+  
 
 end)
 
@@ -4599,9 +4654,9 @@ hooksecurefunc("SetCVar", function(cvar, value)
   -- print(cvar, value)
 
   -- Automatically undo forbidden motion sickness setting.
-  if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1) then
-    print("|cFFFF0000CameraKeepCharacterCentered = 1 prevented by DynamicCam!|r")
-    SetCVar("CameraKeepCharacterCentered", 0)
+  if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1 or value == true) then
+    print("|cFFFF0000CameraKeepCharacterCentered prevented by DynamicCam!|r")
+    SetCVar("CameraKeepCharacterCentered", false)
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
   elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
