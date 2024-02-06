@@ -472,6 +472,10 @@ end]],
   410148,  -- Lost Dragonscale
   412555,  -- Path of the Naaru
   418549,  -- Teleporting to the Vindicaar
+  366945,  -- Enlightened Hearthstone
+  420418,  -- Deepdweller's Earthen Hearthstone
+  422284,  -- Hearthstone of the Flame
+  391042,  -- Ohn'ir Windsage's Hearthstone
 
 }]],
         priority = 130,
