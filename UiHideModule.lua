@@ -699,7 +699,8 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     -- Frame was adhering to parent alpha before.
     -- Start the fade with parent's current alpha.
     if not frame:IsIgnoringParentAlpha() then
-      fadeInfo.startAlpha = frame:GetParent():GetAlpha()
+      local parent = frame:GetParent()
+      fadeInfo.startAlpha = parent and parent:GetAlpha() or 1
 
     -- Frame was already ignoring parent alpha before.
     else
