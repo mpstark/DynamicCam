@@ -464,18 +464,18 @@ end]],
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
   363799,  -- Dominated Hearthstone
+  366945,  -- Enlightened Hearthstone
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
   375357,  -- Timewalker's Hearthstone
+  391042,  -- Ohn'ir Windsage's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
   410148,  -- Lost Dragonscale
   412555,  -- Path of the Naaru
   418549,  -- Teleporting to the Vindicaar
-  366945,  -- Enlightened Hearthstone
   420418,  -- Deepdweller's Earthen Hearthstone
   422284,  -- Hearthstone of the Flame
-  391042,  -- Ohn'ir Windsage's Hearthstone
 
 }]],
         priority = 130,
