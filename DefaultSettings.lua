@@ -390,6 +390,7 @@ end]],
     3566,  -- Teleport: Thunder Bluff
     3567,  -- Teleport: Orgrimmar
     8690,  -- Hearthstone
+   26373,  -- Lunar Festival Invitation
    32271,  -- Teleport: Exodar
    32272,  -- Teleport: Silvermoon
    33690,  -- Teleport: Shattrath
