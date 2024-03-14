@@ -303,8 +303,8 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
         name = "Druid Travel Form",
         events = {"UPDATE_SHAPESHIFT_FORM"},
         executeOnInit = [[this.travelFormIds = {
-  [3] = true,  -- Travel
-  [4] = true,  -- Aquatic
+   [3] = true,  -- Travel
+   [4] = true,  -- Aquatic
   [27] = true, -- Swift Flight
   [29] = true, -- Flight
 }]],
@@ -472,20 +472,19 @@ end]],
   391042,  -- Ohn'ir Windsage's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
+  401802,  -- Stone of the Hearth
   410148,  -- Lost Dragonscale
   412555,  -- Path of the Naaru
   418549,  -- Teleporting to the Vindicaar
   420418,  -- Deepdweller's Earthen Hearthstone
   422284,  -- Hearthstone of the Flame
-
 }]],
         priority = 130,
-        condition = [[local name = UnitCastingInfo("player")
+        condition = [[local _, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
 for _, v in pairs(this.spells) do
-    local hearthName = GetSpellInfo(v)
-    if hearthName and hearthName == name then
-        return true
-    end
+  if v == spellId then
+    return true
+  end
 end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
@@ -504,10 +503,10 @@ this.rotationTime = this.transitionTime]],
 ]],
         priority = 1000,
         condition = [[for _, v in pairs(this.buffs) do
-    local name = GetSpellInfo(v)
-    if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
-        return true
-    end
+  local name = GetSpellInfo(v)
+  if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
+    return true
+  end
 end
 return false]],
       },
@@ -588,20 +587,19 @@ return shown and UnitExists("npc")]],
         name = "Gathering",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         executeOnInit = [[this.spells = {
-      10768,  -- Skinning
-     265819,  -- Herb Gathering
-     366260,  -- Mining
-
+   10768,  -- Skinning
+  265819,  -- Herb Gathering
+  366260,  -- Mining
 }]],
         priority = 120,
         condition = [[local name, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
 -- Uncomment this to find out more spell IDs.
 -- print(name, spellId)
 for _, v in pairs(this.spells) do
-    gatheringName = GetSpellInfo(v)
-    if gatheringName and gatheringName == name then
-        return true
-    end
+  gatheringName = GetSpellInfo(v)
+  if gatheringName and gatheringName == name then
+    return true
+  end
 end
 return false]]
       },
