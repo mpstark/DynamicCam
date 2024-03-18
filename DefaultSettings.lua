@@ -404,6 +404,8 @@ end]],
    75136,  -- Ethereal Portal
    88342,  -- Teleport: Tol Barad
    88344,  -- Teleport: Tol Barad
+   89157,  -- Teleport: Stormwind (Guild Cloaks)
+   89158,  -- Teleport: Orgrimmar (Guild Cloaks)
    94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
   132621,  -- Teleport: Vale of Eternal Blossoms
