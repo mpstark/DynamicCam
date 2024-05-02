@@ -97,13 +97,13 @@ local flagFrames = {
 
 
   -- config.keepTrackingBar
-  -- -- Retail
+  -- Retail
   ["StatusTrackingBarManager"] = true,
   ["BT4BarStatus"] = true,
-  -- -- Classic
+  -- Classic
   ["MainMenuExpBar"] = true,
   ["ReputationWatchBar"] = true,
-  -- -- GW2 UI
+  -- GW2 UI
   ["GwExperienceFrame"] = true,
 
 
@@ -343,31 +343,30 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 
 else
 
-  for _, frame in pairs({ReputationWatchBar, MainMenuExpBar}) do
+  -- Dirty work around with global flag until fade UI has become a lib to share between addons.
+  if not ludius_bars_hooked then
+    for _, frame in pairs({ReputationWatchBar, MainMenuExpBar}) do
 
-    local originalEnter = frame:GetScript("OnEnter")
-    local originalLeave = frame:GetScript("OnLeave")
+      frame:HookScript("OnEnter", function()
+        ReputationWatchBar.IEF_tempAlpha = ReputationWatchBar:GetAlpha()
+        ReputationWatchBar:SetAlpha(1)
+        MainMenuExpBar.IEF_tempAlpha = MainMenuExpBar:GetAlpha()
+        MainMenuExpBar:SetAlpha(1)
+      end )
 
-    frame:SetScript("OnEnter", function()
-      originalEnter(frame)
-      ReputationWatchBar.IEF_tempAlpha = ReputationWatchBar:GetAlpha()
-      ReputationWatchBar:SetAlpha(1)
-      MainMenuExpBar.IEF_tempAlpha = MainMenuExpBar:GetAlpha()
-      MainMenuExpBar:SetAlpha(1)
-    end )
-
-    frame:SetScript("OnLeave", function()
-      originalLeave(frame)
-      if (ReputationWatchBar.IEF_tempAlpha ~= nil) then
-        ReputationWatchBar:SetAlpha(ReputationWatchBar.IEF_tempAlpha)
-      end
-      if (MainMenuExpBar.IEF_tempAlpha ~= nil) then
-        MainMenuExpBar:SetAlpha(MainMenuExpBar.IEF_tempAlpha)
-      end
-    end )
-
+      frame:HookScript("OnLeave", function()
+        if (ReputationWatchBar.IEF_tempAlpha ~= nil) then
+          ReputationWatchBar:SetAlpha(ReputationWatchBar.IEF_tempAlpha)
+        end
+        if (MainMenuExpBar.IEF_tempAlpha ~= nil) then
+          MainMenuExpBar:SetAlpha(MainMenuExpBar.IEF_tempAlpha)
+        end
+      end )
+      
+    end
+    ludius_bars_hooked = true
+    
   end
-
 end
 
 
@@ -941,13 +940,13 @@ Addon.HideUI = function(fadeOutTime, config)
 
 
   -- Status tracking bars.
-  -- -- Retail
+  -- Retail
   FadeOutFrame(StatusTrackingBarManager, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
   FadeOutFrame(BT4BarStatus, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
-  -- -- Classic
+  -- Classic
   FadeOutFrame(MainMenuExpBar, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
   FadeOutFrame(ReputationWatchBar, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
-  -- -- GW2 UI
+  -- GW2 UI
   FadeOutFrame(GwExperienceFrame, fadeOutTime, config.keepTrackingBar, config.keepTrackingBar and config.trackingBarAlpha or config.UIParentAlpha)
 
 
@@ -1022,7 +1021,7 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
 
 
   -- Fade in the (possibly only partially) faded status bar.
-  -- -- Retail.
+  -- Retail.
   FadeInFrame(StatusTrackingBarManager, fadeInTime, enteringCombat)
   FadeInFrame(BT4BarStatus, fadeInTime, enteringCombat)
   -- Classic
