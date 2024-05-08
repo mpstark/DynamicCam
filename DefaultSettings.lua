@@ -480,6 +480,8 @@ end]],
   418549,  -- Teleporting to the Vindicaar
   420418,  -- Deepdweller's Earthen Hearthstone
   422284,  -- Hearthstone of the Flame
+  426620,  -- Spare Hologem (Dranei Heritage Quest)
+  450410,  -- Dalaran Hearthstone (Dark Heart Quest)
 }]],
         priority = 130,
         condition = [[local _, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
