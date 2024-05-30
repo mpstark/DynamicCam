@@ -5,11 +5,7 @@ local folderName, Addon = ...
 ---------------
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
-
-
-
-
-
+local LibHideUI = LibStub("LibHideUI-1.0")
 
 
 

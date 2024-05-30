@@ -4,7 +4,7 @@
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
 
-## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
+## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, LibHideUI, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
 ## SavedVariables: DynamicCamDB, minZoomValues
 
 ## X-Curse-Project-ID: 101120
