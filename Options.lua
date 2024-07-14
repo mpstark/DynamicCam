@@ -2033,8 +2033,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
                       viewRestore = {
                         type = "toggle",
-                        name = "Restore",
-                        desc = "When exiting the situation restore the camera position to what it was before entering.",
+                        name = "Restore view when exiting",
+                        desc = "When exiting the situation restore the camera position to what it was at the time of entering the situation.",
                         hidden =
                           function()
                             return GetCVar("cameraSmoothStyle") ~= "0"

@@ -476,6 +476,7 @@ return false]],
   298068,  -- Holographic Digitalization Hearthstone
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
+  311749,  -- Hearth to Uther's Tomb
   312372,  -- Return to Camp
   325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
@@ -506,6 +507,7 @@ return false]],
   422284,  -- Hearthstone of the Flame
   426620,  -- Spare Hologem (Draenei Heritage Quest)
   438606,  -- Draenic Hologem (Hearthstone)
+  441154,  -- Nostwin's Voucher (Pandaria Remix)
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
 }]],
         priority = 130,
