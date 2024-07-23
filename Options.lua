@@ -4178,7 +4178,7 @@ function Options:RegisterMenus()
 
   LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
   self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
-
+  
 end
 
 
@@ -4460,7 +4460,12 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
           -- Got to make sure, the slider stays disabled.
           if mouseLookSpeedSlider.Slider:IsEnabled() then
-            mouseLookSpeedSlider:SetEnabled_(false)
+            -- Function name "SetEnabled" introduced in 11.0.0.
+            if mouseLookSpeedSlider.SetEnabled then
+              mouseLookSpeedSlider:SetEnabled(false)
+            else
+              mouseLookSpeedSlider:SetEnabled_(false)
+            end
           end
 
           break
@@ -4484,8 +4489,13 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
             foundMotionSicknessElement = true
 
             if not motionSicknessElement then
-              -- print("Disabling drop down")
-              motionSicknessElement = child.CheckBox
+              -- print("Disabling motion sickness checkox.")
+              -- Renamed to "Checkbox" in 11.0.0.
+              if child.Checkbox then
+                motionSicknessElement = child.Checkbox
+              else
+                motionSicknessElement = child.CheckBox
+              end
 
               if not motionSicknessElementOriginalTooltipEnter then
                 motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
@@ -4607,7 +4617,12 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
     mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
     if not mouseLookSpeedSlider.Slider:IsEnabled() then
-      mouseLookSpeedSlider:SetEnabled_(true)
+      -- Function name "SetEnabled" introduced in 11.0.0.
+      if mouseLookSpeedSlider.SetEnabled then
+        mouseLookSpeedSlider:SetEnabled(false)
+      else
+        mouseLookSpeedSlider:SetEnabled_(false)
+      end
     end
     mouseLookSpeedSlider = nil
   end

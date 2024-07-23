@@ -508,6 +508,7 @@ return false]],
   426620,  -- Spare Hologem (Draenei Heritage Quest)
   438606,  -- Draenic Hologem (Hearthstone)
   441154,  -- Nostwin's Voucher (Pandaria Remix)
+  449508,  -- Nostwin's Return Service (Pandaria Remix)
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
 }]],
         priority = 130,

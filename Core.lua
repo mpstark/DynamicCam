@@ -1297,9 +1297,7 @@ function DynamicCam:OpenMenu()
 
   self.Options:SelectSituation()
 
-  -- just open to the frame, double call because blizz bug
-  InterfaceOptionsFrame_OpenToCategory(self.Options.menu)
-  InterfaceOptionsFrame_OpenToCategory(self.Options.menu)
+  Settings.OpenToCategory(self.Options.menu.name)
 
 end
 
