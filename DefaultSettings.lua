@@ -283,9 +283,15 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
       },
       ["100"] = {
         name = "Mounted",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
-        priority = 100,
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 98,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
+      },
+      ["100.5"] = {
+        name = "Mounted (flying)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 99,
+        condition = "return IsMounted() and IsFlying() and not UnitOnTaxi(\"player\")",
       },
       ["101"] = {
         name = "Taxi",
@@ -322,61 +328,79 @@ end]],
         priority = 100,
         condition = [[for i = 1, 40 do
   local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-  if spellId == 369536 then return true end
+  if spellId == 430747 then return true end
 end
 return false]],
       },
       ["125"] = {
-        name = "Dragonriding",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
+        name = "Mounted with Skyriding",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
         executeOnInit = [[this.lastActiveMount = nil
 
-this.IsCurrentMountForDragonriding = function()
+this.IsCurrentMountOnlyForSteadyFlight = function()
   if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
     if isActive then
-      return isForDragonriding
+      return isSteadyFlight
     end
   end
 
   for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
     if isActive then
       this.lastActiveMount = v
-      return isForDragonriding
+      return isSteadyFlight
     end
   end
 
   return nil
+end
+
+this.IsCurrentFlightStyleSteady = function()
+  for i = 1, 40 do
+    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+    if spellId == 404468 then return true end
+  end
+  -- ID for Skyriding buff would be 404464, but if you have never switched you have no buff at all (at least in 11.0.0).
+  return false
 end]],
         priority = 101,
-        condition = [[return IsMounted() and this.IsCurrentMountForDragonriding()]],
+        condition = [[return IsMounted() and not this.IsCurrentFlightStyleSteady() and not this.IsCurrentMountOnlyForSteadyFlight()]],
       },
       ["126"] = {
-        name = "Dragonriding (flying)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        name = "Mounted with Skyriding (flying)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
         executeOnInit = [[this.lastActiveMount = nil
 
-this.IsCurrentMountForDragonriding = function()
+this.IsCurrentMountOnlyForSteadyFlight = function()
   if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
     if isActive then
-      return isForDragonriding
+      return isSteadyFlight
     end
   end
 
   for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
     if isActive then
       this.lastActiveMount = v
-      return isForDragonriding
+      return isSteadyFlight
     end
   end
 
   return nil
+end
+
+this.IsCurrentFlightStyleSteady = function()
+  for i = 1, 40 do
+    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+    if spellId == 404468 then return true end
+  end
+  -- ID for Skyriding buff would be 404464, but if you have never switched you have no buff at all (at least in 11.0.0).
+  return false
 end]],
         priority = 102,
-        condition = [[return IsMounted() and IsFlying() and this.IsCurrentMountForDragonriding()]],
+        condition = [[return IsMounted() and not this.IsCurrentFlightStyleSteady() and not this.IsCurrentMountOnlyForSteadyFlight() and IsFlying()]],
       },
       ["130"] = {
         name = "Dragon Racing",
