@@ -174,7 +174,7 @@ DynamicCam.defaults = {
         condition = "return IsResting()",
       },
       ["002"] = {
-        name = "City - Indoors",
+        name = "City (Indoors)",
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
         priority = 11,
         condition = "return IsResting() and IsIndoors()",
@@ -186,13 +186,13 @@ DynamicCam.defaults = {
         condition = "return not IsResting() and not IsInInstance()",
       },
       ["005"] = {
-        name = "World - Indoors",
+        name = "World (Indoors)",
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 10,
         condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
       },
       ["006"] = {
-        name = "World - Combat",
+        name = "World (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 50,
         condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
@@ -233,21 +233,21 @@ return isInstance and (instanceType == "party" or instanceType == "scenario") an
 return isInstance and instanceType == "raid"]],
       },
       ["031"] = {
-        name = "Raid - Outdoors",
+        name = "Raid (Outdoors)",
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 13,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and IsOutdoors()]],
       },
       ["033"] = {
-        name = "Raid - Combat - Boss",
+        name = "Raid (Combat, Boss)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 303,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["034"] = {
-        name = "Raid - Combat - Trash",
+        name = "Raid (Combat, Trash)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
@@ -261,7 +261,7 @@ return isInstance and instanceType == "raid" and UnitAffectingCombat("player") a
 return isInstance and instanceType == "arena"]],
       },
       ["051"] = {
-        name = "Arena - Combat",
+        name = "Arena (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
@@ -275,37 +275,74 @@ return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]
 return isInstance and instanceType == "pvp"]],
       },
       ["061"] = {
-        name = "Battleground - Combat",
+        name = "Battleground (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
       },
+
+
       ["100"] = {
-        name = "Mounted",
+        name = "Mounted (any)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
-        priority = 98,
+        priority = 100,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
       },
-      ["100.5"] = {
-        name = "Mounted (flying)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
-        priority = 99,
-        condition = "return IsMounted() and IsFlying() and not UnitOnTaxi(\"player\")",
-      },
+
       ["101"] = {
-        name = "Taxi",
-        events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
-        priority = 1000,
-        condition = "return UnitOnTaxi(\"player\")",
+        name = "Mounted (only flying-mount)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly()",
       },
+
       ["102"] = {
-        name = "Vehicle",
-        events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
-        priority = 1000,
-        condition = "return UnitUsingVehicle(\"player\")",
+        name = "Mounted (only flying-mount + airborne)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying()",
       },
+
       ["103"] = {
+        name = "Mounted (only flying-mount + airborne + Skyriding)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 103,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying() and DynamicCam:SkyridingOn()",
+      },
+
+      ["104"] = {
+        name = "Mounted (only flying-mount + Skyriding)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and DynamicCam:SkyridingOn()",
+      },
+
+      ["105"] = {
+        name = "Mounted (only airborne)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying()",
+      },
+
+      ["106"] = {
+        name = "Mounted (only airborne + Skyriding)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying() and DynamicCam:SkyridingOn()",
+      },
+
+      ["107"] = {
+        name = "Mounted (only Skyriding)",
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
+      },
+
+
+
+
+      ["115"] = {
         name = "Druid Travel Form",
         events = {"UPDATE_SHAPESHIFT_FORM"},
         executeOnInit = [[this.travelFormIds = {
@@ -322,6 +359,8 @@ else
   return false
 end]],
       },
+
+
       ["120"] = {
         name = "Dracthyr Soar",
         events = {"UNIT_AURA"},
@@ -332,76 +371,10 @@ end]],
 end
 return false]],
       },
-      ["125"] = {
-        name = "Mounted with Skyriding",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
-        executeOnInit = [[this.lastActiveMount = nil
 
-this.IsCurrentMountOnlyForSteadyFlight = function()
-  if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if isActive then
-      return isSteadyFlight
-    end
-  end
 
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
-    if isActive then
-      this.lastActiveMount = v
-      return isSteadyFlight
-    end
-  end
 
-  return nil
-end
 
-this.IsCurrentFlightStyleSteady = function()
-  for i = 1, 40 do
-    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-    if spellId == 404468 then return true end
-  end
-  -- ID for Skyriding buff would be 404464, but if you have never switched you have no buff at all (at least in 11.0.0).
-  return false
-end]],
-        priority = 101,
-        condition = [[return IsMounted() and not this.IsCurrentFlightStyleSteady() and not this.IsCurrentMountOnlyForSteadyFlight()]],
-      },
-      ["126"] = {
-        name = "Mounted with Skyriding (flying)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
-        executeOnInit = [[this.lastActiveMount = nil
-
-this.IsCurrentMountOnlyForSteadyFlight = function()
-  if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if isActive then
-      return isSteadyFlight
-    end
-  end
-
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
-    if isActive then
-      this.lastActiveMount = v
-      return isSteadyFlight
-    end
-  end
-
-  return nil
-end
-
-this.IsCurrentFlightStyleSteady = function()
-  for i = 1, 40 do
-    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-    if spellId == 404468 then return true end
-  end
-  -- ID for Skyriding buff would be 404464, but if you have never switched you have no buff at all (at least in 11.0.0).
-  return false
-end]],
-        priority = 102,
-        condition = [[return IsMounted() and not this.IsCurrentFlightStyleSteady() and not this.IsCurrentMountOnlyForSteadyFlight() and IsFlying()]],
-      },
       ["130"] = {
         name = "Dragon Racing",
         events = {"UNIT_AURA"},
@@ -426,6 +399,30 @@ tinsert(this.raceBuffs, 369968)
 end
 return false]],
       },
+
+
+
+
+
+
+
+
+      ["160"] = {
+        name = "Taxi",
+        events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
+        priority = 1000,
+        condition = "return UnitOnTaxi(\"player\")",
+      },
+      ["170"] = {
+        name = "Vehicle",
+        events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
+        priority = 1000,
+        condition = "return UnitUsingVehicle(\"player\")",
+      },
+
+
+
+
       ["200"] = {
         name = "Hearth/Teleport",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
@@ -581,16 +578,16 @@ this.mountVendors = {
 }
 
 function this:GetCurrentMount()
-  if this.lastMount then
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(this.lastMount)
+  if DynamicCam.lastActiveMount then
+    local _, _, _, active = C_MountJournal.GetMountInfoByID(DynamicCam.lastActiveMount)
     if active then
-      return this.lastMount
+      return DynamicCam.lastActiveMount
     end
   end
   for _, v in pairs(C_MountJournal.GetMountIDs()) do
     local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
     if active then
-      this.lastMount = v
+      DynamicCam.lastActiveMount = v
       return v
     end
   end

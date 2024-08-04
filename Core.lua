@@ -930,29 +930,30 @@ end
 -- 1 : some early DC version
 -- 2 : DC pre-2.0
 -- 3 : DC post-2.0
+-- 4 : New mounted situation IDs.
 function DynamicCam:ModernizeProfile(p)
 
   -- If there is no version number, it is most probably a newly created one!
   if not p.version then
-      p.version = 3
-      return false
+    p.version = 4
+    return false
   end
 
 
   if p.version == 1 then
 
-      if p.defaultCvars and p.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil then
-          p.defaultCvars["test_cameraLockedTargetFocusing"] = nil
-      end
+    if p.defaultCvars and p.defaultCvars["test_cameraLockedTargetFocusing"] ~= nil then
+      p.defaultCvars["test_cameraLockedTargetFocusing"] = nil
+    end
 
-      -- modernize each situation
-      if p.situations then
-          for k, v in pairs(p.situations) do
-              self:ModernizeSituation(v, k, p.version)
-          end
+    -- modernize each situation
+    if p.situations then
+      for k, v in pairs(p.situations) do
+        self:ModernizeSituation(v, k, p.version)
       end
+    end
 
-      p.version = 2
+    p.version = 2
   end
 
 
@@ -1030,7 +1031,38 @@ function DynamicCam:ModernizeProfile(p)
 
     p.version = 3
 
+  end
+
+
+  -- Rearrange situation IDs.
+  if p.version == 3 then
+
+    print("Modernizing")
+
+    if p.situations then
+
+      local function SwapSituationIDs(src, dst, situations)
+        print("Moving", src, "to", dst)
+        if situations[src] then
+          assert(not situations[dst])
+          situations[dst] = situations[src]
+          situations[src] = nil
+        end
+        print("Success!")
+      end
+
+      SwapSituationIDs("102", "170", p.situations)    -- Vehicle
+      SwapSituationIDs("101", "160", p.situations)    -- Taxi
+      SwapSituationIDs("103", "115", p.situations)    -- Druid Travel Form
+      SwapSituationIDs("100.5", "105", p.situations)  -- mounted (only airborne)
+      SwapSituationIDs("126", "106", p.situations)    -- mounted (only airborne + Skyriding)
+      SwapSituationIDs("125", "107", p.situations)    -- mounted (only Skyriding)
+
+    end
+
+    p.version = 4
     return true
+
   end
 
   return false
@@ -1615,23 +1647,23 @@ end
 
 
 
--- -- For debugging.
--- function DynamicCam:PrintTable(t, indent)
-  -- assert(type(t) == "table", "PrintTable() called for non-table!")
+-- For debugging.
+function DynamicCam:PrintTable(t, indent)
+  assert(type(t) == "table", "PrintTable() called for non-table!")
 
-  -- local indentString = ""
-  -- for i = 1, indent do
-    -- indentString = indentString .. "  "
-  -- end
+  local indentString = ""
+  for i = 1, indent do
+    indentString = indentString .. "  "
+  end
 
-  -- for k, v in pairs(t) do
-    -- if type(v) ~= "table" then
-      -- print(indentString, k, "=", v)
-    -- else
-      -- print(indentString, k, "=")
-      -- print(indentString, "  {")
-      -- self:PrintTable(v, indent + 2)
-      -- print(indentString, "  }")
-    -- end
-  -- end
--- end
+  for k, v in pairs(t) do
+    if type(v) ~= "table" then
+      print(indentString, k, "=", v)
+    else
+      print(indentString, k, "=")
+      print(indentString, "  {")
+      self:PrintTable(v, indent + 2)
+      print(indentString, "  }")
+    end
+  end
+end

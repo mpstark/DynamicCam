@@ -872,7 +872,146 @@ end
 
 
 
+-- Storing which mounts are flying mounts, because the game does not provide a direct reliable way to determine this.
+-- See: https://www.wowinterface.com/forums/showthread.php?p=344234#post344234
+DynamicCam.FlyingMountList = {}
 
+local maintainFlyingMountListFrame = CreateFrame ("Frame")
+maintainFlyingMountListFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+maintainFlyingMountListFrame:SetScript("OnEvent",
+  function()
+
+    -- Store current mount journal filter settings for later restoring.
+
+    local collectedFilters = {}
+    collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
+    collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
+    collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
+    -- DynamicCam:PrintTable(collectedFilters, 0)
+
+    local typeFilters = {}
+    for filterIndex = 1, Enum.MountTypeMeta.NumValues do
+      typeFilters[filterIndex] = C_MountJournal.IsTypeChecked(filterIndex)
+    end
+    -- DynamicCam:PrintTable(typeFilters, 0)
+
+    local sourceFilters = {}
+		for filterIndex = 1, C_PetJournal.GetNumPetSources() do
+			if C_MountJournal.IsValidSourceFilter(filterIndex) then
+				sourceFilters[filterIndex] = C_MountJournal.IsSourceChecked(filterIndex)
+			end
+		end
+    -- DynamicCam:PrintTable(sourceFilters, 0)
+
+
+    -- Set filters to flying mounts.
+    C_MountJournal.SetDefaultFilters()
+    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
+    C_MountJournal.SetTypeFilter(1, false)   -- No Ground.
+    C_MountJournal.SetTypeFilter(3, false)   -- No Aquatic.
+
+
+    -- Fill list of flying mount IDs.
+    DynamicCam.FlyingMountList = {}
+    for displayIndex = 1, C_MountJournal.GetNumDisplayedMounts() do
+      local mountId = select(12, C_MountJournal.GetDisplayedMountInfo(displayIndex))
+      -- print(displayIndex, mountId)
+      DynamicCam.FlyingMountList[mountId] = true
+    end
+
+
+    -- Restore the mount journal filter settings.
+
+    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
+    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
+    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
+
+    for filterIndex = 1, Enum.MountTypeMeta.NumValues do
+      C_MountJournal.SetTypeFilter(filterIndex, typeFilters[filterIndex])
+    end
+
+		for filterIndex = 1, C_PetJournal.GetNumPetSources() do
+			if C_MountJournal.IsValidSourceFilter(filterIndex) then
+				C_MountJournal.SetSourceFilter(filterIndex, sourceFilters[filterIndex])
+			end
+		end
+
+  end
+)
+
+
+
+
+-- Some functions we need in several situation conditions.
+-- So we only implement them once.
+
+DynamicCam.lastActiveMount = nil
+
+function DynamicCam:CurrentMountCanFly()
+
+  local checkLastActiveMount = false
+  if self.lastActiveMount then
+    _, _, _, checkLastActiveMount = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
+  end
+
+  local lastActiveMount = nil
+  if checkLastActiveMount then
+    lastActiveMount = self.lastActiveMount
+  else
+    for _, v in pairs (C_MountJournal.GetMountIDs()) do
+      local _, _, _, isActive = C_MountJournal.GetMountInfoByID(v)
+      if isActive then
+        lastActiveMount = v
+        break
+      end
+    end
+  end
+
+  if lastActiveMount then
+    self.lastActiveMount = lastActiveMount
+
+    if DynamicCam.FlyingMountList[self.lastActiveMount] then
+      -- print("I believe mount", self.lastActiveMount, "can fly")
+      return true
+    else
+      -- print("I believe mount", self.lastActiveMount, "cannot fly")
+      return false
+    end
+
+  end
+
+  return false
+end
+
+
+function DynamicCam:SkyridingOn()
+
+  if self.lastActiveMount then
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
+    if isActive and isSteadyFlight then
+      return false
+    end
+  end
+
+  for _, v in pairs (C_MountJournal.GetMountIDs()) do
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
+    if isActive then
+      self.lastActiveMount = v
+      if isSteadyFlight then
+        return false
+      end
+    end
+  end
+
+  for i = 1, 40 do
+    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+    if spellId == 404464 then return true end
+    if spellId == 404468 then return false end
+  end
+
+  -- If you have never switched, you have neither buff and Skyriding it the default.
+  return true
+end
 
 
 
