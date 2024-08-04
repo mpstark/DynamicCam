@@ -339,9 +339,6 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
       },
 
-
-
-
       ["115"] = {
         name = "Druid Travel Form",
         events = {"UPDATE_SHAPESHIFT_FORM"},
@@ -360,7 +357,6 @@ else
 end]],
       },
 
-
       ["120"] = {
         name = "Dracthyr Soar",
         events = {"UNIT_AURA"},
@@ -371,9 +367,6 @@ end]],
 end
 return false]],
       },
-
-
-
 
       ["130"] = {
         name = "Dragon Racing",
@@ -400,13 +393,6 @@ end
 return false]],
       },
 
-
-
-
-
-
-
-
       ["160"] = {
         name = "Taxi",
         events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
@@ -419,9 +405,6 @@ return false]],
         priority = 1000,
         condition = "return UnitUsingVehicle(\"player\")",
       },
-
-
-
 
       ["200"] = {
         name = "Hearth/Teleport",
@@ -680,12 +663,14 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
   -- No pet battles before mists.
   DynamicCam.defaults.profile.situations["310"] = nil
 
-
-  -- No dragonriding or Dracthyr before Dragonflight.
-  DynamicCam.defaults.profile.situations["120"] = nil
-  DynamicCam.defaults.profile.situations["125"] = nil
-  DynamicCam.defaults.profile.situations["126"] = nil
-
+  DynamicCam.defaults.profile.situations["103"] = nil    -- Mounted (only flying-mount + airborne + Skyriding)
+  DynamicCam.defaults.profile.situations["104"] = nil    -- Mounted (only flying-mount + Skyriding)
+  DynamicCam.defaults.profile.situations["106"] = nil    -- Mounted (only airborne + Skyriding)
+  DynamicCam.defaults.profile.situations["107"] = nil    -- Mounted (only Skyriding)
+  
+  DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
+  DynamicCam.defaults.profile.situations["130"] = nil    -- Dragon Racing
+  
 
   if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
 
@@ -695,8 +680,15 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
     DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
 
-    -- No vehicles before wrath.
+    
+    -- No flying in classic.
+    DynamicCam.defaults.profile.situations["101"] = nil
     DynamicCam.defaults.profile.situations["102"] = nil
+    DynamicCam.defaults.profile.situations["105"] = nil
+
+
+    -- No vehicles before wrath.
+    DynamicCam.defaults.profile.situations["170"] = nil
 
   else
 
