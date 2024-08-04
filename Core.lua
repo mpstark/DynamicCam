@@ -1037,18 +1037,14 @@ function DynamicCam:ModernizeProfile(p)
   -- Rearrange situation IDs.
   if p.version == 3 then
 
-    print("Modernizing")
-
     if p.situations then
 
       local function SwapSituationIDs(src, dst, situations)
-        print("Moving", src, "to", dst)
         if situations[src] then
           assert(not situations[dst])
           situations[dst] = situations[src]
           situations[src] = nil
         end
-        print("Success!")
       end
 
       SwapSituationIDs("102", "170", p.situations)    -- Vehicle

@@ -514,6 +514,7 @@ return false]],
   441154,  -- Nostwin's Voucher (Pandaria Remix)
   449508,  -- Nostwin's Return Service (Pandaria Remix)
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
+  460271,  -- Teleporting to Silithus
 }]],
         priority = 130,
         condition = [[local _, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
