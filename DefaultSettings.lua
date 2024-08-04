@@ -668,10 +668,11 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
   DynamicCam.defaults.profile.situations["104"] = nil    -- Mounted (only flying-mount + Skyriding)
   DynamicCam.defaults.profile.situations["106"] = nil    -- Mounted (only airborne + Skyriding)
   DynamicCam.defaults.profile.situations["107"] = nil    -- Mounted (only Skyriding)
-  
+
   DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
   DynamicCam.defaults.profile.situations["130"] = nil    -- Dragon Racing
-  
+
+
 
   if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
 
@@ -681,7 +682,7 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
     DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
 
-    
+
     -- No flying in classic.
     DynamicCam.defaults.profile.situations["101"] = nil
     DynamicCam.defaults.profile.situations["102"] = nil
@@ -691,10 +692,17 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
     -- No vehicles before wrath.
     DynamicCam.defaults.profile.situations["170"] = nil
 
+
+  -- Currently Wrath classic.
   else
 
     -- Cannot have "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}
+
+
+    -- No way to filter for flying mounts in Wrath classic.
+    DynamicCam.defaults.profile.situations["101"] = nil
+    DynamicCam.defaults.profile.situations["102"] = nil
 
   end
 

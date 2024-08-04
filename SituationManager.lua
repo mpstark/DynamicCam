@@ -881,7 +881,7 @@ maintainFlyingMountListFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 maintainFlyingMountListFrame:SetScript("OnEvent",
   function()
 
-    if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then return end
+    if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
 
     -- Store current mount journal filter settings for later restoring.
 
@@ -917,7 +917,7 @@ maintainFlyingMountListFrame:SetScript("OnEvent",
     DynamicCam.FlyingMountList = {}
     for displayIndex = 1, C_MountJournal.GetNumDisplayedMounts() do
       local mountId = select(12, C_MountJournal.GetDisplayedMountInfo(displayIndex))
-      print(displayIndex, mountId)
+      -- print(displayIndex, mountId)
       DynamicCam.FlyingMountList[mountId] = true
     end
 
