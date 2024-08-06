@@ -440,6 +440,7 @@ return false]],
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
   140295,  -- Kirin Tor Beacon
+  147985,  -- Curious Bronze Timepiece
   168487,  -- Home Away from Home
   168499,  -- Home Away from Home
   171253,  -- Garrison Hearthstone
