@@ -362,8 +362,8 @@ end]],
         events = {"UNIT_AURA"},
         priority = 100,
         condition = [[for i = 1, 40 do
-  local name, _, _, _, _, _, _, _, _, spellId = C_UnitAuras.GetBuffDataByIndex("player", i)
-  if spellId == 430747 then return true end
+  local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+  if aura.spellId == 430747 then return true end
 end
 return false]],
       },
@@ -381,7 +381,8 @@ tinsert(this.raceBuffs, 369968)
 ]],
         priority = 103,
         condition = [[for i = 1, 40 do
-  local name, _, _, _, _, _, _, _, _, spellId = C_UnitAuras.GetBuffDataByIndex("player", i)
+  local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+  local spellId = aura.spellId
   if spellId and spellId >= 369893 and spellId <= 439321 then
     for _, v in pairs(this.raceBuffs) do
       if v == spellId then
