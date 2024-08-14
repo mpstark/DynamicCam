@@ -1006,9 +1006,9 @@ function DynamicCam:SkyridingOn()
   end
 
   for i = 1, 40 do
-    local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-    if spellId == 404464 then return true end
-    if spellId == 404468 then return false end
+    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+    if aura.spellId == 404464 then return true end
+    if aura.spellId == 404468 then return false end
   end
 
   -- If you have never switched, you have neither buff and Skyriding it the default.

@@ -285,56 +285,56 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 
       ["100"] = {
         name = "Mounted (any)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 100,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
       },
 
       ["101"] = {
         name = "Mounted (only flying-mount)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly()",
       },
 
       ["102"] = {
         name = "Mounted (only flying-mount + airborne)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying()",
       },
 
       ["103"] = {
         name = "Mounted (only flying-mount + airborne + Skyriding)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 103,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying() and DynamicCam:SkyridingOn()",
       },
 
       ["104"] = {
         name = "Mounted (only flying-mount + Skyriding)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and DynamicCam:SkyridingOn()",
       },
 
       ["105"] = {
         name = "Mounted (only airborne)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying()",
       },
 
       ["106"] = {
         name = "Mounted (only airborne + Skyriding)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying() and DynamicCam:SkyridingOn()",
       },
 
       ["107"] = {
         name = "Mounted (only Skyriding)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA", "UPDATE_SHAPESHIFT_COOLDOWN"},
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
       },
@@ -362,7 +362,7 @@ end]],
         events = {"UNIT_AURA"},
         priority = 100,
         condition = [[for i = 1, 40 do
-  local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+  local name, _, _, _, _, _, _, _, _, spellId = C_UnitAuras.GetBuffDataByIndex("player", i)
   if spellId == 430747 then return true end
 end
 return false]],
@@ -381,7 +381,7 @@ tinsert(this.raceBuffs, 369968)
 ]],
         priority = 103,
         condition = [[for i = 1, 40 do
-  local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+  local name, _, _, _, _, _, _, _, _, spellId = C_UnitAuras.GetBuffDataByIndex("player", i)
   if spellId and spellId >= 369893 and spellId <= 439321 then
     for _, v in pairs(this.raceBuffs) do
       if v == spellId then
@@ -541,7 +541,7 @@ this.rotationTime = this.transitionTime]],
 ]],
         priority = 1000,
         condition = [[for _, v in pairs(this.buffs) do
-  local name = GetSpellInfo(v)
+  local name = C_Spell.GetSpellName(v)
   if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
     return true
   end
@@ -618,7 +618,7 @@ return shown and UnitExists("npc")]],
         name = "Fishing",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         priority = 20,
-        condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
+        condition = "return UnitChannelInfo(\"player\") == C_Spell.GetSpellName(7620)",
         delay = 1,
       },
       ["320"] = {
@@ -634,10 +634,7 @@ return shown and UnitExists("npc")]],
 -- Uncomment this to find out more spell IDs.
 -- print(name, spellId)
 for _, v in pairs(this.spells) do
-  gatheringName = GetSpellInfo(v)
-  if gatheringName and gatheringName == name then
-    return true
-  end
+  if v == spellId then return true end
 end
 return false]]
       },

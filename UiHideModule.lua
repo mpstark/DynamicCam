@@ -362,16 +362,16 @@ else
           MainMenuExpBar:SetAlpha(MainMenuExpBar.IEF_tempAlpha)
         end
       end )
-      
+
     end
     ludius_bars_hooked = true
-    
+
   end
 end
 
 
 
-if IsAddOnLoaded("GW2_UI") then
+if C_AddOns.IsAddOnLoaded("GW2_UI") then
   -- GW2_UI seems to offer no way of hooking any of its functions.
   -- So we have to do it like this.
   local enterWorldFrame = CreateFrame("Frame")

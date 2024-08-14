@@ -82,17 +82,24 @@ local secondsPerFrame = DynamicCam.secondsPerFrame     -- For performance.
 -- (see EventHandler() and ShoulderOffsetEasingFunction()).
 local evaluateSituationsNextFrame = false
 
+-- Always evaluate to be on the safe side.
+-- Because some situations (like taking off on a mount) cannot be associated with an event.
+local alwaysEvaluateTimer = 0.75
 
 local function ConstantlyRunningFrameFunction(_, elapsed)
   -- Also using this frame's OnUpdate to log secondsPerFrame.
   secondsPerFrame = elapsed
 
+  alwaysEvaluateTimer = alwaysEvaluateTimer - elapsed
+
   -- Using this frame to evaluate situations one frame after an event
   -- is triggered (see EventHandler()). This way we are never too early.
-  if evaluateSituationsNextFrame then
-    DynamicCam:EvaluateSituations()
+  if evaluateSituationsNextFrame or alwaysEvaluateTimer < 0 then
     evaluateSituationsNextFrame = false
+    alwaysEvaluateTimer = 0.75
+    DynamicCam:EvaluateSituations()
   end
+
 end
 local constantlyRunningFrame = CreateFrame("Frame")
 
