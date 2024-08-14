@@ -541,13 +541,18 @@ this.rotationTime = this.transitionTime]],
 ]],
         priority = 1000,
         condition = [[for _, v in pairs(this.buffs) do
-  local name = C_Spell.GetSpellName(v)
+  local name
+  if GetSpellInfo then     -- Classic
+    name = GetSpellInfo(7620)
+  else     -- Retail
+    name = C_Spell.GetSpellName(v)
+  end
   if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
     return true
   end
 end
 return false]],
-      },
+},
       ["300"] = {
         name = "NPC Interaction",
         events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRAINER_CLOSED", "TRAINER_SHOW", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN"},
@@ -618,7 +623,11 @@ return shown and UnitExists("npc")]],
         name = "Fishing",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         priority = 20,
-        condition = "return UnitChannelInfo(\"player\") == C_Spell.GetSpellName(7620)",
+        condition = [[if GetSpellInfo then     -- Classic
+  return UnitChannelInfo("player") == GetSpellInfo(7620)
+else     -- Retail
+  return UnitChannelInfo("player") == C_Spell.GetSpellName(7620)
+end]],
         delay = 1,
       },
       ["320"] = {
