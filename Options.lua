@@ -4178,7 +4178,7 @@ function Options:RegisterMenus()
 
   LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
   self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
-  
+
 end
 
 
@@ -4407,7 +4407,7 @@ end
 
 
 
--- Disable mouse look slider and partially disable motion sickness options
+-- Disable mouse look slider and motion sickness options
 -- and leave a tooltip note in the default UI settings.
 
 local mouseLookSpeedSlider = nil
@@ -4479,6 +4479,13 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
   elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
 
     -- Retail got rid of the drop down and only uses a single checkbox now.
+
+    -- Bizarrely, since 11.0.2 checking the checkbox sets
+    -- CameraKeepCharacterCentered = false  and  CameraReduceUnexpectedMovement = true
+    -- whereas unchecking the checkbox sets
+    -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
+    -- Either variable will stop shoulder offset to take effect, so we disable the checkbox completely.
+
     if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 
       local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
@@ -4502,18 +4509,27 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
                 motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
               end
 
-
               -- Change tooltip.
               motionSicknessElement:SetScript("OnEnter", function(self)
                   GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
-                  GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" feature of \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by your DynamicCam addon. But you can still use \"" .. MOTION_SICKNESS_CHECKBOX .. "\" to prevent unexptected character movement.", _, _, _, true)
+                  GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
+                  GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by DynamicCam, so the horizontal shoulder offset setting takes effect.", _, _, _, true)
                   GameTooltip:Show()
               end)
               motionSicknessElement:SetScript("OnLeave", function(self)
                   GameTooltip:Hide()
               end)
 
+            end
+
+            -- Got to make sure, the slider stays disabled.
+            if motionSicknessElement:IsEnabled() then
+              -- Function name "SetEnabled" introduced in 11.0.0.
+              if motionSicknessElement.SetEnabled then
+                motionSicknessElement:SetEnabled(false)
+              else
+                motionSicknessElement:SetEnabled_(false)
+              end
             end
 
             break
@@ -4673,6 +4689,11 @@ hooksecurefunc("SetCVar", function(cvar, value)
   if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1 or value == true) then
     print("|cFFFF0000CameraKeepCharacterCentered prevented by DynamicCam!|r")
     SetCVar("CameraKeepCharacterCentered", false)
+
+  -- As off 11.0.2 this is also needed for shoulder offset to take effect.
+  elseif cvar == "CameraReduceUnexpectedMovement" and (value == "1" or value == 1 or value == true) then
+    print("|cFFFF0000CameraReduceUnexpectedMovement prevented by DynamicCam!|r")
+    SetCVar("CameraReduceUnexpectedMovement", false)
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
   elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then

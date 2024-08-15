@@ -383,10 +383,9 @@ tinsert(this.raceBuffs, 369968)
         condition = [[for i = 1, 40 do
   local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
   if aura and aura.spellId then
-    local spellId = aura.spellId
-    if spellId and spellId >= 369893 and spellId <= 439321 then
+    if aura.spellId >= 369893 and aura.spellId <= 439321 then
       for _, v in pairs(this.raceBuffs) do
-        if v == spellId then
+        if v == aura.spellId then
           return true
         end
       end
@@ -543,15 +542,23 @@ this.rotationTime = this.transitionTime]],
 }
 ]],
         priority = 1000,
-        condition = [[for _, v in pairs(this.buffs) do
-  local name
-  if GetSpellInfo then     -- Classic
-    name = GetSpellInfo(7620)
+        condition = [[for i = 1, 40 do
+  local spellId = nil
+  if UnitBuff then     -- Classic
+  _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
   else     -- Retail
-    name = C_Spell.GetSpellName(v)
+    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+    if aura then
+      spellId = aura.spellId
+    end
   end
-  if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
-    return true
+
+  if spellId then
+    for _, v in pairs(this.buffs) do
+      if v == spellId then
+        return true
+      end
+    end
   end
 end
 return false]],

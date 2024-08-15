@@ -665,7 +665,13 @@ function DynamicCam:Startup()
 
   if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
     -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
-    SetCVar("CameraKeepCharacterCentered", 0)
+    SetCVar("CameraKeepCharacterCentered", false)
+  end
+
+  -- As off 11.0.2 this is also needed for shoulder offset to take effect.
+  if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
+    -- print("CameraReduceUnexpectedMovement = 1 prevented by DynamicCam!")
+    SetCVar("CameraReduceUnexpectedMovement", false)
   end
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
