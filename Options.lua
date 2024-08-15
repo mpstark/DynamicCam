@@ -4512,7 +4512,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
             motionSicknessElement:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
                 GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
-                GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by DynamicCam, so the horizontal shoulder offset setting takes effect.", _, _, _, true)
+                GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" option is disabled by DynamicCam, so the horizontal shoulder offset setting can take effect.", _, _, _, true)
                 GameTooltip:Show()
             end)
             motionSicknessElement:SetScript("OnLeave", function(self)
