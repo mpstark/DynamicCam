@@ -4486,141 +4486,54 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
     -- Either variable will stop shoulder offset to take effect, so we disable the checkbox completely.
 
-    if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 
-      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-      for i, child in ipairs(children) do
-        if child.Text then
-          if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
-            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
-            foundMotionSicknessElement = true
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
+          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
+          foundMotionSicknessElement = true
 
-            if not motionSicknessElement then
-              -- print("Disabling motion sickness checkox.")
-              -- Renamed to "Checkbox" in 11.0.0.
-              if child.Checkbox then
-                motionSicknessElement = child.Checkbox
-              else
-                motionSicknessElement = child.CheckBox
-              end
-
-              if not motionSicknessElementOriginalTooltipEnter then
-                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-              end
-
-              -- Change tooltip.
-              motionSicknessElement:SetScript("OnEnter", function(self)
-                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
-                  GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by DynamicCam, so the horizontal shoulder offset setting takes effect.", _, _, _, true)
-                  GameTooltip:Show()
-              end)
-              motionSicknessElement:SetScript("OnLeave", function(self)
-                  GameTooltip:Hide()
-              end)
-
+          if not motionSicknessElement then
+            -- print("Disabling motion sickness checkox.")
+            -- Renamed to "Checkbox" in 11.0.0.
+            if child.Checkbox then
+              motionSicknessElement = child.Checkbox
+            else
+              motionSicknessElement = child.CheckBox
             end
 
-            -- Got to make sure, the slider stays disabled.
-            if motionSicknessElement:IsEnabled() then
-              -- Function name "SetEnabled" introduced in 11.0.0.
-              if motionSicknessElement.SetEnabled then
-                motionSicknessElement:SetEnabled(false)
-              else
-                motionSicknessElement:SetEnabled_(false)
-              end
+            if not motionSicknessElementOriginalTooltipEnter then
+              motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
+              motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
             end
 
-            break
+            -- Change tooltip.
+            motionSicknessElement:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+                GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
+                GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by DynamicCam, so the horizontal shoulder offset setting takes effect.", _, _, _, true)
+                GameTooltip:Show()
+            end)
+            motionSicknessElement:SetScript("OnLeave", function(self)
+                GameTooltip:Hide()
+            end)
+
           end
+
+          -- Got to make sure, the slider stays disabled.
+          if motionSicknessElement:IsEnabled() then
+            -- Function name "SetEnabled" introduced in 11.0.0.
+            if motionSicknessElement.SetEnabled then
+              motionSicknessElement:SetEnabled(false)
+            else
+              motionSicknessElement:SetEnabled_(false)
+            end
+          end
+
+          break
         end
       end
-
-
-    -- Classic still uses the drop down.
-    else
-
-      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-      for i, child in ipairs(children) do
-        if child.Text then
-          if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
-            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
-            foundMotionSicknessElement = true
-
-            if not motionSicknessElement then
-              -- print("Disabling drop down")
-              motionSicknessElement = child.DropDown.Button
-
-              if not motionSicknessElementOriginalTooltipEnter then
-                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-              end
-
-              -- Change tooltip.
-              motionSicknessElement:SetScript("OnEnter", function(self)
-                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
-                  GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
-                  GameTooltip:Show()
-              end)
-              motionSicknessElement:SetScript("OnLeave", function(self)
-                  GameTooltip:Hide()
-              end)
-
-
-              -- Prevent unallowed selections.
-              local function UndoSelections(self, valueTable)
-
-                -- Only do this while the drop down is modified.
-                if not motionSicknessElement then return end
-
-                -- When using Increment/Decrement there is no valueTable as argument.
-                if not valueTable then
-                  valueTable = self:GetCurrentSelectedData()
-                end
-
-                if valueTable.value == indexBoth then
-                  self:SetSelectedIndex(indexReduced)
-                elseif valueTable.value == indexCentered then
-                  self:SetSelectedIndex(indexNone)
-                end
-              end
-
-              hooksecurefunc(motionSicknessElement, "OnEntryClicked", UndoSelections)
-              hooksecurefunc(motionSicknessElement, "Increment", UndoSelections)
-              hooksecurefunc(motionSicknessElement, "Decrement", UndoSelections)
-
-            end
-
-            -- Got to make sure the labels stay modified.
-            for i, k in pairs(motionSicknessElement.selections) do
-              -- print(i, k)
-
-              if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
-                k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
-                indexCentered = k.value
-              elseif k.label == MOTION_SICKNESS_BOTH then
-                k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
-                indexBoth = k.value
-              elseif k.label == MOTION_SICKNESS_NONE then
-                -- k.label = MOTION_SICKNESS_NONE
-                indexNone = k.value
-              elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
-                -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
-                indexReduced = k.value
-              end
-
-              -- for i2, k2 in pairs(k) do
-                -- print("    ", i2, k2)
-              -- end
-            end
-
-            break
-          end
-        end
-      end
-
     end
 
   end
