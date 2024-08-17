@@ -979,7 +979,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   cameraOverShoulderDescription = {
                     type = "description",
-                    name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this.",
+                    name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nFor this to come into effect, DynamicCam automatically temporarily disables WoW's motion sickness setting. So if you need the Motion Sickness setting, do not use the horizontal offset in these situations.\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this.",
                     order = 0,
                   },
 
@@ -4510,25 +4510,15 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
             -- Change tooltip.
             motionSicknessElement:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
-                GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" option is disabled by DynamicCam, so the horizontal shoulder offset setting can take effect.", _, _, _, true)
-                GameTooltip:Show()
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000Attention|r", _, _, _, true)
+              GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHECKBOX .. "\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset.", _, _, _, true)
+              GameTooltip:Show()
             end)
             motionSicknessElement:SetScript("OnLeave", function(self)
-                GameTooltip:Hide()
+              GameTooltip:Hide()
             end)
 
-          end
-
-          -- Got to make sure, the slider stays disabled.
-          if motionSicknessElement:IsEnabled() then
-            -- Function name "SetEnabled" introduced in 11.0.0.
-            if motionSicknessElement.SetEnabled then
-              motionSicknessElement:SetEnabled(false)
-            else
-              motionSicknessElement:SetEnabled_(false)
-            end
           end
 
           break
@@ -4591,27 +4581,102 @@ end)
 hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
 hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
 
-
-
 local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
-hooksecurefunc("SetCVar", function(cvar, value)
-  -- print(cvar, value)
+hooksecurefunc("SetCVar", function(cvar, value, flag)
+  -- print(cvar, value, flag)
+
+  -- We are only handling cvar calls not done by DynamicCam.
+  if flag == "DynamicCam" then return end
+
 
   -- Automatically undo forbidden motion sickness setting.
-  if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1 or value == true) then
-    print("|cFFFF0000CameraKeepCharacterCentered prevented by DynamicCam!|r")
-    SetCVar("CameraKeepCharacterCentered", false)
+  if cvar == "CameraKeepCharacterCentered" then
+    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
+    DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
+    -- print("|cFF0000FFStoring userCameraKeepCharacterCentered!|r", GetCVar("CameraKeepCharacterCentered"))
+
+    if value == true or tonumber(value) == 1 then
+      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+        print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+
+      elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
+        print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+    end
+
 
   -- As off 11.0.2 this is also needed for shoulder offset to take effect.
-  elseif cvar == "CameraReduceUnexpectedMovement" and (value == "1" or value == 1 or value == true) then
-    print("|cFFFF0000CameraReduceUnexpectedMovement prevented by DynamicCam!|r")
-    SetCVar("CameraReduceUnexpectedMovement", false)
+  elseif cvar == "CameraReduceUnexpectedMovement" then
+    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
+    DynamicCam.userCameraReduceUnexpectedMovement = GetCVar("CameraReduceUnexpectedMovement")
+    -- print("|cFF0000FFStoring userCameraReduceUnexpectedMovement!|r", GetCVar("CameraReduceUnexpectedMovement"))
+
+    if value == true or tonumber(value) == 1 then
+      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+        print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
+        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
+      end
+    end
+
+
+  elseif cvar == "test_cameraOverShoulder" then
+
+    -- If necessary, prevent Motion Sickness.
+    if tonumber(value) ~= 0 then
+
+      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
+        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+      if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
+        -- print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
+        assert(DynamicCam.userCameraReduceUnexpectedMovement == GetCVar("CameraReduceUnexpectedMovement"))
+        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
+      end
+
+    -- If no longer necessary, restore Motion Sickness.
+    -- (cvar may become 0 "according to zoom level", so we check
+    elseif DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "cvars", "test_cameraOverShoulder") == 0 then
+      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
+        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
+      end
+      if DynamicCam.userCameraReduceUnexpectedMovement ~= GetCVar("CameraReduceUnexpectedMovement") then
+        -- print("|cFF00FF00Restoring CameraReduceUnexpectedMovement!|r")
+        SetCVar("CameraReduceUnexpectedMovement", DynamicCam.userCameraReduceUnexpectedMovement, "DynamicCam")
+      end
+    end
+
+
+  elseif cvar == "test_cameraDynamicPitch" then
+
+    -- If necessary, prevent Motion Sickness.
+    if tonumber(value) == 1 then
+      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
+        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+
+    -- If no longer necessary, restore Motion Sickness.
+    else
+      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
+        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
+      end
+    end
+
+
+
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
   elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
     print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
-    SetCVar("cameraView", GetCVarDefault("cameraView"))
+    SetCVar("cameraView", GetCVarDefault("cameraView"), "DynamicCam")
 
   -- Switch to a default view, if user switches to cameraSmoothStyle.
   elseif cvar == "cameraSmoothStyle" and value ~= "0" then

@@ -37,6 +37,13 @@ DynamicCam.currentShoulderOffset = 0
 DynamicCam.conditionExecutionCache = {}
 
 
+-- When the users sets ActionCam features that are prevented by Motion Sickness settings,
+-- we temporarily disable these Motion Sicknes settings. But we restore them when no
+-- affected ActionCam features are used any more.
+DynamicCam.userCameraKeepCharacterCentered = DynamicCam.userCameraKeepCharacterCentered or GetCVar("CameraKeepCharacterCentered")
+DynamicCam.userCameraReduceUnexpectedMovement = DynamicCam.userCameraReduceUnexpectedMovement or GetCVar("CameraReduceUnexpectedMovement")
+
+
 ------------
 -- LOCALS --
 ------------
@@ -663,15 +670,27 @@ function DynamicCam:Startup()
     self:ReactiveZoomOff()
   end
 
+
+
   if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
-    -- print("CameraKeepCharacterCentered = 1 prevented by DynamicCam!")
-    SetCVar("CameraKeepCharacterCentered", false)
+    
+    if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+      print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!|r")
+      SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+    
+    elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
+      print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+      SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+    end
+    
   end
 
   -- As off 11.0.2 this is also needed for shoulder offset to take effect.
   if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
-    -- print("CameraReduceUnexpectedMovement = 1 prevented by DynamicCam!")
-    SetCVar("CameraReduceUnexpectedMovement", false)
+    if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+      print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
+      SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
+    end
   end
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
