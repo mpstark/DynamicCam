@@ -91,7 +91,8 @@ local evaluateSituationsNextFrame = false
 
 -- Always evaluate to be on the safe side.
 -- Because some situations (like taking off on a mount) cannot be associated with an event.
-local alwaysEvaluateTimer = 0.75
+local alwaysEvaluateDelay = 1
+local alwaysEvaluateTimer = alwaysEvaluateDelay
 
 local function ConstantlyRunningFrameFunction(_, elapsed)
   -- Also using this frame's OnUpdate to log secondsPerFrame.
@@ -103,7 +104,7 @@ local function ConstantlyRunningFrameFunction(_, elapsed)
   -- is triggered (see EventHandler()). This way we are never too early.
   if evaluateSituationsNextFrame or alwaysEvaluateTimer < 0 then
     evaluateSituationsNextFrame = false
-    alwaysEvaluateTimer = 0.75
+    alwaysEvaluateTimer = alwaysEvaluateDelay
     DynamicCam:EvaluateSituations()
   end
 
@@ -604,7 +605,6 @@ end
 -- CORE --
 ----------
 local started = false
-local events = {}
 
 function DynamicCam:OnInitialize()
 
@@ -673,16 +673,16 @@ function DynamicCam:Startup()
 
 
   if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
-    
+
     if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
       print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!|r")
       SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
-    
+
     elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
       print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
       SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
     end
-    
+
   end
 
   -- As off 11.0.2 this is also needed for shoulder offset to take effect.
@@ -753,7 +753,7 @@ function DynamicCam:Shutdown()
     self:ChangeSituation(self.currentSituationID, nil)
   end
 
-  events = {}
+  self.events = {}
   self:UnregisterAllEvents()
   self:UnregisterAllMessages()
 
@@ -817,84 +817,6 @@ function DynamicCam:ApplySettings(noShoulderOffsetChange)
   -- print("Finished ApplySettings", newSituationID, GetTime())
 end
 
-
-
-
-
-
-
-
-
-------------
--- EVENTS --
-------------
-
-
--- The user may try to register invalid events. In order to prevent AceEvent-3.0
--- from remembering invalid events, we have to check if an event exists ourselves!
--- https://www.wowinterface.com/forums/showthread.php?t=58681
-local eventExistsFrame = CreateFrame("Frame");
-local function EventExists(event)
-  local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
-  if exists then eventExistsFrame:UnregisterEvent(event) end
-  return exists
-end
-
-
-
-
-function DynamicCam:EventHandler(event)
-  -- When entering combat, we have to act now.
-  -- Otherwise, we might not be able to call protected functions like UIParent:Show().
-  if event == "PLAYER_REGEN_DISABLED" then
-    self:EvaluateSituations()
-  else
-    evaluateSituationsNextFrame = true
-  end
-end
-
-function DynamicCam:RegisterEvents()
-  self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler")
-
-  for situationID, situation in pairs(self.db.profile.situations) do
-    if situation.enabled and not situation.errorEncountered then
-      self:RegisterSituationEvents(situationID)
-    end
-  end
-end
-
-function DynamicCam:RegisterSituationEvents(situationID)
-  -- print("RegisterSituationEvents", situationID)
-  local situation = self.db.profile.situations[situationID]
-
-  if situation and situation.events then
-    for i, event in pairs(situation.events) do
-      if not events[event] then
-
-        -- We have to check if the event exists ourselves.
-        -- https://www.wowinterface.com/forums/showthread.php?t=58681
-        if not EventExists(event) then
-          DynamicCam:ScriptError(situationID, "events", "events", "Trying to register an unknown event: " .. event)
-          -- print("Trying to register an unknown event: ", event)
-
-        else
-
-          -- If the event does exist, we should never get any problems here,
-          -- but just to be on the safe side:
-          local result = {pcall(DynamicCam.RegisterEvent, DynamicCam, event, "EventHandler")}
-          if result[1] == false then
-            -- print("Not registered for event:", event)
-            DynamicCam:ScriptError(situationID, "events", "events", result[2])
-          else
-            -- print("Registered for event:", event)
-            events[event] = true
-          end
-
-        end
-      end
-    end
-  end
-end
 
 
 

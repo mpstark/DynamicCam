@@ -24,11 +24,93 @@ end
 
 
 
+------------
+-- EVENTS --
+------------
+
+DynamicCam.events = {}
+
+-- The user may try to register invalid events. In order to prevent AceEvent-3.0
+-- from remembering invalid events, we have to check if an event exists ourselves!
+-- https://www.wowinterface.com/forums/showthread.php?t=58681
+local eventExistsFrame = CreateFrame("Frame");
+local function EventExists(event)
+  local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
+  if exists then eventExistsFrame:UnregisterEvent(event) end
+  return exists
+end
+
+
+function DynamicCam:EventHandler(event, ...)
+
+  -- To be less spammy, we ignore all UNIT_AURA events not belonging to player.
+  -- ...until anyone comes up with a situation for which they need other player's UNIT_AURA events.
+  if event == "UNIT_AURA" and ... ~= "player" then
+    -- print("Ignoring non-player UNIT_AURA")
+    return
+  end
+
+  -- print("Eventhandler got", event, ...)
+
+
+  -- When entering combat, we have to act now.
+  -- Otherwise, we might not be able to call protected functions like UIParent:Show().
+  if event == "PLAYER_REGEN_DISABLED" then
+    self:EvaluateSituations()
+  else
+    evaluateSituationsNextFrame = true
+  end
+end
+
+function DynamicCam:RegisterEvents()
+  self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler")
+
+  for situationID, situation in pairs(self.db.profile.situations) do
+    if situation.enabled and not situation.errorEncountered then
+      self:RegisterSituationEvents(situationID)
+    end
+  end
+end
+
+function DynamicCam:RegisterSituationEvents(situationID)
+  -- print("RegisterSituationEvents", situationID)
+  local situation = self.db.profile.situations[situationID]
+
+  if situation and situation.events then
+    for i, event in pairs(situation.events) do
+      if not self.events[event] then
+
+        -- We have to check if the event exists ourselves.
+        -- https://www.wowinterface.com/forums/showthread.php?t=58681
+        if not EventExists(event) then
+          DynamicCam:ScriptError(situationID, "events", "events", "Trying to register an unknown event: " .. event)
+          -- print("Trying to register an unknown event: ", event)
+
+        else
+
+          -- If the event does exist, we should never get any problems here,
+          -- but just to be on the safe side:
+          local result = {pcall(DynamicCam.RegisterEvent, DynamicCam, event, "EventHandler")}
+          if result[1] == false then
+            -- print("Not registered for event:", event)
+            DynamicCam:ScriptError(situationID, "events", "events", result[2])
+          else
+            -- print("Registered for event:", event)
+            self.events[event] = true
+          end
+
+        end
+      end
+    end
+  end
+end
 
 
 
 
-
+-------------
+-- SCRIPTS --
+-------------
 
 local functionCache = {}
 local situationEnvironments = {}
@@ -93,8 +175,9 @@ end
 
 
 
-
-
+---------------------
+-- NPC INTERACTION --
+---------------------
 
 -- For EvaluateSituations() below.
 -- So the transition has to wait a little.
@@ -951,26 +1034,33 @@ DynamicCam.lastActiveMount = nil
 
 function DynamicCam:CurrentMountCanFly()
 
+  -- Is the lastActiveMount still active?
   local checkLastActiveMount = false
   if self.lastActiveMount then
     _, _, _, checkLastActiveMount = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
   end
 
-  local lastActiveMount = nil
+  -- Make sure to get the currently active mount.
+  local currentlyActiveMount = nil
   if checkLastActiveMount then
-    lastActiveMount = self.lastActiveMount
+    currentlyActiveMount = self.lastActiveMount
   else
+    -- In situation conditions we should always check IsMounted() before CurrentMountCanFly(). But just to be on the safe side, check again here.
+    if not IsMounted() then return false end
+
     for _, v in pairs (C_MountJournal.GetMountIDs()) do
       local _, _, _, isActive = C_MountJournal.GetMountInfoByID(v)
       if isActive then
-        lastActiveMount = v
+        currentlyActiveMount = v
         break
       end
     end
   end
 
-  if lastActiveMount then
-    self.lastActiveMount = lastActiveMount
+  -- Made sure that at this point we have the currently active mount.
+
+  if currentlyActiveMount then
+    self.lastActiveMount = currentlyActiveMount
 
     if DynamicCam.FlyingMountList[self.lastActiveMount] then
       -- print("I believe mount", self.lastActiveMount, "can fly")
@@ -979,7 +1069,6 @@ function DynamicCam:CurrentMountCanFly()
       -- print("I believe mount", self.lastActiveMount, "cannot fly")
       return false
     end
-
   end
 
   return false
@@ -987,29 +1076,36 @@ end
 
 
 function DynamicCam:SkyridingOn()
+  -- local seconds = GetTimePreciseSec()
+  -- local milliseconds = debugprofilestop()
 
+  local checkedActiveMount = false
   if self.lastActiveMount then
     local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-    if isActive and isSteadyFlight then
-      return false
+    if isActive then
+      checkedActiveMount = true
+      if isSteadyFlight then return false end
     end
   end
 
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
-    if isActive then
-      self.lastActiveMount = v
-      if isSteadyFlight then
-        return false
+  if not checkedActiveMount then
+    for _, v in pairs (C_MountJournal.GetMountIDs()) do
+      local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
+      if isActive then
+        self.lastActiveMount = v
+        if isSteadyFlight then return false end
+        break
       end
     end
   end
 
-  for i = 1, 40 do
-    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-    if aura and aura.spellId == 404464 then return true end
-    if aura and aura.spellId == 404468 then return false end
-  end
+  -- print(GetTimePreciseSec() - seconds)
+  -- print("1", debugprofilestop() - milliseconds)
+
+  if C_UnitAuras.GetPlayerAuraBySpellID(404464) ~= nil then return true end
+  if C_UnitAuras.GetPlayerAuraBySpellID(404468) ~= nil then return false end
+
+  -- print("2", debugprofilestop() - milliseconds)
 
   -- If you have never switched, you have neither buff and Skyriding it the default.
   return true
