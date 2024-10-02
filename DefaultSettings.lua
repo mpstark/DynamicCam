@@ -528,7 +528,8 @@ end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
-this.transitionTime = (endTime - startTime)/1000
+-- Add 0.5 seconds so the rotation does not stop shortly before the teleport happens.
+this.transitionTime = (endTime - startTime)/1000 + 0.5
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {

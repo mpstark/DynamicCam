@@ -14,17 +14,32 @@ local LibHideUI = LibStub("LibHideUI-1.0")
 -------------
 DynamicCam = LibStub("AceAddon-3.0"):NewAddon(folderName, "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
 
+-- Needed by CameraOverShoulderFix to know if a zoom easing is in progress.
+DynamicCam.LibCamera = LibCamera
+
 
 DynamicCam.currentSituationID = nil
+
+
+-- For other Addons (like Narcissus) to temporarily disable
+-- "Adjust Shoulder offset according to zoom level" without
+-- having to change the user's permanent DynamicCam profile.
+-- We also disable the ShoulderOffsetEasingFunction completely
+-- because it will always restore the DynamicCam shoulder offset
+-- value (regardless of zoom level).
+DynamicCam.shoulderOffsetZoomTmpDisable = false
+function DynamicCam:BlockShoulderOffsetZoom()
+  self.shoulderOffsetZoomTmpDisable = true
+end
+function DynamicCam:AllowShoulderOffsetZoom()
+  self.shoulderOffsetZoomTmpDisable = false
+end
 
 
 -- This flag is to activate the shoulderOffsetEasingFrame (see below).
 -- Furthermore, the info may be needed by CameraOverShoulderFix, such that it does not interfere.
 DynamicCam.easeShoulderOffsetInProgress = false
 
-
--- Needed by CameraOverShoulderFix to know if a zoom easing is in progress.
-DynamicCam.LibCamera = LibCamera
 
 -- To allow zooming during shoulder offset easing, we must store the current
 -- shoulder offset in a global variable that is changed by the easing process
@@ -44,6 +59,25 @@ DynamicCam.userCameraKeepCharacterCentered = DynamicCam.userCameraKeepCharacterC
 DynamicCam.userCameraReduceUnexpectedMovement = DynamicCam.userCameraReduceUnexpectedMovement or GetCVar("CameraReduceUnexpectedMovement")
 
 
+-- When SetView() happens, the zoom level of the new view is
+-- returned instantaneously by GetCameraZoom().
+-- If "Adjust Shoulder offset according to zoom level" is activated,
+-- this may lead to a shoulder offset skip. Thus we have to make
+-- a virtual zoom ease for the duration of the view change on this variable (see SituationManager.lua):
+DynamicCam.virtualCameraZoom = nil
+
+
+-- To evaluate situations one frame after an event is triggered
+-- (see EventHandler() and ShoulderOffsetEasingFunction()).
+DynamicCam.evaluateSituationsNextFrame = false
+
+
+-- We use this to suppress situation entering easing at login!
+DynamicCam.enteredSituationAtLogin = false
+
+
+
+
 ------------
 -- LOCALS --
 ------------
@@ -55,27 +89,9 @@ end
 
 
 
-
-
-
 -- Forward declaration.
 local UpdateCurrentShoulderOffset
 local SetCorrectedShoulderOffset
-
-
-
-
--- When SetView() happens, the zoom level of the new view is
--- returned instantaneously by GetCameraZoom().
--- If "Adjust Shoulder offset according to zoom level" is activated,
--- this may lead to a shoulder offset skip. Thus we have to make
--- a virtual zoom ease for the duration of the view change on this variable (see SituationManager.lua):
-DynamicCam.virtualCameraZoom = nil
-
-
-
--- We use this to suppress situation entering easing at login!
-local enteredSituationAtLogin = false
 
 
 
@@ -85,9 +101,6 @@ local enteredSituationAtLogin = false
 DynamicCam.secondsPerFrame = 1.0 / GetFramerate()
 local secondsPerFrame = DynamicCam.secondsPerFrame     -- For performance.
 
--- To evaluate situations one frame after an event is triggered
--- (see EventHandler() and ShoulderOffsetEasingFunction()).
-local evaluateSituationsNextFrame = false
 
 -- Always evaluate to be on the safe side.
 -- Because some situations (like taking off on a mount) cannot be associated with an event.
@@ -102,8 +115,8 @@ local function ConstantlyRunningFrameFunction(_, elapsed)
 
   -- Using this frame to evaluate situations one frame after an event
   -- is triggered (see EventHandler()). This way we are never too early.
-  if evaluateSituationsNextFrame or alwaysEvaluateTimer < 0 then
-    evaluateSituationsNextFrame = false
+  if DynamicCam.evaluateSituationsNextFrame or alwaysEvaluateTimer < 0 then
+    DynamicCam.evaluateSituationsNextFrame = false
     alwaysEvaluateTimer = alwaysEvaluateDelay
     DynamicCam:EvaluateSituations()
   end
@@ -113,29 +126,12 @@ local constantlyRunningFrame = CreateFrame("Frame")
 
 
 
-
-
--- For other Addons (like Narcissus) to temporarily disable
--- "Adjust Shoulder offset according to zoom level" without
--- having to change the user's permanent DynamicCam profile.
--- We also disable the ShoulderOffsetEasingFunction completely
--- because it will always restore the DynamicCam shoulder offset
--- value (regardless of zoom level).
-local shoulderOffsetZoomTmpDisable = false
-function DynamicCam:BlockShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = true
-end
-function DynamicCam:AllowShoulderOffsetZoom()
-  shoulderOffsetZoomTmpDisable = false
-end
-
-
 -- This frame continuously applies the new shoulder offset while easing of zoom or shoulder offset is in progress.
 -- The easing functions just modify the zoom or currentShoulderOffset which are taken
 -- into account here.
 local function ShoulderOffsetEasingFunction(self, elapsed)
 
-  if shoulderOffsetZoomTmpDisable then return end
+  if DynamicCam.shoulderOffsetZoomTmpDisable then return end
 
   -- If reactive zoom is used, we know when a zoom is happening so we can skip whenever there is no zoom
   -- and not shoulder offset easing taking place. If reactive zoom is not used, we always have to run.
@@ -199,7 +195,7 @@ end
 function DynamicCam:GetShoulderOffsetZoomFactor(zoomLevel)
   -- print("GetShoulderOffsetZoomFactor(" .. zoomLevel .. ")")
 
-  if not self:GetSettingsValue(self.currentSituationID, "shoulderOffsetZoomEnabled") or shoulderOffsetZoomTmpDisable then
+  if not self:GetSettingsValue(self.currentSituationID, "shoulderOffsetZoomEnabled") or self.shoulderOffsetZoomTmpDisable then
     return 1
   end
 
@@ -654,7 +650,7 @@ function DynamicCam:Startup()
 
   if started then return end
 
-  enteredSituationAtLogin = false
+  self.enteredSituationAtLogin = false
 
 
   -- initial evaluate needs to be delayed because the camera doesn't like changing cvars on startup
@@ -1446,152 +1442,6 @@ function DynamicCam:ResetCVars()
 end
 
 
-
-
-
-
-
-
-
-
-
-
--- For errors in scripts.
-
--- TODO: Later with localisation:
-local scriptNames = {
-  executeOnInit = "Initialisation Script",
-  condition = "Condition Script",
-  executeOnEnter = "On-Enter Script",
-  executeOnExit = "On-Exit Script",
-  events = "Events",
-}
-
--- Export box for the script error dialog:
-local scrollBoxWidth = 400
-local scrollBoxHeight = 90
-
-local outerFrame = CreateFrame("Frame")
-outerFrame:SetSize(scrollBoxWidth + 80, scrollBoxHeight + 20)
-
-local borderFrame = CreateFrame("Frame", nil, outerFrame, "TooltipBackdropTemplate")
-borderFrame:SetSize(scrollBoxWidth + 34, scrollBoxHeight + 10)
-borderFrame:SetPoint("CENTER")
-
-local scrollFrame = CreateFrame("ScrollFrame", nil, outerFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("CENTER", -10, 0)
-scrollFrame:SetSize(scrollBoxWidth, scrollBoxHeight)
-
-local editbox = CreateFrame("EditBox", nil, scrollFrame, "InputBoxScriptTemplate")
-editbox:SetMultiLine(true)
-editbox:SetAutoFocus(false)
-editbox:SetFontObject(ChatFontNormal)
-editbox:SetWidth(scrollBoxWidth)
-editbox:SetCursorPosition(0)
-scrollFrame:SetScrollChild(editbox)
-
-
-local hideDefaultButton = false
-
--- The script error dialog.
-StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
-
-  timeout = 0,
-  whileDead = true,
-  hideOnEscape = true,
-  preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
-
-  text = "%s",
-
-  OnShow = function (self)
-    self.ludius_originalTextWidth = self.text:GetWidth()
-    self.text:SetWidth(borderFrame:GetWidth())
-  end,
-  OnHide = function(self)
-    self.text:SetWidth(self.ludius_originalTextWidth)
-    self.ludius_originalTextWidth = nil
-  end,
-
-  -- So that we can have 4 buttons.
-  selectCallbackByIndex = true,
-
-  button1 = "Dismiss",
-  OnButton1 = function() end,
-
-  button2 = "Disable situation",
-  OnButton2 = function(_, data)
-    DynamicCam.db.profile.situations[data.situationID].enabled = false
-    DynamicCam:EvaluateSituations()
-    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
-  end,
-
-  button3 = "Fix manually",
-  OnButton3 = function(_, data)
-    -- if data then print(data.situationID, data.scriptID) end
-    DynamicCam:OpenMenu()
-    LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationControls", data.scriptID)
-    DynamicCam.Options:SelectSituation(data.situationID)
-  end,
-
-  button4 = "Reset to default",
-  OnButton4 = function(_, data)
-    -- if data then print(data.situationID, data.scriptID) end
-    DynamicCam.db.profile.situations[data.situationID][data.scriptID] = DynamicCam.defaults.profile.situations[data.situationID][data.scriptID]
-    DynamicCam:UpdateSituation(data.situationID)
-    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
-  end,
-  DisplayButton4 = function() return not hideDefaultButton end,
-
-}
-
-
-function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
-
-  -- print(situationID, scriptID, errorType, errorMessage)
-
-  local situation = DynamicCam.db.profile.situations[situationID]
-
-  situation.errorEncountered = scriptID
-  situation.errorMessage = errorMessage
-
-  local situationName = situation.name
-  local scriptName = scriptNames[scriptID]
-
-
-  local isCustomSituation = true
-  local alreadyUsingDefault = true
-  if DynamicCam.defaults.profile.situations[situationID] then
-    isCustomSituation = false
-    if scriptID == "events" then
-      alreadyUsingDefault = DynamicCam:EventsEqual(situation.events, DynamicCam.defaults.profile.situations[situationID].events)
-    else
-      alreadyUsingDefault = DynamicCam:ScriptEqual(situation[scriptID], DynamicCam.defaults.profile.situations[situationID][scriptID])
-    end
-  end
-
-  local text = "There is a problem with your DynamicCam Situation Controls!\n(Situation: " .. situationName .. "," .. scriptName .. ")\n\n"
-
-  if isCustomSituation then
-    text = text .. "This error is caused by one of your custom situations, so you have to resolve it yourself or seek assistance online.\n\n"
-  elseif alreadyUsingDefault then
-    text = text .. "This is really embarrassing, because this error is caused by the default settings of a DynamicCam stock situation. Please copy the error message below and send it to us on GitHub, Curseforge or WoWInterface. In the meantime you can try to fix it yourself or just disable this situation. Sorry!\n\n"
-  else
-    text = text .. "You have modified the default settings of this DynamicCam stock situation. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
-  end
-
-  local errorText = "Error: " .. situationName .. " (" .. situationID .. "), " .. scriptID .. ", " .. errorType .. "\n\n" .. errorMessage .. "\n\n\n"
-  editbox:SetText(errorText)
-
-  -- Data for the button press functions.
-  local data = {
-    situationID = situationID,
-    scriptID = scriptID,
-  }
-
-  -- Only show the default button, if there is a default to return to.
-  hideDefaultButton = isCustomSituation or alreadyUsingDefault
-  StaticPopup_Show("DYNAMICCAM_SCRIPT_ERROR", text, nil, data, outerFrame)
-end
 
 
 
