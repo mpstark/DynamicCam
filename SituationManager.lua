@@ -276,6 +276,8 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
   local situationName = situation.name
   local scriptName = scriptNames[scriptID]
 
+  -- If the cause is in the init script instead of the one triggering the error.
+  local scriptIdForButton = scriptID
 
   local isCustomSituation = true
   local alreadyUsingDefault = true
@@ -293,7 +295,13 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
   if isCustomSituation then
     text = text .. "This error is caused by one of your custom situations, so you have to resolve it yourself or seek assistance online.\n\n"
   elseif alreadyUsingDefault then
-    text = text .. "This is really embarrassing, because this error is caused by the default settings of a DynamicCam stock situation. Please copy the error message below and send it to us on GitHub, Curseforge or WoWInterface. In the meantime you can try to fix it yourself or just disable this situation. Sorry!\n\n"
+    if scriptID ~= "executeOnInit" and not DynamicCam:ScriptEqual(situation["executeOnInit"], DynamicCam.defaults.profile.situations[situationID]["executeOnInit"]) then
+      text = text .. "You have modified the Initialisation Script of this DynamicCam stock situation which is probably leading to this error. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
+      scriptIdForButton = "executeOnInit"
+      alreadyUsingDefault = false
+    else
+      text = text .. "This is really embarrassing, because this error is caused by the default settings of a DynamicCam stock situation. Please copy the error message below and send it to us on GitHub, Curseforge or WoWInterface. In the meantime you can try to fix it yourself or just disable this situation. Sorry!\n\n"
+    end
   else
     text = text .. "You have modified the default settings of this DynamicCam stock situation. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
   end
@@ -304,7 +312,7 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
   -- Data for the button press functions.
   local data = {
     situationID = situationID,
-    scriptID = scriptID,
+    scriptID = scriptIdForButton,
   }
 
   -- Only show the default button, if there is a default to return to.

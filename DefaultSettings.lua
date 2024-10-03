@@ -417,32 +417,45 @@ return false]],
     3566,  -- Teleport: Thunder Bluff
     3567,  -- Teleport: Orgrimmar
     8690,  -- Hearthstone
+   23442,  -- Everlook Transporter
+   23453,  -- Gnomish Transporter
    26373,  -- Lunar Festival Invitation
    32271,  -- Teleport: Exodar
    32272,  -- Teleport: Silvermoon
    33690,  -- Teleport: Shattrath
    35715,  -- Teleport: Shattrath
+   36890,  -- Area52 Transporter
+   36941,  -- Toshley's Station Transporter
+   41234,  -- Teleport: Black Temple
    49358,  -- Teleport: Stonard
    49359,  -- Teleport: Theramore
    49844,  -- Using Direbrew's Remote
    50977,  -- Death Gate
    53140,  -- Teleport: Dalaran - Northrend
    54406,  -- Teleport: Dalaran
+   66238,  -- Argent Crusader's Tabard
+   67833,  -- Wormhole Generator: Northrend
+   73324,  -- Jaina's Locket
    75136,  -- Ethereal Portal
    88342,  -- Teleport: Tol Barad
    88344,  -- Teleport: Tol Barad
    89157,  -- Teleport: Stormwind (Guild Cloaks)
    89158,  -- Teleport: Orgrimmar (Guild Cloaks)
+   89597,  -- Baradin's Wardens Tabard
+   89598,  -- Hellscream's Reach Tabard
    94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
+  126755,  -- Wormhole Generator: Pandaria
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
   140295,  -- Kirin Tor Beacon
   147985,  -- Curious Bronze Timepiece
+  163830,  -- Wormhole Centrifuge
   168487,  -- Home Away from Home
   168499,  -- Home Away from Home
   171253,  -- Garrison Hearthstone
+  175608,  -- Relic of Karabor
   176242,  -- Teleport: Warspear
   176248,  -- Teleport: Stormshield
   189838,  -- Teleport to Shipyard
@@ -460,12 +473,13 @@ return false]],
   225428,  -- Town Portal: Shala'nir
   225434,  -- Town Portal: Sashj'tar
   225435,  -- Town Portal: Kal'delar
-  225440,  -- Town Portal: Lian'tril
   225436,  -- Town Portal: Faronaar
+  225440,  -- Town Portal: Lian'tril
   227334,  -- Flight Master's Whistle
   231504,  -- [Tome of] Town Portal
   231505,  -- [Scroll of] Town Portal
   248906,  -- Vindicaar Teleport Beacon
+  250796,  -- Wormhole Generator: Argus
   262100,  -- Recall (to your Great Hall)
   278244,  -- Greatfather Winter's Hearthstone
   278559,  -- Headless Horseman's Hearthstone
@@ -476,12 +490,16 @@ return false]],
   286031,  -- Noble Gardener's Hearthstone
   286331,  -- Fire Eater's Hearthstone
   286353,  -- Brewfest Reveler's Hearthstone
+  291981,  -- Ultrasafe Transporter: Mechagon
   292764,  -- Returning (BfA Quest)
   298068,  -- Holographic Digitalization Hearthstone
+  299083,  -- Wormhole Generator: Kul Tiras
+  299084,  -- Wormhole Generator: Zandalar
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
   311749,  -- Hearth to Uther's Tomb
   312372,  -- Return to Camp
+  324031,  -- Wormhole Generator: Shadowlands
   325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
   335671,  -- Scroll of Teleport: Theater of Pain
@@ -500,6 +518,7 @@ return false]],
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
   375357,  -- Timewalker's Hearthstone
+  386379,  -- Wyrmhole Generator: Dragon Isles
   391042,  -- Ohn'ir Windsage's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
@@ -512,9 +531,13 @@ return false]],
   426620,  -- Spare Hologem (Draenei Heritage Quest)
   438606,  -- Draenic Hologem (Hearthstone)
   441154,  -- Nostwin's Voucher (Pandaria Remix)
+  446540,  -- Teleport: Dornogal
+  448126,  -- Wormhole Generator: Khaz Algar
   449508,  -- Nostwin's Return Service (Pandaria Remix)
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
   460271,  -- Teleporting to Silithus
+  463481,  -- Notorious Thread's Hearthstone
+  
 }
 
 -- For faster lookups:
@@ -528,8 +551,8 @@ end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
--- Add 0.5 seconds so the rotation does not stop shortly before the teleport happens.
-this.transitionTime = (endTime - startTime)/1000 + 0.5
+-- Add some delay so the rotation does not stop before the teleport happens.
+this.transitionTime = (endTime - startTime)/1000 + 1
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {
