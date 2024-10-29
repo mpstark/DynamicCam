@@ -76,18 +76,18 @@ DynamicCam.situationDefaults = {
 
     keepCustomFrames   = false,
     customFramesToKeep = {
-      ["AuctionHouseFrame"] = true,
-      ["BankFrame"]         = true,
-      ["BagnonBankFrame1"]  = true,
-      ["BuffFrame"]         = true,
-      ["ClassTrainerFrame"] = true,
-      ["DebuffFrame"]       = true,
-      ["GossipFrame"]       = true,
-      ["MerchantFrame"]     = true,
-      ["PetStableFrame"]    = true,
-      ["QuestFrame"]        = true,
-      ["StaticPopup1"]      = true,
-      ["WardrobeFrame"]     = true,
+      AuctionHouseFrame = true,
+      BankFrame         = true,
+      BagnonBankFrame1  = true,
+      BuffFrame         = true,
+      ClassTrainerFrame = true,
+      DebuffFrame       = true,
+      GossipFrame       = true,
+      MerchantFrame     = true,
+      PetStableFrame    = true,
+      QuestFrame        = true,
+      StaticPopup1      = true,
+      WardrobeFrame     = true,
     },
 
   },
@@ -551,8 +551,7 @@ end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
--- Add some delay so the rotation does not stop before the teleport happens.
-this.transitionTime = (endTime - startTime)/1000 + 1
+this.transitionTime = (endTime - startTime)/1000
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {
