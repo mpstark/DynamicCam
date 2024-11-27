@@ -3045,7 +3045,7 @@ Or for short:
                       n7 = {order = 7, type = "description", name = " ",},
 
                       keepCustomFrames = {
-                        type = 'toggle',
+                        type = "toggle",
                         name = "Keep additional frames",
                         desc = "The text box below allows you to define any frame you want to keep during NPC interaction.\n\nUse the console command /fstack to learn the names of frames.\n\nFor example, you may want to keep the buff icons next to the Minimap to be able to dismount during NPC interaction by clicking the appropriate icon.",
                         get =

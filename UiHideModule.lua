@@ -603,8 +603,8 @@ local function CollectAlertFrame(_, frame)
 end
 
 for _, subSystem in pairs(AlertFrame.alertFrameSubSystems) do
-  local pool = type(subSystem) == 'table' and subSystem.alertFramePool
-  if type(pool) == 'table' and type(pool.resetterFunc) == 'function' then
+  local pool = type(subSystem) == "table" and subSystem.alertFramePool
+  if type(pool) == "table" and type(pool.resetterFunc) == "function" then
     hooksecurefunc(pool, "resetterFunc", CollectAlertFrame)
   end
 end

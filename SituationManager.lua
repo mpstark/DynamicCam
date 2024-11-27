@@ -231,7 +231,7 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
     self.ludius_originalTextWidth = nil
   end,
 
-  -- So that we can have 4 buttons.
+  -- So that we can have different functions for each button.
   selectCallbackByIndex = true,
 
   button1 = "Dismiss",
@@ -311,8 +311,8 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
 
   -- Data for the button press functions.
   local data = {
-    situationID = situationID,
-    scriptID = scriptIdForButton,
+    ["situationID"] = situationID,
+    ["scriptID"] = scriptIdForButton,
   }
 
   -- Only show the default button, if there is a default to return to.
@@ -1337,7 +1337,7 @@ end
 local function copyTable(originalTable)
   local origType = type(originalTable)
   local copy
-  if origType == 'table' then
+  if origType == "table" then
     -- this child is a table, copy the table recursively
     copy = {}
     for orig_key, orig_value in next, originalTable, nil do
