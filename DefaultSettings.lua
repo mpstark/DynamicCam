@@ -594,6 +594,8 @@ this.excludedFrames = {"FlightMapFrame"}
 this.mountVendors = {
   ["62821"] = 460, -- Grand Expedition Yak
   ["62822"] = 460, -- Grand Expedition Yak
+  ["227773"] = 2237, -- Grizzly Hills Packmaster
+  ["227774"] = 2237, -- Grizzly Hills Packmaster
   -- Add more npcId and mountId pairs here.
   -- To find them, uncomment print command in condition script.
 }

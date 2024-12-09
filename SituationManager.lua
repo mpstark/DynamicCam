@@ -17,7 +17,7 @@ local SET_VIEW_TRANSITION_TIME = 0.5
 -- LOCALS --
 ------------
 
-local function round(num, numDecimalPlaces)
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -1075,7 +1075,7 @@ function DynamicCam:EvaluateSituations()
         self:ScheduleTimer("EvaluateSituations", delay)
         swap = false
       -- Need to round, otherwise same times are sometimes not recognised as such.
-      elseif round(delayTime, 3) > round(GetTime(), 3) then
+      elseif Round(delayTime, 3) > Round(GetTime(), 3) then
         -- print(delayTime, GetTime(), "still cooling down, don't swap")
         swap = false
       end

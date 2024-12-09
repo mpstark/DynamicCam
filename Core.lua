@@ -82,7 +82,7 @@ DynamicCam.enteredSituationAtLogin = false
 -- LOCALS --
 ------------
 
-local function round(num, numDecimalPlaces)
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -224,7 +224,7 @@ SetCorrectedShoulderOffset = function(cameraZoom)
     correctedShoulderOffset = correctedShoulderOffset * cosFix.currentModelFactor
   end
 
-  correctedShoulderOffset = round(correctedShoulderOffset, 10)
+  correctedShoulderOffset = Round(correctedShoulderOffset, 10)
   if tonumber(GetCVar("test_cameraOverShoulder")) ~= correctedShoulderOffset then
     -- print("SetCVar test_cameraOverShoulder", correctedShoulderOffset)
     SetCVar("test_cameraOverShoulder", correctedShoulderOffset)

@@ -21,7 +21,7 @@ end
 ------------
 -- LOCALS --
 ------------
-local function round(num, numDecimalPlaces)
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -1714,7 +1714,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               },
               rangeScaleReset =
                 CreateSliderResetButton(7.1, forSituations, "cvars", "test_cameraHeadMovementRangeScale",
-                                        round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2)),
+                                        Round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2)),
               blank7 = {type = "description", name = "\n\n", order = 7.2, },
 
               deadZone = {
@@ -1741,7 +1741,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               },
               deadZoneReset =
                 CreateSliderResetButton(8.1, forSituations, "cvars", "test_cameraHeadMovementDeadZone",
-                                            round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2)),
+                                            Round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2)),
 
 
               headTrackingDescriptionGroup = {
