@@ -667,9 +667,12 @@ end]],
         name = "Gathering",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         executeOnInit = [[this.spells = {
-   10768,  -- Skinning
-  265819,  -- Herb Gathering
-  366260,  -- Mining
+  -- https://www.wowhead.com/spells/professions/mining/name:mining
+  2575, 2576, 2656, 3564, 10248, 29354, 50310, 74517, 102161, 158754, 195122, 265837, 265839, 265841, 265843, 265845, 265847, 265849, 265851, 265853, 309835, 366260, 423341,
+  -- https://www.wowhead.com/spells/professions/skinning/name:skinning
+  8613, 8617, 8618, 10768, 32678, 50305, 74522, 102216, 158756, 194174, 195125, 205243, 265855, 265857, 265859, 265861, 265863, 265865, 265867, 265869, 265871, 308569, 366259, 392440, 392445, 423342,
+  -- https://www.wowhead.com/spells/professions/herbalism/name:gathering
+  2366, 2368, 3570, 11993, 28695, 50300, 74519, 110413, 158745, 195114, 265819, 265821, 265823, 265825, 265827, 265829, 265831, 265834, 265835, 309780, 366252, 441327,
 }]],
         priority = 120,
         condition = [[local name, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
