@@ -1,6 +1,6 @@
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
-
+local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 
 
 ------------
@@ -496,7 +496,7 @@ function DynamicCam:ToggleRZVA()
     rzvaFrame.cameraZoomLabel:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 19)
     rzvaFrame.cameraZoomLabel:SetFont("Fonts/FRIZQT__.TTF", 12)
     rzvaFrame.cameraZoomLabel:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomLabel:SetText("Actual\nZoom\nValue")
+    rzvaFrame.cameraZoomLabel:SetText(L["Actual\nZoom\nValue"])
 
     rzvaFrame.cameraZoomValue = rzvaFrame:CreateFontString()
     rzvaFrame.cameraZoomValue:SetWidth(rzvaHalfWidth)
@@ -515,7 +515,7 @@ function DynamicCam:ToggleRZVA()
     rzvaFrame.reactiveZoomTargetLabel:SetPoint("BOTTOMLEFT", rzvaFrame, "TOPLEFT", 0, 19)
     rzvaFrame.reactiveZoomTargetLabel:SetFont("Fonts/FRIZQT__.TTF", 12)
     rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-    rzvaFrame.reactiveZoomTargetLabel:SetText("Reactive\nZoom\nTarget")
+    rzvaFrame.reactiveZoomTargetLabel:SetText(L["Reactive\nZoom\nTarget"])
 
     rzvaFrame.reactiveZoomTargetValue = rzvaFrame:CreateFontString()
     rzvaFrame.reactiveZoomTargetValue:SetWidth(rzvaHalfWidth)
