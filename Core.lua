@@ -6,7 +6,7 @@ local folderName, Addon = ...
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
 local LibHideUI = LibStub("LibHideUI-1.0")
-
+local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 
 
 -------------
@@ -1231,9 +1231,9 @@ local function tokenize(str, delimitor)
 end
 
 StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
-  text = "Enter name for custom situation:",
-  button1 = "Create!",
-  button2 = "Cancel",
+  text = L["Enter name for custom situation:"],
+  button1 = L["Create!"],
+  button2 = L["Cancel"],
   timeout = 0,
   hasEditBox = true,
   whileDead = true,

@@ -1,8 +1,9 @@
 ## Interface: 110005
-## Version: @project-version@
+## Version: 2.9.5
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
+## Notes-zhCN: 智能动态相机镜头。
 
 ## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, LibHideUI, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
 ## SavedVariables: DynamicCamDB, minZoomValues

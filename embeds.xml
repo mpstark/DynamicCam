@@ -15,6 +15,8 @@
     <Include file="Libs\AceHook-3.0\AceHook-3.0.xml"/>
     <Include file="Libs\AceDBOptions-3.0\AceDBOptions-3.0.xml"/>
     <Include file="Libs\AceSerializer-3.0\AceSerializer-3.0.xml"/>
+    <Include file="Libs\AceLocale-3.0\AceLocale-3.0.xml"/>
+    <Include file="Locales\Locales.xml"/>
     
     <Script file="Libs\LibCompress\LibCompress.lua"/>
     <Script file="Libs\LibEasing\LibEasing.lua"/>
