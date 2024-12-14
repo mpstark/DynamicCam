@@ -1,6 +1,6 @@
 local folderName = ...
 local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
-local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
+
 
 
 
@@ -168,114 +168,114 @@ DynamicCam.defaults = {
     situations = {
 
       ["001"] = {
-        name = L["City"],
+        name = "City",
         events = {"PLAYER_UPDATE_RESTING"},
         priority = 1,
         condition = "return IsResting()",
       },
       ["002"] = {
-        name = L["City (Indoors)"],
+        name = "City (Indoors)",
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
         priority = 11,
         condition = "return IsResting() and IsIndoors()",
       },
       ["004"] = {
-        name = L["World"],
+        name = "World",
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
         priority = 0,
         condition = "return not IsResting() and not IsInInstance()",
       },
       ["005"] = {
-        name = L["World (Indoors)"],
+        name = "World (Indoors)",
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 10,
         condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
       },
       ["006"] = {
-        name = L["World (Combat)"],
+        name = "World (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 50,
         condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
       },
       ["020"] = {
-        name = L["Dungeon/Scenerio"],
+        name = "Dungeon/Scenerio",
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 2,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario")]],
       },
       ["021"] = {
-        name = L["Dungeon/Scenerio (Outdoors)"],
+        name = "Dungeon/Scenerio (Outdoors)",
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 12,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and IsOutdoors()]],
       },
       ["023"] = {
-        name = L["Dungeon/Scenerio (Combat, Boss)"],
+        name = "Dungeon/Scenerio (Combat, Boss)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 302,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["024"] = {
-        name = L["Dungeon/Scenerio (Combat, Trash)"],
+        name = "Dungeon/Scenerio (Combat, Trash)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 202,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and not IsEncounterInProgress()]],
       },
       ["030"] = {
-        name = L["Raid"],
+        name = "Raid",
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid"]],
       },
       ["031"] = {
-        name = L["Raid (Outdoors)"],
+        name = "Raid (Outdoors)",
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 13,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and IsOutdoors()]],
       },
       ["033"] = {
-        name = L["Raid (Combat, Boss)"],
+        name = "Raid (Combat, Boss)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 303,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["034"] = {
-        name = L["Raid (Combat, Trash)"],
+        name = "Raid (Combat, Trash)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and not IsEncounterInProgress()]],
       },
       ["050"] = {
-        name = L["Arena"],
+        name = "Arena",
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "arena"]],
       },
       ["051"] = {
-        name = L["Arena (Combat)"],
+        name = "Arena (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]],
       },
       ["060"] = {
-        name = L["Battleground"],
+        name = "Battleground",
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp"]],
       },
       ["061"] = {
-        name = L["Battleground (Combat)"],
+        name = "Battleground (Combat)",
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
@@ -284,63 +284,63 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
 
 
       ["100"] = {
-        name = L["Mounted (any)"],
+        name = "Mounted (any)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 100,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
       },
 
       ["101"] = {
-        name = L["Mounted (only flying-mount)"],
+        name = "Mounted (only flying-mount)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly()",
       },
 
       ["102"] = {
-        name = L["Mounted (only flying-mount + airborne)"],
+        name = "Mounted (only flying-mount + airborne)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying()",
       },
 
       ["103"] = {
-        name = L["Mounted (only flying-mount + airborne + Skyriding)"],
+        name = "Mounted (only flying-mount + airborne + Skyriding)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 103,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying() and DynamicCam:SkyridingOn()",
       },
 
       ["104"] = {
-        name = L["Mounted (only flying-mount + Skyriding)"],
+        name = "Mounted (only flying-mount + Skyriding)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and DynamicCam:SkyridingOn()",
       },
 
       ["105"] = {
-        name = L["Mounted (only airborne)"],
+        name = "Mounted (only airborne)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying()",
       },
 
       ["106"] = {
-        name = L["Mounted (only airborne + Skyriding)"],
+        name = "Mounted (only airborne + Skyriding)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 102,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying() and DynamicCam:SkyridingOn()",
       },
 
       ["107"] = {
-        name = L["Mounted (only Skyriding)"],
+        name = "Mounted (only Skyriding)",
         events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 101,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
       },
 
       ["115"] = {
-        name = L["Druid Travel Form"],
+        name = "Druid Travel Form",
         events = {"UPDATE_SHAPESHIFT_FORM"},
         executeOnInit = [[this.travelFormIds = {
    [3] = true,  -- Travel
@@ -358,7 +358,7 @@ end]],
       },
 
       ["120"] = {
-        name = L["Dracthyr Soar"],
+        name = "Dracthyr Soar",
         events = {"UNIT_AURA"},
         priority = 100,
         condition = [[if C_UnitAuras.GetPlayerAuraBySpellID(430747) ~= nil then return true end
@@ -366,7 +366,7 @@ return false]],
       },
 
       ["130"] = {
-        name = L["Skyriding Race"],
+        name = "Skyriding Race",
         events = {"UNIT_AURA"},
         -- Get all "Race Starting" buff IDs with the copy ID button here:
         -- https://www.wowhead.com/spells/uncategorized/name:race+starting
@@ -393,20 +393,20 @@ return false]],
       },
 
       ["160"] = {
-        name = L["Taxi"],
+        name = "Taxi",
         events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
         priority = 1000,
         condition = "return UnitOnTaxi(\"player\")",
       },
       ["170"] = {
-        name = L["Vehicle"],
+        name = "Vehicle",
         events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
         priority = 1000,
         condition = "return UnitUsingVehicle(\"player\")",
       },
 
       ["200"] = {
-        name = L["Hearth/Teleport"],
+        name = "Hearth/Teleport",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         executeOnInit = [[local teleportSpellList = {
      556,  -- Astral Recall
@@ -555,7 +555,7 @@ this.transitionTime = (endTime - startTime)/1000
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {
-        name = L["Annoying Spells"],
+        name = "Annoying Spells",
         events = {"UNIT_AURA"},
         executeOnInit = [[local annoyingSpellList = {
    46924,  -- Bladestorm
@@ -585,7 +585,7 @@ end
 return false]],
 },
       ["300"] = {
-        name = L["NPC Interaction"],
+        name = "NPC Interaction",
         events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRAINER_CLOSED", "TRAINER_SHOW", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN"},
         executeOnInit = [[this.frames = {"AuctionHouseFrame", "BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GarrisonCapacitiveDisplayFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "WardrobeFrame"}
 
@@ -647,13 +647,13 @@ end
 return shown and UnitExists("npc")]],
       },
       ["301"] = {
-        name = L["Mailbox"],
+        name = "Mailbox",
         events = {"MAIL_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "MAIL_CLOSED", "GOSSIP_CLOSED"},
         priority = 110,
         condition = "return MailFrame and MailFrame:IsShown()",
       },
       ["302"] = {
-        name = L["Fishing"],
+        name = "Fishing",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         priority = 20,
         condition = [[if GetSpellInfo then     -- Classic
@@ -664,7 +664,7 @@ end]],
         delay = 1,
       },
       ["320"] = {
-        name = L["Gathering"],
+        name = "Gathering",
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         executeOnInit = [[this.spells = {
   -- https://www.wowhead.com/spells/professions/mining/name:mining
@@ -684,13 +684,13 @@ end
 return false]]
       },
       ["303"] = {
-        name = L["AFK"],
+        name = "AFK",
         events = {"PLAYER_FLAGS_CHANGED"},
         priority = 120,
         condition = "return UnitIsAFK(\"player\")",
       },
       ["310"] = {
-        name = L["Pet Battle"],
+        name = "Pet Battle",
         events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
         priority = 130,
         condition = "return C_PetBattles.IsInBattle()",
