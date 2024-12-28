@@ -7,7 +7,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 -- LOCALS --
 ------------
 
-local function round(num, numDecimalPlaces)
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -401,7 +401,7 @@ local function ReactiveZoomGraphUpdateFunction()
 
   rzvaFrame.zm:ClearAllPoints()
   rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / DynamicCam.cameraDistanceMaxZoomFactor_max) )
-  rzvaFrame.cameraZoomValue:SetText(round(GetCameraZoom(), 3))
+  rzvaFrame.cameraZoomValue:SetText(Round(GetCameraZoom(), 3))
 
   if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
 
@@ -416,7 +416,7 @@ local function ReactiveZoomGraphUpdateFunction()
     if reactiveZoomTarget then
       rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / DynamicCam.cameraDistanceMaxZoomFactor_max) )
 
-      rzvaFrame.reactiveZoomTargetValue:SetText(round(reactiveZoomTarget, 3))
+      rzvaFrame.reactiveZoomTargetValue:SetText(Round(reactiveZoomTarget, 3))
 
       if lastReactiveZoomTarget then
 

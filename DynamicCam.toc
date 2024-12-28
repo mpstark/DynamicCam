@@ -1,5 +1,5 @@
-## Interface: 110005
-## Version: 2.9.5
+## Interface: 110007
+## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
