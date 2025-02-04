@@ -417,6 +417,7 @@ return false]],
     3566,  -- Teleport: Thunder Bluff
     3567,  -- Teleport: Orgrimmar
     8690,  -- Hearthstone
+   18960,  -- Teleport: Moonglade
    23442,  -- Everlook Transporter
    23453,  -- Gnomish Transporter
    26373,  -- Lunar Festival Invitation
@@ -492,6 +493,7 @@ return false]],
   286353,  -- Brewfest Reveler's Hearthstone
   291981,  -- Ultrasafe Transporter: Mechagon
   292764,  -- Returning (BfA Quest)
+  293840,  -- Teleport: Moonglade (back)
   298068,  -- Holographic Digitalization Hearthstone
   299083,  -- Wormhole Generator: Kul Tiras
   299084,  -- Wormhole Generator: Zandalar
