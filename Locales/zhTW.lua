@@ -120,7 +120,7 @@ L["WARNING"] = "警告"
 L["You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view."] = "您正在使用相同的視角作為保存視角和恢復為預設視角。用作恢復為預設視角將會重置它。只有在您確實想將其用作非自訂保存視角時才這樣做。"
 L["is used as saved view in the situations:"] = "在以下情境中被用作保存視角："
 L["and as restore-to-default view in the situations:"] = "並且在以下情境中被用作預設視角："
-L["ViewDescriptionGroup_Name"] = [[魔獸世界允許保存最多5個自訂鏡頭視角。視角1由DynamicCam使用，用於保存進入情境時的鏡頭位置，以便在退出情境時可以恢復，如果您在上面勾選了“恢復”。這對於短暫的情境（如與NPC互動）特別有用，允許在與NPC對話時切換到一個視角，然後回到鏡頭之前的位置。這就是為什麼視角1不能在上述保存視角的下拉式功能表中選擇。
+L["<view_desc>"] = [[魔獸世界允許保存最多5個自訂鏡頭視角。視角1由DynamicCam使用，用於保存進入情境時的鏡頭位置，以便在退出情境時可以恢復，如果您在上面勾選了“恢復”。這對於短暫的情境（如與NPC互動）特別有用，允許在與NPC對話時切換到一個視角，然後回到鏡頭之前的位置。這就是為什麼視角1不能在上述保存視角的下拉式功能表中選擇。
 
 視角2、3、4和5可以用來保存自訂的鏡頭位置。要保存一個視角，只需將鏡頭調整到所需的縮放和角度。然後在控制台中輸入以下命令（其中#是編號2、3、4或5）：
 
@@ -373,7 +373,7 @@ L["Reactive\nZoom\nTarget"] = "響應\n縮放目標"
 
 -- Core
 L["Enter name for custom situation:"] = "輸入自訂情境的名稱："
-L["Create!"] = "創建！"
+L["Create"] = "創建"
 L["Cancel"] = "取消"
 
 -- DefaultSettings
