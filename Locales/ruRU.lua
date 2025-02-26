@@ -375,8 +375,6 @@ L["Reactive\nZoom\nTarget"] = "Reactive\nZoom\nTarget"
 L["Enter name for custom situation:"] = "Enter name for custom situation:"
 L["Create"] = "Create"
 L["Cancel"] = "Cancel"
-L["While you are using horizontal camera offset, DynamicCam prevents "] = "While you are using horizontal camera offset, DynamicCam prevents "
-L["While you are using vertical camera pitch, DynamicCam prevents "] = "While you are using vertical camera pitch, DynamicCam prevents "
 
 -- DefaultSettings
 L["City"] = "City"

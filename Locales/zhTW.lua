@@ -375,8 +375,6 @@ L["Reactive\nZoom\nTarget"] = "響應\n縮放目標"
 L["Enter name for custom situation:"] = "輸入自訂情境的名稱："
 L["Create!"] = "創建！"
 L["Cancel"] = "取消"
-L["While you are using horizontal camera offset, DynamicCam prevents "] = "While you are using horizontal camera offset, DynamicCam prevents "
-L["While you are using vertical camera pitch, DynamicCam prevents "] = "While you are using vertical camera pitch, DynamicCam prevents "
 
 -- DefaultSettings
 L["City"] = "城市"

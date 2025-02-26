@@ -671,11 +671,11 @@ function DynamicCam:Startup()
   if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
 
     if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
-      print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents "] .. "CameraKeepCharacterCentered!|r")
+      print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
       SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
 
     elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
-      print("|cFFFF0000" .. L["While you are using vertical camera pitch, DynamicCam prevents "] .. "CameraKeepCharacterCentered!|r")
+      print("|cFFFF0000" .. L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
       SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
     end
 
@@ -684,7 +684,7 @@ function DynamicCam:Startup()
   -- As off 11.0.2 this is also needed for shoulder offset to take effect.
   if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
     if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
-      print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents "] .. "CameraReduceUnexpectedMovement!|r")
+      print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] .. "|r")
       SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
     end
   end
