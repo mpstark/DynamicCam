@@ -469,6 +469,7 @@ return false]],
   196080,  -- Recall (to the sanctuary of Dun Baldar)
   216016,  -- Jump to Skyhold
   222695,  -- Dalaran Hearthstone
+  223352,  -- Khadgar's Beacon (Teleport to Dalaran)
   223805,  -- Advanced Dimensional Rifting
   224869,  -- Teleport: Dalaran - Broken Isles
   225428,  -- Town Portal: Shala'nir
@@ -499,6 +500,7 @@ return false]],
   299084,  -- Wormhole Generator: Zandalar
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
+  311681,  -- Tirisfal Camp Scroll
   311749,  -- Hearth to Uther's Tomb
   312372,  -- Return to Camp
   324031,  -- Wormhole Generator: Shadowlands
@@ -539,7 +541,7 @@ return false]],
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
   460271,  -- Teleporting to Silithus
   463481,  -- Notorious Thread's Hearthstone
-  
+
 }
 
 -- For faster lookups:
@@ -598,34 +600,20 @@ this.mountVendors = {
   ["62822"] = 460, -- Grand Expedition Yak
   ["227773"] = 2237, -- Grizzly Hills Packmaster
   ["227774"] = 2237, -- Grizzly Hills Packmaster
+  ["231085"] = 2265, -- Trader's Gilded Brutosaur
   -- Add more npcId and mountId pairs here.
   -- To find them, uncomment print command in condition script.
 }
-
-function this:GetCurrentMount()
-  if DynamicCam.lastActiveMount then
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(DynamicCam.lastActiveMount)
-    if active then
-      return DynamicCam.lastActiveMount
-    end
-  end
-  for _, v in pairs(C_MountJournal.GetMountIDs()) do
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
-    if active then
-      DynamicCam.lastActiveMount = v
-      return v
-    end
-  end
-  return nil
-end]],
+]],
         priority = 110,
         condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
-  if UnitGUID("npc") then
-    local _, _, _, _, _, npcId = strsplit("-", UnitGUID("npc"))
+  local npcGUID = UnitGUID("npc")
+  if npcGUID then
+    local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- Uncomment this to find out npcId and mountId pairs.
-    -- print("Current npc", npcId, "current mount", this:GetCurrentMount())
-    if this.mountVendors[npcId] and this.mountVendors[npcId] == this:GetCurrentMount() then
+    -- print("NPC Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
+    if this.mountVendors[npcId] and this.mountVendors[npcId] == DynamicCam:GetCurrentMount() then
       return false
     end
   end
@@ -652,7 +640,21 @@ return shown and UnitExists("npc")]],
         name = L["Mailbox"],
         events = {"MAIL_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "MAIL_CLOSED", "GOSSIP_CLOSED"},
         priority = 110,
-        condition = "return MailFrame and MailFrame:IsShown()",
+        condition = [[
+-- Exclude Trader's Gilded Brutosaur Mailbox.
+if IsMounted() then
+  local npcGUID = UnitGUID("npc")
+  if npcGUID then
+    local _, _, _, _, _, npcId = strsplit("-", npcGUID)
+    -- print("Mailbox Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
+    if npcId == "231086" and DynamicCam:GetCurrentMount() == 2265 then
+      return false
+    end
+  end
+end
+
+return MailFrame and MailFrame:IsShown()
+]],
       },
       ["302"] = {
         name = L["Fishing"],

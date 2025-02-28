@@ -1179,48 +1179,51 @@ maintainFlyingMountListFrame:SetScript("OnEvent",
 )
 
 
-
-
 -- Some functions we need in several situation conditions.
 -- So we only implement them once.
 
 DynamicCam.lastActiveMount = nil
 
-function DynamicCam:CurrentMountCanFly()
 
-  -- Is the lastActiveMount still active?
-  local checkLastActiveMount = false
+function DynamicCam:GetCurrentMount()
+  -- In situation conditions we should always check IsMounted() before GetCurrentMount().
+  -- But just to be on the safe side, check again here.
+  if not IsMounted() then return nil end
+  
+  -- Check last active mount first to save time.
   if self.lastActiveMount then
-    _, _, _, checkLastActiveMount = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-  end
-
-  -- Make sure to get the currently active mount.
-  local currentlyActiveMount = nil
-  if checkLastActiveMount then
-    currentlyActiveMount = self.lastActiveMount
-  else
-    -- In situation conditions we should always check IsMounted() before CurrentMountCanFly(). But just to be on the safe side, check again here.
-    if not IsMounted() then return false end
-
-    for _, v in pairs (C_MountJournal.GetMountIDs()) do
-      local _, _, _, isActive = C_MountJournal.GetMountInfoByID(v)
-      if isActive then
-        currentlyActiveMount = v
-        break
-      end
+    local _, _, _, active = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
+    if active then
+      return self.lastActiveMount
     end
   end
+  
+  -- Must be a new new mount, so go through all to find active one.
+  for _, v in pairs(C_MountJournal.GetMountIDs()) do
+    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
+    if active then
+      self.lastActiveMount = v
+      return v
+    end
+  end
+  
+  -- Should never happen, as we have checked IsMounted() above.
+  return nil
+end
 
-  -- Made sure that at this point we have the currently active mount.
 
+
+function DynamicCam:CurrentMountCanFly()
+
+  -- IsMounted() is checked at the beginning of GetCurrentMount().
+  local currentlyActiveMount = self:GetCurrentMount()
   if currentlyActiveMount then
-    self.lastActiveMount = currentlyActiveMount
 
-    if DynamicCam.FlyingMountList[self.lastActiveMount] then
-      -- print("I believe mount", self.lastActiveMount, "can fly")
+    if self.FlyingMountList[currentlyActiveMount] then
+      -- print("I believe mount", currentlyActiveMount, "can fly")
       return true
     else
-      -- print("I believe mount", self.lastActiveMount, "cannot fly")
+      -- print("I believe mount", currentlyActiveMount, "cannot fly")
       return false
     end
   end
