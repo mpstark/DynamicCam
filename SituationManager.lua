@@ -1189,7 +1189,7 @@ function DynamicCam:GetCurrentMount()
   -- In situation conditions we should always check IsMounted() before GetCurrentMount().
   -- But just to be on the safe side, check again here.
   if not IsMounted() then return nil end
-  
+
   -- Check last active mount first to save time.
   if self.lastActiveMount then
     local _, _, _, active = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
@@ -1197,7 +1197,7 @@ function DynamicCam:GetCurrentMount()
       return self.lastActiveMount
     end
   end
-  
+
   -- Must be a new new mount, so go through all to find active one.
   for _, v in pairs(C_MountJournal.GetMountIDs()) do
     local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
@@ -1206,7 +1206,7 @@ function DynamicCam:GetCurrentMount()
       return v
     end
   end
-  
+
   -- Should never happen, as we have checked IsMounted() above.
   return nil
 end

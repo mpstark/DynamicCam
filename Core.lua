@@ -1451,6 +1451,8 @@ end
 function DynamicCam:PrintTable(t, indent)
   assert(type(t) == "table", "PrintTable() called for non-table!")
 
+  if not indent then indent = 0 end
+
   local indentString = ""
   for i = 1, indent do
     indentString = indentString .. "  "
