@@ -1115,68 +1115,67 @@ DynamicCam.FlyingMountList = {}
 
 local maintainFlyingMountListFrame = CreateFrame ("Frame")
 maintainFlyingMountListFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-maintainFlyingMountListFrame:SetScript("OnEvent",
-  function()
+maintainFlyingMountListFrame:SetScript("OnEvent", function(_, event, isLogin, isReload)
+  if not isLogin and not isReload then return end
 
-    if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
+  if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
 
-    -- Store current mount journal filter settings for later restoring.
+  -- Store current mount journal filter settings for later restoring.
 
-    local collectedFilters = {}
-    collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
-    collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
-    collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
-    -- DynamicCam:PrintTable(collectedFilters, 0)
+  local collectedFilters = {}
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
+  -- DynamicCam:PrintTable(collectedFilters, 0)
 
-    local typeFilters = {}
-    for filterIndex = 1, Enum.MountTypeMeta.NumValues do
-      typeFilters[filterIndex] = C_MountJournal.IsTypeChecked(filterIndex)
-    end
-    -- DynamicCam:PrintTable(typeFilters, 0)
-
-    local sourceFilters = {}
-		for filterIndex = 1, C_PetJournal.GetNumPetSources() do
-			if C_MountJournal.IsValidSourceFilter(filterIndex) then
-				sourceFilters[filterIndex] = C_MountJournal.IsSourceChecked(filterIndex)
-			end
-		end
-    -- DynamicCam:PrintTable(sourceFilters, 0)
-
-
-    -- Set filters to flying mounts.
-    C_MountJournal.SetDefaultFilters()
-    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
-    C_MountJournal.SetTypeFilter(1, false)   -- No Ground.
-    C_MountJournal.SetTypeFilter(3, false)   -- No Aquatic.
-
-
-    -- Fill list of flying mount IDs.
-    DynamicCam.FlyingMountList = {}
-    for displayIndex = 1, C_MountJournal.GetNumDisplayedMounts() do
-      local mountId = select(12, C_MountJournal.GetDisplayedMountInfo(displayIndex))
-      -- print(displayIndex, mountId)
-      DynamicCam.FlyingMountList[mountId] = true
-    end
-
-
-    -- Restore the mount journal filter settings.
-
-    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
-    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
-    C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
-
-    for filterIndex = 1, Enum.MountTypeMeta.NumValues do
-      C_MountJournal.SetTypeFilter(filterIndex, typeFilters[filterIndex])
-    end
-
-		for filterIndex = 1, C_PetJournal.GetNumPetSources() do
-			if C_MountJournal.IsValidSourceFilter(filterIndex) then
-				C_MountJournal.SetSourceFilter(filterIndex, sourceFilters[filterIndex])
-			end
-		end
-
+  local typeFilters = {}
+  for filterIndex = 1, Enum.MountTypeMeta.NumValues do
+    typeFilters[filterIndex] = C_MountJournal.IsTypeChecked(filterIndex)
   end
-)
+  -- DynamicCam:PrintTable(typeFilters, 0)
+
+  local sourceFilters = {}
+  for filterIndex = 1, C_PetJournal.GetNumPetSources() do
+    if C_MountJournal.IsValidSourceFilter(filterIndex) then
+      sourceFilters[filterIndex] = C_MountJournal.IsSourceChecked(filterIndex)
+    end
+  end
+  -- DynamicCam:PrintTable(sourceFilters, 0)
+
+
+  -- Set filters to flying mounts.
+  C_MountJournal.SetDefaultFilters()
+  C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
+  C_MountJournal.SetTypeFilter(1, false)   -- No Ground.
+  C_MountJournal.SetTypeFilter(3, false)   -- No Aquatic.
+
+
+  -- Fill list of flying mount IDs.
+  DynamicCam.FlyingMountList = {}
+  for displayIndex = 1, C_MountJournal.GetNumDisplayedMounts() do
+    local mountId = select(12, C_MountJournal.GetDisplayedMountInfo(displayIndex))
+    -- print(displayIndex, mountId)
+    DynamicCam.FlyingMountList[mountId] = true
+  end
+
+
+  -- Restore the mount journal filter settings.
+
+  C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
+  C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
+  C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
+
+  for filterIndex = 1, Enum.MountTypeMeta.NumValues do
+    C_MountJournal.SetTypeFilter(filterIndex, typeFilters[filterIndex])
+  end
+
+  for filterIndex = 1, C_PetJournal.GetNumPetSources() do
+    if C_MountJournal.IsValidSourceFilter(filterIndex) then
+      C_MountJournal.SetSourceFilter(filterIndex, sourceFilters[filterIndex])
+    end
+  end
+
+end)
 
 
 -- Some functions we need in several situation conditions.

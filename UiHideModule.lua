@@ -376,7 +376,9 @@ if C_AddOns.IsAddOnLoaded("GW2_UI") then
   -- So we have to do it like this.
   local enterWorldFrame = CreateFrame("Frame")
   enterWorldFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  enterWorldFrame:SetScript("OnEvent", function()
+  enterWorldFrame:SetScript("OnEvent", function(_, event, isLogin, isReload)
+    if not isLogin and not isReload then return end
+    
     if GwExperienceFrame then
       GwExperienceFrame:HookScript("OnEnter", function()
         GwExperienceFrame.ludius_mouseOver = true
