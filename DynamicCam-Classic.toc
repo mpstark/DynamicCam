@@ -10,6 +10,7 @@
 
 ## X-Curse-Project-ID: 101120
 ## X-WoWI-ID: 25570
+## X-Wago-ID: b6XVoOGp
 
 ## X-Donate: PayPal:ludiusmaximus@gmail.com
 ## X-License: The MIT License (MIT)
