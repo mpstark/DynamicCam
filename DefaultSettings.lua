@@ -495,6 +495,7 @@ return false]],
   291981,  -- Ultrasafe Transporter: Mechagon
   292764,  -- Returning (BfA Quest)
   293840,  -- Teleport: Moonglade (back)
+  296687,  -- Waygate (Dornogal Archive)
   298068,  -- Holographic Digitalization Hearthstone
   299083,  -- Wormhole Generator: Kul Tiras
   299084,  -- Wormhole Generator: Zandalar
