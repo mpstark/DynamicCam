@@ -86,8 +86,8 @@ L["<headTracking_desc>"] = "启用头部追踪后，镜头会跟随角色头部�
 L["Situations"] = "情境"
 L["Select a situation to setup"] = "选择一个情境来设置"
 L["<selectedSituation_desc>"] = "\n|cffffcc00颜色代码：|r\n|cFF808A87- 禁用的情境。|r\n- 启用的情境。\n|cFF00FF00- 启用且当前激活的情境。|r\n|cFF63B8FF- 启用且条件满足但优先级低于当前激活情境的情境。|r\n|cFFFF6600- 修改过的预设“情境控制”（建议重置）。|r\n|cFFEE0000- 错误的“情境控制”（需要更改）。|r"
-L["If this box is checked, DynamicCam will enter the situation \""] = "如果选中此框，DynamicCam将在其条件满足且没有其他优先级更高的情境激活时进入情境 \""
-L["\" whenever its condition is fulfilled and no other situation with higher priority is active."] = "\"。"
+L["If this box is checked, DynamicCam will enter the situation \""] = "如果勾选此框，DynamicCam 将进入情境 \""
+L["\" whenever its condition is fulfilled and no other situation with higher priority is active."] = "\" 只要其条件满足，并且没有其他优先级更高的情境处于激活状态。"
 L["Delete custom situation \""] = "删除自定义情境 \"" 
 L["\".\n(There will be no 'Are you sure?' prompt!)"] = "\"。\n（不会有'你确定吗？'的提示！）"
 L["Create a new custom situation."] = "创建一个新的自定义情境。"
@@ -364,6 +364,7 @@ L["\" setting is disabled by DynamicCam, while you are using the horizontal came
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "当你使用水平镜头偏移时，DynamicCam会阻止CameraKeepCharacterCentered起效！"
 L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] = "当你使用垂直镜头俯仰时，DynamicCam会阻止CameraKeepCharacterCentered起效！"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "当你使用水平镜头偏移时，DynamicCam会阻止CameraReduceUnexpectedMovement起效！"
+L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] = "当你使用镜头垂直俯仰时，DynamicCam会阻止“保持角色居中”功能！"
 L["cameraView ="] = "镜头视角 ="
 L["prevented by DynamicCam!"] = "被DynamicCam阻止！"
 
@@ -415,4 +416,3 @@ L["Fishing"] = "钓鱼"
 L["Gathering"] = "采集"
 L["AFK"] = "暂离"
 L["Pet Battle"] = "宠物对战"
-
