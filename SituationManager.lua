@@ -868,12 +868,12 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     self:RunScript(newSituationID, "executeOnEnter")
 
     -- Hide UI if applicable.
-    if newSituation.hideUI.enabled then
+    if newSituation.hideUI and newSituation.hideUI.enabled then
       self:FadeOutUI(newSituation.hideUI.fadeOutTime, newSituation.hideUI)
     -- If we are currently exiting a situation, we have already called
     -- FadeInUI() above. Only if we are neither entering nor exiting a situation
     -- with UI fade, we show the UI, to be on the safe side.
-    elseif not oldSituation or not oldSituation.hideUI.enabled then
+    elseif not oldSituation or not oldSituation.hideUI or not oldSituation.hideUI.enabled then
       self:FadeInUI(0)
     end
 
