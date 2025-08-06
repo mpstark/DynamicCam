@@ -1,6 +1,7 @@
-## Interface: 110107
+## Interface: 110200
 ## Version: @project-version@
 ## Title: DynamicCam
+## IconTexture: interface/icons/inv_misc_ selfiecamera_sketch.blp
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
 ## Notes-zhCN: 智能动态相机镜头。
