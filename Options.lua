@@ -3,7 +3,7 @@
 -- LIBRARIES --
 ---------------
 local LibCamera = LibStub("LibCamera-1.0")
-
+local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 -------------
 -- GLOBALS --
 -------------
@@ -21,7 +21,7 @@ end
 ------------
 -- LOCALS --
 ------------
-local function round(num, numDecimalPlaces)
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -306,12 +306,12 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
     -- -- You could also take the icon in the name, but this is not clickable.
     -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
 
-    name = "Reset",
+    name = L["Reset"],
     image = "Interface\\Transmogrify\\Transmogrify",
     imageCoords = resetButtonImageCoords,
     imageWidth = 25/1.5,
     imageHeight = 24/1.5,
-    desc = "Reset to global default: " .. tooltipDefaultValue .."\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
+    desc = L["Reset to global default:"] .. " " .. tooltipDefaultValue .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
     order = order,
     width = 0.25,
     func =
@@ -457,7 +457,7 @@ local function CreateOverriddenText(groupVarsTable, forSituations)
     name =
       function()
         if DynamicCam.currentSituationID and CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-          return "|cFF00FF00Currently overridden by the active situation \"" .. DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name .. "\".\n|r"
+          return "|cFF00FF00" .. L["Currently overridden by the active situation \""] .. DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name .. "\".|r\n"
         end
       end,
     order = 0,
@@ -472,8 +472,8 @@ end
 local function CreateOverrideStandardToggle(groupVarsTable, forSituations)
   return {
     type = "toggle",
-    name = "Override Standard Settings",
-    desc = "Checking this box allows you to define settings in this category that override the Standard Settings whenever this situation is active. Unchecking erases the Situation Settings for this category.",
+    name = L["Override Standard Settings"],
+    desc = L["<overrideStandardToggle_desc>"],
     order = 0,
     width = "full",
     hidden =
@@ -543,15 +543,15 @@ local function GetSituationList()
       end
 
       if string.find(id, "custom") then
-        customPrefix = "Custom: "
+        customPrefix = L["Custom:"] .. " "
       end
 
       if not SituationControlsAreDefault(id) then
-        modifiedSuffix = "|cFFFF6600" .. "  (modified)" .. "|r"
+        modifiedSuffix = "|cFFFF6600  " .. L["(modified)"] .. "|r"
       end
 
       -- print(id, situation.name)
-      situationList[id] = prefix .. customPrefix .. situation.name .. " [Priority: " .. situation.priority .. "]" .. suffix .. modifiedSuffix
+      situationList[id] = prefix .. customPrefix .. situation.name .. " [" .. L["Priority:"] .. " " .. situation.priority .. "]" .. suffix .. modifiedSuffix
     end
   end
 
@@ -574,8 +574,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
     type = "group",
     name =
       function()
-        if not forSituations then return "Standard Settings"
-        else return "Situation Settings" end
+        if not forSituations then return L["Standard Settings"]
+        else return L["Situation Settings"] end
       end,
     order = tabOrder,
     args = {
@@ -588,14 +588,14 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
             if not forSituations then
 
-              text = "These Standard Settings are applied when either no situation is active or when the active situation has no Situation Settings set up overriding the Standard Settings."
+              text = L["<standardSettings_desc>"]
 
               if DynamicCam.currentSituationID then
-                text = text .. " |cFF00FF00The categories marked in green are currently overridden by the active situation. You will thus not see any effect of changing the Standard Settings of green categories while the overriding situation is active.|r"
+                text = text .. " |cFF00FF00" .. L["<standardSettingsOverridden_desc>"] .. "|r"
               end
 
             else
-              text = "These Situation Settings can override the Standard Settings when the respective situation is active."
+              text = L["These Situation Settings can override the Standard Settings when the respective situation is active."]
             end
 
             return text .. "\n\n"
@@ -608,7 +608,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Mouse Zoom", zoomGroupVars, forSituations)
+            return ColoredNames(L["Mouse Zoom"], zoomGroupVars, forSituations)
           end,
         order = 1,
         args = {
@@ -632,8 +632,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraDistanceMaxFactor = {
                 type = "range",
-                name = "Maximum Camera Distance",
-                desc = "How many yards the camera can zoom away from your character.\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
+                name = L["Maximum Camera Distance"],
+                desc = L["How many yards the camera can zoom away from your character."] .. "\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
                 order = 1,
                 width = sliderWidth,
                 min = 15,
@@ -655,8 +655,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraZoomSpeed = {
                 type = "range",
-                name = "Camera Zoom Speed",
-                desc = "How fast the camera can zoom.\n|cff909090cvar: cameraZoomSpeed|r",
+                name = L["Camera Zoom Speed"],
+                desc = L["How fast the camera can zoom."] .. "\n|cff909090cvar: cameraZoomSpeed|r",
                 order = 2,
                 width = sliderWidth,
                 min = 1,
@@ -677,8 +677,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               addIncrementsAlways = {
                 type = "range",
-                name = "Zoom Increments",
-                desc = "How many yards the camera should travel for each \"tick\" of the mouse wheel.",
+                name = L["Zoom Increments"],
+                desc = L["How many yards the camera should travel for each \"tick\" of the mouse wheel."],
                 order = 3,
                 width = sliderWidth,
                 min = 0.05,
@@ -701,7 +701,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               reactiveZoomToggle = {
                 type = "toggle",
-                name = "Use Reactive Zoom",
+                name = L["Use Reactive Zoom"],
                 order = 4,
                 get =
                   function()
@@ -726,8 +726,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   addIncrements = {
                     type = "range",
-                    name = "Quick-Zoom Additional Increments",
-                    desc = "How many yards per mouse wheel tick should be added when quick-zooming.",
+                    name = L["Quick-Zoom Additional Increments"],
+                    desc = L["How many yards per mouse wheel tick should be added when quick-zooming."],
                     order = 1,
                     width = sliderWidth,
                     min = 0,
@@ -748,8 +748,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   incAddDifference = {
                     type = "range",
-                    name = "Quick-Zoom Enter Threshold",
-                    desc = "How many yards the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" have to be apart to enter quick-zooming.",
+                    name = L["Quick-Zoom Enter Threshold"],
+                    desc = L["How many yards the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" have to be apart to enter quick-zooming."],
                     order = 2,
                     width = sliderWidth,
                     min = 0.1,
@@ -770,8 +770,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   maxZoomTime = {
                     type = "range",
-                    name = "Maximum Zoom Time",
-                    desc = "The maximum time the camera should take to make \"Actual Zoom Value\" equal to \"Reactive Zoom Target\".",
+                    name = L["Maximum Zoom Time"],
+                    desc = L["The maximum time the camera should take to make \"Actual Zoom Value\" equal to \"Reactive Zoom Target\"."],
                     order = 3,
                     width = sliderWidth,
                     min = 0.1,
@@ -797,14 +797,14 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
           reactiveZoomDescriptionGroup = {
             type = "group",
-            name = "Help",
+            name = L["Help"],
             order = 6,
             inline = true,
             args = {
 
               toggleVisualAid = {
                 type = "execute",
-                name = "Toggle Visual Aid",
+                name = L["Toggle Visual Aid"],
                 func = function() DynamicCam:ToggleRZVA() end,
                 order = 1,
                 width = "full",
@@ -813,7 +813,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               reactiveZoomDescription = {
                 type = "description",
-                name = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" are different, DynamicCam changes the \"Actual Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Actual Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it.",
+                name = L["<reactiveZoom_desc>"],
                 order = 2,
               },
 
@@ -821,8 +821,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               enhancedMinZoom = {
                 type = "toggle",
-                name = "Enhanced minimal zoom-in",
-                desc = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\n|cFFFF0000Enabling \"Enhanced minimal zoom-in\" may cost up to 15% FPS when in CPU limited situations.|r",
+                name = L["Enhanced minimal zoom-in"],
+                desc = L["<enhancedMinZoom_desc>"],
                 order = 3,
                 width = "full",
                 get =
@@ -837,7 +837,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               reloadMessage = {
                 type = "description",
-                name = "|cFFFF0000/reload of the UI required!|r",
+                name = "|cFFFF0000" .. L["/reload of the UI required!"] .. "|r",
                 hidden =
                   function()
                     return DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or not DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
@@ -863,7 +863,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Mouse Look", mouseLookGroupVars, forSituations)
+            return ColoredNames(L["Mouse Look"], mouseLookGroupVars, forSituations)
           end,
         order = 2,
         args = {
@@ -886,8 +886,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraYawMoveSpeed = {
                 type = "range",
-                name = "Horizontal Speed",
-                desc = "How much the camera yaws horizontally when in mouse look mode.\n|cff909090cvar: cameraYawMoveSpeed|r",
+                name = L["Horizontal Speed"],
+                desc = L["How much the camera yaws horizontally when in mouse look mode."] .. "\n|cff909090cvar: cameraYawMoveSpeed|r",
                 order = 1,
                 width = sliderWidth + 0.1,
                 min = 1,
@@ -908,8 +908,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraPitchMoveSpeed = {
                 type = "range",
-                name = "Vertical Speed",
-                desc = "How much the camera pitches vertically when in mouse look mode.\n|cff909090cvar: cameraPitchMoveSpeed|r",
+                name = L["Vertical Speed"],
+                desc = L["How much the camera pitches vertically when in mouse look mode."] .. "\n|cff909090cvar: cameraPitchMoveSpeed|r",
                 order = 2,
                 width = sliderWidth + 0.1,
                 min = 1,
@@ -930,12 +930,12 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               mouseLookDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 order = 3,
                 args = {
                   mouseLookDescription = {
                     type = "description",
-                    name = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\nThe \"Mouse Look Speed\" slider of WoW's default interface settings controls horizontal and vertical speed at the same time: automatically setting horizontal speed to 2 x vertical speed. DynamicCam overrides this and allows you a more customized setup.",
+                    name = L["<mouseLook_desc>"],
                   },
                 },
               },
@@ -950,7 +950,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Horizontal Offset", shoulderOffsetGroupVars, forSituations)
+            return ColoredNames(L["Horizontal Offset"], shoulderOffsetGroupVars, forSituations)
           end,
         order = 3,
         args = {
@@ -973,13 +973,13 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraOverShoulderGroup = {
                 type = "group",
-                name = "Camera Over Shoulder Offset",
+                name = L["Camera Over Shoulder Offset"],
                 order = 1,
                 args = {
 
                   cameraOverShoulderDescription = {
                     type = "description",
-                    name = "Positions the camera left or right from your character.\n|cff909090cvar: test_cameraOverShoulder|r\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this.",
+                    name = L["Positions the camera left or right from your character."] .. "\n|cff909090cvar: test_cameraOverShoulder|r\n\n" .. L["<cameraOverShoulder_desc>"],
                     order = 0,
                   },
 
@@ -1007,13 +1007,13 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               shoulderOffsetZoomGroup = {
                 type = "group",
-                name = "Adjust shoulder offset according to zoom level",
+                name = L["Adjust shoulder offset according to zoom level"],
                 order = 2,
                 args = {
 
                   shoulderOffsetZoomEnabled = {
                     type = "toggle",
-                    name = "Enable",
+                    name = L["Enable"],
                     order = 1,
                     get =
                       function()
@@ -1028,12 +1028,12 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   -- Make a custom reset button, because we need to reset both values at once.
                   shoulderOffsetZoomReset = {
                     type = "execute",
-                    name = "Reset",
+                    name = L["Reset"],
                     image = "Interface\\Transmogrify\\Transmogrify",
                     imageCoords = resetButtonImageCoords,
                     imageWidth = 25/1.5,
                     imageHeight = 24/1.5,
-                    desc = "Reset to global defaults: " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .." and " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
+                    desc = L["Reset to global defaults:"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .. "  " .. L["and"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                     order = 1.2,
                     width = 0.25,
                     func =
@@ -1053,10 +1053,10 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   shoulderOffsetZoomLowerBound = {
                     type = "range",
-                    name = "No offset when below this zoom level:",
+                    name = L["No offset when below this zoom level:"],
                     order = 2,
                     width = "full",
-                    desc = "When the camera is closer than this zoom level, the offset has reached zero.",
+                    desc = L["When the camera is closer than this zoom level, the offset has reached zero."],
                     min = 0.8,
                     max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                     step = 0.1,
@@ -1080,10 +1080,10 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   shoulderOffsetZoomUpperBound = {
                     type = "range",
-                    name = "Real offset when above this zoom level:",
+                    name = L["Real offset when above this zoom level:"],
                     order = 3,
                     width = "full",
-                    desc = "When the camera is further away than this zoom level, the offset has reached its set value.",
+                    desc = L["When the camera is further away than this zoom level, the offset has reached its set value."],
                     min = 0.8,
                     max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                     step = 0.1,
@@ -1107,7 +1107,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   shoulderOffsetZoomDescription = {
                     type = "description",
-                    name = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place. This setting is global and not situation-specific.",
+                    name = L["<shoulderOffsetZoom_desc>"],
                     order = 4,
                   },
 
@@ -1124,7 +1124,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Vertical Pitch", pitchGroupVars, forSituations)
+            return ColoredNames(L["Vertical Pitch"], pitchGroupVars, forSituations)
           end,
         order = 4,
         args = {
@@ -1147,7 +1147,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               cameraDynamicPitch = {
                 type = "toggle",
-                name = "Enable",
+                name = L["Enable"],
                 order = 1,
                 width = "full",
                 desc = "|cff909090cvar: test_cameraDynamicPitch|r",
@@ -1168,7 +1168,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               baseFovPad = {
                 type = "range",
-                name = "Pitch (on ground)",
+                name = L["Pitch (on ground)"],
                 order = 2,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPad|r",
@@ -1194,7 +1194,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               baseFovPadFlying = {
                 type = "range",
-                name = "Pitch (flying)",
+                name = L["Pitch (flying)"],
                 order = 3,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadFlying|r",
@@ -1220,7 +1220,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               baseFovPadDownScale = {
                 type = "range",
-                name = "Down Scale",
+                name = L["Down Scale"],
                 order = 4,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadDownScale|r",
@@ -1246,7 +1246,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               smartPivotCutoffDist = {
                 type = "range",
-                name = "Smart Pivot Cutoff Distance",
+                name = L["Smart Pivot Cutoff Distance"],
                 order = 5,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
@@ -1272,12 +1272,12 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               pitchDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 order = 6,
                 args = {
                   pitchDescription = {
                     type = "description",
-                    name = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs an upwards pitch on the spot of the camera-to-ground collision. An alternative is that the camera moves closer to your character's feet while performing this pitch. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n",
+                    name = L["<pitch_desc>"],
                   },
                 },
               },
@@ -1292,7 +1292,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Target Focus", targetFocusGroupVars, forSituations)
+            return ColoredNames(L["Target Focus"], targetFocusGroupVars, forSituations)
           end,
         order = 5,
         args = {
@@ -1315,13 +1315,13 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               targetFocusEnemiesGroup = {
                 type = "group",
-                name = "Enemy Target",
+                name = L["Enemy Target"],
                 order = 1,
                 args = {
 
                   targetFocusEnemyEnable = {
                     type = "toggle",
-                    name = "Enable",
+                    name = L["Enable"],
                     order = 1,
                     width = "full",
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyEnable|r",
@@ -1341,7 +1341,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   targetFocusEnemyStrengthYaw = {
                     type = "range",
-                    name = "Horizontal Strength",
+                    name = L["Horizontal Strength"],
                     order = 2,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthYaw|r",
@@ -1367,7 +1367,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   targetFocusEnemyStrengthPitch = {
                     type = "range",
-                    name = "Vertical Strength",
+                    name = L["Vertical Strength"],
                     order = 3,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthPitch|r",
@@ -1395,13 +1395,13 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               targetFocusNPCsGroup = {
                 type = "group",
-                name = "Interaction Target (NPCs)",
+                name = L["Interaction Target (NPCs)"],
                 order = 2,
                 args = {
 
                   targetFocusInteractEnable = {
                     type = "toggle",
-                    name = "Enable",
+                    name = L["Enable"],
                     order = 1,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractEnable|r",
@@ -1421,7 +1421,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   targetFocusInteractStrengthYaw = {
                     type = "range",
-                    name = "Horizontal Strength",
+                    name = L["Horizontal Strength"],
                     order = 2,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthYaw|r",
@@ -1447,7 +1447,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
                   targetFocusInteractStrengthPitch = {
                     type = "range",
-                    name = "Vertical Strength",
+                    name = L["Vertical Strength"],
                     order = 3,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthPitch|r",
@@ -1476,12 +1476,12 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               targetFocusDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 order = 3,
                 args = {
                   targetFocusDescription = {
                     type = "description",
-                    name = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\", is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat).",
+                    name = L["<targetFocus_desc>"],
                   },
                 },
               },
@@ -1496,7 +1496,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
         type = "group",
         name =
           function()
-            return ColoredNames("Head Tracking", headTrackingGroupVars, forSituations)
+            return ColoredNames(L["Head Tracking"], headTrackingGroupVars, forSituations)
           end,
         order = 6,
         args = {
@@ -1519,10 +1519,10 @@ local function CreateSettingsTab(tabOrder, forSituations)
 
               headTrackingEnable = {
                 type = "toggle",
-                name = "Enable",
+                name = L["Enable"],
                 order = 1,
                 width = sliderWidth - 0.15,
-                desc = "|cff909090cvar: test_cameraHeadMovement\nStrength\n\nThis could also be used as a continuous value between 0 and 1, but it is just multiplied with StandingStrength and MovingStrength respectively. So there is really no need for another slider.|r",
+                desc = "|cff909090cvar: test_cameraHeadMovementStrength\n\n" .. L["<headTrackingEnable_desc>"] .. "|r",
                 get =
                   function()
                     return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 1
@@ -1542,7 +1542,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 2,
                 width = sliderWidth,
-                name = "Strength (standing)",
+                name = L["Strength (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingStrength|r",
                 min = 0,
                 max = 1,   -- No effect above 1.
@@ -1568,7 +1568,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 3,
                 width = sliderWidth,
-                name = "Inertia (standing)",
+                name = L["Inertia (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingDampRate|r",
                 min = 0,
                 max = 20,
@@ -1601,7 +1601,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 4,
                 width = sliderWidth,
-                name = "Strength (moving)",
+                name = L["Strength (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingStrength|r",
                 min = 0,
                 max = 1,   -- No effect above 1.
@@ -1627,7 +1627,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 5,
                 width = sliderWidth,
-                name = "Inertia (moving)",
+                name = L["Inertia (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingDampRate|r",
                 min = 0,
                 max = 20,
@@ -1660,7 +1660,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 6,
                 width = sliderWidth,
-                name = "Inertia (first person)",
+                name = L["Inertia (first person)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nFirstPersonDampRate|r",
                 min = 0,
                 max = 20,
@@ -1693,8 +1693,8 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 order = 7,
                 width = sliderWidth,
-                name = "Range Scale",
-                desc = "Camera distance beyond which head tracking is reduced or disabled. (See explanation below.)\n|cff909090cvar: test_cameraHeadMovement\nRangeScale (slider value transformed)|r",
+                name = L["Range Scale"],
+                desc = L["Camera distance beyond which head tracking is reduced or disabled. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementRangeScale\n" .. L["(slider value transformed)"] .. "|r",
                 min = 0,
                 max = 117,
                 step = 0.5,
@@ -1714,15 +1714,15 @@ local function CreateSettingsTab(tabOrder, forSituations)
               },
               rangeScaleReset =
                 CreateSliderResetButton(7.1, forSituations, "cvars", "test_cameraHeadMovementRangeScale",
-                                        round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2)),
+                                        Round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2)),
               blank7 = {type = "description", name = "\n\n", order = 7.2, },
 
               deadZone = {
                 type = "range",
                 order = 8,
                 width = sliderWidth,
-                name = "Dead Zone",
-                desc = "Radius of head movement not affecting the camera. (See explanation below.)\n|cff909090cvar: test_cameraHeadMovement\nDeadZone (slider value / 10)|r\n|cffe00000Requires /reload to come into effect!|r",
+                name = L["Dead Zone"],
+                desc = L["Radius of head movement not affecting the camera. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementDeadZone\n" .. L["(slider value devided by 10)"] .. "|r\n|cffe00000" .. L["Requires /reload to come into effect!"] .. "|r",
                 min = 0,
                 max = 10,
                 step = 0.05,
@@ -1741,17 +1741,17 @@ local function CreateSettingsTab(tabOrder, forSituations)
               },
               deadZoneReset =
                 CreateSliderResetButton(8.1, forSituations, "cvars", "test_cameraHeadMovementDeadZone",
-                                            round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2)),
+                                            Round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2)),
 
 
               headTrackingDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 order = 9,
                 args = {
                   headTrackingDescription = {
                     type = "description",
-                    name = "With head tracking enabled the camera follows the movement of your character's head. (While this can be a benefit for immersion, it may also cause nausea if you are prone to motion sickness.)\n\nThe \"Strength\" setting determines the intensity of this effect. Setting it to 0 disables head tracking. The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking. The three cases \"standing\", \"moving\" and \"first person\" can be set up individually. There is no \"Strength\" setting for \"first person\" as it assumes the \"Strength\" settings of \"standing\" and \"moving\" respectively. If you want to enable or disable \"first person\" exclusively, use the \"Inertia\" sliders to disable the unwanted cases.\n\nWith the \"Range Scale\" setting you can set the camera distance beyond which head tracking is reduced or disabled. For example, with the slider set to 30 you will have no head tracking when the camera is more than 30 yards away from your character. However, there is a gradual transition from full head tracking to no head tracking, which starts at one third of the slider value. For example, with the slider value set to 30 you have full head tracking when the camera is closer than 10 yards. Beyond 10 yards, head tracking gradually decreases until it is completely gone beyond 30 yards. Hence, the slider's maximum value is 117 allowing for full head tracking at the maximum camera distance of 39 yards. (Hint: Use our \"Mouse Zoom\" visual aid to check the current camera distance while setting this up.)\n\nThe \"Dead Zone\" setting can be used to ignore smaller head movements. Setting it to 0 has the camera follow every slightest head movement, whereas setting it to a greater value results in it following only greater movements. Notice, that changing this setting only comes into effect after reloading the UI (type /reload into the console).",
+                    name = L["<headTracking_desc>"],
                   },
                 },
               },
@@ -1770,7 +1770,7 @@ local function CreateSituationSettingsTab(tabOrder)
   local returnOptions = {
 
     type = "group",
-    name = "Situations",
+    name = L["Situations"],
     order = tabOrder,
 
     childGroups = "tab",
@@ -1779,8 +1779,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
       selectedSituation = {
         type = "select",
-        name = "Select a situation to setup",
-        desc = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\" (reset recommended).|r\n|cFFEE0000- Erroneous \"Situation Controls\" (changes required).|r",
+        name = L["Select a situation to setup"],
+        desc = L["<selectedSituation_desc>"],
         get =
           function()
             lastSelectedSID = SID
@@ -1803,10 +1803,10 @@ local function CreateSituationSettingsTab(tabOrder)
 
       enabled = {
         type = "toggle",
-        name = "Enable",
+        name = L["Enable"],
         desc =
           function()
-            return "If this box is checked, DynamicCam will enter the situation \"" .. S.name .. "\" whenever its condition is fulfilled and no other situation with higher priority is active."
+            return L["If this box is checked, DynamicCam will enter the situation \""] .. S.name .. L["\" whenever its condition is fulfilled and no other situation with higher priority is active."]
           end,
         disabled =
           function()
@@ -1835,7 +1835,7 @@ local function CreateSituationSettingsTab(tabOrder)
         name = "-",
         desc =
           function()
-            return "Delete custom situation \"" .. S.name .. "\".\n(There will be no 'Are you sure?' prompt!)"
+            return L["Delete custom situation \""] .. S.name .. L["\".\n(There will be no 'Are you sure?' prompt!)"]
           end,
         hidden =
           function()
@@ -1863,7 +1863,7 @@ local function CreateSituationSettingsTab(tabOrder)
       newSituation = {
         type = "execute",
         name = "+",
-        desc = "Create a new custom situation.",
+        desc = L["Create a new custom situation."],
         func = function() DynamicCam:PopupCreateCustomProfile() end,
         order = 4,
         width = 0.23,
@@ -1876,14 +1876,14 @@ local function CreateSituationSettingsTab(tabOrder)
       situationActions = {
 
         type = "group",
-        name = "Situation Actions",
+        name = L["Situation Actions"],
         order = 6,
 
         args = {
 
           help = {
             type = "description",
-            name = "Setup stuff to happen while in a situation or when entering/exiting it.\n\n",
+            name = L["Setup stuff to happen while in a situation or when entering/exiting it."] .. "\n\n",
             order = 0,
           },
 
@@ -1891,15 +1891,15 @@ local function CreateSituationSettingsTab(tabOrder)
             type = "group",
             name =
               function()
-                return GreyWhenInactive("Zoom/View", S.viewZoom.enabled)
+                return GreyWhenInactive(L["Zoom/View"], S.viewZoom.enabled)
               end,
             order = 1,
             args = {
 
               viewZoomToggle = {
                 type = "toggle",
-                name = "Enable",
-                desc = "Zoom to a certain zoom level or switch to a saved camera view when entering this situation.",
+                name = L["Enable"],
+                desc = L["Zoom to a certain zoom level or switch to a saved camera view when entering this situation."],
                 get =
                   function()
                     return S.viewZoom.enabled
@@ -1914,12 +1914,12 @@ local function CreateSituationSettingsTab(tabOrder)
               viewZoomReset = {
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
-                name = "Reset",
+                name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
+                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -1954,8 +1954,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
                   viewZoomType = {
                     type = "select",
-                    name = "Set Zoom or Set View",
-                    desc = "\nSet Zoom: Zoom to a given zoom level with advanced options of transition time and zoom conditions.\n\nSet View: Switch to a saved camera view consisting of a fix zoom level and camera angle.",
+                    name = L["Set Zoom or Set View"],
+                    desc = "\n" .. L["<viewZoomType_desc>"],
                     width = "full",
                     disabled =
                       function()
@@ -1970,8 +1970,8 @@ local function CreateSituationSettingsTab(tabOrder)
                         S.viewZoom.viewZoomType = newValue
                       end,
                     values = {
-                      ["zoom"] = "Set Zoom",
-                      ["view"] = "Set View",
+                      ["zoom"] = L["Set Zoom"],
+                      ["view"] = L["Set View"],
                     },
                     sorting = {
                       "zoom",
@@ -1985,7 +1985,7 @@ local function CreateSituationSettingsTab(tabOrder)
                   viewBox = {
 
                     type = "group",
-                    name = "Set View",
+                    name = L["Set View"],
                     order = 3,
                     hidden =
                       function()
@@ -1995,8 +1995,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
                       view = {
                         type = "select",
-                        name = "Set view to saved view:",
-                        desc = "Select the saved view to switch to when entering this situation.",
+                        name = L["Set view to saved view:"],
+                        desc = L["Select the saved view to switch to when entering this situation."],
                         get =
                           function()
                             return S.viewZoom.viewNumber
@@ -2017,8 +2017,8 @@ local function CreateSituationSettingsTab(tabOrder)
                       blank1 = {type = "description", name = " ", order = 1.1, width = 0.1, },
                       instant = {
                         type = "toggle",
-                        name = "Instant",
-                        desc = "Make view transitions instant.",
+                        name = L["Instant"],
+                        desc = L["Make view transitions instant."],
                         get =
                           function()
                             return S.viewZoom.viewInstant
@@ -2033,8 +2033,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
                       viewRestore = {
                         type = "toggle",
-                        name = "Restore",
-                        desc = "When exiting the situation restore the camera position to what it was before entering.",
+                        name = L["Restore view when exiting"],
+                        desc = L["When exiting the situation restore the camera position to what it was at the time of entering the situation."],
                         hidden =
                           function()
                             return GetCVar("cameraSmoothStyle") ~= "0"
@@ -2058,21 +2058,13 @@ local function CreateSituationSettingsTab(tabOrder)
                             return GetCVar("cameraSmoothStyle") == "0"
                           end,
                         order = 4,
-                        name =
-[[|cFFEE0000Attention:|r You are using WoW's "Camera Following Styles" that automatically put the camera behind the player. This does not work while you are in a customized saved view. It is possible to use customized saved views for situations in which camera following is not needed (e.g. NPC interaction). But after exiting the situation you have to return to a non-customized default view in order to make the camera following work again.]],
+                        name = L["cameraSmoothNote"],
                       },
 
                       viewRestoreToDefault = {
                         type = "select",
-                        name = "Restore to default view:",
-                        desc =
-[[Select the default view to return to when exiting this situation.
-
-View 1:   Zoom 0, Pitch 0
-View 2:   Zoom 5.5, Pitch 10
-View 3:   Zoom 5.5, Pitch 20
-View 4:   Zoom 13.8, Pitch 30
-View 5:   Zoom 13.8, Pitch 10]],
+                        name = L["Restore to default view:"],
+                        desc = L["<viewRestoreToDefault_desc>"],
                         hidden =
                           function()
                             return GetCVar("cameraSmoothStyle") == "0"
@@ -2121,19 +2113,19 @@ View 5:   Zoom 13.8, Pitch 10]],
 
                             local usedViews, usedDefaultViews = GetUsedViews()
 
-                            local returnString = "|cFFEE0000WARNING:|r You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view.\n"
+                            local returnString = "|cFFEE0000" .. L["WARNING"] .. ":|r" .. L["You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view."] .. "\n"
 
                             for usedView, usedViewSituationList in pairs(usedViews) do
 
                               -- We know that at least one other situation used this view.
                               if usedDefaultViews[usedView] then
 
-                                returnString = returnString .. "\n\n- View " .. usedView .. " is used as saved view in the situations:\n"
+                                returnString = returnString .. "\n\n- View " .. usedView .. " " .. L["is used as saved view in the situations:"] .. "\n"
 
                                 for usedViewSituationId in pairs(usedViewSituationList) do
                                   returnString = returnString .. "    - " .. DynamicCam.db.profile.situations[usedViewSituationId].name .. "\n"
                                 end
-                                returnString = returnString .. "   and as restore-to-default view in the situations:\n"
+                                returnString = returnString .. "   " .. L["and as restore-to-default view in the situations:"] .. "\n"
 
                                 for usedDefaultViewSituationId in pairs(usedDefaultViews[usedView]) do
                                   returnString = returnString .. "    - " ..  DynamicCam.db.profile.situations[usedDefaultViewSituationId].name .. "\n"
@@ -2151,38 +2143,16 @@ View 5:   Zoom 13.8, Pitch 10]],
 
                   viewDescriptionGroup = {
                     type = "group",
-                    name = "Help",
+                    name = L["Help"],
                     order = 4,
                     hidden =
                       function()
                         return S.viewZoom.viewZoomType ~= "view"
                       end,
                     args = {
-                      zoomDescription = {
+                      viewDescription = {
                         type = "description",
-                        name =
-[[WoW allows to save up to 5 custom camera views. View 1 is used by DynamicCam to save the camera position when entering a situation, such that it can be restored upon exiting the situation again, if you check the "Restore" box above. This is particularly nice for short situations like NPC interaction, allowing to switch to one view while talking to the NPC and afterwards back to what the camera was before. This is why View 1 cannot be selected in the above drop down menu of saved views.
-
-Views 2, 3, 4 and 5 can be used to save a custom camera positions. To save a view, simply bring the camera into the desired zoom and angle. Then type the following command into the console (with # being the view number 2, 3, 4 or 5):
-
-  /saveView #
-
-Or for short:
-
-  /sv #
-
-Notice that the saved views are stored by WoW. DynamicCam only stores which view numbers to use. Thus, when you import a new DynamicCam situation profile with views, you probably have to set and save the appropriate views afterwards.
-
-
-DynamicCam also provides a console command to switch to a view irrespective of entering or exiting situations:
-
-  /setView #
-
-To make the view transition instant, add an "i" after the view number. E.g. to immediately switch to the saved View 3 enter:
-
-  /setView 3 i
-
-]],
+                        name = L["<view_desc>"],
                       },
                     },
                   },
@@ -2190,7 +2160,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                   zoomBox = {
                     type = "group",
-                    name = "Set Zoom",
+                    name = L["Set Zoom"],
                     order = 3,
                     hidden =
                       function()
@@ -2200,8 +2170,8 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       transitionTime = {
                         type = "range",
-                        name = "Zoom Transition Time",
-                        desc = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast.",
+                        name = L["Zoom Transition Time"],
+                        desc = L["<transitionTime_desc>"],
                         min = 0,
                         max = 5,
                         step = .05,
@@ -2220,8 +2190,8 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       zoomType = {
                         type = "select",
-                        name = "Zoom Type",
-                        desc = "\nSet: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in, if further away than the given maximum. Zoom out, if closer than the given minimum. Do nothing, if the current zoom is within the [min, max] range.",
+                        name = L["Zoom Type"],
+                        desc = L["<zoomType_desc>"],
                         width = 0.8,
                         get =
                           function()
@@ -2232,10 +2202,10 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                             S.viewZoom.zoomType = newValue
                           end,
                         values = {
-                          ["set"] = "Set",
-                          ["out"] = "Out",
-                          ["in"] = "In",
-                          ["range"] = "Range",
+                          ["set"] = L["Set"],
+                          ["out"] = L["Out"],
+                          ["in"] = L["In"],
+                          ["range"] = L["Range"],
                         },
                         sorting = {
                           "set",
@@ -2249,8 +2219,8 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       zoomTimeIsMaxToggle = {
                         type = "toggle",
-                        name = "Don't slow",
-                        desc = "Zoom transitions may be executed faster (but never slower) than the specified time above, if the \"Camera Zoom Speed\" (see \"Mouse Zoom\" settings) allows.",
+                        name = L["Don't slow"],
+                        desc = L["Zoom transitions may be executed faster (but never slower) than the specified time above, if the \"Camera Zoom Speed\" (see \"Mouse Zoom\" settings) allows."],
                         get =
                           function()
                             return S.viewZoom.zoomTimeIsMax
@@ -2266,15 +2236,15 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       zoomValue = {
                         type = "range",
-                        name = "Zoom Value",
+                        name = L["Zoom Value"],
                         desc =
                           function()
                             if S.viewZoom.zoomType == "set" then
-                              return "Zoom to this zoom level."
+                              return L["Zoom to this zoom level."]
                             elseif S.viewZoom.zoomType == "out" then
-                              return "Zoom out to this zoom level, if the current zoom level is less than this."
+                              return L["Zoom out to this zoom level, if the current zoom level is less than this."]
                             elseif S.viewZoom.zoomType == "in" then
-                              return "Zoom in to this zoom level, if the current zoom level is greater than this."
+                              return L["Zoom in to this zoom level, if the current zoom level is greater than this."]
                             end
                           end,
                         width = "full",
@@ -2298,8 +2268,8 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       zoomMin = {
                         type = "range",
-                        name = "Zoom Min",
-                        desc = "Zoom out to this zoom level, if the current zoom level is less than this.",
+                        name = L["Zoom Min"],
+                        desc = L["Zoom out to this zoom level, if the current zoom level is less than this."],
                         width = "full",
                         hidden =
                           function()
@@ -2332,8 +2302,8 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                       },
                       zoomMax = {
                         type = "range",
-                        name = "Zoom Max",
-                        desc = "Zoom in to this zoom level, if the current zoom level is greater than this.",
+                        name = L["Zoom Max"],
+                        desc = L["Zoom in to this zoom level, if the current zoom level is greater than this."],
                         width = "full",
                         hidden =
                           function()
@@ -2371,7 +2341,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                   zoomRestoreSettingGroup = {
                     type = "group",
-                    name = "Restore Zoom",
+                    name = L["Restore Zoom"],
                     order = 4,
                     disabled = false,
                     hidden =
@@ -2382,14 +2352,14 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                       zoomRestoreSettingDescription = {
                         type = "description",
-                        name = "When you exit a situation (or exit the default of no situation being active), the current zoom level is temporarily saved, such that it could be restored once you enter this situation the next time. Here you can select how this is handled.\n\nThis setting is global for all situations.",
+                        name = L["<zoomRestoreSetting_desc>"],
                         order = 0,
                       },
 
-                      zoomRestoreSetting = {
+                      zoomRestoreSettingSelect = {
                         type = "select",
-                        name = "Restore Zoom Mode",
-                        desc = "\nNever: When entering a situation, the actual zoom setting (if any) of the entering situation is applied. No saved zoom is taken into account.\n\nAlways: When entering a situation, the last saved zoom of this situation is used. Its actual setting is only taken into account when entering the situation for the first time after login.\n\nAdaptive: The saved zoom is only used under certain circumstances. E.g. only when returning to the same situation you came from or when the saved zoom fulfills the criteria of the situation's \"in\", \"out\" or \"range\" zoom settings.",
+                        name = L["Restore Zoom Mode"],
+                        desc = L["<zoomRestoreSettingSelect_desc>"],
                         order = 1,
                         width = "full",
                         get =
@@ -2401,9 +2371,9 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                             DynamicCam.db.profile.zoomRestoreSetting = newValue
                           end,
                         values = {
-                          ["never"] = "Never",
-                          ["always"] = "Always",
-                          ["adaptive"] = "Adaptive",
+                          ["never"] = L["Never"],
+                          ["always"] = L["Always"],
+                          ["adaptive"] = L["Adaptive"],
                         },
                         sorting = {
                           "never",
@@ -2426,7 +2396,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
 
                   zoomDescriptionGroup = {
                     type = "group",
-                    name = "Help",
+                    name = L["Help"],
                     order = 5,
                     hidden =
                       function()
@@ -2435,14 +2405,7 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
                     args = {
                       zoomDescription = {
                         type = "description",
-                        name =
-[[To determine the current zoom level, you can either use the "Visual Aid" (toggled in DynamicCam's "Mouse Zoom" settings) or use the console command:
-
-  /zoomInfo
-
-Or for short:
-
-  /zi]],
+                        name = L["<zoom_desc>"],
                       },
                     },
                   },
@@ -2459,15 +2422,15 @@ Or for short:
             type = "group",
             name =
               function()
-                return GreyWhenInactive("Rotation", S.rotation.enabled)
+                return GreyWhenInactive(L["Rotation"], S.rotation.enabled)
               end,
             order = 2,
             args = {
 
               rotationToggle = {
                 type = "toggle",
-                name = "Enable",
-                desc = "Start a camera rotation when this situation is active.",
+                name = L["Enable"],
+                desc = L["Start a camera rotation when this situation is active."],
                 get =
                   function()
                     return S.rotation.enabled
@@ -2483,12 +2446,12 @@ Or for short:
               rotationReset = {
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
-                name = "Reset",
+                name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
+                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -2524,8 +2487,8 @@ Or for short:
 
                   rotationType = {
                     type = "select",
-                    name = "Rotation Type",
-                    desc = "\nContinuously: The camera is rotating horizontally all the time while this situation is active. Only advisable for situations in which you are not mouse-moving the camera; e.g. teleport spell casting, taxi or AFK. Continuous vertical rotation is not possible as it would stop at the perpendicular upwards or downwards view.\n\nBy Degrees: After entering the situation, change the current camera yaw (horizontal) and/or pitch (vertical) by the given amount of degrees.",
+                    name = L["Rotation Type"],
+                    desc = L["<rotationType_desc>"],
                     get =
                       function()
                         return S.rotation.rotationType
@@ -2536,30 +2499,30 @@ Or for short:
                         ApplyContinuousRotation()
                       end,
                     values = {
-                      ["continuous"] = "Continuously",
-                      ["degrees"] = "By Degrees",
+                      ["continuous"] = L["Continuously"],
+                      ["degrees"] = L["By Degrees"],
                     },
                     width = "full",
                     order = 1,
                   },
                   blank1 = {type = "description", name = "\n\n", order = 1.1, },
 
-                  rotationTime = {
+                  rotationOrAccelerationTime = {
                     type = "range",
                     name =
                       function()
                         if S.rotation.rotationType == "continuous" then
-                          return "Acceleration Time"
+                          return L["Acceleration Time"]
                         else
-                          return "Rotation Time"
+                          return L["Rotation Time"]
                         end
                       end,
                     desc =
                       function()
                         if S.rotation.rotationType == "continuous" then
-                          return "If you set a time greater than 0 here, the continuous rotation will not immediately start at its full rotation speed but will take that amount of time to accelerate. (Only noticeable for relatively high rotation speeds.)"
+                          return L["<accelerationTime_desc>"]
                         else
-                          return "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
+                          return L["<rotationTime_desc>"]
                         end
                       end,
                     min = 0,
@@ -2580,8 +2543,8 @@ Or for short:
 
                   rotationSpeed = {
                     type = "range",
-                    name = "Rotation Speed",
-                    desc = "Speed at which to rotate in degrees per second. You can manually enter values between -900 and 900, if you want to get yourself really dizzy...",
+                    name = L["Rotation Speed"],
+                    desc = L["Speed at which to rotate in degrees per second. You can manually enter values between -900 and 900, if you want to get yourself really dizzy..."],
                     min = -900,
                     max = 900,
                     softMin = -90,
@@ -2606,8 +2569,8 @@ Or for short:
 
                   yawDegrees = {
                     type = "range",
-                    name = "Yaw (-Left/Right+)",
-                    desc = "Degrees to yaw (left or right).",
+                    name = L["Yaw (-Left/Right+)"],
+                    desc = L["Degrees to yaw (left or right)."],
                     min = -1400,
                     max = 1440,
                     softMin = -360,
@@ -2639,8 +2602,8 @@ Or for short:
                   },
                   pitchDegrees = {
                     type = "range",
-                    name = "Pitch (-Down/Up+)",
-                    desc = "Degrees to pitch (up or down). There is no going beyond the perpendicular upwards or downwards view.",
+                    name = L["Pitch (-Down/Up+)"],
+                    desc = L["Degrees to pitch (up or down). There is no going beyond the perpendicular upwards or downwards view."],
                     min = -180,
                     max = 180,
                     hidden =
@@ -2665,8 +2628,8 @@ Or for short:
 
                   rotateBack = {
                     type = "toggle",
-                    name = "Rotate Back",
-                    desc = "When exiting the situation, rotate back by the amount of degrees (modulo 360) rotated since entering the situation. This effectively brings you to the pre-entering camera position, unless you have in between changed the view angle with your mouse.\n\nIf you are entering a new situation with a rotation setting of its own, the \"rotate back\" of the exiting situation is ignored.",
+                    name = L["Rotate Back"],
+                    desc = L["<rotateBack_desc>"],
                     get =
                       function()
                         return S.rotation.rotateBack
@@ -2680,8 +2643,8 @@ Or for short:
                   },
                   rotateBackTime = {
                     type = "range",
-                    name = "Rotate Back Time",
-                    desc = "The time it takes to rotate back. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.",
+                    name = L["Rotate Back Time"],
+                    desc = L["<rotateBackTime_desc>"],
                     min = 0,
                     max = 5,
                     step = .05,
@@ -2711,14 +2674,14 @@ Or for short:
             type = "group",
             name =
               function()
-                return GreyWhenInactive("Fade Out UI", S.hideUI.enabled)
+                return GreyWhenInactive(L["Fade Out UI"], S.hideUI.enabled)
               end,
             order = 3,
             args = {
               hideUIToggle = {
                 type = "toggle",
-                name = "Enable",
-                desc = "Fade out or hide (parts of) the UI when this situation is active.",
+                name = L["Enable"],
+                desc = L["Fade out or hide (parts of) the UI when this situation is active."],
                 get =
                   function()
                     return S.hideUI.enabled
@@ -2734,12 +2697,12 @@ Or for short:
               hideUIReset = {
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
-                name = "Reset",
+                name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = "Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)",
+                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -2765,8 +2728,8 @@ Or for short:
 
               adjustToImmersion = {
                 type = "execute",
-                name = "Adjust to Immersion",
-                desc = "Many people use the Addon Immersion in combination with DynamicCam. Immersion has some hide UI features of its own which come into effect during NPC interaction. Under certain circumstances, DynamicCam's hide UI overrides that of Immersion. To prevent this, make your desired setting here in DynamicCam. Click this button to use the same fade-in and fade-out times as Immersion. For even more options, check out Ludius's other addon called \"Immersion ExtraFade\".",
+                name = L["Adjust to Immersion"],
+                desc = L["<adjustToImmersion_desc>"],
                 func =
                   function()
                     S.hideUI.fadeOutTime = 0.2
@@ -2794,8 +2757,8 @@ Or for short:
 
                   fadeOutTime = {
                     type = "range",
-                    name = "Fade Out Time",
-                    desc = "Seconds it takes to fade out the UI when entering the situation.",
+                    name = L["Fade Out Time"],
+                    desc = L["Seconds it takes to fade out the UI when entering the situation."],
                     min = 0,
                     max = 5,
                     step = .05,
@@ -2813,8 +2776,8 @@ Or for short:
                   blank1 = {type = "description", name = " ", order = 1.1, },
                   fadeInTime = {
                     type = "range",
-                    name = "Fade In Time",
-                    desc = "Seconds it takes to fade the UI back in when exiting the situation.\n\nWhen you exit a situation while entering another situation, the fade out time of the entering situation is used for the transition.",
+                    name = L["Fade In Time"],
+                    desc = L["<fadeInTime_desc>"],
                     min = 0,
                     max = 5,
                     step = .05,
@@ -2835,14 +2798,14 @@ Or for short:
                     type = "toggle",
                     name =
                       function()
-                        local text = "Hide entire UI"
+                        local text = L["Hide entire UI"]
                         if S.hideUI.hideEntireUI then
                           return "|cFFFF4040" .. text .. "|r"
                         else
                           return text
                         end
                       end,
-                    desc = "There is a difference between a \"hidden\" UI and a \"just faded out\" UI: the faded-out UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are automatically hiding most UI elements if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a relic. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"just faded out\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!",
+                    desc = L["<hideEntireUI_desc>"],
                     disabled =
                       function()
                         return not S.hideUI.enabled
@@ -2863,8 +2826,8 @@ Or for short:
 
                   keepFrameRate = {
                     type = "toggle",
-                    name = "Keep FPS indicator",
-                    desc = "Do not fade out or hide the FPS indicator (the one you typically toggle with Ctrl + R).",
+                    name = L["Keep FPS indicator"],
+                    desc = L["Do not fade out or hide the FPS indicator (the one you typically toggle with Ctrl + R)."],
                     disabled =
                       function()
                         return not S.hideUI.enabled
@@ -2883,8 +2846,8 @@ Or for short:
 
                   hideUIFadeOpacity = {
                     type = "range",
-                    name = "Fade Opacity",
-                    desc = "Fade the UI to this opacity when entering the situation.",
+                    name = L["Fade Opacity"],
+                    desc = L["Fade the UI to this opacity when entering the situation."],
                     min = 0,
                     max = 1,
                     step = .01,
@@ -2908,7 +2871,7 @@ Or for short:
 
                   excludedFramesGroup = {
                     type = "group",
-                    name = "Excluded UI elements",
+                    name = L["Excluded UI elements"],
                     order = 6,
                     disabled =
                       function()
@@ -2918,8 +2881,8 @@ Or for short:
 
                       keepAlertFrames = {
                         type = "toggle",
-                        name = "Keep Alerts",
-                        desc = "Still show alert popups from completed achievements, Covenant Renown, etc.",
+                        name = L["Keep Alerts"],
+                        desc = L["Still show alert popups from completed achievements, Covenant Renown, etc."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -2936,8 +2899,8 @@ Or for short:
 
                       keepTooltip = {
                         type = "toggle",
-                        name = "Keep Tooltip",
-                        desc = "Still show the game tooltip, which appears when you hover your mouse cursor over UI or world elements.",
+                        name = L["Keep Tooltip"],
+                        desc = L["Still show the game tooltip, which appears when you hover your mouse cursor over UI or world elements."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -2954,8 +2917,8 @@ Or for short:
 
                       keepMinimap = {
                         type = "toggle",
-                        name = "Keep Minimap",
-                        desc = "Do not fade out the Minimap.\n\nNotice that we cannot reduce the opacity of the \"blips\" on the Minimap. These can only be hidden together with the whole Minimap, when the UI is faded to 0 opacity.",
+                        name = L["Keep Minimap"],
+                        desc = L["<keepMinimap_desc>"],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -2972,8 +2935,8 @@ Or for short:
 
                       keepChatFrame = {
                         type = "toggle",
-                        name = "Keep Chat Box",
-                        desc = "Do not fade out the chat box.",
+                        name = L["Keep Chat Box"],
+                        desc = L["Do not fade out the chat box."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -2990,8 +2953,8 @@ Or for short:
 
                       keepTrackingBar = {
                         type = "toggle",
-                        name = "Keep Tracking Bar",
-                        desc = "Do not fade out the tracking bar (XP, AP, reputation).",
+                        name = L["Keep Tracking Bar"],
+                        desc = L["Do not fade out the tracking bar (XP, AP, reputation)."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -3008,8 +2971,8 @@ Or for short:
 
                       keepPartyRaidFrame = {
                         type = "toggle",
-                        name = "Keep Party/Raid",
-                        desc = "Do not fade out the Party/Raid frame.",
+                        name = L["Keep Party/Raid"],
+                        desc = L["Do not fade out the Party/Raid frame."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -3026,8 +2989,8 @@ Or for short:
 
                       keepEncounterBar = {
                         type = "toggle",
-                        name = "Keep Encounter Frame (Dragonriding Vigor)",
-                        desc = "Do not fade out the Encounter Frame, which while dragonriding is the Vigor display.",
+                        name = L["Keep Encounter Frame (Dragonriding Vigor)"],
+                        desc = L["Do not fade out the Encounter Frame, which while dragonriding is the Vigor display."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -3045,9 +3008,9 @@ Or for short:
                       n7 = {order = 7, type = "description", name = " ",},
 
                       keepCustomFrames = {
-                        type = 'toggle',
-                        name = "Keep additional frames",
-                        desc = "The text box below allows you to define any frame you want to keep during NPC interaction.\n\nUse the console command /fstack to learn the names of frames.\n\nFor example, you may want to keep the buff icons next to the Minimap to be able to dismount during NPC interaction by clicking the appropriate icon.",
+                        type = "toggle",
+                        name = L["Keep additional frames"],
+                        desc = L["<keepCustomFrames_desc>"],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -3064,8 +3027,8 @@ Or for short:
 
                       customFramesToKeep = {
                         type = "input",
-                        name = "Custom frames to keep",
-                        desc = "Separated by commas.",
+                        name = L["Custom frames to keep"],
+                        desc = L["Separated by commas."],
                         get =
                           function()
                             returnString = ""
@@ -3110,7 +3073,7 @@ Or for short:
 
                   emergencyShowGroup = {
                     type = "group",
-                    name = "Emergency Fade In",
+                    name = L["Emergency Fade In"],
                     order = 7,
                     disabled =
                       function()
@@ -3119,7 +3082,7 @@ Or for short:
                     args = {
                       emergencyShowEscEnabled = {
                         type = "toggle",
-                        name = "Pressing Esc fades the UI back in.",
+                        name = L["Pressing Esc fades the UI back in."],
                         get =
                           function()
                             return S.hideUI.emergencyShowEscEnabled
@@ -3131,27 +3094,9 @@ Or for short:
                         order = 1,
                         width = "full",
                       },
-                      headTrackingDescription = {
+                      emergencyShowDescription = {
                         type = "description",
-                        name =
-[[Sometimes you need to show the UI even in situations where you normaly want it hidden. Older versions of DynamicCam established that the UI is shown whenever the Esc key is pressed. The downside of this is that the UI is also shown when the Esc key is used for other purposes like closing windows, cancelling spell casting etc. Unchecking the above checkbox disables this.
-
-Notice however that you can lock yourself out of the UI this way! A better alternative to the Esc key are the following console commands, which show or hide the UI according to the current situation's "Fade Out UI" settings:
-
-    /showUI
-    /hideUI
-
-For a convenient fade-in hotkey, put /showUI into a macro and assign a key to it in your "bindings-cache.wtf" file. E.g.:
-
-    bind ALT+F11 MACRO Your Macro Name
-
-If editing the "bindings-cache.wtf" file puts you off, you could use a keybind addon like "BindPad".
-
-Using /showUI or /hideUI without any arguments takes the current situation's fade in or fade out time. But you can also provide a different transition time. E.g.:
-
-    /showUI 0
-
-to show the UI without any delay.]],
+                        name = L["<emergencyShow_desc>"],
                         order = 2,
                       },
                     },
@@ -3162,18 +3107,18 @@ to show the UI without any delay.]],
 
               hideUIHelpGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 order = 3,
                 inline = true,
                 args = {
                   hideUIHelpDescription = {
                     type = "description",
-                    name = "While setting up your desired UI fade effects, it can be annoying when this \"Interface\" settings frame fades out as well. If this box is checked, it will not be faded out.\n\nThis setting is global for all situations.",
+                    name = L["<hideUIHelp_desc>"],
                     order = 1,
                   },
                   settingsPanelIgnoreParentAlpha = {
                     type = "toggle",
-                    name = "Do not fade out this \"Interface\" settings frame.",
+                    name = L["Do not fade out this \"Interface\" settings frame."],
                     get =
                       function()
                         return SettingsPanel:IsIgnoringParentAlpha()
@@ -3197,13 +3142,13 @@ to show the UI without any delay.]],
       situationControls = {
 
         type = "group",
-        name = function() return ColourTextErrorOrModified("Situation Controls") end,
+        name = function() return ColourTextErrorOrModified(L["Situation Controls"]) end,
         order = 7,
         args = {
 
           help = {
             type = "description",
-            name = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates.\n\n",
+            name = L["<situationControls_help>"],
             order = 0,
           },
 
@@ -3211,15 +3156,15 @@ to show the UI without any delay.]],
             type = "group",
             name =
               function()
-                return ColourTextErrorOrModified("Priority", "value", "priority")
+                return ColourTextErrorOrModified(L["Priority"], "value", "priority")
               end,
             order = 1,
             args = {
 
               priority = {
                 type = "input",
-                name = "Priority",
-                desc = "The priority of this situation.\nMust be a number.",
+                name = L["Priority"],
+                desc = L["The priority of this situation.\nMust be a number."],
                 get = function() return ""..S.priority end,
                 set =
                   function(_, newValue)
@@ -3232,10 +3177,10 @@ to show the UI without any delay.]],
               },
               priorityDefault = {
                 type = "execute",
-                name = "Restore stock setting",
+                name = L["Restore stock setting"],
                 desc =
                   function()
-                    return "Your \"Priority\" deviates from the stock setting for this situation (".. DynamicCam.defaults.profile.situations[SID].priority .. "). Click here to restore it."
+                    return L["Your \"Priority\" deviates from the stock setting for this situation ("].. DynamicCam.defaults.profile.situations[SID].priority .. L["). Click here to restore it."]
                   end,
                 func =
                   function()
@@ -3252,13 +3197,13 @@ to show the UI without any delay.]],
 
               priorityDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 3,
                 args = {
                   priorityDescription = {
                     type = "description",
-                    name = "If the conditions of several different DynamicCam situations are fulfilled at the same time, the situation with the highest priority is entered. For example, whenever the condition of \"World Indoors\" is fulfilled, the condition of \"World\" is fulfilled as well. But as \"World Indoor\" has a higher priority than \"World\", it is prioritised. You can also see the priorities of all situations in the drop down menu above.\n\n",
+                    name = L["<priority_desc>"],
                   },
                 },
               },
@@ -3269,7 +3214,7 @@ to show the UI without any delay.]],
             type = "group",
             name =
               function()
-                return ColourTextErrorOrModified("Events", "events", "events")
+                return ColourTextErrorOrModified(L["Events"], "events", "events")
               end,
             order = 2,
             args = {
@@ -3279,7 +3224,7 @@ to show the UI without any delay.]],
                 name =
                   function()
                     if S.errorEncountered and S.errorEncountered == "events" then
-                      return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                      return "|cFFEE0000" .. L["Error message:"] "\n\n" .. S.errorMessage .. "|r\n\n"
                     end
                   end,
                 hidden =
@@ -3291,8 +3236,8 @@ to show the UI without any delay.]],
 
               events = {
                 type = "input",
-                name = "Events",
-                desc = "Separated by commas.",
+                name = L["Events"],
+                desc = L["Separated by commas."],
                 get = function() return table.concat(S.events, ", ") end,
                 set =
                   function(_, newValue)
@@ -3311,8 +3256,8 @@ to show the UI without any delay.]],
 
               eventsDefault = {
                 type = "execute",
-                name = "Restore stock setting",
-                desc = "Your \"Events\" deviate from the default for this situation. Click here to restore them.",
+                name = L["Restore stock setting"],
+                desc = L["Your \"Events\" deviate from the default for this situation. Click here to restore them."],
                 func =
                   function()
                     S.events = DynamicCam.defaults.profile.situations[SID].events
@@ -3328,24 +3273,13 @@ to show the UI without any delay.]],
 
               eventsDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 3,
                 args = {
                   eventsDescription = {
                     type = "description",
-                    name =
-[[Here you define all the in-game events upon which DynamicCam should check the condition of this situation, to enter or exit it if applicable.
-
-You can learn about in-game events using WoW's Event Log.
-To open it, type this into the console:
-
-  /eventtrace
-
-A list of all possible events can also be found here:
-https://warcraft.wiki.gg/wiki/Events
-
-]],
+                    name = L["<events_desc>"],
 
 -- TODO: Still need this for classic:
 -- Notice, that you have to manually scroll down after the window first opens. Then you can use these commands to stop and start the logging:
@@ -3365,7 +3299,7 @@ https://warcraft.wiki.gg/wiki/Events
             type = "group",
             name =
               function()
-                return ColourTextErrorOrModified("Initialisation", "script", "executeOnInit")
+                return ColourTextErrorOrModified(L["Initialisation"], "script", "executeOnInit")
               end,
             order = 3,
             args = {
@@ -3375,7 +3309,7 @@ https://warcraft.wiki.gg/wiki/Events
                 name =
                   function()
                     if S.errorEncountered and S.errorEncountered == "executeOnInit" then
-                      return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                      return "|cFFEE0000" .. L["Error message:"] .. "\n\n" .. S.errorMessage .. "|r\n\n"
                     end
                   end,
                 hidden =
@@ -3387,8 +3321,8 @@ https://warcraft.wiki.gg/wiki/Events
 
               executeOnInit = {
                 type = "input",
-                name = "Initialisation Script",
-                desc = "Lua code using the WoW UI API.",
+                name = L["Initialisation Script"],
+                desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnInit end,
                 set =
                   function(_, newValue)
@@ -3402,8 +3336,8 @@ https://warcraft.wiki.gg/wiki/Events
 
               executeOnInitDefault = {
                 type = "execute",
-                name = "Restore stock setting",
-                desc = "Your \"Initialisation Script\" deviates from the stock setting for this situation. Click here to restore it.",
+                name = L["Restore stock setting"],
+                desc = L["Your \"Initialisation Script\" deviates from the stock setting for this situation. Click here to restore it."],
                 func =
                   function()
                     S.executeOnInit = DynamicCam.defaults.profile.situations[SID].executeOnInit
@@ -3419,20 +3353,13 @@ https://warcraft.wiki.gg/wiki/Events
 
               initialisationDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 3,
                 args = {
                   initialisationDescription = {
                     type = "description",
-                    name =
-[[The initialisation script of a situation is run once when DynamicCam is loaded (and also when the situation is modified). You would typically put stuff into it which you want to reuse in any of the other scripts (condition, on-enter, on-exit). This can make these other scripts a bit shorter.
-
-For example, the initialisation script of the "Hearth/Teleport" situation defines the table "this.spells", which includes the spell IDs of teleport spells. The condition script can then simply access "this.spells" every time it is executed.
-
-Like in this example, you can share any data object between the scripts of a situation by putting it into the "this" table.
-
-]],
+                    name = L["<initialisation_desc>"],
                   },
                 },
               },
@@ -3443,7 +3370,7 @@ Like in this example, you can share any data object between the scripts of a sit
             type = "group",
             name =
               function()
-                return ColourTextErrorOrModified("Condition", "script", "condition")
+                return ColourTextErrorOrModified(L["Condition"], "script", "condition")
               end,
             order = 4,
             args = {
@@ -3465,8 +3392,8 @@ Like in this example, you can share any data object between the scripts of a sit
 
               condition = {
                 type = "input",
-                name = "Condition Script",
-                desc = "Lua code using the WoW UI API.\nShould return \"true\" if and only if the situation should be active.",
+                name = L["Condition Script"],
+                desc = L["Lua code using the WoW UI API.\nShould return \"true\" if and only if the situation should be active."],
                 get = function() return S.condition end,
                 set =
                   function(_, newValue)
@@ -3480,8 +3407,8 @@ Like in this example, you can share any data object between the scripts of a sit
 
               conditionDefault = {
                 type = "execute",
-                name = "Restore stock setting",
-                desc = "Your \"Condition Script\" deviates from the stock setting for this situation. Click here to restore it.",
+                name = L["Restore stock setting"],
+                desc = L["Your \"Condition Script\" deviates from the stock setting for this situation. Click here to restore it."],
                 func =
                   function()
                     S.condition = DynamicCam.defaults.profile.situations[SID].condition
@@ -3497,27 +3424,13 @@ Like in this example, you can share any data object between the scripts of a sit
 
               conditionDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 3,
                 args = {
                   conditionDescription = {
                     type = "description",
-                    name =
-[[The condition script of a situation is run every time an in-game event of this situation is triggered. The script should return "true" if and only if this situation should be active.
-
-For example, the condition script of the "City" situation uses the WoW API function "IsResting()" to check if you are currently in a resting zone:
-
-  return IsResting()
-
-Likewise, the condition script of the "City - Indoors" situation also uses the WoW API function "IsIndoors()" to also check if you are indoors:
-
-  return IsResting() and IsIndoors()
-
-A list of WoW API functions can be found here:
-https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
-
-]],
+                    name = L["<condition_desc>"],
                   },
                 },
               },
@@ -3528,7 +3441,7 @@ https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
             type = "group",
             name =
               function()
-                return ColourTextErrorOrModified("Entering", "script", "executeOnEnter")
+                return ColourTextErrorOrModified(L["Entering"], "script", "executeOnEnter")
               end,
             order = 5,
             args = {
@@ -3538,7 +3451,7 @@ https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
                 name =
                   function()
                     if S.errorEncountered and S.errorEncountered == "executeOnEnter" then
-                      return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                      return L["|cFFEE0000Error message:\n\n"] .. S.errorMessage .. "|r\n\n"
                     end
                   end,
                 hidden =
@@ -3550,8 +3463,8 @@ https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
 
               executeOnEnter = {
                 type = "input",
-                name = "On-Enter Script",
-                desc = "Lua code using the WoW UI API.",
+                name = L["On-Enter Script"],
+                desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnEnter end,
                 set =
                   function(_, newValue)
@@ -3565,8 +3478,8 @@ https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
 
               executeOnEnterDefault = {
                 type = "execute",
-                name = "Restore stock setting",
-                desc = "Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it.",
+                name = L["Restore stock setting"],
+                desc = L["Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it."],
                 func =
                   function()
                     S.executeOnEnter = DynamicCam.defaults.profile.situations[SID].executeOnEnter
@@ -3582,18 +3495,13 @@ https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
 
               executeOnEnterDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 3,
                 args = {
                   executeOnEnterDescription = {
                     type = "description",
-                    name =
-[[The on-enter script of a situation is run every time the situation is entered.
-
-So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.transitionTime" and "this.rotationTime", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Not all teleport spells have the same cast times.)
-
-]],
+                    name = L["<executeOnEnter_desc>"],
                   },
                 },
               },
@@ -3606,9 +3514,9 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
             name =
                 function()
                     if (S.errorEncountered and S.errorEncountered == executeOnExit) or not ScriptIsDefault(SID, "executeOnExit") then
-                        return ColourTextErrorOrModified("Exiting", "script", "executeOnExit")
+                        return ColourTextErrorOrModified(L["Exiting"], "script", "executeOnExit")
                     else
-                        return ColourTextErrorOrModified("Exiting", "value", "delay")
+                        return ColourTextErrorOrModified(L["Exiting"], "value", "delay")
                     end
                 end,
             order = 6,
@@ -3619,7 +3527,7 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                 name =
                   function()
                     if S.errorEncountered and S.errorEncountered == "executeOnExit" then
-                      return "|cFFEE0000Error message:\n\n" .. S.errorMessage .. "|r\n\n"
+                      return L["|cFFEE0000Error message:\n\n"] .. S.errorMessage .. "|r\n\n"
                     end
                   end,
                 hidden =
@@ -3631,8 +3539,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
 
               executeOnExit = {
                 type = "input",
-                name = "On-Exit Script",
-                desc = "Lua code using the WoW UI API.",
+                name = L["On-Exit Script"],
+                desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnExit end,
                 set =
                   function(_, newValue)
@@ -3652,8 +3560,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                 args = {
                   executeOnExitDefault = {
                     type = "execute",
-                    name = "Restore stock setting",
-                    desc = "Your \"On-Exit Script\" deviates from the stock setting for this situation. Click here to restore it.",
+                    name = L["Restore stock setting"],
+                    desc = L["Your \"On-Exit Script\" deviates from the stock setting for this situation. Click here to restore it."],
                     func =
                       function()
                         S.executeOnExit = DynamicCam.defaults.profile.situations[SID].executeOnExit
@@ -3670,8 +3578,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
 
               exitDelay = {
                 type = "input",
-                name = "Exit Delay",
-                desc = "Wait for this many seconds before exiting this situation.",
+                name = L["Exit Delay"],
+                desc = L["Wait for this many seconds before exiting this situation."],
                 get = function() return ""..S.delay end,
                 set =
                   function(_, newValue)
@@ -3692,8 +3600,8 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
                 args = {
                   exitDelayDefault = {
                     type = "execute",
-                    name = "Restore stock setting",
-                    desc = "Your \"Exit Delay\" deviates from the stock setting for this situation. Click here to restore it.",
+                    name = L["Restore stock setting"],
+                    desc = L["Your \"Exit Delay\" deviates from the stock setting for this situation. Click here to restore it."],
                     func =
                       function()
                         S.delay = DynamicCam.defaults.profile.situations[SID].delay
@@ -3710,18 +3618,13 @@ So far, the only example for this is the "Hearth/Teleport" situation in which we
 
               executeOnEnterDescriptionGroup = {
                 type = "group",
-                name = "Help",
+                name = L["Help"],
                 inline = true,
                 order = 5,
                 args = {
                   executeOnEnterDescription = {
                     type = "description",
-                    name =
-[[The on-exit script of a situation is run every time the situation is exited. So far, no situation is using this.
-
-The delay determines how many seconds to wait before exiting the situation. So far, the only example for this is the "Fishing" situation, where the delay gives you time to re-cast your fishing rod without exiting the situation.
-
-]],
+                    name = L["<executeOnEnter_desc>"],
                   },
                 },
               },
@@ -3736,14 +3639,14 @@ The delay determines how many seconds to wait before exiting the situation. So f
       export = {
 
         type = "group",
-        name = "Export",
+        name = L["Export"],
         order = 8,
 
         args = {
 
           description = {
             type = "description",
-            name = "Coming soon(TM).",
+            name = L["Coming soon(TM)."],
             order = 1,
           },
 
@@ -3759,14 +3662,14 @@ The delay determines how many seconds to wait before exiting the situation. So f
       import = {
 
         type = "group",
-        name = "Import",
+        name = L["Import"],
         order = 9,
 
         args = {
 
           description = {
               type = "description",
-              name = "Coming soon(TM).",
+              name = L["Coming soon(TM)."],
               order = 1,
           },
 
@@ -3836,34 +3739,14 @@ end
 
 
 
-local welcomeMessage = [[We're glad that you're here and we hope that you have fun with the addon.
-
-DynamicCam (DC) was started in May 2016 by mpstark when the WoW devs at Blizzard introduced the experimental ActionCam features into the game. The main purpose of DC has been to provide a user interface for the ActionCam settings. Within the game, the ActionCam is still designated as "experimental" and there has been no sign from Blizzard to develop it further. There are some shortcomings, but we should be thankful that ActionCam was left in the game for enthusiast like us to use. :-) DC does not just allow you to change the ActionCam settings but to have different settings for different game situations. Not related to ActionCam, DC also provides features regarding camera zoom and UI fade-out.
-
-The work of mpstark on DC continued until August 2018. While most features worked well for a substantial user base, mpstark had always considered DC to be in beta state and due to his waning investment in WoW he ended up not resuming his work. At that time, Ludius had already begun making adjustments to DC for himself, which was noticed by Weston (aka dernPerkins) who in early 2020 managed to get in touch with mpstark leading to Ludius taking over the development. The first non-beta version 1.0 was released in May 2020 including Ludius's adjustments up to that point. Afterwards, Ludius began to work on an overhaul of DC resulting in version 2.0 being released in Autum 2022.
-
-When mpstark started DC, his focus was on making most customisations in-game instead of having to change the source code. This made it easier to experiment particularly with the different game situations. From version 2.0 on, these advanced settings have been moved to a special section called "Situation Controls". Most users will probably never need it, but for "power users" it is still available. A hazard of making changes there is that saved user settings always override DC's stock settings, even if new versions of DC bring updated stock settings. Hence, a warning is displayed at the top of this page whenever you have stock situations with modified "Situation Controls".
-
-If you think one of DC's stock situations should be changed, you can always create a copy of it with your changes. Feel free to export this new situation and post it on DC's curseforge page. We may then add it as a new stock situtation of its own. You are also welcome to export and post your entire DC profile, as we are always looking for new profile presets which allow newcomers an easier entry to DC. If you find a problem or want to make a suggestion, just leave a note in the curseforge comments or even better use the Issues on GitHub. If you'd like to contribute, also feel free to open a pull request there.
-
-Here are some handy slash commands:
-
-    `/dynamiccam` or `/dc` opens this menu.
-    `/zoominfo` or `/zi` prints out the current zoom level.
-
-    `/zoom #1 #2` zooms to zoom level #1 in #2 seconds.
-    `/yaw #1 #2` yaws the camera by #1 degrees in #2 seconds (negative #1 to yaw right).
-    `/pitch #1 #2` pitches the camera by #1 degrees (negative #1 to pitch up).
-
-
-]]
+local welcomeMessage = L["<welcomeMessage>"]
 
 
 
 
 local about = {
   type = "group",
-  name = "About",
+  name = L["About"],
   order = 10,
   args = {
     situationControlsWarning = {
@@ -3881,14 +3764,14 @@ local about = {
       args = {
         header = {
           type = "header",
-          name = "|cFFEE0000WARNING!|r",
+          name = "|cFFEE0000" .. L["WARNING"] .. "!|r",
           order = 1,
         },
         message = {
           type = "description",
           name =
             function()
-              local returnString = "The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"
+              local returnString = L["The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"]
 
               for situationId, situation in pairs(DynamicCam.defaults.profile.situations) do
                 if not SituationControlsAreDefault(situationId) then
@@ -3896,7 +3779,7 @@ local about = {
                 end
               end
 
-              returnString = returnString .. "\nIf you are doing this on purpose, it is fine. Just be aware that any updates to these settings by the DynamicCam developers will always be overridden by your modified (possibly outdated) version. You can check the \"Situation Controls\" tab of each situation for details. If you are not aware of any \"Situation Controls\" modifications from your side and simply want to restore the stock control settings for *all* situations, hit this button:"
+              returnString = returnString .. L["<situationControlsWarning>"]
 
               return returnString
 
@@ -3905,7 +3788,7 @@ local about = {
         },
         restoreDefaultsButton = {
           type = "execute",
-          name = "Restore all stock Situation Controls",
+          name = L["Restore all stock Situation Controls"],
           order = 3,
           width = "full",
           func =
@@ -3937,7 +3820,7 @@ local about = {
       args = {
         heading = {
           type = "header",
-          name = "Hello and welcome to DynamicCam!",
+          name = L["Hello and welcome to DynamicCam!"],
         },
         message = {
           type = "description",
@@ -3954,28 +3837,28 @@ local about = {
 
 local profileSettings = {
   type = "group",
-  name = "Profiles",
+  name = L["Profiles"],
   order = 4,
   childGroups = "tab",
   args = {
 
     manageProfiles = {
       type = "group",
-      name = "Manage Profiles",
+      name = L["Manage Profiles"],
       order = 1,
       args = {
 
         blank99 = {type = "description", name = " ", order = 99, },
 
-        warning = {
+        manageProfilesWarningGroup = {
           type = "group",
-          name = "Help",
+          name = L["Help"],
           inline = true,
           order = 100,
           args = {
-            priorityDescription = {
+            manageProfilesWarning = {
               type = "description",
-              name = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\nIf you want to switch profiles via macro, you can use the following:\n/run DynamicCam.db:SetProfile(\"Profile name here\")\n\n",
+              name = L["<manageProfilesWarning>"],
             },
           },
         },
@@ -3984,12 +3867,12 @@ local profileSettings = {
 
     presets = {
       type = "group",
-      name = "Profile presets",
+      name = L["Profile presets"],
       order = 2,
       args = {
         description = {
           type = "description",
-          name = "Coming soon(TM).",
+          name = L["Coming soon(TM)."],
           order = 1,
         },
 
@@ -4028,12 +3911,12 @@ local profileSettings = {
 
     importExport = {
       type = "group",
-      name = "Import / Export",
+      name = L["Import / Export"],
       order = 3,
       args = {
         description = {
           type = "description",
-          name = "Coming soon(TM).",
+          name = L["Coming soon(TM)."],
           order = 1,
         },
 
@@ -4165,7 +4048,7 @@ function Options:RegisterMenus()
 
 
   local allOptions = {
-    name = "DynamicCam",
+    name = L["DynamicCam"],
     type = "group",
     childGroups = "tab",
     args = {
@@ -4407,7 +4290,7 @@ end
 
 
 
--- Disable mouse look slider and partially disable motion sickness options
+-- Disable mouse look slider and motion sickness options
 -- and leave a tooltip note in the default UI settings.
 
 local mouseLookSpeedSlider = nil
@@ -4449,8 +4332,8 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
             -- Change tooltip.
             mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
               GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000Disabled|r", _, _, _, true)
-              GameTooltip:AddLine("Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there.", _, _, _, true)
+              GameTooltip:AddLine("|cFFFF0000" .. L["Disabled"] .. "|r", _, _, _, true)
+              GameTooltip:AddLine(L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."], _, _, _, true)
               GameTooltip:Show()
             end)
             mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
@@ -4460,7 +4343,12 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
 
           -- Got to make sure, the slider stays disabled.
           if mouseLookSpeedSlider.Slider:IsEnabled() then
-            mouseLookSpeedSlider:SetEnabled_(false)
+            -- Function name "SetEnabled" introduced in 11.0.0.
+            if mouseLookSpeedSlider.SetEnabled then
+              mouseLookSpeedSlider:SetEnabled(false)
+            else
+              mouseLookSpeedSlider:SetEnabled_(false)
+            end
           end
 
           break
@@ -4474,127 +4362,51 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
   elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
 
     -- Retail got rid of the drop down and only uses a single checkbox now.
-    if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 
-      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-      for i, child in ipairs(children) do
-        if child.Text then
-          if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
-            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
-            foundMotionSicknessElement = true
+    -- Bizarrely, since 11.0.2 checking the checkbox sets
+    -- CameraKeepCharacterCentered = false  and  CameraReduceUnexpectedMovement = true
+    -- whereas unchecking the checkbox sets
+    -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
+    -- Either variable will stop shoulder offset to take effect, so we disable the checkbox completely.
 
-            if not motionSicknessElement then
-              -- print("Disabling drop down")
+
+    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
+    for i, child in ipairs(children) do
+      if child.Text then
+        if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
+          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
+          foundMotionSicknessElement = true
+
+          if not motionSicknessElement then
+            -- print("Disabling motion sickness checkox.")
+            -- Renamed to "Checkbox" in 11.0.0.
+            if child.Checkbox then
+              motionSicknessElement = child.Checkbox
+            else
               motionSicknessElement = child.CheckBox
-
-              if not motionSicknessElementOriginalTooltipEnter then
-                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-              end
-
-
-              -- Change tooltip.
-              motionSicknessElement:SetScript("OnEnter", function(self)
-                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
-                  GameTooltip:AddLine("The \"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" feature of \"" .. MOTION_SICKNESS_CHECKBOX .. "\" is prevented by your DynamicCam addon. But you can still use \"" .. MOTION_SICKNESS_CHECKBOX .. "\" to prevent unexptected character movement.", _, _, _, true)
-                  GameTooltip:Show()
-              end)
-              motionSicknessElement:SetScript("OnLeave", function(self)
-                  GameTooltip:Hide()
-              end)
-
             end
 
-            break
+            if not motionSicknessElementOriginalTooltipEnter then
+              motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
+              motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
+            end
+
+            -- Change tooltip.
+            motionSicknessElement:SetScript("OnEnter", function(self)
+              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
+              GameTooltip:AddLine("|cFFFF0000" .. L["Attention"] .. "|r", _, _, _, true)
+              GameTooltip:AddLine(L["The \""] .. MOTION_SICKNESS_CHECKBOX .. L["\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."], _, _, _, true)
+              GameTooltip:Show()
+            end)
+            motionSicknessElement:SetScript("OnLeave", function(self)
+              GameTooltip:Hide()
+            end)
+
           end
+
+          break
         end
       end
-
-
-    -- Classic still uses the drop down.
-    else
-
-      local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-      for i, child in ipairs(children) do
-        if child.Text then
-          if child.Text:GetText() == MOTION_SICKNESS_DROPDOWN  then
-            -- print("Found", child.Text:GetText(), MOTION_SICKNESS_DROPDOWN)
-            foundMotionSicknessElement = true
-
-            if not motionSicknessElement then
-              -- print("Disabling drop down")
-              motionSicknessElement = child.DropDown.Button
-
-              if not motionSicknessElementOriginalTooltipEnter then
-                motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-                motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-              end
-
-              -- Change tooltip.
-              motionSicknessElement:SetScript("OnEnter", function(self)
-                  GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-                  GameTooltip:AddLine("|cFFFF0000Partially disabled|r", _, _, _, true)
-                  GameTooltip:AddLine("\"" .. MOTION_SICKNESS_CHARACTER_CENTERED .. "\" prevents many features of the addon DynamicCam and is therefore disabled.", _, _, _, true)
-                  GameTooltip:Show()
-              end)
-              motionSicknessElement:SetScript("OnLeave", function(self)
-                  GameTooltip:Hide()
-              end)
-
-
-              -- Prevent unallowed selections.
-              local function UndoSelections(self, valueTable)
-
-                -- Only do this while the drop down is modified.
-                if not motionSicknessElement then return end
-
-                -- When using Increment/Decrement there is no valueTable as argument.
-                if not valueTable then
-                  valueTable = self:GetCurrentSelectedData()
-                end
-
-                if valueTable.value == indexBoth then
-                  self:SetSelectedIndex(indexReduced)
-                elseif valueTable.value == indexCentered then
-                  self:SetSelectedIndex(indexNone)
-                end
-              end
-
-              hooksecurefunc(motionSicknessElement, "OnEntryClicked", UndoSelections)
-              hooksecurefunc(motionSicknessElement, "Increment", UndoSelections)
-              hooksecurefunc(motionSicknessElement, "Decrement", UndoSelections)
-
-            end
-
-            -- Got to make sure the labels stay modified.
-            for i, k in pairs(motionSicknessElement.selections) do
-              -- print(i, k)
-
-              if k.label == MOTION_SICKNESS_CHARACTER_CENTERED then
-                k.label = "|cFFFF0000" .. MOTION_SICKNESS_CHARACTER_CENTERED .. " (disabled)|r"
-                indexCentered = k.value
-              elseif k.label == MOTION_SICKNESS_BOTH then
-                k.label = "|cFFFF0000" .. MOTION_SICKNESS_BOTH .. " (disabled)|r"
-                indexBoth = k.value
-              elseif k.label == MOTION_SICKNESS_NONE then
-                -- k.label = MOTION_SICKNESS_NONE
-                indexNone = k.value
-              elseif k.label == MOTION_SICKNESS_REDUCE_CAMERA_MOTION then
-                -- k.label = MOTION_SICKNESS_REDUCE_CAMERA_MOTION
-                indexReduced = k.value
-              end
-
-              -- for i2, k2 in pairs(k) do
-                -- print("    ", i2, k2)
-              -- end
-            end
-
-            break
-          end
-        end
-      end
-
     end
 
   end
@@ -4607,7 +4419,12 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
     mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
     mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
     if not mouseLookSpeedSlider.Slider:IsEnabled() then
-      mouseLookSpeedSlider:SetEnabled_(true)
+      -- Function name "SetEnabled" introduced in 11.0.0.
+      if mouseLookSpeedSlider.SetEnabled then
+        mouseLookSpeedSlider:SetEnabled(false)
+      else
+        mouseLookSpeedSlider:SetEnabled_(false)
+      end
     end
     mouseLookSpeedSlider = nil
   end
@@ -4647,22 +4464,102 @@ end)
 hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
 hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
 
-
-
 local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
-hooksecurefunc("SetCVar", function(cvar, value)
-  -- print(cvar, value)
+hooksecurefunc("SetCVar", function(cvar, value, flag)
+  -- print(cvar, value, flag)
+
+  -- We are only handling cvar calls not done by DynamicCam.
+  if flag == "DynamicCam" then return end
+
 
   -- Automatically undo forbidden motion sickness setting.
-  if cvar == "CameraKeepCharacterCentered" and (value == "1" or value == 1 or value == true) then
-    print("|cFFFF0000CameraKeepCharacterCentered prevented by DynamicCam!|r")
-    SetCVar("CameraKeepCharacterCentered", false)
+  if cvar == "CameraKeepCharacterCentered" then
+    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
+    DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
+    -- print("|cFF0000FFStoring userCameraKeepCharacterCentered!|r", GetCVar("CameraKeepCharacterCentered"))
+
+    if value == true or tonumber(value) == 1 then
+      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+        print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+
+      elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
+        print("|cFFFF0000" .. L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+    end
+
+
+  -- As off 11.0.2 this is also needed for shoulder offset to take effect.
+  elseif cvar == "CameraReduceUnexpectedMovement" then
+    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
+    DynamicCam.userCameraReduceUnexpectedMovement = GetCVar("CameraReduceUnexpectedMovement")
+    -- print("|cFF0000FFStoring userCameraReduceUnexpectedMovement!|r", GetCVar("CameraReduceUnexpectedMovement"))
+
+    if value == true or tonumber(value) == 1 then
+      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+        print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] .. "|r")
+        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
+      end
+    end
+
+
+  elseif cvar == "test_cameraOverShoulder" then
+
+    -- If necessary, prevent Motion Sickness.
+    if tonumber(value) ~= 0 then
+
+      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
+        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+      if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
+        -- print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
+        assert(DynamicCam.userCameraReduceUnexpectedMovement == GetCVar("CameraReduceUnexpectedMovement"))
+        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
+      end
+
+    -- If no longer necessary, restore Motion Sickness.
+    -- (cvar may become 0 "according to zoom level", so we check
+    elseif DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "cvars", "test_cameraOverShoulder") == 0 then
+      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
+        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
+      end
+      if DynamicCam.userCameraReduceUnexpectedMovement ~= GetCVar("CameraReduceUnexpectedMovement") then
+        -- print("|cFF00FF00Restoring CameraReduceUnexpectedMovement!|r")
+        SetCVar("CameraReduceUnexpectedMovement", DynamicCam.userCameraReduceUnexpectedMovement, "DynamicCam")
+      end
+    end
+
+
+  elseif cvar == "test_cameraDynamicPitch" then
+
+    -- If necessary, prevent Motion Sickness.
+    if tonumber(value) == 1 then
+      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
+        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
+      end
+
+    -- If no longer necessary, restore Motion Sickness.
+    else
+      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
+        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
+        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
+      end
+    end
+
+
+
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
   elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
-    print("|cFFFF0000cameraView =", value, "prevented by DynamicCam!|r")
-    SetCVar("cameraView", GetCVarDefault("cameraView"))
+    print("|cFFFF0000" .. L["cameraView ="], value, L["prevented by DynamicCam!"] .. "|r")
+    SetCVar("cameraView", GetCVarDefault("cameraView"), "DynamicCam")
 
   -- Switch to a default view, if user switches to cameraSmoothStyle.
   elseif cvar == "cameraSmoothStyle" and value ~= "0" then

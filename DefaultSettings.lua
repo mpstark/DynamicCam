@@ -1,6 +1,6 @@
 local folderName = ...
 local DynamicCam = LibStub("AceAddon-3.0"):GetAddon(folderName)
-
+local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 
 
 
@@ -76,18 +76,18 @@ DynamicCam.situationDefaults = {
 
     keepCustomFrames   = false,
     customFramesToKeep = {
-      ["AuctionHouseFrame"] = true,
-      ["BankFrame"]         = true,
-      ["BagnonBankFrame1"]  = true,
-      ["BuffFrame"]         = true,
-      ["ClassTrainerFrame"] = true,
-      ["DebuffFrame"]       = true,
-      ["GossipFrame"]       = true,
-      ["MerchantFrame"]     = true,
-      ["PetStableFrame"]    = true,
-      ["QuestFrame"]        = true,
-      ["StaticPopup1"]      = true,
-      ["WardrobeFrame"]     = true,
+      AuctionHouseFrame = true,
+      BankFrame         = true,
+      BagnonBankFrame1  = true,
+      BuffFrame         = true,
+      ClassTrainerFrame = true,
+      DebuffFrame       = true,
+      GossipFrame       = true,
+      MerchantFrame     = true,
+      PetStableFrame    = true,
+      QuestFrame        = true,
+      StaticPopup1      = true,
+      WardrobeFrame     = true,
     },
 
   },
@@ -168,143 +168,183 @@ DynamicCam.defaults = {
     situations = {
 
       ["001"] = {
-        name = "City",
+        name = L["City"],
         events = {"PLAYER_UPDATE_RESTING"},
         priority = 1,
         condition = "return IsResting()",
       },
       ["002"] = {
-        name = "City - Indoors",
+        name = L["City (Indoors)"],
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "SPELL_UPDATE_USABLE"},
         priority = 11,
         condition = "return IsResting() and IsIndoors()",
       },
       ["004"] = {
-        name = "World",
+        name = L["World"],
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_NEW_AREA"},
         priority = 0,
         condition = "return not IsResting() and not IsInInstance()",
       },
       ["005"] = {
-        name = "World - Indoors",
+        name = L["World (Indoors)"],
         events = {"PLAYER_UPDATE_RESTING", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 10,
         condition = "return not IsResting() and not IsInInstance() and IsIndoors()",
       },
       ["006"] = {
-        name = "World - Combat",
+        name = L["World (Combat)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 50,
         condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
       },
       ["020"] = {
-        name = "Dungeon/Scenerio",
+        name = L["Dungeon/Scenerio"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 2,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario")]],
       },
       ["021"] = {
-        name = "Dungeon/Scenerio (Outdoors)",
+        name = L["Dungeon/Scenerio (Outdoors)"],
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 12,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and IsOutdoors()]],
       },
       ["023"] = {
-        name = "Dungeon/Scenerio (Combat, Boss)",
+        name = L["Dungeon/Scenerio (Combat, Boss)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 302,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["024"] = {
-        name = "Dungeon/Scenerio (Combat, Trash)",
+        name = L["Dungeon/Scenerio (Combat, Trash)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 202,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and not IsEncounterInProgress()]],
       },
       ["030"] = {
-        name = "Raid",
+        name = L["Raid"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid"]],
       },
       ["031"] = {
-        name = "Raid - Outdoors",
+        name = L["Raid (Outdoors)"],
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 13,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and IsOutdoors()]],
       },
       ["033"] = {
-        name = "Raid - Combat - Boss",
+        name = L["Raid (Combat, Boss)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 303,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["034"] = {
-        name = "Raid - Combat - Trash",
+        name = L["Raid (Combat, Trash)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "raid" and UnitAffectingCombat("player") and not IsEncounterInProgress()]],
       },
       ["050"] = {
-        name = "Arena",
+        name = L["Arena"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "arena"]],
       },
       ["051"] = {
-        name = "Arena - Combat",
+        name = L["Arena (Combat)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "arena" and UnitAffectingCombat("player")]],
       },
       ["060"] = {
-        name = "Battleground",
+        name = L["Battleground"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 3,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp"]],
       },
       ["061"] = {
-        name = "Battleground - Combat",
+        name = L["Battleground (Combat)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA"},
         priority = 203,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
       },
+
+
       ["100"] = {
-        name = "Mounted",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
+        name = L["Mounted (any)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
         priority = 100,
         condition = "return IsMounted() and not UnitOnTaxi(\"player\")",
       },
+
       ["101"] = {
-        name = "Taxi",
-        events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
-        priority = 1000,
-        condition = "return UnitOnTaxi(\"player\")",
+        name = L["Mounted (only flying-mount)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly()",
       },
+
       ["102"] = {
-        name = "Vehicle",
-        events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
-        priority = 1000,
-        condition = "return UnitUsingVehicle(\"player\")",
+        name = L["Mounted (only flying-mount + airborne)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying()",
       },
+
       ["103"] = {
-        name = "Druid Travel Form",
+        name = L["Mounted (only flying-mount + airborne + Skyriding)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 103,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and IsFlying() and DynamicCam:SkyridingOn()",
+      },
+
+      ["104"] = {
+        name = L["Mounted (only flying-mount + Skyriding)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:CurrentMountCanFly() and DynamicCam:SkyridingOn()",
+      },
+
+      ["105"] = {
+        name = L["Mounted (only airborne)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying()",
+      },
+
+      ["106"] = {
+        name = L["Mounted (only airborne + Skyriding)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 102,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and IsFlying() and DynamicCam:SkyridingOn()",
+      },
+
+      ["107"] = {
+        name = L["Mounted (only Skyriding)"],
+        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
+        priority = 101,
+        condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
+      },
+
+      ["115"] = {
+        name = L["Druid Travel Form"],
         events = {"UPDATE_SHAPESHIFT_FORM"},
         executeOnInit = [[this.travelFormIds = {
-  [3] = true,  -- Travel
-  [4] = true,  -- Aquatic
+   [3] = true,  -- Travel
+   [4] = true,  -- Aquatic
   [27] = true, -- Swift Flight
   [29] = true, -- Flight
 }]],
@@ -316,72 +356,59 @@ else
   return false
 end]],
       },
+
       ["120"] = {
-        name = "Dracthyr Soar",
+        name = L["Dracthyr Soar"],
         events = {"UNIT_AURA"},
         priority = 100,
-        condition = [[for i = 1, 40 do
-  local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-  if spellId == 369536 then return true end
+        condition = [[if C_UnitAuras.GetPlayerAuraBySpellID(430747) ~= nil then return true end
+return false]],
+      },
+
+      ["130"] = {
+        name = L["Skyriding Race"],
+        events = {"UNIT_AURA"},
+        -- Get all "Race Starting" buff IDs with the copy ID button here:
+        -- https://www.wowhead.com/spells/uncategorized/name:race+starting
+        -- (Use the "copy" icon, then select ID. Sorting must be done afterwards.)
+        executeOnInit = [[-- "Race Starting" buffs.
+local raceBuffList = {369893, 370014, 370326, 370329, 370419, 370426, 372239, 373495, 373571, 373578, 373851, 373857, 374088, 374091, 374143, 374144, 374182, 374183, 374244, 374246, 374412, 374414, 374592, 374593, 374825, 375236, 375261, 375262, 375356, 375358, 375477, 375479, 375810, 376062, 376195, 376366, 376805, 376817, 377025, 377026, 377692, 377745, 378415, 378430, 378753, 378775, 379036, 379397, 381978, 382000, 382632, 382652, 382717, 382755, 383473, 383474, 383596, 383597, 386211, 386331, 387548, 387563, 392228, 395088, 396688, 396710, 396712, 396714, 396934, 396943, 396960, 396977, 396984, 396997, 397050, 397129, 397131, 397141, 397143, 397147, 397151, 397155, 397157, 397175, 397179, 397182, 397187, 397189, 398027, 398034, 398049, 398054, 398100, 398107, 398113, 398116, 398120, 398123, 398141, 398213, 398228, 398264, 398309, 398326, 398408, 398428, 403192, 403205, 403502, 403533, 403679, 403729, 403746, 403784, 403795, 403830, 403884, 403898, 403934, 403992, 404002, 404558, 404640, 404644, 406234, 406257, 406294, 406297, 406398, 406400, 406401, 406420, 406421, 406422, 406438, 406439, 406440, 406506, 406507, 406508, 406696, 406697, 406698, 406766, 406767, 406768, 406799, 406800, 406801, 406923, 406924, 406925, 406943, 406944, 406945, 407214, 407215, 407216, 407529, 407530, 407531, 407593, 407594, 407595, 407619, 407620, 407621, 407717, 407718, 407719, 407756, 407757, 407758, 409713, 409738, 409758, 409759, 409760, 409761, 409762, 409763, 409766, 409768, 409774, 409775, 409778, 409780, 409782, 409783, 409786, 409787, 409791, 409792, 409793, 409794, 409796, 409797, 409799, 409800, 409801, 409802, 409803, 409804, 409807, 409808, 409811, 409812, 409814, 409815, 409817, 409818, 409820, 409821, 409855, 409857, 409859, 409860, 409861, 409862, 409863, 409864, 409865, 409866, 409867, 409868, 410748, 410749, 410750, 410751, 410752, 410753, 410754, 410755, 410756, 410757, 410758, 410759, 410853, 410854, 410855, 410856, 410857, 410858, 410859, 410860, 410861, 410862, 410863, 410864, 411311, 411312, 411314, 411315, 411316, 411317, 411318, 411319, 411320, 411322, 411323, 411325, 411326, 411327, 411329, 411330, 411331, 411332, 411333, 411334, 411335, 411336, 411337, 411338, 411339, 411340, 411341, 411342, 411343, 411345, 411346, 411347, 413655, 413690, 413695, 413778, 413779, 413780, 413851, 413852, 413854, 413940, 413941, 413942, 413966, 413967, 413968, 414016, 414017, 414018, 414349, 414350, 414351, 414368, 414372, 414374, 414616, 414617, 414618, 414740, 414741, 414742, 414751, 414755, 414756, 414773, 414774, 414775, 414829, 414830, 414831, 414891, 414892, 414893, 415587, 417042, 417043, 417044, 417226, 417230, 417231, 417604, 417605, 417606, 417758, 417760, 417761, 417869, 417870, 417871, 417948, 417949, 417950, 418026, 418027, 418028, 418142, 418143, 418144, 418287, 418288, 418289, 418461, 418465, 418466, 419432, 419433, 419434, 419679, 419680, 419681, 420157, 420158, 420159, 420742, 420917, 420965, 420975, 420988, 421060, 421437, 421438, 421439, 421451, 421452, 422015, 422017, 422018, 422020, 422021, 422174, 422175, 422176, 422178, 422179, 422400, 422401, 422402, 422403, 422404, 423378, 423380, 423381, 423382, 423383, 423562, 423568, 423577, 423579, 423580, 425090, 425091, 425092, 425333, 425334, 425335, 425449, 425450, 425452, 425597, 425598, 425601, 425740, 425741, 425742, 426038, 426039, 426040, 426109, 426110, 426111, 426347, 426348, 426349, 426583, 426584, 426585, 427231, 427234, 427235, 431833, 431834, 431835, 431898, 431899, 431900, 439233, 439234, 439235, 439236, 439238, 439239, 439241, 439243, 439244, 439245, 439246, 439247, 439248, 439249, 439250, 439251, 439252, 439254, 439257, 439258, 439260, 439261, 439262, 439263, 439265, 439266, 439267, 439268, 439269, 439270, 439271, 439272, 439273, 439274, 439275, 439276, 439277, 439278, 439281, 439282, 439283, 439284, 439286, 439287, 439288, 439289, 439290, 439291, 439292, 439293, 439294, 439295, 439296, 439298, 439300, 439301, 439302, 439303, 439304, 439305, 439307, 439308, 439309, 439310, 439311, 439313, 439316, 439317, 439318, 439319, 439320, 439321}
+
+-- For faster lookups:
+this.raceBuffs = {}
+for _, v in pairs(raceBuffList) do
+  this.raceBuffs[v] = true
+end
+]],
+        priority = 103,
+        condition = [[-- Check for "Racing" buff first, which is the most common one.
+if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
+for i = 1, 40 do
+  local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+  if aura and aura.spellId and this.raceBuffs[aura.spellId] then
+    return true
+  end
 end
 return false]],
       },
-      ["125"] = {
-        name = "Dragonriding",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED"},
-        executeOnInit = [[this.lastActiveMount = nil
 
-this.IsCurrentMountForDragonriding = function()
-  if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if isActive then
-      return isForDragonriding
-    end
-  end
-
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
-    if isActive then
-      this.lastActiveMount = v
-      return isForDragonriding
-    end
-  end
-
-  return nil
-end]],
-        priority = 101,
-        condition = [[return IsMounted() and this.IsCurrentMountForDragonriding()]],
+      ["160"] = {
+        name = L["Taxi"],
+        events = {"PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED"},
+        priority = 1000,
+        condition = "return UnitOnTaxi(\"player\")",
       },
-      ["126"] = {
-        name = "Dragonriding (flying)",
-        events = {"PLAYER_MOUNT_DISPLAY_CHANGED", "UNIT_AURA"},
-        executeOnInit = [[this.lastActiveMount = nil
-
-this.IsCurrentMountForDragonriding = function()
-  if this.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(this.lastActiveMount)
-    if isActive then
-      return isForDragonriding
-    end
-  end
-
-  for _, v in pairs (C_MountJournal.GetMountIDs()) do
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isForDragonriding = C_MountJournal.GetMountInfoByID(v)
-    if isActive then
-      this.lastActiveMount = v
-      return isForDragonriding
-    end
-  end
-
-  return nil
-end]],
-        priority = 102,
-        condition = [[return IsMounted() and IsFlying() and this.IsCurrentMountForDragonriding()]],
+      ["170"] = {
+        name = L["Vehicle"],
+        events = {"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE"},
+        priority = 1000,
+        condition = "return UnitUsingVehicle(\"player\")",
       },
+
       ["200"] = {
-        name = "Hearth/Teleport",
+        name = L["Hearth/Teleport"],
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
-        executeOnInit = [[this.spells = {
+        executeOnInit = [[local teleportSpellList = {
      556,  -- Astral Recall
     3561,  -- Teleport: Stormwind
     3562,  -- Teleport: Ironforge
@@ -390,28 +417,46 @@ end]],
     3566,  -- Teleport: Thunder Bluff
     3567,  -- Teleport: Orgrimmar
     8690,  -- Hearthstone
+   18960,  -- Teleport: Moonglade
+   23442,  -- Everlook Transporter
+   23453,  -- Gnomish Transporter
+   26373,  -- Lunar Festival Invitation
    32271,  -- Teleport: Exodar
    32272,  -- Teleport: Silvermoon
    33690,  -- Teleport: Shattrath
    35715,  -- Teleport: Shattrath
+   36890,  -- Area52 Transporter
+   36941,  -- Toshley's Station Transporter
+   41234,  -- Teleport: Black Temple
    49358,  -- Teleport: Stonard
    49359,  -- Teleport: Theramore
    49844,  -- Using Direbrew's Remote
    50977,  -- Death Gate
    53140,  -- Teleport: Dalaran - Northrend
    54406,  -- Teleport: Dalaran
+   66238,  -- Argent Crusader's Tabard
+   67833,  -- Wormhole Generator: Northrend
+   73324,  -- Jaina's Locket
    75136,  -- Ethereal Portal
    88342,  -- Teleport: Tol Barad
    88344,  -- Teleport: Tol Barad
+   89157,  -- Teleport: Stormwind (Guild Cloaks)
+   89158,  -- Teleport: Orgrimmar (Guild Cloaks)
+   89597,  -- Baradin's Wardens Tabard
+   89598,  -- Hellscream's Reach Tabard
    94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
+  126755,  -- Wormhole Generator: Pandaria
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
   140295,  -- Kirin Tor Beacon
+  147985,  -- Curious Bronze Timepiece
+  163830,  -- Wormhole Centrifuge
   168487,  -- Home Away from Home
   168499,  -- Home Away from Home
   171253,  -- Garrison Hearthstone
+  175608,  -- Relic of Karabor
   176242,  -- Teleport: Warspear
   176248,  -- Teleport: Stormshield
   189838,  -- Teleport to Shipyard
@@ -424,17 +469,19 @@ end]],
   196080,  -- Recall (to the sanctuary of Dun Baldar)
   216016,  -- Jump to Skyhold
   222695,  -- Dalaran Hearthstone
+  223352,  -- Khadgar's Beacon (Teleport to Dalaran)
   223805,  -- Advanced Dimensional Rifting
   224869,  -- Teleport: Dalaran - Broken Isles
   225428,  -- Town Portal: Shala'nir
   225434,  -- Town Portal: Sashj'tar
   225435,  -- Town Portal: Kal'delar
-  225440,  -- Town Portal: Lian'tril
   225436,  -- Town Portal: Faronaar
+  225440,  -- Town Portal: Lian'tril
   227334,  -- Flight Master's Whistle
   231504,  -- [Tome of] Town Portal
   231505,  -- [Scroll of] Town Portal
   248906,  -- Vindicaar Teleport Beacon
+  250796,  -- Wormhole Generator: Argus
   262100,  -- Recall (to your Great Hall)
   278244,  -- Greatfather Winter's Hearthstone
   278559,  -- Headless Horseman's Hearthstone
@@ -445,11 +492,19 @@ end]],
   286031,  -- Noble Gardener's Hearthstone
   286331,  -- Fire Eater's Hearthstone
   286353,  -- Brewfest Reveler's Hearthstone
+  291981,  -- Ultrasafe Transporter: Mechagon
   292764,  -- Returning (BfA Quest)
+  293840,  -- Teleport: Moonglade (back)
+  296687,  -- Waygate (Dornogal Archive)
   298068,  -- Holographic Digitalization Hearthstone
+  299083,  -- Wormhole Generator: Kul Tiras
+  299084,  -- Wormhole Generator: Zandalar
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
+  311681,  -- Tirisfal Camp Scroll
+  311749,  -- Hearth to Uther's Tomb
   312372,  -- Return to Camp
+  324031,  -- Wormhole Generator: Shadowlands
   325624,  -- Cypher of Relocation
   326064,  -- Night Fae Hearthstone
   335671,  -- Scroll of Teleport: Theater of Pain
@@ -464,54 +519,82 @@ end]],
   346171,  -- Attendant's Pocket Portal: Maldraxxus
   346173,  -- Attendant's Pocket Portal: Revendreth
   363799,  -- Dominated Hearthstone
+  366945,  -- Enlightened Hearthstone
   367013,  -- Broker Translocation Matrix
   368788,  -- Hearth to Brill
   375357,  -- Timewalker's Hearthstone
+  386379,  -- Wyrmhole Generator: Dragon Isles
+  391042,  -- Ohn'ir Windsage's Hearthstone
   395277,  -- Teleport: Valdrakken
   398099,  -- Thrall's Hearthstone (Orc Heritage Campaign)
+  401802,  -- Stone of the Hearth
   410148,  -- Lost Dragonscale
   412555,  -- Path of the Naaru
   418549,  -- Teleporting to the Vindicaar
-  366945,  -- Enlightened Hearthstone
   420418,  -- Deepdweller's Earthen Hearthstone
   422284,  -- Hearthstone of the Flame
-  391042,  -- Ohn'ir Windsage's Hearthstone
+  426620,  -- Spare Hologem (Draenei Heritage Quest)
+  438606,  -- Draenic Hologem (Hearthstone)
+  441154,  -- Nostwin's Voucher (Pandaria Remix)
+  446540,  -- Teleport: Dornogal
+  448126,  -- Wormhole Generator: Khaz Algar
+  449508,  -- Nostwin's Return Service (Pandaria Remix)
+  450410,  -- Dalaran Hearthstone (Dark Heart Quest)
+  460271,  -- Teleporting to Silithus
+  463481,  -- Notorious Thread's Hearthstone
+ 1221356,  -- Teleport: Orgrimmar (Guild Cloaks)
+ 1221357,  -- Teleport: Orgrimmar (Guild Cloaks)
+ 1221359,  -- Teleport: Stormwind (Guild Cloaks)
+ 1221360,  -- Teleport: Stormwind (Guild Cloaks)
 
-}]],
-        priority = 130,
-        condition = [[local name = UnitCastingInfo("player")
-for _, v in pairs(this.spells) do
-    local hearthName = GetSpellInfo(v)
-    if hearthName and hearthName == name then
-        return true
-    end
+}
+
+-- For faster lookups:
+this.teleportSpells = {}
+for _, v in pairs(teleportSpellList) do
+  this.teleportSpells[v] = true
 end
+]],
+        priority = 130,
+        condition = [[local _, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
+if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
 this.transitionTime = (endTime - startTime)/1000
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {
-        name = "Annoying Spells",
+        name = L["Annoying Spells"],
         events = {"UNIT_AURA"},
-        executeOnInit = [[this.buffs = {
+        executeOnInit = [[local annoyingSpellList = {
    46924,  -- Bladestorm
    51690,  -- Killing Spree
   188499,  -- Blade Dance
   210152,  -- Death Sweep
 }
+
+-- For faster lookups:
+this.annoyingSpells = {}
+for _, v in pairs(annoyingSpellList) do
+  this.annoyingSpells[v] = true
+end
 ]],
         priority = 1000,
-        condition = [[for _, v in pairs(this.buffs) do
-    local name = GetSpellInfo(v)
-    if name and AuraUtil.FindAuraByName(name, "player", "HELPFUL") then
-        return true
-    end
+        condition = [[for i = 1, 40 do
+  local spellId = nil
+  if UnitBuff then     -- Classic
+    _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+  else     -- Retail
+    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+    if aura then spellId = aura.spellId end
+  end
+
+  if this.annoyingSpells[spellId] then return true end
 end
 return false]],
-      },
+},
       ["300"] = {
-        name = "NPC Interaction",
+        name = L["NPC Interaction"],
         events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRAINER_CLOSED", "TRAINER_SHOW", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN"},
         executeOnInit = [[this.frames = {"AuctionHouseFrame", "BagnonBankFrame1", "BankFrame", "ClassTrainerFrame", "GarrisonCapacitiveDisplayFrame", "GossipFrame", "GuildRegistrarFrame", "ImmersionFrame", "MerchantFrame", "PetStableFrame", "QuestFrame", "TabardFrame", "WardrobeFrame"}
 
@@ -520,34 +603,22 @@ this.excludedFrames = {"FlightMapFrame"}
 this.mountVendors = {
   ["62821"] = 460, -- Grand Expedition Yak
   ["62822"] = 460, -- Grand Expedition Yak
+  ["227773"] = 2237, -- Grizzly Hills Packmaster
+  ["227774"] = 2237, -- Grizzly Hills Packmaster
+  ["231085"] = 2265, -- Trader's Gilded Brutosaur
   -- Add more npcId and mountId pairs here.
   -- To find them, uncomment print command in condition script.
 }
-
-function this:GetCurrentMount()
-  if this.lastMount then
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(this.lastMount)
-    if active then
-      return this.lastMount
-    end
-  end
-  for _, v in pairs(C_MountJournal.GetMountIDs()) do
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
-    if active then
-      this.lastMount = v
-      return v
-    end
-  end
-  return nil
-end]],
+]],
         priority = 110,
         condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
-  if UnitGUID("npc") then
-    local _, _, _, _, _, npcId = strsplit("-", UnitGUID("npc"))
+  local npcGUID = UnitGUID("npc")
+  if npcGUID then
+    local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- Uncomment this to find out npcId and mountId pairs.
-    -- print("Current npc", npcId, "current mount", this:GetCurrentMount())
-    if this.mountVendors[npcId] and this.mountVendors[npcId] == this:GetCurrentMount() then
+    -- print("NPC Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
+    if this.mountVendors[npcId] and this.mountVendors[npcId] == DynamicCam:GetCurrentMount() then
       return false
     end
   end
@@ -571,47 +642,64 @@ end
 return shown and UnitExists("npc")]],
       },
       ["301"] = {
-        name = "Mailbox",
+        name = L["Mailbox"],
         events = {"MAIL_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "MAIL_CLOSED", "GOSSIP_CLOSED"},
         priority = 110,
-        condition = "return MailFrame and MailFrame:IsShown()",
+        condition = [[
+-- Exclude Trader's Gilded Brutosaur Mailbox.
+if IsMounted() then
+  local npcGUID = UnitGUID("npc")
+  if npcGUID then
+    local _, _, _, _, _, npcId = strsplit("-", npcGUID)
+    -- print("Mailbox Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
+    if npcId == "231086" and DynamicCam:GetCurrentMount() == 2265 then
+      return false
+    end
+  end
+end
+
+return MailFrame and MailFrame:IsShown()
+]],
       },
       ["302"] = {
-        name = "Fishing",
+        name = L["Fishing"],
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         priority = 20,
-        condition = "return UnitChannelInfo(\"player\") == GetSpellInfo(7620)",
+        condition = [[if GetSpellInfo then     -- Classic
+  return UnitChannelInfo("player") == GetSpellInfo(7620)
+else     -- Retail
+  return UnitChannelInfo("player") == C_Spell.GetSpellName(7620)
+end]],
         delay = 1,
       },
       ["320"] = {
-        name = "Gathering",
+        name = L["Gathering"],
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
         executeOnInit = [[this.spells = {
-      10768,  -- Skinning
-     265819,  -- Herb Gathering
-     366260,  -- Mining
-
+  -- https://www.wowhead.com/spells/professions/mining/name:mining
+  2575, 2576, 2656, 3564, 10248, 29354, 50310, 74517, 102161, 158754, 195122, 265837, 265839, 265841, 265843, 265845, 265847, 265849, 265851, 265853, 309835, 366260, 423341,
+  -- https://www.wowhead.com/spells/professions/skinning/name:skinning
+  8613, 8617, 8618, 10768, 32678, 50305, 74522, 102216, 158756, 194174, 195125, 205243, 265855, 265857, 265859, 265861, 265863, 265865, 265867, 265869, 265871, 308569, 366259, 392440, 392445, 423342,
+  -- https://www.wowhead.com/spells/professions/herbalism/name:gathering
+  2366, 2368, 3570, 11993, 28695, 50300, 74519, 110413, 158745, 195114, 265819, 265821, 265823, 265825, 265827, 265829, 265831, 265834, 265835, 309780, 366252, 441327,
 }]],
         priority = 120,
         condition = [[local name, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
 -- Uncomment this to find out more spell IDs.
 -- print(name, spellId)
 for _, v in pairs(this.spells) do
-    gatheringName = GetSpellInfo(v)
-    if gatheringName and gatheringName == name then
-        return true
-    end
+  if v == spellId then return true end
 end
 return false]]
       },
       ["303"] = {
-        name = "AFK",
+        name = L["AFK"],
         events = {"PLAYER_FLAGS_CHANGED"},
         priority = 120,
         condition = "return UnitIsAFK(\"player\")",
       },
       ["310"] = {
-        name = "Pet Battle",
+        name = L["Pet Battle"],
         events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
         priority = 130,
         condition = "return C_PetBattles.IsInBattle()",
@@ -628,11 +716,14 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
   -- No pet battles before mists.
   DynamicCam.defaults.profile.situations["310"] = nil
 
+  DynamicCam.defaults.profile.situations["103"] = nil    -- Mounted (only flying-mount + airborne + Skyriding)
+  DynamicCam.defaults.profile.situations["104"] = nil    -- Mounted (only flying-mount + Skyriding)
+  DynamicCam.defaults.profile.situations["106"] = nil    -- Mounted (only airborne + Skyriding)
+  DynamicCam.defaults.profile.situations["107"] = nil    -- Mounted (only Skyriding)
 
-  -- No dragonriding or Dracthyr before Dragonflight.
-  DynamicCam.defaults.profile.situations["120"] = nil
-  DynamicCam.defaults.profile.situations["125"] = nil
-  DynamicCam.defaults.profile.situations["126"] = nil
+  DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
+  DynamicCam.defaults.profile.situations["130"] = nil    -- Dragon Racing
+
 
 
   if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
@@ -643,13 +734,27 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
     DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
 
-    -- No vehicles before wrath.
-    DynamicCam.defaults.profile.situations["102"] = nil
 
+    -- No flying in classic.
+    DynamicCam.defaults.profile.situations["101"] = nil
+    DynamicCam.defaults.profile.situations["102"] = nil
+    DynamicCam.defaults.profile.situations["105"] = nil
+
+
+    -- No vehicles before wrath.
+    DynamicCam.defaults.profile.situations["170"] = nil
+
+
+  -- Currently Wrath classic.
   else
 
     -- Cannot have "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}
+
+
+    -- No way to filter for flying mounts in Wrath classic.
+    DynamicCam.defaults.profile.situations["101"] = nil
+    DynamicCam.defaults.profile.situations["102"] = nil
 
   end
 

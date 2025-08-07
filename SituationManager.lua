@@ -17,18 +17,115 @@ local SET_VIEW_TRANSITION_TIME = 0.5
 -- LOCALS --
 ------------
 
-local function round(num, numDecimalPlaces)
+local C_MountJournal_GetCollectedFilterSetting = C_MountJournal.GetCollectedFilterSetting
+local C_MountJournal_GetDisplayedMountInfo = C_MountJournal.GetDisplayedMountInfo
+local C_MountJournal_GetNumDisplayedMounts = C_MountJournal.GetNumDisplayedMounts
+local C_MountJournal_IsSourceChecked = C_MountJournal.IsSourceChecked
+local C_MountJournal_IsTypeChecked = C_MountJournal.IsTypeChecked
+local C_MountJournal_IsValidSourceFilter = C_MountJournal.IsValidSourceFilter
+local C_MountJournal_IsValidTypeFilter = C_MountJournal.IsValidTypeFilter
+local C_MountJournal_SetCollectedFilterSetting = C_MountJournal.SetCollectedFilterSetting
+local C_MountJournal_SetDefaultFilters = C_MountJournal.SetDefaultFilters
+local C_MountJournal_SetSourceFilter = C_MountJournal.SetSourceFilter
+local C_MountJournal_SetTypeFilter = C_MountJournal.SetTypeFilter
+local C_PetJournal_GetNumPetSources = C_PetJournal.GetNumPetSources
+local Enum_MountTypeMeta_NumValues = Enum.MountTypeMeta.NumValues
+
+
+local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
 
 
 
+------------
+-- EVENTS --
+------------
+
+DynamicCam.events = {}
+
+-- The user may try to register invalid events. In order to prevent AceEvent-3.0
+-- from remembering invalid events, we have to check if an event exists ourselves!
+-- https://www.wowinterface.com/forums/showthread.php?t=58681
+local eventExistsFrame = CreateFrame("Frame");
+local function EventExists(event)
+  local exists = pcall(eventExistsFrame.RegisterEvent, eventExistsFrame, event)
+  if exists then eventExistsFrame:UnregisterEvent(event) end
+  return exists
+end
+
+
+function DynamicCam:EventHandler(event, ...)
+
+  -- To be less spammy, we ignore all UNIT_AURA events not belonging to player.
+  -- ...until anyone comes up with a situation for which they need other player's UNIT_AURA events.
+  if event == "UNIT_AURA" and ... ~= "player" then
+    -- print("Ignoring non-player UNIT_AURA")
+    return
+  end
+
+  -- print("Eventhandler got", event, ...)
+
+
+  -- When entering combat, we have to act now.
+  -- Otherwise, we might not be able to call protected functions like UIParent:Show().
+  if event == "PLAYER_REGEN_DISABLED" then
+    self:EvaluateSituations()
+  else
+    self.evaluateSituationsNextFrame = true
+  end
+end
+
+function DynamicCam:RegisterEvents()
+  self:RegisterEvent("PLAYER_CONTROL_GAINED", "EventHandler")
+
+  for situationID, situation in pairs(self.db.profile.situations) do
+    if situation.enabled and not situation.errorEncountered then
+      self:RegisterSituationEvents(situationID)
+    end
+  end
+end
+
+function DynamicCam:RegisterSituationEvents(situationID)
+  -- print("RegisterSituationEvents", situationID)
+  local situation = self.db.profile.situations[situationID]
+
+  if situation and situation.events then
+    for i, event in pairs(situation.events) do
+      if not self.events[event] then
+
+        -- We have to check if the event exists ourselves.
+        -- https://www.wowinterface.com/forums/showthread.php?t=58681
+        if not EventExists(event) then
+          DynamicCam:ScriptError(situationID, "events", "events", "Trying to register an unknown event: " .. event)
+          -- print("Trying to register an unknown event: ", event)
+
+        else
+
+          -- If the event does exist, we should never get any problems here,
+          -- but just to be on the safe side:
+          local result = {pcall(DynamicCam.RegisterEvent, DynamicCam, event, "EventHandler")}
+          if result[1] == false then
+            -- print("Not registered for event:", event)
+            DynamicCam:ScriptError(situationID, "events", "events", result[2])
+          else
+            -- print("Registered for event:", event)
+            self.events[event] = true
+          end
+
+        end
+      end
+    end
+  end
+end
 
 
 
 
-
+-------------
+-- SCRIPTS --
+-------------
 
 local functionCache = {}
 local situationEnvironments = {}
@@ -93,8 +190,173 @@ end
 
 
 
+-- For errors in scripts.
+
+-- TODO: Later with localisation:
+local scriptNames = {
+  executeOnInit = "Initialisation Script",
+  condition = "Condition Script",
+  executeOnEnter = "On-Enter Script",
+  executeOnExit = "On-Exit Script",
+  events = "Events",
+}
+
+-- Export box for the script error dialog:
+local scrollBoxWidth = 400
+local scrollBoxHeight = 90
+
+local outerFrame = CreateFrame("Frame")
+outerFrame:SetSize(scrollBoxWidth + 80, scrollBoxHeight + 20)
+
+local borderFrame = CreateFrame("Frame", nil, outerFrame, "TooltipBackdropTemplate")
+borderFrame:SetSize(scrollBoxWidth + 34, scrollBoxHeight + 10)
+borderFrame:SetPoint("CENTER")
+
+local scrollFrame = CreateFrame("ScrollFrame", nil, outerFrame, "UIPanelScrollFrameTemplate")
+scrollFrame:SetPoint("CENTER", -10, 0)
+scrollFrame:SetSize(scrollBoxWidth, scrollBoxHeight)
+
+local editbox = CreateFrame("EditBox", nil, scrollFrame, "InputBoxScriptTemplate")
+editbox:SetMultiLine(true)
+editbox:SetAutoFocus(false)
+editbox:SetFontObject(ChatFontNormal)
+editbox:SetWidth(scrollBoxWidth)
+editbox:SetCursorPosition(0)
+scrollFrame:SetScrollChild(editbox)
 
 
+local hideDefaultButton = false
+
+-- The script error dialog.
+StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
+
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
+
+  text = "%s",
+
+  OnShow = function(self)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    self.ludius_originalTextWidth = textFrame:GetWidth()
+    textFrame:SetWidth(borderFrame:GetWidth())
+  end,
+  OnHide = function(self)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    textFrame:SetWidth(self.ludius_originalTextWidth)
+    self.ludius_originalTextWidth = nil
+  end,
+
+  -- So that we can have different functions for each button.
+  selectCallbackByIndex = true,
+
+  button1 = "Dismiss",
+  OnButton1 = function() end,
+
+  button2 = "Disable situation",
+  OnButton2 = function(_, data)
+    DynamicCam.db.profile.situations[data.situationID].enabled = false
+    DynamicCam:EvaluateSituations()
+    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+  end,
+
+  button3 = "Fix manually",
+  OnButton3 = function(_, data)
+    -- if data then print(data.situationID, data.scriptID) end
+    DynamicCam:OpenMenu()
+    LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationControls", data.scriptID)
+    DynamicCam.Options:SelectSituation(data.situationID)
+  end,
+
+  button4 = "Reset to default",
+  OnButton4 = function(_, data)
+    -- if data then print(data.situationID, data.scriptID) end
+    DynamicCam.db.profile.situations[data.situationID][data.scriptID] = DynamicCam.defaults.profile.situations[data.situationID][data.scriptID]
+    DynamicCam:UpdateSituation(data.situationID)
+    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+  end,
+  DisplayButton4 = function() return not hideDefaultButton end,
+
+}
+
+
+function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
+
+  -- print(situationID, scriptID, errorType, errorMessage)
+
+  local situation = DynamicCam.db.profile.situations[situationID]
+
+  situation.errorEncountered = scriptID
+  situation.errorMessage = errorMessage
+
+  local situationName = situation.name
+  local scriptName = scriptNames[scriptID]
+
+  -- If the cause is in the init script instead of the one triggering the error.
+  local scriptIdForButton = scriptID
+
+  local isCustomSituation = true
+  local alreadyUsingDefault = true
+  if DynamicCam.defaults.profile.situations[situationID] then
+    isCustomSituation = false
+    if scriptID == "events" then
+      alreadyUsingDefault = DynamicCam:EventsEqual(situation.events, DynamicCam.defaults.profile.situations[situationID].events)
+    else
+      alreadyUsingDefault = DynamicCam:ScriptEqual(situation[scriptID], DynamicCam.defaults.profile.situations[situationID][scriptID])
+    end
+  end
+
+  local text = "There is a problem with your DynamicCam Situation Controls!\n(Situation: " .. situationName .. "," .. scriptName .. ")\n\n"
+
+  if isCustomSituation then
+    text = text .. "This error is caused by one of your custom situations, so you have to resolve it yourself or seek assistance online.\n\n"
+  elseif alreadyUsingDefault then
+    if scriptID ~= "executeOnInit" and not DynamicCam:ScriptEqual(situation["executeOnInit"], DynamicCam.defaults.profile.situations[situationID]["executeOnInit"]) then
+      text = text .. "You have modified the Initialisation Script of this DynamicCam stock situation which is probably leading to this error. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
+      scriptIdForButton = "executeOnInit"
+      alreadyUsingDefault = false
+    else
+      text = text .. "This is really embarrassing, because this error is caused by the default settings of a DynamicCam stock situation. Please copy the error message below and send it to us on GitHub, Curseforge or WoWInterface. In the meantime you can try to fix it yourself or just disable this situation. Sorry!\n\n"
+    end
+  else
+    text = text .. "You have modified the default settings of this DynamicCam stock situation. A reset to the default should resolve this. Otherwise you can try to fix it manually or disable the situation.\n\n"
+  end
+
+  local errorText = "Error: " .. situationName .. " (" .. situationID .. "), " .. scriptID .. ", " .. errorType .. "\n\n" .. errorMessage .. "\n\n\n"
+  editbox:SetText(errorText)
+
+  -- Data for the button press functions.
+  local data = {
+    ["situationID"] = situationID,
+    ["scriptID"] = scriptIdForButton,
+  }
+
+  -- Only show the default button, if there is a default to return to.
+  hideDefaultButton = isCustomSituation or alreadyUsingDefault
+
+  -- Got to manually show, otherwise the inserted frame is not shown except for the first show.
+  -- https://www.wowinterface.com/forums/showthread.php?p=345109
+  outerFrame:Show()
+  StaticPopup_Show("DYNAMICCAM_SCRIPT_ERROR", text, nil, data, outerFrame)
+end
+
+
+
+
+
+
+
+
+
+
+---------------------
+-- NPC INTERACTION --
+---------------------
 
 -- For EvaluateSituations() below.
 -- So the transition has to wait a little.
@@ -489,7 +751,7 @@ local function gotoView(view, instant)
   -- If "Adjust Shoulder offset according to zoom level" is activated,
   -- the shoulder offset will be instantaneously set according to the new
   -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not shoulderOffsetZoomTmpDisable then
+  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not DynamicCam.shoulderOffsetZoomTmpDisable then
     DynamicCam.easeShoulderOffsetInProgress = true
     DynamicCam.virtualCameraZoom = cameraZoomBefore
 
@@ -594,7 +856,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
   -- If we are coming from the no-situation state.
-  elseif enteredSituationAtLogin then
+  elseif self.enteredSituationAtLogin then
     lastZoom["no-situation"] = GetCameraZoom()
     -- print("---> Storing default zoom", lastZoom[oldSituationID], oldSituationID)
   end
@@ -616,12 +878,12 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     self:RunScript(newSituationID, "executeOnEnter")
 
     -- Hide UI if applicable.
-    if newSituation.hideUI.enabled then
+    if newSituation.hideUI and newSituation.hideUI.enabled then
       self:FadeOutUI(newSituation.hideUI.fadeOutTime, newSituation.hideUI)
     -- If we are currently exiting a situation, we have already called
     -- FadeInUI() above. Only if we are neither entering nor exiting a situation
     -- with UI fade, we show the UI, to be on the safe side.
-    elseif not oldSituation or not oldSituation.hideUI.enabled then
+    elseif not oldSituation or not oldSituation.hideUI or not oldSituation.hideUI.enabled then
       self:FadeInUI(0)
     end
 
@@ -691,7 +953,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   -- ##### Determine transitionTime. #####
 
   -- After reloading the UI we want to enter the current situation immediately!
-  if not enteredSituationAtLogin then
+  if not self.enteredSituationAtLogin then
     transitionTime = 0
 
   -- If there is a transitionTime in the environment, it has maximum priority.
@@ -781,7 +1043,7 @@ local delayTime
 
 function DynamicCam:EvaluateSituations()
 
-  -- print("EvaluateSituations", enteredSituationAtLogin, moreQuestDialog, GetTime())
+  -- print("EvaluateSituations", self.enteredSituationAtLogin, moreQuestDialog, GetTime())
 
 
   local highestPriority = -100
@@ -838,7 +1100,7 @@ function DynamicCam:EvaluateSituations()
         self:ScheduleTimer("EvaluateSituations", delay)
         swap = false
       -- Need to round, otherwise same times are sometimes not recognised as such.
-      elseif round(delayTime, 3) > round(GetTime(), 3) then
+      elseif Round(delayTime, 3) > Round(GetTime(), 3) then
         -- print(delayTime, GetTime(), "still cooling down, don't swap")
         swap = false
       end
@@ -863,16 +1125,183 @@ function DynamicCam:EvaluateSituations()
   end
 
 
-  enteredSituationAtLogin = true
+  self.enteredSituationAtLogin = true
 
-  -- print("Finished EvaluateSituations", enteredSituationAtLogin, GetTime())
+  -- print("Finished EvaluateSituations", self.enteredSituationAtLogin, GetTime())
 end
 
 
 
 
 
+-- Storing which mounts are flying mounts, because the game does not provide a direct reliable way to determine this.
+-- See: https://www.wowinterface.com/forums/showthread.php?p=344234#post344234
+DynamicCam.FlyingMountList = {}
 
+local maintainFlyingMountListFrame = CreateFrame ("Frame")
+maintainFlyingMountListFrame:RegisterEvent("PLAYER_LOGIN")
+maintainFlyingMountListFrame:SetScript("OnEvent", function()
+
+  if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
+
+
+  -- Store current mount journal filter settings for later restoring.
+
+  local collectedFilters = {}
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
+  collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
+  -- DynamicCam:PrintTable(collectedFilters, 0)
+
+  local typeFilters = {}
+  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
+    if C_MountJournal_IsValidTypeFilter(filterIndex) then
+      typeFilters[filterIndex] = C_MountJournal_IsTypeChecked(filterIndex)
+    end
+  end
+  -- DynamicCam:PrintTable(typeFilters, 0)
+
+  local sourceFilters = {}
+  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
+    if C_MountJournal_IsValidSourceFilter(filterIndex) then
+      sourceFilters[filterIndex] = C_MountJournal_IsSourceChecked(filterIndex)
+    end
+  end
+  -- DynamicCam:PrintTable(sourceFilters, 0)
+
+
+  -- Set filters to flying mounts.
+
+  C_MountJournal_SetDefaultFilters()
+  C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
+  C_MountJournal_SetTypeFilter(1, false)   -- No Ground.
+  C_MountJournal_SetTypeFilter(3, false)   -- No Aquatic.
+  -- Filter index 5 is "Ride Along", which is automatically flying, so we can ignore it.
+
+  -- Fill list of flying mount IDs.
+  DynamicCam.FlyingMountList = {}
+  for displayIndex = 1, C_MountJournal_GetNumDisplayedMounts() do
+    local mountId = select(12, C_MountJournal_GetDisplayedMountInfo(displayIndex))
+    -- print(displayIndex, mountId)
+    DynamicCam.FlyingMountList[mountId] = true
+  end
+
+
+  -- Restore the mount journal filter settings.
+
+  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED) then
+    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
+  end
+  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED) then
+    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
+  end
+  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE) then
+    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
+  end
+
+  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
+    if C_MountJournal_IsValidTypeFilter(filterIndex) and typeFilters[filterIndex] ~= C_MountJournal_IsTypeChecked(filterIndex) then
+      C_MountJournal_SetTypeFilter(filterIndex, typeFilters[filterIndex])
+    end
+  end
+
+  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
+    if C_MountJournal_IsValidSourceFilter(filterIndex) and sourceFilters[filterIndex] ~= C_MountJournal_IsSourceChecked(filterIndex) then
+      C_MountJournal_SetSourceFilter(filterIndex, sourceFilters[filterIndex])
+    end
+  end
+
+end)
+
+
+-- Some functions we need in several situation conditions.
+-- So we only implement them once.
+
+DynamicCam.lastActiveMount = nil
+
+
+function DynamicCam:GetCurrentMount()
+  -- In situation conditions we should always check IsMounted() before GetCurrentMount().
+  -- But just to be on the safe side, check again here.
+  if not IsMounted() then return nil end
+
+  -- Check last active mount first to save time.
+  if self.lastActiveMount then
+    local _, _, _, active = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
+    if active then
+      return self.lastActiveMount
+    end
+  end
+
+  -- Must be a new new mount, so go through all to find active one.
+  for _, v in pairs(C_MountJournal.GetMountIDs()) do
+    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
+    if active then
+      self.lastActiveMount = v
+      return v
+    end
+  end
+
+  -- Should never happen, as we have checked IsMounted() above.
+  return nil
+end
+
+
+
+function DynamicCam:CurrentMountCanFly()
+
+  -- IsMounted() is checked at the beginning of GetCurrentMount().
+  local currentlyActiveMount = self:GetCurrentMount()
+  if currentlyActiveMount then
+
+    if self.FlyingMountList[currentlyActiveMount] then
+      -- print("I believe mount", currentlyActiveMount, "can fly")
+      return true
+    else
+      -- print("I believe mount", currentlyActiveMount, "cannot fly")
+      return false
+    end
+  end
+
+  return false
+end
+
+
+function DynamicCam:SkyridingOn()
+  -- local seconds = GetTimePreciseSec()
+  -- local milliseconds = debugprofilestop()
+
+  local checkedActiveMount = false
+  if self.lastActiveMount then
+    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
+    if isActive then
+      checkedActiveMount = true
+      if isSteadyFlight then return false end
+    end
+  end
+
+  if not checkedActiveMount then
+    for _, v in pairs (C_MountJournal.GetMountIDs()) do
+      local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
+      if isActive then
+        self.lastActiveMount = v
+        if isSteadyFlight then return false end
+        break
+      end
+    end
+  end
+
+  -- print(GetTimePreciseSec() - seconds)
+  -- print("1", debugprofilestop() - milliseconds)
+
+  if C_UnitAuras.GetPlayerAuraBySpellID(404464) ~= nil then return true end
+  if C_UnitAuras.GetPlayerAuraBySpellID(404468) ~= nil then return false end
+
+  -- print("2", debugprofilestop() - milliseconds)
+
+  -- If you have never switched, you have neither buff and Skyriding it the default.
+  return true
+end
 
 
 
@@ -946,7 +1375,7 @@ end
 local function copyTable(originalTable)
   local origType = type(originalTable)
   local copy
-  if origType == 'table' then
+  if origType == "table" then
     -- this child is a table, copy the table recursively
     copy = {}
     for orig_key, orig_value in next, originalTable, nil do
