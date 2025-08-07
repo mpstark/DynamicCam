@@ -237,12 +237,18 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
 
   text = "%s",
 
-  OnShow = function (self)
-    self.ludius_originalTextWidth = self.text:GetWidth()
-    self.text:SetWidth(borderFrame:GetWidth())
+  OnShow = function(self)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    self.ludius_originalTextWidth = textFrame:GetWidth()
+    textFrame:SetWidth(borderFrame:GetWidth())
   end,
   OnHide = function(self)
-    self.text:SetWidth(self.ludius_originalTextWidth)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    textFrame:SetWidth(self.ludius_originalTextWidth)
     self.ludius_originalTextWidth = nil
   end,
 
@@ -332,6 +338,10 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
 
   -- Only show the default button, if there is a default to return to.
   hideDefaultButton = isCustomSituation or alreadyUsingDefault
+
+  -- Got to manually show, otherwise the inserted frame is not shown except for the first show.
+  -- https://www.wowinterface.com/forums/showthread.php?p=345109
+  outerFrame:Show()
   StaticPopup_Show("DYNAMICCAM_SCRIPT_ERROR", text, nil, data, outerFrame)
 end
 
