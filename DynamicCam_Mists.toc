@@ -1,12 +1,11 @@
-## Interface: 110200
+## Interface: 50500
 ## Version: @project-version@
 ## Title: DynamicCam
-## IconTexture: interface/icons/inv_misc_ selfiecamera_sketch.blp
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
 ## Notes-zhCN: 智能动态相机镜头。
 
-## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, LibHideUI, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
+## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
 ## SavedVariables: DynamicCamDB, minZoomValues
 
 ## X-Curse-Project-ID: 101120
