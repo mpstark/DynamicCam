@@ -542,6 +542,7 @@ return false]],
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
   460271,  -- Teleporting to Silithus
   463481,  -- Notorious Thread's Hearthstone
+ 1217281,  -- Redeployment Module
  1221356,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221357,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221359,  -- Teleport: Stormwind (Guild Cloaks)
