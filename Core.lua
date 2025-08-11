@@ -725,9 +725,9 @@ function DynamicCam:Startup()
   -- -- For coding
   -- C_Timer.After(0, function()
     -- self:OpenMenu()
-    -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
+    -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
+    -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationActions")
     -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
-    -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
   -- end)
 
   -- C_Timer.After(3, function()
@@ -1240,13 +1240,19 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
   hideOnEscape = true,
   preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
   OnShow = function (self)
-    self.editBox:SetFocus()
+    -- self.editBox is no longer accessible since 11.2.
+    local editBox = self.editBox or _G[self:GetName() .. "EditBox"]
+    editBox:SetFocus()
   end,
   OnAccept = function (self, data)
-    DynamicCam:CreateCustomSituation(self.editBox:GetText())
+    -- self.editBox is no longer accessible since 11.2.
+    local editBox = self.editBox or _G[self:GetName() .. "EditBox"]
+    DynamicCam:CreateCustomSituation(editBox:GetText())
   end,
   EditBoxOnEnterPressed = function(self)
-    DynamicCam:CreateCustomSituation(self:GetParent().editBox:GetText())
+    -- self.editBox is no longer accessible since 11.2.
+    local editBox = self:GetParent().editBox or _G[self:GetName() .. "EditBox"]
+    DynamicCam:CreateCustomSituation(editBox:GetText())
     self:GetParent():Hide()
   end,
 }
@@ -1263,8 +1269,10 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
   hideOnEscape = true,
   preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
   OnShow = function (self)
-    self.editBox:SetText(exportString)
-    self.editBox:HighlightText()
+    -- self.editBox is no longer accessible since 11.2.
+    local editBox = self.editBox or _G[self:GetName() .. "EditBox"]
+    editBox:SetText(exportString)
+    editBox:HighlightText()
   end,
   EditBoxOnEnterPressed = function(self)
     self:GetParent():Hide()
