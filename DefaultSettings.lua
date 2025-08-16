@@ -447,6 +447,7 @@ return false]],
    94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
   126755,  -- Wormhole Generator: Pandaria
+  126892,  -- Zen Pilgrimage
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
