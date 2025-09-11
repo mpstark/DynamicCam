@@ -99,7 +99,6 @@ local SetCorrectedShoulderOffset
 -- This is more accurate than the game framerate, which is the average over several recent frames.
 -- (Needed in SituationManager.lua and MouseZoom.lua.)
 DynamicCam.secondsPerFrame = 1.0 / GetFramerate()
-local secondsPerFrame = DynamicCam.secondsPerFrame     -- For performance.
 
 
 -- Always evaluate to be on the safe side.
@@ -109,7 +108,7 @@ local alwaysEvaluateTimer = alwaysEvaluateDelay
 
 local function ConstantlyRunningFrameFunction(_, elapsed)
   -- Also using this frame's OnUpdate to log secondsPerFrame.
-  secondsPerFrame = elapsed
+  DynamicCam.secondsPerFrame = elapsed
 
   alwaysEvaluateTimer = alwaysEvaluateTimer - elapsed
 
