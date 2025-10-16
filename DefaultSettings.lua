@@ -549,6 +549,7 @@ return false]],
  1221359,  -- Teleport: Stormwind (Guild Cloaks)
  1221360,  -- Teleport: Stormwind (Guild Cloaks)
  1240219,  -- P.O.S.T. Master's Express Hearthstone
+ 1250878,  -- Timerunner's Hearthstone
 
 }
 
