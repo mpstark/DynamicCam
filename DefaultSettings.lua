@@ -548,6 +548,8 @@ return false]],
  1221357,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221359,  -- Teleport: Stormwind (Guild Cloaks)
  1221360,  -- Teleport: Stormwind (Guild Cloaks)
+ 1225967,  -- Nostwin's Voucher
+ 1225969,  -- Nostwin's Return Service
  1240219,  -- P.O.S.T. Master's Express Hearthstone
  1250878,  -- Timerunner's Hearthstone
 
