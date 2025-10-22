@@ -502,6 +502,7 @@ return false]],
   299084,  -- Wormhole Generator: Zandalar
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
+  311678,  -- Nexus Teleport Scroll
   311681,  -- Tirisfal Camp Scroll
   311749,  -- Hearth to Uther's Tomb
   312372,  -- Return to Camp
