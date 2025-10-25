@@ -679,6 +679,18 @@ else     -- Retail
 end]],
         delay = 1,
       },
+      ["303"] = {
+        name = L["AFK"],
+        events = {"PLAYER_FLAGS_CHANGED"},
+        priority = 120,
+        condition = "return UnitIsAFK(\"player\")",
+      },
+      ["310"] = {
+        name = L["Pet Battle"],
+        events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
+        priority = 130,
+        condition = "return C_PetBattles.IsInBattle()",
+      },
       ["320"] = {
         name = L["Gathering"],
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
@@ -699,17 +711,11 @@ for _, v in pairs(this.spells) do
 end
 return false]]
       },
-      ["303"] = {
-        name = L["AFK"],
-        events = {"PLAYER_FLAGS_CHANGED"},
-        priority = 120,
-        condition = "return UnitIsAFK(\"player\")",
-      },
-      ["310"] = {
-        name = L["Pet Battle"],
-        events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
-        priority = 130,
-        condition = "return C_PetBattles.IsInBattle()",
+      ["330"] = {
+        name = L["Professions Frame Open"],
+        events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},
+        priority = 1100,
+        condition = "if ProfessionsFrame then return ProfessionsFrame:IsShown() end"
       },
     },
 

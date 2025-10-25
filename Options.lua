@@ -3224,7 +3224,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name =
                   function()
                     if S.errorEncountered and S.errorEncountered == "events" then
-                      return "|cFFEE0000" .. L["Error message:"] "\n\n" .. S.errorMessage .. "|r\n\n"
+                      return "|cFFEE0000" .. L["Error message:"] .. "\n\n" .. S.errorMessage .. "|r\n\n"
                     end
                   end,
                 hidden =

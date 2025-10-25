@@ -415,4 +415,4 @@ L["Fishing"] = "釣魚"
 L["Gathering"] = "採集"
 L["AFK"] = "暫離"
 L["Pet Battle"] = "寵物對戰"
-
+L["Professions Frame Open"] = "Professions Frame Open"
