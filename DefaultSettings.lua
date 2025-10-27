@@ -715,7 +715,10 @@ return false]]
         name = L["Professions Frame Open"],
         events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},
         priority = 1100,
-        condition = "if ProfessionsFrame then return ProfessionsFrame:IsShown() end"
+        condition = [[if ProfessionsFrame then return ProfessionsFrame:IsShown() end
+-- For classic:
+if TradeSkillFrame then return TradeSkillFrame:IsShown() end
+        ]]
       },
     },
 
