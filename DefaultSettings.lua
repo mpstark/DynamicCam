@@ -505,6 +505,7 @@ return false]],
   311678,  -- Nexus Teleport Scroll
   311681,  -- Tirisfal Camp Scroll
   311749,  -- Hearth to Uther's Tomb
+  311897   -- Hearth to Moonglade
   312372,  -- Return to Camp
   324031,  -- Wormhole Generator: Shadowlands
   325624,  -- Cypher of Relocation
