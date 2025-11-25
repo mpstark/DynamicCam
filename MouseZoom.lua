@@ -496,7 +496,7 @@ function DynamicCam:ToggleRZVA()
     rzvaFrame.cameraZoomLabel:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 19)
     rzvaFrame.cameraZoomLabel:SetFont("Fonts/FRIZQT__.TTF", 12)
     rzvaFrame.cameraZoomLabel:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomLabel:SetText(L["Actual\nZoom\nValue"])
+    rzvaFrame.cameraZoomLabel:SetText(L["Current\nZoom\nValue"])
 
     rzvaFrame.cameraZoomValue = rzvaFrame:CreateFontString()
     rzvaFrame.cameraZoomValue:SetWidth(rzvaHalfWidth)

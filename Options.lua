@@ -311,7 +311,7 @@ local function CreateSliderResetButton(order, forSituations, index1, index2, too
     imageCoords = resetButtonImageCoords,
     imageWidth = 25/1.5,
     imageHeight = 24/1.5,
-    desc = L["Reset to global default:"] .. " " .. tooltipDefaultValue .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+    desc = L["Reset to global default"] .. ": " .. tooltipDefaultValue .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
     order = order,
     width = 0.25,
     func =
@@ -457,7 +457,7 @@ local function CreateOverriddenText(groupVarsTable, forSituations)
     name =
       function()
         if DynamicCam.currentSituationID and CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-          return "|cFF00FF00" .. L["Currently overridden by the active situation \""] .. DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name .. "\".|r\n"
+          return "|cFF00FF00" .. L["Currently overridden by the active situation \"%s\"."]:format(DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name) .. "|r\n"
         end
       end,
     order = 0,
@@ -551,7 +551,7 @@ local function GetSituationList()
       end
 
       -- print(id, situation.name)
-      situationList[id] = prefix .. customPrefix .. situation.name .. " [" .. L["Priority:"] .. " " .. situation.priority .. "]" .. suffix .. modifiedSuffix
+      situationList[id] = prefix .. customPrefix .. situation.name .. " [" .. L["Priority"] .. ": " .. situation.priority .. "]" .. suffix .. modifiedSuffix
     end
   end
 
@@ -595,7 +595,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               end
 
             else
-              text = L["These Situation Settings can override the Standard Settings when the respective situation is active."]
+              text = L["These Situation Settings override the Standard Settings when the respective situation is active."]
             end
 
             return text .. "\n\n"
@@ -727,7 +727,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   addIncrements = {
                     type = "range",
                     name = L["Quick-Zoom Additional Increments"],
-                    desc = L["How many yards per mouse wheel tick should be added when quick-zooming."],
+                    desc = L["How many yards per mouse wheel \"tick\" should be added when quick-zooming."],
                     order = 1,
                     width = sliderWidth,
                     min = 0,
@@ -749,7 +749,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   incAddDifference = {
                     type = "range",
                     name = L["Quick-Zoom Enter Threshold"],
-                    desc = L["How many yards the \"Reactive Zoom Target\" and the \"Actual Zoom Value\" have to be apart to enter quick-zooming."],
+                    desc = L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."],
                     order = 2,
                     width = sliderWidth,
                     min = 0.1,
@@ -771,7 +771,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   maxZoomTime = {
                     type = "range",
                     name = L["Maximum Zoom Time"],
-                    desc = L["The maximum time the camera should take to make \"Actual Zoom Value\" equal to \"Reactive Zoom Target\"."],
+                    desc = L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."],
                     order = 3,
                     width = sliderWidth,
                     min = 0.1,
@@ -1033,7 +1033,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                     imageCoords = resetButtonImageCoords,
                     imageWidth = 25/1.5,
                     imageHeight = 24/1.5,
-                    desc = L["Reset to global defaults:"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .. "  " .. L["and"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+                    desc = L["Reset to global default"] .. ": " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .. " " .. L["and"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                     order = 1.2,
                     width = 0.25,
                     func =
@@ -1806,7 +1806,7 @@ local function CreateSituationSettingsTab(tabOrder)
         name = L["Enable"],
         desc =
           function()
-            return L["If this box is checked, DynamicCam will enter the situation \""] .. S.name .. L["\" whenever its condition is fulfilled and no other situation with higher priority is active."]
+            return L["If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."]:format(S.name)
           end,
         disabled =
           function()
@@ -1825,7 +1825,7 @@ local function CreateSituationSettingsTab(tabOrder)
               DynamicCam:EvaluateSituations()
             end
           end,
-        width = 0.5,
+        width = 0.7,
         order = 2,
       },
       blank2 = {type = "description", name = " ", width = 0.1, order = 2.5, },
@@ -1835,7 +1835,7 @@ local function CreateSituationSettingsTab(tabOrder)
         name = "-",
         desc =
           function()
-            return L["Delete custom situation \""] .. S.name .. L["\".\n(There will be no 'Are you sure?' prompt!)"]
+            return L["Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"]:format(S.name)
           end,
         hidden =
           function()
@@ -1908,7 +1908,6 @@ local function CreateSituationSettingsTab(tabOrder)
                   function(_, newValue)
                     S.viewZoom.enabled = newValue
                   end,
-                width = "half",
                 order = 1,
               },
               viewZoomReset = {
@@ -1919,7 +1918,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+                desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -2120,16 +2119,21 @@ local function CreateSituationSettingsTab(tabOrder)
                               -- We know that at least one other situation used this view.
                               if usedDefaultViews[usedView] then
 
-                                returnString = returnString .. "\n\n- View " .. usedView .. " " .. L["is used as saved view in the situations:"] .. "\n"
-
+                                local savedViewSituations = ""
                                 for usedViewSituationId in pairs(usedViewSituationList) do
-                                  returnString = returnString .. "    - " .. DynamicCam.db.profile.situations[usedViewSituationId].name .. "\n"
+                                  savedViewSituations = savedViewSituations .. "    - " .. DynamicCam.db.profile.situations[usedViewSituationId].name .. "\n"
                                 end
-                                returnString = returnString .. "   " .. L["and as restore-to-default view in the situations:"] .. "\n"
-
+                                
+                                local restoreToDefaultSituations = ""
                                 for usedDefaultViewSituationId in pairs(usedDefaultViews[usedView]) do
-                                  returnString = returnString .. "    - " ..  DynamicCam.db.profile.situations[usedDefaultViewSituationId].name .. "\n"
+                                  restoreToDefaultSituations = restoreToDefaultSituations .. "    - " ..  DynamicCam.db.profile.situations[usedDefaultViewSituationId].name .. "\n"
                                 end
+                                
+                                
+                                returnString = returnString .. "\n\n" .. L["View %s is used as saved view in the situations:\n%sand as restore-to-default view in the situations:\n%s"]:format(usedView, savedViewSituations, restoreToDefaultSituations) .. "\n"
+
+
+                                
 
                               end
                             end
@@ -2440,7 +2444,6 @@ local function CreateSituationSettingsTab(tabOrder)
                     S.rotation.enabled = newValue
                     ApplyContinuousRotation()
                   end,
-                width = "half",
                 order = 1,
               },
               rotationReset = {
@@ -2451,7 +2454,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+                desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -2691,7 +2694,6 @@ local function CreateSituationSettingsTab(tabOrder)
                     S.hideUI.enabled = newValue
                     ApplyUIFade()
                   end,
-                width = "half",
                 order = 1,
               },
               hideUIReset = {
@@ -2702,7 +2704,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 imageCoords = resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
-                desc = L["Reset to global defaults!\n(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+                desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
                 order = 1.5,
                 width = 0.25,
                 func =
@@ -2989,8 +2991,8 @@ local function CreateSituationSettingsTab(tabOrder)
 
                       keepEncounterBar = {
                         type = "toggle",
-                        name = L["Keep Encounter Frame (Dragonriding Vigor)"],
-                        desc = L["Do not fade out the Encounter Frame, which while dragonriding is the Vigor display."],
+                        name = L["Keep Encounter Frame (Skyriding Vigor)"],
+                        desc = L["Do not fade out the Encounter Frame, which while skyriding is the Vigor display."],
                         get =
                           function()
                             if S.hideUI.hideEntireUI then return false end
@@ -3180,7 +3182,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Restore stock setting"],
                 desc =
                   function()
-                    return L["Your \"Priority\" deviates from the stock setting for this situation ("].. DynamicCam.defaults.profile.situations[SID].priority .. L["). Click here to restore it."]
+                    return L["Your \"Priority\" deviates from the stock setting for this situation (%s). Click here to restore it."]:format(DynamicCam.defaults.profile.situations[SID].priority)
                   end,
                 func =
                   function()
@@ -3616,15 +3618,15 @@ local function CreateSituationSettingsTab(tabOrder)
               },
               blank4 = {type = "description", name = " ", order = 4.1, },
 
-              executeOnEnterDescriptionGroup = {
+              executeOnExitDescriptionGroup = {
                 type = "group",
                 name = L["Help"],
                 inline = true,
                 order = 5,
                 args = {
-                  executeOnEnterDescription = {
+                  executeOnExitDescription = {
                     type = "description",
-                    name = L["<executeOnEnter_desc>"],
+                    name = L["<executeOnExit_desc>"],
                   },
                 },
               },
@@ -4395,7 +4397,7 @@ hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", functio
             motionSicknessElement:SetScript("OnEnter", function(self)
               GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
               GameTooltip:AddLine("|cFFFF0000" .. L["Attention"] .. "|r", _, _, _, true)
-              GameTooltip:AddLine(L["The \""] .. MOTION_SICKNESS_CHECKBOX .. L["\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."], _, _, _, true)
+              GameTooltip:AddLine(L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."]:format(MOTION_SICKNESS_CHECKBOX), _, _, _, true)
               GameTooltip:Show()
             end)
             motionSicknessElement:SetScript("OnLeave", function(self)
@@ -4558,7 +4560,7 @@ hooksecurefunc("SetCVar", function(cvar, value, flag)
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
   elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
-    print("|cFFFF0000" .. L["cameraView ="], value, L["prevented by DynamicCam!"] .. "|r")
+    print("|cFFFF0000" .. L["cameraView=%s prevented by DynamicCam!"]:format(value) .. "|r")
     SetCVar("cameraView", GetCVarDefault("cameraView"), "DynamicCam")
 
   -- Switch to a default view, if user switches to cameraSmoothStyle.

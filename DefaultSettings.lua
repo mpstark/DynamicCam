@@ -198,28 +198,28 @@ DynamicCam.defaults = {
         condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
       },
       ["020"] = {
-        name = L["Dungeon/Scenerio"],
+        name = L["Dungeon/Scenario"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 2,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario")]],
       },
       ["021"] = {
-        name = L["Dungeon/Scenerio (Outdoors)"],
+        name = L["Dungeon/Scenario (Outdoors)"],
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 12,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and IsOutdoors()]],
       },
       ["023"] = {
-        name = L["Dungeon/Scenerio (Combat, Boss)"],
+        name = L["Dungeon/Scenario (Combat, Boss)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 302,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["024"] = {
-        name = L["Dungeon/Scenerio (Combat, Trash)"],
+        name = L["Dungeon/Scenario (Combat, Trash)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 202,
         condition = [[local isInstance, instanceType = IsInInstance()
