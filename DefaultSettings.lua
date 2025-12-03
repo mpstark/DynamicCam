@@ -557,6 +557,7 @@ return false]],
  1250878,  -- Timerunner's Hearthstone
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
+ 1265142,  -- Visit House
 }
 
 -- For faster lookups:
