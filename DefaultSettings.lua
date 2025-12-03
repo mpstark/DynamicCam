@@ -554,7 +554,8 @@ return false]],
  1225969,  -- Nostwin's Return Service
  1240219,  -- P.O.S.T. Master's Express Hearthstone
  1250878,  -- Timerunner's Hearthstone
-
+ 1258476,  -- Teleport to Founder's Point
+ 1258484,  -- Teleport to Razorwind Shores
 }
 
 -- For faster lookups:
