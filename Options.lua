@@ -4161,7 +4161,7 @@ local function BuildSituationExportFrame(widget)
   -- testFrame = f.contentFrame.situationControlsFrame
   -- if not testFrame.myLabel then
     -- testFrame.myLabel = testFrame:CreateFontString(nil, "OVERLAY")
-    -- testFrame.myLabel:SetFont("Fonts\\FRIZQT__.TTF", 12)
+    -- testFrame.myLabel:SetFontObject("Game12Font")
     -- testFrame.myLabel:SetTextColor(0.8, 0.8, 0.8)
     -- testFrame.myLabel:SetJustifyH("LEFT")
     -- testFrame.myLabel:SetPoint("TOPLEFT", testFrame, "TOPLEFT")
