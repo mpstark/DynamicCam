@@ -3,6 +3,8 @@ package-as: DynamicCam
 externals:
     Libs/LibStub:
         url: https://repos.wowace.com/wow/libstub/trunk
+
+    # Ace3 Libraries
     Libs/CallbackHandler-1.0:
         url: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
     Libs/AceAddon-3.0:
@@ -27,9 +29,13 @@ externals:
         url: https://repos.wowace.com/wow/ace3/trunk/AceLocale-3.0
     Libs/AceSerializer-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceSerializer-3.0
-    Libs/LibCamera:
-        url: https://github.com/Mpstark/LibCamera.git
+
+    # Libraries
     Libs/LibCompress:
         url: https://repos.wowace.com/wow/libcompress/trunk
+    Libs/LibCamera:
+        url: https://github.com/Mpstark/LibCamera.git
     Libs/LibEasing:
         url: https://github.com/Mpstark/LibEasing.git
+    Libs/LibMountInfo:
+        url: https://github.com/LudiusMaximus/LibMountInfo
