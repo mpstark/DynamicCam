@@ -21,5 +21,6 @@
     <Script file="Libs\LibCompress\LibCompress.lua"/>
     <Script file="Libs\LibCamera\LibCamera.lua"/>
     <Script file="Libs\LibEasing\LibEasing.lua"/>
+    <Script file="Libs\LibMountInfo\LibMountInfo.lua"/>
     <Script file="Libs\LibHideUI\LibHideUI.lua"/>
 </Ui>

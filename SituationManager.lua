@@ -1,5 +1,6 @@
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
+local LibMountInfo = LibStub("LibMountInfo-1.0")
 
 
 
@@ -16,21 +17,6 @@ local SET_VIEW_TRANSITION_TIME = 0.5
 ------------
 -- LOCALS --
 ------------
-
-local C_MountJournal_GetCollectedFilterSetting = C_MountJournal.GetCollectedFilterSetting
-local C_MountJournal_GetDisplayedMountInfo = C_MountJournal.GetDisplayedMountInfo
-local C_MountJournal_GetNumDisplayedMounts = C_MountJournal.GetNumDisplayedMounts
-local C_MountJournal_IsSourceChecked = C_MountJournal.IsSourceChecked
-local C_MountJournal_IsTypeChecked = C_MountJournal.IsTypeChecked
-local C_MountJournal_IsValidSourceFilter = C_MountJournal.IsValidSourceFilter
-local C_MountJournal_IsValidTypeFilter = C_MountJournal.IsValidTypeFilter
-local C_MountJournal_SetCollectedFilterSetting = C_MountJournal.SetCollectedFilterSetting
-local C_MountJournal_SetDefaultFilters = C_MountJournal.SetDefaultFilters
-local C_MountJournal_SetSourceFilter = C_MountJournal.SetSourceFilter
-local C_MountJournal_SetTypeFilter = C_MountJournal.SetTypeFilter
-local C_PetJournal_GetNumPetSources = C_PetJournal.GetNumPetSources
-local Enum_MountTypeMeta_NumValues = Enum.MountTypeMeta.NumValues
-
 
 local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
@@ -1136,81 +1122,17 @@ end
 
 -- Storing which mounts are flying mounts, because the game does not provide a direct reliable way to determine this.
 -- See: https://www.wowinterface.com/forums/showthread.php?p=344234#post344234
+-- Now handled by LibMountInfo
 DynamicCam.FlyingMountList = {}
 
+-- Proxy to LibMountInfo for backwards compatibility
 local maintainFlyingMountListFrame = CreateFrame ("Frame")
 maintainFlyingMountListFrame:RegisterEvent("PLAYER_LOGIN")
 maintainFlyingMountListFrame:SetScript("OnEvent", function()
-
   if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
-
-
-  -- Store current mount journal filter settings for later restoring.
-
-  local collectedFilters = {}
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
-  -- DynamicCam:PrintTable(collectedFilters, 0)
-
-  local typeFilters = {}
-  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
-    if C_MountJournal_IsValidTypeFilter(filterIndex) then
-      typeFilters[filterIndex] = C_MountJournal_IsTypeChecked(filterIndex)
-    end
-  end
-  -- DynamicCam:PrintTable(typeFilters, 0)
-
-  local sourceFilters = {}
-  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
-    if C_MountJournal_IsValidSourceFilter(filterIndex) then
-      sourceFilters[filterIndex] = C_MountJournal_IsSourceChecked(filterIndex)
-    end
-  end
-  -- DynamicCam:PrintTable(sourceFilters, 0)
-
-
-  -- Set filters to flying mounts.
-
-  C_MountJournal_SetDefaultFilters()
-  C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
-  C_MountJournal_SetTypeFilter(1, false)   -- No Ground.
-  C_MountJournal_SetTypeFilter(3, false)   -- No Aquatic.
-  -- Filter index 5 is "Ride Along", which is automatically flying, so we can ignore it.
-
-  -- Fill list of flying mount IDs.
-  DynamicCam.FlyingMountList = {}
-  for displayIndex = 1, C_MountJournal_GetNumDisplayedMounts() do
-    local mountId = select(12, C_MountJournal_GetDisplayedMountInfo(displayIndex))
-    -- print(displayIndex, mountId)
-    DynamicCam.FlyingMountList[mountId] = true
-  end
-
-
-  -- Restore the mount journal filter settings.
-
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
-  end
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
-  end
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
-  end
-
-  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
-    if C_MountJournal_IsValidTypeFilter(filterIndex) and typeFilters[filterIndex] ~= C_MountJournal_IsTypeChecked(filterIndex) then
-      C_MountJournal_SetTypeFilter(filterIndex, typeFilters[filterIndex])
-    end
-  end
-
-  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
-    if C_MountJournal_IsValidSourceFilter(filterIndex) and sourceFilters[filterIndex] ~= C_MountJournal_IsSourceChecked(filterIndex) then
-      C_MountJournal_SetSourceFilter(filterIndex, sourceFilters[filterIndex])
-    end
-  end
-
+  
+  -- Update our local reference to match LibMountInfo
+  DynamicCam.FlyingMountList = LibMountInfo.flyingMounts
 end)
 
 
@@ -1221,85 +1143,31 @@ DynamicCam.lastActiveMount = nil
 
 
 function DynamicCam:GetCurrentMount()
-  -- In situation conditions we should always check IsMounted() before GetCurrentMount().
-  -- But just to be on the safe side, check again here.
-  if not IsMounted() then return nil end
-
-  -- Check last active mount first to save time.
-  if self.lastActiveMount then
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-    if active then
-      return self.lastActiveMount
-    end
+  local mountID = LibMountInfo:GetCurrentMount()
+  if mountID then
+    self.lastActiveMount = mountID
   end
-
-  -- Must be a new new mount, so go through all to find active one.
-  for _, v in pairs(C_MountJournal.GetMountIDs()) do
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
-    if active then
-      self.lastActiveMount = v
-      return v
-    end
-  end
-
-  -- Should never happen, as we have checked IsMounted() above.
-  return nil
+  return mountID
 end
 
 
 
 function DynamicCam:CurrentMountCanFly()
-
-  -- IsMounted() is checked at the beginning of GetCurrentMount().
-  local currentlyActiveMount = self:GetCurrentMount()
-  if currentlyActiveMount then
-
-    if self.FlyingMountList[currentlyActiveMount] then
-      -- print("I believe mount", currentlyActiveMount, "can fly")
-      return true
-    else
-      -- print("I believe mount", currentlyActiveMount, "cannot fly")
-      return false
-    end
-  end
-
-  return false
+  return LibMountInfo:CurrentMountCanFly()
 end
 
 
 function DynamicCam:SkyridingOn()
-  -- local seconds = GetTimePreciseSec()
-  -- local milliseconds = debugprofilestop()
-
-  local checkedActiveMount = false
-  if self.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-    if isActive then
-      checkedActiveMount = true
-      if isSteadyFlight then return false end
-    end
+  -- Use LibMountInfo first for mounted check
+  if IsMounted() then
+    return LibMountInfo:IsSkyriding()
   end
-
-  if not checkedActiveMount then
-    for _, v in pairs (C_MountJournal.GetMountIDs()) do
-      local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
-      if isActive then
-        self.lastActiveMount = v
-        if isSteadyFlight then return false end
-        break
-      end
-    end
-  end
-
-  -- print(GetTimePreciseSec() - seconds)
-  -- print("1", debugprofilestop() - milliseconds)
-
+  
+  -- If not mounted, check auras to determine default mode
   if C_UnitAuras.GetPlayerAuraBySpellID(404464) ~= nil then return true end
   if C_UnitAuras.GetPlayerAuraBySpellID(404468) ~= nil then return false end
 
-  -- print("2", debugprofilestop() - milliseconds)
-
-  -- If you have never switched, you have neither buff and Skyriding it the default.
+  -- If you have never switched, you have neither buff and Skyriding is the default.
   return true
 end
 
