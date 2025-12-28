@@ -3653,11 +3653,12 @@ local function CreateSituationSettingsTab(tabOrder)
           },
 
           -- TODO
-          -- exportFrame = {
-            -- type = "input",
-            -- name = "Situation Export",
-            -- dialogControl = "aceInvader",
-          -- },
+          exportFrame = {
+            type = "input",
+            name = "SituationExport",
+            dialogControl = "DynamicCam_CustomWidget",
+            width = "full",
+          },
         },
       },
 
@@ -4097,10 +4098,10 @@ end
 
 
 
--- Create stuff, but all width dependent things have to be (re-)done in the OnWidthSet function.
-local function BuildSituationExportFrame(widget)
+-- Registry for custom widget builders.
+DynamicCam.CustomWidgetBuilders = {}
 
-  local f = widget.frame
+DynamicCam.CustomWidgetBuilders["SituationExport"] = function(widget, f)
 
   -- Description text on top of the page. Using the same font as AceConfig description text.
   if not f.help then
@@ -4173,7 +4174,7 @@ local function BuildSituationExportFrame(widget)
 
 
   -- Whenever OnWidthSet() is called, we set the height of frames to the height of their children frames.
-  widget.AdjustHeightFunction = widget.AdjustHeightFunction or function(self)
+  widget.AdjustHeightFunction = function(self)
 
     -- -- For multi-line text labels with automatic line breaks you may have to
     -- -- reset the label height back to the string height here. Because for some reason
@@ -4185,106 +4186,118 @@ local function BuildSituationExportFrame(widget)
     -- testFrame.myLabel:SetHeight(newHeight)
     -- testFrame:SetHeight(newHeight)
 
-    local f = self.frame
     local cf = f.contentFrame
 
     -- Set the contentFrame to the height of all its children.
     cf:SetHeight(cf.situationSettingsFrame:GetHeight() + cf.situationActionsFrame:GetHeight() + cf.situationControlsFrame:GetHeight())
 
-    -- Set the widget frame to the height of all its children (frame.help and frame.contentFrame).
-    -- Get the offset between frame.help and frame.contentFrame.
+    -- Set the container frame (f) height.
     local point, _, _, _, yOffset = cf:GetPoint()
-    assert(point == "TOPLEFT" or point == "TOPRIGHT")
     f:SetHeight(f.help:GetStringHeight() - yOffset + cf:GetHeight())
+
+    -- Set the widget frame height to match the container.
+    self.frame:SetHeight(f:GetHeight())
   end
 
 end
 
 
 
--- My aceInvader.
+-- My custom widget for Situation Export.
 -- Inspired by https://github.com/SFX-WoW/AceGUI-3.0_SFX-Widgets/.
 do
 
-  local Type, Version = "aceInvader", 1
+  local Type, Version = "DynamicCam_CustomWidget", 1
   local AceGUI = LibStub("AceGUI-3.0", true)
 
-	local function Constructor()
-		local Widget = {}
+  -- Standard Ace3 version check: If a newer version of this widget is already registered, don't overwrite it.
+  if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
-		-- Container Frame
-		local frame = CreateFrame("Frame", nil, UIParent)
-    frame.obj = Widget
-
-    -- Widget
-    Widget.frame = frame
+  local function Constructor()
+    
+    local Widget = {}
+    Widget.frame = CreateFrame("Frame", nil, UIParent)
+    Widget.frame.obj = Widget
     Widget.type  = Type
-		Widget.num   = AceGUI:GetNextWidgetNum(Type)
-
+    Widget.num   = AceGUI:GetNextWidgetNum(Type)
 
     -- Reccommended place to store ephemeral widget information.
     Widget.userdata = {}
 
+    -- Storage for our different views (builders)
+    Widget.views = {}
+
     -- OnAcquire, SetLabel, SetText, SetDisabled(nil)
     -- all get called when showing the widget.
-    -- It does not really matter which of these functions you use to do your stuff.
-		Widget.OnAcquire = function(self)
-      -- print("----------- OnAcquire")
+    Widget.OnAcquire = function(self)
       self.resizing = true
 
       self:SetDisabled(true)
-      self:SetFullWidth(true)
+      self.frame:SetHeight(10) -- Default small height until built
+
+      -- Hide all views
+      for _, view in pairs(self.views) do
+        view:Hide()
+      end
+      self.currentView = nil
+      self.AdjustHeightFunction = nil
 
       self.resizing = nil
     end
 
+    Widget.SetLabel = function(self, name)
+      -- Use 'name' as the ID to look up the builder.
+      local builder = DynamicCam.CustomWidgetBuilders[name]
+      if not builder then return end
 
-    -- Could be used to read the "name" attribute,
-    -- if you want to use the same aceInvader for different purposes.
-		Widget.SetLabel = function(self, name)
-      -- print("----------- SetLabel", name)
+      if not self.views[name] then
+        local f = CreateFrame("Frame", nil, self.frame)
+        f:SetPoint("TOPLEFT")
+        f:SetPoint("TOPRIGHT")
+        -- We don't set height here, the builder/AdjustHeightFunction will do it.
 
-      if name == "Situation Export" then
-        BuildSituationExportFrame(self)
+        builder(self, f)
+        self.views[name] = f
       end
 
+      self.currentView = self.views[name]
+      self.currentView:Show()
+
+      -- Trigger a resize now that we have content
+      if self.AdjustHeightFunction then
+         self:AdjustHeightFunction()
+      end
     end
 
     -- Not useful to us, but Ace3 needs to call it.
-		Widget.SetText = function(self)
-      -- print("----------- SetText")
-    end
-
-
+    Widget.SetText = function(self) end
 
     Widget.OnWidthSet = function(self)
       if self.resizing then return end
-      -- print("----------- OnWidthSet", self.frame:GetWidth(), self.frame.contentFrame:GetWidth())
 
       -- Whenever OnWidthSet() is called, adjust the height of the frames to contain all child frames.
       if self.AdjustHeightFunction then self:AdjustHeightFunction() end
     end
 
-
-
-    -- Not sure if this is really necessary...
-		Widget.SetDisabled = function(self, Disabled)
-      -- print("----------- SetDisabled", Disabled)
+    Widget.SetDisabled = function(self, Disabled)
       self.disabled = Disabled
     end
 
-
     -- OnRelease gets called when hiding the widget.
     Widget.OnRelease = function(self)
-      -- print("----------- OnRelease")
       self:SetDisabled(true)
       self.frame:ClearAllPoints()
+      if self.currentView then
+        self.currentView:Hide()
+      end
+      self.currentView = nil
+      self.AdjustHeightFunction = nil
     end
 
-		return AceGUI:RegisterAsWidget(Widget)
-	end
+    return AceGUI:RegisterAsWidget(Widget)
+  end
 
-	AceGUI:RegisterWidgetType(Type, Constructor, Version)
+  AceGUI:RegisterWidgetType(Type, Constructor, Version)
 end
 
 
