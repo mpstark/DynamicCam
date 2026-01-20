@@ -1,4 +1,4 @@
-## Interface: 110207
+## Interface: 120000
 ## Version: @project-version@
 ## Title: DynamicCam
 ## IconTexture: interface/icons/inv_misc_ selfiecamera_sketch.blp

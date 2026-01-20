@@ -266,6 +266,7 @@ end
 -- Thanks to vrul!
 -- https://www.wowinterface.com/forums/showthread.php?p=338116#post338116
 local function GetInheritedDisabledStatus(info)
+  if not info or not info.options then return false end
   local option, options = info.options, { }
   local disabled = option.disabled
   for index = 1, #info - 1 do
@@ -561,7 +562,7 @@ end
 
 
 
-local function CreateSettingsTab(tabOrder, forSituations)
+local function CreateSettingsTab(tabOrder, forSituations, forExport)
 
   -- For the situation settings the area is a little smaller.
   local sliderWidth = 1.9
@@ -622,6 +623,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           zoomSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "zoomSubGroup" or nil, -- Mark as skippable/mergeable if needed, or just handle empty names
             order = 1,
             inline = true,
             disabled =
@@ -634,6 +636,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 name = L["Maximum Camera Distance"],
                 desc = L["How many yards the camera can zoom away from your character."] .. "\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
+                _dbPath = forExport and {"cvars", "cameraDistanceMaxZoomFactor"} or nil,
                 order = 1,
                 width = sliderWidth,
                 min = 15,
@@ -657,6 +660,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 name = L["Camera Zoom Speed"],
                 desc = L["How fast the camera can zoom."] .. "\n|cff909090cvar: cameraZoomSpeed|r",
+                _dbPath = forExport and {"cvars", "cameraZoomSpeed"} or nil,
                 order = 2,
                 width = sliderWidth,
                 min = 1,
@@ -876,6 +880,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           mouseLookSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "mouseLookSubGroup" or nil,
             order = 1,
             inline = true,
             disabled =
@@ -888,6 +893,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 name = L["Horizontal Speed"],
                 desc = L["How much the camera yaws horizontally when in mouse look mode."] .. "\n|cff909090cvar: cameraYawMoveSpeed|r",
+                _dbPath = forExport and {"cvars", "cameraYawMoveSpeed"} or nil,
                 order = 1,
                 width = sliderWidth + 0.1,
                 min = 1,
@@ -910,6 +916,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 type = "range",
                 name = L["Vertical Speed"],
                 desc = L["How much the camera pitches vertically when in mouse look mode."] .. "\n|cff909090cvar: cameraPitchMoveSpeed|r",
+                _dbPath = forExport and {"cvars", "cameraPitchMoveSpeed"} or nil,
                 order = 2,
                 width = sliderWidth + 0.1,
                 min = 1,
@@ -963,6 +970,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           shoulderOffsetSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "shoulderOffsetSubGroup" or nil,
             order = 1,
             inline = true,
             disabled =
@@ -974,6 +982,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               cameraOverShoulderGroup = {
                 type = "group",
                 name = L["Camera Over Shoulder Offset"],
+                _dbPath = forExport and "cameraOverShoulderGroup" or nil,
                 order = 1,
                 args = {
 
@@ -986,6 +995,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   cameraOverShoulder = {
                     type = "range",
                     name = "",
+                    _dbPath = forExport and {"cvars", "test_cameraOverShoulder"} or nil,
                     order = 1,
                     width = sliderWidth - 0.15,
                     min = -15,
@@ -1008,12 +1018,14 @@ local function CreateSettingsTab(tabOrder, forSituations)
               shoulderOffsetZoomGroup = {
                 type = "group",
                 name = L["Adjust shoulder offset according to zoom level"],
+                _dbPath = forExport and "shoulderOffsetZoomGroup" or nil,
                 order = 2,
                 args = {
 
                   shoulderOffsetZoomEnabled = {
                     type = "toggle",
                     name = L["Enable"],
+                    _dbPath = forExport and "shoulderOffsetZoomEnabled" or nil,
                     order = 1,
                     get =
                       function()
@@ -1054,6 +1066,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   shoulderOffsetZoomLowerBound = {
                     type = "range",
                     name = L["No offset when below this zoom level:"],
+                    _dbPath = forExport and "shoulderOffsetZoomLowerBound" or nil,
                     order = 2,
                     width = "full",
                     desc = L["When the camera is closer than this zoom level, the offset has reached zero."],
@@ -1081,6 +1094,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   shoulderOffsetZoomUpperBound = {
                     type = "range",
                     name = L["Real offset when above this zoom level:"],
+                    _dbPath = forExport and "shoulderOffsetZoomUpperBound" or nil,
                     order = 3,
                     width = "full",
                     desc = L["When the camera is further away than this zoom level, the offset has reached its set value."],
@@ -1137,6 +1151,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           pitchSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "pitchSubGroup" or nil,
             order = 1,
             inline = true,
             disabled =
@@ -1148,6 +1163,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               cameraDynamicPitch = {
                 type = "toggle",
                 name = L["Enable"],
+                _dbPath = forExport and {"cvars", "test_cameraDynamicPitch"} or nil,
                 order = 1,
                 width = "full",
                 desc = "|cff909090cvar: test_cameraDynamicPitch|r",
@@ -1169,6 +1185,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               baseFovPad = {
                 type = "range",
                 name = L["Pitch (on ground)"],
+                _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPad"} or nil,
                 order = 2,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPad|r",
@@ -1195,6 +1212,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               baseFovPadFlying = {
                 type = "range",
                 name = L["Pitch (flying)"],
+                _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPadFlying"} or nil,
                 order = 3,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadFlying|r",
@@ -1221,6 +1239,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               baseFovPadDownScale = {
                 type = "range",
                 name = L["Down Scale"],
+                _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPadDownScale"} or nil,
                 order = 4,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadDownScale|r",
@@ -1247,6 +1266,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               smartPivotCutoffDist = {
                 type = "range",
                 name = L["Smart Pivot Cutoff Distance"],
+                _dbPath = forExport and {"cvars", "test_cameraDynamicPitchSmartPivotCutoffDist"} or nil,
                 order = 5,
                 width = sliderWidth,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
@@ -1305,6 +1325,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           targetFocusSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "targetFocusSubGroup" or nil,
             order = 1,
             inline = true,
             disabled =
@@ -1316,12 +1337,14 @@ local function CreateSettingsTab(tabOrder, forSituations)
               targetFocusEnemiesGroup = {
                 type = "group",
                 name = L["Enemy Target"],
+                _dbPath = forExport and "targetFocusEnemiesGroup" or nil,
                 order = 1,
                 args = {
 
                   targetFocusEnemyEnable = {
                     type = "toggle",
                     name = L["Enable"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusEnemyEnable"} or nil,
                     order = 1,
                     width = "full",
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyEnable|r",
@@ -1342,6 +1365,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   targetFocusEnemyStrengthYaw = {
                     type = "range",
                     name = L["Horizontal Strength"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusEnemyStrengthYaw"} or nil,
                     order = 2,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthYaw|r",
@@ -1368,6 +1392,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   targetFocusEnemyStrengthPitch = {
                     type = "range",
                     name = L["Vertical Strength"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusEnemyStrengthPitch"} or nil,
                     order = 3,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthPitch|r",
@@ -1396,12 +1421,14 @@ local function CreateSettingsTab(tabOrder, forSituations)
               targetFocusNPCsGroup = {
                 type = "group",
                 name = L["Interaction Target (NPCs)"],
+                _dbPath = forExport and "targetFocusNPCsGroup" or nil,
                 order = 2,
                 args = {
 
                   targetFocusInteractEnable = {
                     type = "toggle",
                     name = L["Enable"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractEnable"} or nil,
                     order = 1,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractEnable|r",
@@ -1422,6 +1449,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   targetFocusInteractStrengthYaw = {
                     type = "range",
                     name = L["Horizontal Strength"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractStrengthYaw"} or nil,
                     order = 2,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthYaw|r",
@@ -1448,6 +1476,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                   targetFocusInteractStrengthPitch = {
                     type = "range",
                     name = L["Vertical Strength"],
+                    _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractStrengthPitch"} or nil,
                     order = 3,
                     width = sliderWidth - 0.15,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthPitch|r",
@@ -1509,6 +1538,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
           headTrackingSubGroup = {
             type = "group",
             name = "",
+            _dbPath = forExport and "headTrackingSubGroup" or nil,
             order = 1,
             inline = true,
             disabled =
@@ -1520,6 +1550,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
               headTrackingEnable = {
                 type = "toggle",
                 name = L["Enable"],
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementStrength"} or nil,
                 order = 1,
                 width = sliderWidth - 0.15,
                 desc = "|cff909090cvar: test_cameraHeadMovementStrength\n\n" .. L["<headTrackingEnable_desc>"] .. "|r",
@@ -1544,6 +1575,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Strength (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingStrength|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementStandingStrength"} or nil,
                 min = 0,
                 max = 1,   -- No effect above 1.
                 step = 0.01,
@@ -1570,6 +1602,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Inertia (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingDampRate|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementStandingDampRate"} or nil,
                 min = 0,
                 max = 20,
                 step = 0.05,
@@ -1603,6 +1636,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Strength (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingStrength|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementMovingStrength"} or nil,
                 min = 0,
                 max = 1,   -- No effect above 1.
                 step = 0.01,
@@ -1629,6 +1663,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Inertia (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingDampRate|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementMovingDampRate"} or nil,
                 min = 0,
                 max = 20,
                 step = 0.05,
@@ -1662,6 +1697,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Inertia (first person)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nFirstPersonDampRate|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementFirstPersonDampRate"} or nil,
                 min = 0,
                 max = 20,
                 step = 0.05,
@@ -1695,6 +1731,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Range Scale"],
                 desc = L["Camera distance beyond which head tracking is reduced or disabled. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementRangeScale\n" .. L["(slider value transformed)"] .. "|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementRangeScale"} or nil,
                 min = 0,
                 max = 117,
                 step = 0.5,
@@ -1723,6 +1760,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
                 width = sliderWidth,
                 name = L["Dead Zone"],
                 desc = L["Radius of head movement not affecting the camera. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementDeadZone\n" .. L["(slider value devided by 10)"] .. "|r\n|cffe00000" .. L["Requires /reload to come into effect!"] .. "|r",
+                _dbPath = forExport and {"cvars", "test_cameraHeadMovementDeadZone"} or nil,
                 min = 0,
                 max = 10,
                 step = 0.05,
@@ -1765,7 +1803,7 @@ local function CreateSettingsTab(tabOrder, forSituations)
 end
 
 
-local function CreateSituationSettingsTab(tabOrder)
+local function CreateSituationSettingsTab(tabOrder, forExport)
 
   local returnOptions = {
 
@@ -1904,6 +1942,7 @@ local function CreateSituationSettingsTab(tabOrder)
                   function()
                     return S.viewZoom.enabled
                   end,
+                _dbPath = forExport and {"viewZoom", "enabled"} or nil,
                 set =
                   function(_, newValue)
                     S.viewZoom.enabled = newValue
@@ -2123,17 +2162,17 @@ local function CreateSituationSettingsTab(tabOrder)
                                 for usedViewSituationId in pairs(usedViewSituationList) do
                                   savedViewSituations = savedViewSituations .. "    - " .. DynamicCam.db.profile.situations[usedViewSituationId].name .. "\n"
                                 end
-                                
+
                                 local restoreToDefaultSituations = ""
                                 for usedDefaultViewSituationId in pairs(usedDefaultViews[usedView]) do
                                   restoreToDefaultSituations = restoreToDefaultSituations .. "    - " ..  DynamicCam.db.profile.situations[usedDefaultViewSituationId].name .. "\n"
                                 end
-                                
-                                
+
+
                                 returnString = returnString .. "\n\n" .. L["View %s is used as saved view in the situations:\n%sand as restore-to-default view in the situations:\n%s"]:format(usedView, savedViewSituations, restoreToDefaultSituations) .. "\n"
 
 
-                                
+
 
                               end
                             end
@@ -3168,6 +3207,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Priority"],
                 desc = L["The priority of this situation.\nMust be a number."],
                 get = function() return ""..S.priority end,
+                _dbPath = forExport and "priority" or nil,
                 set =
                   function(_, newValue)
                     if tonumber(newValue) then
@@ -3241,6 +3281,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Events"],
                 desc = L["Separated by commas."],
                 get = function() return table.concat(S.events, ", ") end,
+                _dbPath = forExport and "events" or nil,
                 set =
                   function(_, newValue)
                     if newValue == "" then
@@ -3326,6 +3367,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Initialisation Script"],
                 desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnInit end,
+                _dbPath = forExport and "executeOnInit" or nil,
                 set =
                   function(_, newValue)
                     S.executeOnInit = newValue
@@ -3397,6 +3439,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Condition Script"],
                 desc = L["Lua code using the WoW UI API.\nShould return \"true\" if and only if the situation should be active."],
                 get = function() return S.condition end,
+                _dbPath = forExport and "condition" or nil,
                 set =
                   function(_, newValue)
                     S.condition = newValue
@@ -3468,6 +3511,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["On-Enter Script"],
                 desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnEnter end,
+                _dbPath = forExport and "executeOnEnter" or nil,
                 set =
                   function(_, newValue)
                     S.executeOnEnter = newValue
@@ -3544,6 +3588,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["On-Exit Script"],
                 desc = L["Lua code using the WoW UI API."],
                 get = function() return S.executeOnExit end,
+                _dbPath = forExport and "executeOnExit" or nil,
                 set =
                   function(_, newValue)
                     S.executeOnExit = newValue
@@ -3583,6 +3628,7 @@ local function CreateSituationSettingsTab(tabOrder)
                 name = L["Exit Delay"],
                 desc = L["Wait for this many seconds before exiting this situation."],
                 get = function() return ""..S.delay end,
+                _dbPath = forExport and "delay" or nil,
                 set =
                   function(_, newValue)
                     if tonumber(newValue) then
@@ -3648,7 +3694,7 @@ local function CreateSituationSettingsTab(tabOrder)
 
           description = {
             type = "description",
-            name = L["Coming soon(TM)."],
+            name = L["Coming soon(TM)."] .. " (In the meantime, enjoy this non-functional preview...)\n\n",
             order = 1,
           },
 
@@ -4099,104 +4145,452 @@ end
 
 
 -- Registry for custom widget builders.
-DynamicCam.CustomWidgetBuilders = {}
+DynamicCam.customWidgetBuilders = {}
 
-DynamicCam.CustomWidgetBuilders["SituationExport"] = function(widget, f)
+DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
 
-  -- Description text on top of the page. Using the same font as AceConfig description text.
+  -- Description text on top of the page.
   if not f.help then
-
     f.help = f:CreateFontString(nil, "OVERLAY")
     f.help:SetFontObject("GameFontHighlightSmall")
     f.help:SetJustifyH("LEFT")
     f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
     f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-
-    f.help:SetText("TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO")
+    f.help:SetText("Select the settings you want to export.")
   end
-
 
   if not f.contentFrame then
     f.contentFrame = CreateFrame("Frame", nil, f)
     local cf = f.contentFrame
-
     local yOffset = -10
     cf:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, yOffset)
     cf:SetPoint("TOPRIGHT", f.help, "TOPRIGHT", 0, yOffset)
 
+    -- We use cf directly as the container for rows.
+    -- Scrolling is handled by the parent AceGUI container.
 
-    cf.situationSettingsFrame = CreateFrame("Frame", nil, cf)
-    local ssf = cf.situationSettingsFrame
-    ssf:SetPoint("TOPLEFT", cf, "TOPLEFT")
-    ssf:SetPoint("TOPRIGHT", cf, "TOPRIGHT")
+    -- --- Tree Building Logic ---
 
-    ssf:SetHeight(30)
+    local function BuildTreeData(args)
+      local tree = {}
+      for key, entry in pairs(args) do
+        -- Check disabled status
+        local isDisabled = false
+        if entry.disabled then
+            if type(entry.disabled) == "function" then
+                isDisabled = entry.disabled({})
+            else
+                isDisabled = entry.disabled
+            end
+        end
 
+        -- Check hidden status
+        local isHidden = false
+        if entry.hidden then
+            if type(entry.hidden) == "function" then
+                isHidden = entry.hidden({})
+            else
+                isHidden = entry.hidden
+            end
+        end
 
-    cf.situationActionsFrame = CreateFrame("Frame", nil, cf)
-    local saf = cf.situationActionsFrame
-    saf:SetPoint("TOPLEFT", ssf, "BOTTOMLEFT")
-    saf:SetPoint("TOPRIGHT", ssf, "BOTTOMRIGHT")
+        if not isDisabled and not isHidden then
+            if entry.type == "group" then
+              local children = BuildTreeData(entry.args)
+              if next(children) then
+                local rawName = (type(entry.name) == "function" and entry.name() or entry.name)
+                local name = rawName and rawName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
 
-    saf:SetHeight(30)
+                -- Optimization: If group has name, but contains only 1 child,
+                -- hoist the child and merge the names.
+                if name and name ~= "" and #children == 1 then
+                    local child = children[1]
+                    local cleanChildName = child.name and child.name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
 
+                    if cleanChildName ~= "" then
+                        child.name = name .. " |cFFFFFFFF- " .. cleanChildName .. "|r"
+                    else
+                        if child.children then
+                            child.name = name
+                        else
+                            child.name = "|cFFFFFFFF" .. name .. "|r"
+                        end
+                    end
+                    child.order = entry.order or child.order
+                    table.insert(tree, child)
+                elseif not name or name == "" then
+                    -- If the group has no name (like inline groups), flatten it by merging children up
+                    for _, child in ipairs(children) do
+                        table.insert(tree, child)
+                    end
+                else
+                    table.insert(tree, {
+                      key = key,
+                      name = name,
+                      children = children,
+                      order = entry.order or 100,
+                      checked = false,
+                      notCollapsible = entry.notCollapsible
+                    })
+                end
+              end
+            elseif entry._dbPath or entry.get then
+              local rawName = (type(entry.name) == "function" and entry.name() or entry.name)
+              local cleanName = rawName and rawName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
 
-    cf.situationControlsFrame = CreateFrame("Frame", nil, cf)
-    local scf = cf.situationControlsFrame
-    scf:SetPoint("TOPLEFT", saf, "BOTTOMLEFT")
-    scf:SetPoint("TOPRIGHT", saf, "BOTTOMRIGHT")
+              local finalName = cleanName
+              if cleanName ~= "" then
+                  finalName = "|cFFFFFFFF" .. cleanName .. "|r"
+              end
 
-    -- If this is too small, the text of the label gets cut off...
-    scf:SetHeight(30)
+              table.insert(tree, {
+                key = key,
+                name = finalName,
+                dbPath = entry._dbPath,
+                order = entry.order or 100,
+                get = entry.get,
+                arg = entry.arg,
+                type = entry.type,
+                multiline = entry.multiline,
+                checked = false
+              })
+            end
+        end
+      end
+      table.sort(tree, function(a,b) return a.order < b.order end)
+      return tree
+    end
 
+    -- Get options structure
+    local fullOptions = CreateSituationSettingsTab(0, true)
+    local exportArgs = {
+        everything = {
+            type = "group",
+            name = "Everything",
+            order = 1,
+            notCollapsible = true,
+            args = {
+                situationSettings = {
+                    type = "group",
+                    name = L["Situation Settings"],
+                    order = 1,
+                    args = CreateSettingsTab(0, true, true).args
+                },
+                situationActions = {
+                    type = "group",
+                    name = L["Situation Actions"],
+                    order = 2,
+                    args = fullOptions.args.situationActions.args
+                },
+                situationControls = {
+                    type = "group",
+                    name = L["Situation Controls"],
+                    order = 3,
+                    args = fullOptions.args.situationControls.args
+                }
+            }
+        }
+    }
+
+    local treeData = BuildTreeData(exportArgs)
+
+    -- --- Tree Rendering Logic ---
+
+    local ROW_HEIGHT = 24
+    local INDENT = 20
+    local allRows = {} -- Flat list of all rows in visual order
+
+    local function ReLayout()
+        local currentY = 0
+        for _, row in ipairs(allRows) do
+            if row:IsShown() then
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", cf, "TOPLEFT", row.level * INDENT, currentY)
+                row:SetPoint("RIGHT", cf, "RIGHT")
+                currentY = currentY - row:GetHeight()
+            end
+        end
+        cf:SetHeight(math.abs(currentY))
+
+        if widget.AdjustHeightFunction then
+            widget:AdjustHeightFunction()
+        end
+
+        -- Force parent to update layout to accommodate new height
+        if widget.parent and widget.parent.DoLayout then
+            widget.parent:DoLayout()
+        end
+    end
+
+    local function CreateRow(parent, node, level, parentRow)
+      local row = CreateFrame("Frame", nil, parent)
+      row:SetHeight(ROW_HEIGHT)
+      row.level = level -- Store level for ReLayout
+      row.parentRow = parentRow
+
+      -- Expand Button (if children)
+      if node.children then
+        if not node.notCollapsible then
+            local expandBtn = CreateFrame("Button", nil, row)
+            expandBtn:SetSize(22, 22)
+            expandBtn:SetPoint("LEFT", 0, 0)
+
+            -- Use textures instead of text
+            expandBtn:SetNormalAtlas("common-button-dropdown-open")
+            expandBtn:SetPushedAtlas("common-button-dropdown-openpressed")
+            expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+
+            expandBtn:SetScript("OnClick", function(self)
+               row.expanded = not row.expanded
+               local show = row.expanded
+
+               if show then
+                   self:SetNormalAtlas("common-button-dropdown-open")
+                   self:SetPushedAtlas("common-button-dropdown-openpressed")
+               else
+                   self:SetNormalAtlas("common-button-dropdown-closed")
+                   self:SetPushedAtlas("common-button-dropdown-closedpressed")
+               end
+
+               -- Define ToggleChildren locally or use upvalue?
+               -- ToggleChildren is defined below, need to move it up or use forward declaration?
+               -- Actually ToggleChildren is defined inside the if block in the original code?
+               -- No, it was defined inside the if block.
+
+               -- Wait, I need to be careful about scope.
+               -- In original code:
+               -- local function ToggleChildren(row, show) ... end
+               -- expandBtn:SetScript(...) calls ToggleChildren
+
+               -- I will keep the structure but wrap expandBtn creation.
+            end)
+            row.expandBtn = expandBtn
+        end
+
+        row.expanded = true -- Default to expanded
+
+        local function ToggleChildren(row, show)
+            if not row.childRows then return end
+            for _, childRow in ipairs(row.childRows) do
+                if show then
+                    childRow:Show()
+                    -- If the child itself is expanded, show its children too
+                    if childRow.expanded then
+                        ToggleChildren(childRow, true)
+                    end
+                else
+                    childRow:Hide()
+                    -- Recursively hide all descendants
+                    ToggleChildren(childRow, false)
+                end
+            end
+        end
+
+        if row.expandBtn then
+            row.expandBtn:SetScript("OnClick", function(self)
+               row.expanded = not row.expanded
+               local show = row.expanded
+
+               if show then
+                   self:SetNormalAtlas("common-button-dropdown-open")
+                   self:SetPushedAtlas("common-button-dropdown-openpressed")
+               else
+                   self:SetNormalAtlas("common-button-dropdown-closed")
+                   self:SetPushedAtlas("common-button-dropdown-closedpressed")
+               end
+
+               ToggleChildren(row, show)
+               ReLayout()
+            end)
+        end
+      end
+
+      -- Checkbox
+      local cb = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+      cb:SetSize(24, 24)
+
+      local cbOffsetX = 24
+      if node.notCollapsible then
+          cbOffsetX = 0
+      end
+      cb:SetPoint("TOPLEFT", cbOffsetX, 0)
+
+      cb.text:SetText(" " .. node.name)
+
+      cb.text:SetFontObject("GameFontNormal")
+
+      row.cb = cb
+      row.node = node
+      row.childRows = {}
+
+      -- Multiline handling
+      if node.multiline then
+          local val = ""
+          if node.get then
+             local success, v = pcall(node.get)
+             if success and v then val = v end
+          end
+
+          local hasContent = (val and val ~= "")
+          local boxHeight = hasContent and 80 or 24
+
+          local scrollFrameBorder = CreateFrame("Frame", nil, row, "TooltipBackdropTemplate")
+          scrollFrameBorder:SetPoint("TOPLEFT", 28, -24)
+          scrollFrameBorder:SetPoint("RIGHT", -30, 0)
+          scrollFrameBorder:SetHeight(boxHeight)
+
+          local template = hasContent and "UIPanelScrollFrameTemplate" or nil
+          local scrollFrame = CreateFrame("ScrollFrame", nil, scrollFrameBorder, template)
+          scrollFrame:SetPoint("TOPLEFT", 8, -4)
+          if hasContent then
+              scrollFrame:SetPoint("BOTTOMRIGHT", -26, 4)
+          else
+              scrollFrame:SetPoint("BOTTOMRIGHT", -8, 4)
+          end
+
+          local bg = scrollFrame:CreateTexture(nil, "BACKGROUND")
+          bg:SetAllPoints()
+          bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+
+          local editBox = CreateFrame("EditBox", nil, scrollFrame)
+          editBox:SetMultiLine(true)
+          editBox:SetFontObject("GameFontHighlightSmall")
+          editBox:SetTextColor(0.533, 0.533, 0.533)
+          editBox:SetTextInsets(2, 2, 4, 2)
+          editBox:SetText(val)
+          editBox:SetAutoFocus(false)
+          editBox:EnableMouse(false)
+
+          scrollFrame:SetScript("OnSizeChanged", function(self, w, h)
+              editBox:SetWidth(w)
+          end)
+
+          scrollFrame:SetScrollChild(editBox)
+
+          row:SetHeight(24 + boxHeight + 5)
+      else
+          -- Append value if available (single line)
+          if node.get then
+              local success, val = pcall(node.get)
+              if success and val ~= nil then
+                  if type(val) == "number" then
+                      val = math.floor(val * 100 + 0.5) / 100 -- Round to 2 decimals
+                  end
+                  cb.text:SetText(" " .. node.name .. " |cFF888888[" .. tostring(val) .. "]|r")
+              end
+          end
+          row:SetHeight(ROW_HEIGHT)
+      end
+
+      table.insert(allRows, row) -- Add to flat list
+
+      -- Helper to calculate state based on children
+      local function GetState(r)
+          if not r.childRows or #r.childRows == 0 then
+              return r.node.checked
+          end
+
+          local allChecked = true
+          local allUnchecked = true
+
+          for _, child in ipairs(r.childRows) do
+              local childState = GetState(child)
+              if childState == false then
+                  allChecked = false
+              elseif childState == true then
+                  allUnchecked = false
+              else -- mixed
+                  allChecked = false
+                  allUnchecked = false
+              end
+          end
+
+          if allChecked then return true end
+          if allUnchecked then return false end
+          return "mixed"
+      end
+
+      -- Helper to update visuals
+      local function UpdateVisuals(r)
+          local state = GetState(r)
+          local tex = r.cb:GetCheckedTexture()
+
+          if state == true then
+              r.cb:SetChecked(true)
+              tex:SetAlpha(1)
+          elseif state == false then
+              r.cb:SetChecked(false)
+          else -- mixed
+              r.cb:SetChecked(true)
+              tex:SetAlpha(0.4)
+          end
+      end
+      row.UpdateVisuals = UpdateVisuals
+
+      -- Checkbox Logic
+      cb:SetScript("OnClick", function(self)
+          local currentState = GetState(row)
+          local newState = true
+          if currentState == true then
+              newState = false
+          end
+
+          -- Apply to self (leaf) or children (recursive)
+          local function SetStateRecursive(r, state)
+              r.node.checked = state
+              if r.childRows then
+                  for _, child in ipairs(r.childRows) do
+                      SetStateRecursive(child, state)
+                  end
+              end
+              r.UpdateVisuals(r)
+          end
+
+          SetStateRecursive(row, newState)
+
+          -- Update parents upwards
+          local p = row.parentRow
+          while p do
+              p.UpdateVisuals(p)
+              p = p.parentRow
+          end
+      end)
+
+      if node.children then
+        for _, child in ipairs(node.children) do
+          local childRow = CreateRow(parent, child, level + 1, row)
+          table.insert(row.childRows, childRow)
+        end
+      end
+
+      -- Initialize state
+      if node.checked == nil then node.checked = false end
+      UpdateVisuals(row)
+
+      return row
+    end
+
+    -- Use real treeData
+    for _, node in ipairs(treeData) do
+      CreateRow(cf, node, 0, nil)
+    end
+
+    -- Initial Layout
+    ReLayout()
   end
-
-
-
-
-
-  -- TODO: For testing.
-  -- SetFrameBorder(f, 2, 1, 0, 0, 0.5)
-  -- SetFrameBorder(f.contentFrame, 2, 1, 1, 1)
-
-  -- testFrame = f.contentFrame.situationControlsFrame
-  -- if not testFrame.myLabel then
-    -- testFrame.myLabel = testFrame:CreateFontString(nil, "OVERLAY")
-    -- testFrame.myLabel:SetFontObject("Game12Font")
-    -- testFrame.myLabel:SetTextColor(0.8, 0.8, 0.8)
-    -- testFrame.myLabel:SetJustifyH("LEFT")
-    -- testFrame.myLabel:SetPoint("TOPLEFT", testFrame, "TOPLEFT")
-    -- testFrame.myLabel:SetPoint("TOPRIGHT", testFrame, "TOPRIGHT")
-    -- testFrame.myLabel:SetText("TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST TEST")
-  -- end
-
-
-
 
   -- Whenever OnWidthSet() is called, we set the height of frames to the height of their children frames.
   widget.AdjustHeightFunction = function(self)
-
-    -- -- For multi-line text labels with automatic line breaks you may have to
-    -- -- reset the label height back to the string height here. Because for some reason
-    -- -- the label may get reduced to one line (problby because the width is temporarily
-    -- -- undefined) in the process of switching GUI tabs.
-    -- -- This is also the place where have to set the height of frames, whose height should
-    -- -- depend on a text's height.
-    -- local newHeight = testFrame.myLabel:GetStringHeight()
-    -- testFrame.myLabel:SetHeight(newHeight)
-    -- testFrame:SetHeight(newHeight)
-
     local cf = f.contentFrame
-
-    -- Set the contentFrame to the height of all its children.
-    cf:SetHeight(cf.situationSettingsFrame:GetHeight() + cf.situationActionsFrame:GetHeight() + cf.situationControlsFrame:GetHeight())
 
     -- Set the container frame (f) height.
     local point, _, _, _, yOffset = cf:GetPoint()
-    f:SetHeight(f.help:GetStringHeight() - yOffset + cf:GetHeight())
+    -- yOffset is negative (e.g. -10), so we subtract it to add the spacing
+    local totalHeight = f.help:GetStringHeight() + math.abs(yOffset) + cf:GetHeight()
+    f:SetHeight(totalHeight)
 
     -- Set the widget frame height to match the container.
-    self.frame:SetHeight(f:GetHeight())
+    self:SetHeight(totalHeight)
   end
 
 end
@@ -4214,12 +4608,12 @@ do
   if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
   local function Constructor()
-    
-    local Widget = {}
-    Widget.frame = CreateFrame("Frame", nil, UIParent)
+
+    local Widget     = {}
+    Widget.frame     = CreateFrame("Frame", nil, UIParent)
     Widget.frame.obj = Widget
-    Widget.type  = Type
-    Widget.num   = AceGUI:GetNextWidgetNum(Type)
+    Widget.type      = Type
+    Widget.num       = AceGUI:GetNextWidgetNum(Type)
 
     -- Reccommended place to store ephemeral widget information.
     Widget.userdata = {}
@@ -4233,7 +4627,6 @@ do
       self.resizing = true
 
       self:SetDisabled(true)
-      self.frame:SetHeight(10) -- Default small height until built
 
       -- Hide all views
       for _, view in pairs(self.views) do
@@ -4247,18 +4640,21 @@ do
 
     Widget.SetLabel = function(self, name)
       -- Use 'name' as the ID to look up the builder.
-      local builder = DynamicCam.CustomWidgetBuilders[name]
+      local builder = DynamicCam.customWidgetBuilders[name]
       if not builder then return end
 
-      if not self.views[name] then
-        local f = CreateFrame("Frame", nil, self.frame)
-        f:SetPoint("TOPLEFT")
-        f:SetPoint("TOPRIGHT")
-        -- We don't set height here, the builder/AdjustHeightFunction will do it.
-
-        builder(self, f)
-        self.views[name] = f
+      -- Always rebuild to ensure fresh data (e.g. when situation changes)
+      if self.views[name] then
+        self.views[name]:Hide()
+        self.views[name]:SetParent(nil)
       end
+
+      local f = CreateFrame("Frame", nil, self.frame)
+      f:SetPoint("TOPLEFT")
+      f:SetPoint("TOPRIGHT")
+
+      builder(self, f)
+      self.views[name] = f
 
       self.currentView = self.views[name]
       self.currentView:Show()

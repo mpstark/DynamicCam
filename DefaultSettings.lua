@@ -381,7 +381,9 @@ for _, v in pairs(raceBuffList) do
 end
 ]],
         priority = 103,
-        condition = [[-- Check for "Racing" buff first, which is the most common one.
+        condition = [[-- Cannot read auras during combat (any more).
+if InCombatLockdown() then return false end
+-- Check for "Racing" buff first, which is the most common one.
 if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
   local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
@@ -504,6 +506,11 @@ return false]],
   311643,  -- Hearth to Faol's Rest
   311678,  -- Nexus Teleport Scroll
   311681,  -- Tirisfal Camp Scroll
+  311704,  -- Duskwood Scroll
+  311705,  -- Hearth to Booty Bay
+  311709,  -- Duskwood Scroll
+  311711,  -- Blasted Lands Scroll
+  311712,  -- Elwynn Forest Scroll
   311749,  -- Hearth to Uther's Tomb
   311897,  -- Hearth to Moonglade
   312372,  -- Return to Camp
@@ -575,7 +582,7 @@ this.transitionTime = (endTime - startTime)/1000
 this.rotationTime = this.transitionTime]],
       },
       ["201"] = {
-        name = L["Annoying Spells"],
+        name = L["Annoying Spells"] .. " (no combat in retail)",
         events = {"UNIT_AURA"},
         executeOnInit = [[local annoyingSpellList = {
    46924,  -- Bladestorm
@@ -596,6 +603,8 @@ end
   if UnitBuff then     -- Classic
     _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
   else     -- Retail
+    -- Cannot read auras during combat (any more).
+    if InCombatLockdown() then return false end
     local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
     if aura then spellId = aura.spellId end
   end
