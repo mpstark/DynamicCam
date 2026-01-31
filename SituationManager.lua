@@ -1,6 +1,6 @@
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
-local LibMountInfo = LibStub("LibMountInfo-1.0")
+local LibMountInfo = LibStub("LibMountInfo-1.1")
 
 
 
