@@ -27,9 +27,15 @@ Core.lua
 
 MouseZoom.lua
 SituationManager.lua
+ZoomBasedSettings.lua
 
 DefaultSettings.lua
 
 Sharing.lua
 Presets.lua
+
+Options\Helpers.lua
+Options\ControlFactories.lua
+Options\Widgets.lua
+Options\CvarMonitor.lua
 Options.lua

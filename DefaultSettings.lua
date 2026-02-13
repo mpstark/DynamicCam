@@ -23,11 +23,17 @@ DynamicCam.situationDefaults = {
   delay = 0,
 
 
+  -- Generalized transition times for entering and exiting this situation
+  transitionTime = {
+    timeToEnter = 0,  -- Transition time when ENTERING this situation
+    timeToExit = 0,   -- Transition time when EXITING this situation
+  },
+
+
   viewZoom = {
     enabled = false,
     viewZoomType = "zoom",
 
-    zoomTransitionTime = 1,
     zoomType = "set",
     zoomValue = 10,
     zoomMin = 5,
@@ -44,22 +50,18 @@ DynamicCam.situationDefaults = {
     enabled = false,
     rotationType = "continuous",
 
-    rotationTime = 1,
     rotationSpeed = 10,
 
     yawDegrees = 0,
     pitchDegrees = 0,
 
     rotateBack = true,
-    rotateBackTime = 1,
   },
 
   hideUI = {
     enabled            = false,
 
     fadeOpacity        = 0.6,
-    fadeOutTime        = 1,
-    fadeInTime         = 1,
 
     emergencyShowEscEnabled = true,
 
@@ -118,10 +120,6 @@ DynamicCam.defaults = {
       reactiveZoomAddIncrements = 2.5,
       reactiveZoomIncAddDifference = 1.2,
       reactiveZoomMaxZoomTime = 0.1,
-
-      shoulderOffsetZoomEnabled = true,
-      shoulderOffsetZoomLowerBound = 2,
-      shoulderOffsetZoomUpperBound = 7,
 
       -- cvars
       cvars = {
@@ -578,8 +576,7 @@ end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
-this.transitionTime = (endTime - startTime)/1000
-this.rotationTime = this.transitionTime]],
+this.timeToEnter = (endTime - startTime)/1000]],
       },
       ["201"] = {
         name = L["Annoying Spells"] .. " (no combat in retail)",
@@ -806,9 +803,12 @@ end
 
 
 
--- With DC 2.0, some default values changed. As AceDB does not store default values,
--- non-existent entries may have to be set to the old default when modernizing a profile.
-DynamicCam.oldDefaults = {
+-- Profile migration defaults.
+-- These preserve old default values when migrating profiles between versions.
+-- AceDB doesn't store actual defaults, so we need these for accurate migration.
+
+-- Defaults from DC pre-2.0 (used for version 1 -> 2 migration).
+DynamicCam.v2Defaults = {
 
   shoulderOffsetZoom = {
     enabled = true,
@@ -900,7 +900,30 @@ DynamicCam.oldDefaults = {
       hideUI = true,
     },
 
-  }
+  },
 
+}
+
+-- Defaults for shoulder offset zoom (used for version 4 -> 5 migration).
+DynamicCam.v4ShoulderOffsetZoomDefaults = {
+  shoulderOffsetZoomEnabled = true,
+  shoulderOffsetZoomLowerBound = 2,
+  shoulderOffsetZoomUpperBound = 7,
+}
+
+-- Defaults for transition times (used for version 4 -> 5 migration).
+-- These fields existed before being replaced by transitionTime.timeToEnter/timeToExit in version 5.
+DynamicCam.v4TransitionTimeDefaults = {
+  viewZoom = {
+    zoomTransitionTime = 1,
+  },
+  rotation = {
+    rotationTime = 1,
+    rotateBackTime = 1,
+  },
+  hideUI = {
+    fadeOutTime = 1,
+    fadeInTime = 1,
+  },
 }
 

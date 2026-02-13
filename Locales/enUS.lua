@@ -1,18 +1,35 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("DynamicCam", "enUS", true)
 
 
--- Options
+--------------------------------------------------------------------------------
+-- General UI Elements
+--------------------------------------------------------------------------------
 L["Reset"] = "Reset"
 L["Reset to global default"] = "Reset to global default"
 L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"] = "(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"
-L["Currently overridden by the active situation \"%s\"."] = "Currently overridden by the active situation \"%s\"."
-L["Override Standard Settings"] = "Override Standard Settings"
-L["<overrideStandardToggle_desc>"] = "Checking this box allows you to define settings in this category that override the Standard Settings whenever this situation is active. Unchecking erases the Situation Settings for this category."
 L["Standard Settings"] = "Standard Settings"
-L["Situation Settings"] = "Situation Settings"
 L["<standardSettings_desc>"] = "These Standard Settings are applied when either no situation is active or when the active situation has no Situation Settings set up overriding the Standard Settings."
 L["<standardSettingsOverridden_desc>"] = "Categories marked in green are currently overridden by the active situation. You will thus not see any effect of changing the Standard Settings of green categories while the overriding situation is active."
+L["Currently overridden by the active situation \"%s\"."] = "Currently overridden by the active situation \"%s\"."
+L["Help"] = "Help"
+L["WARNING"] = "WARNING"
+L["Error message:"] = "Error message:"
+L["DynamicCam"] = "DynamicCam"
+
+
+--------------------------------------------------------------------------------
+-- Common Controls (Used Across Multiple Sections)
+--------------------------------------------------------------------------------
+L["Override Standard Settings"] = "Override Standard Settings"
+L["<overrideStandardToggle_desc>"] = "Checking this box allows you to define settings in this category that override the Standard Settings whenever this situation is active. Unchecking erases the Situation Settings for this category."
+L["Situation Settings"] = "Situation Settings"
 L["These Situation Settings override the Standard Settings when the respective situation is active."] = "These Situation Settings override the Standard Settings when the respective situation is active."
+L["Enable"] = "Enable"
+
+
+--------------------------------------------------------------------------------
+-- Options - Mouse Zoom
+--------------------------------------------------------------------------------
 L["Mouse Zoom"] = "Mouse Zoom"
 L["Maximum Camera Distance"] = "Maximum Camera Distance"
 L["How many yards the camera can zoom away from your character."] = "How many yards the camera can zoom away from your character."
@@ -27,42 +44,58 @@ L["Quick-Zoom Enter Threshold"] = "Quick-Zoom Enter Threshold"
 L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."] = "How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."
 L["Maximum Zoom Time"] = "Maximum Zoom Time"
 L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."] = "The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."
-L["Help"] = "Help"
 L["Toggle Visual Aid"] = "Toggle Visual Aid"
 L["<reactiveZoom_desc>"] = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Current Zoom Value\" are different, DynamicCam changes the \"Current Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Current Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it."
 L["Enhanced minimal zoom-in"] = "Enhanced minimal zoom-in"
 L["<enhancedMinZoom_desc>"] = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\n|cFFFF0000Enabling \"Enhanced minimal zoom-in\" may cost up to 15% FPS when in CPU limited situations.|r"
 L["/reload of the UI required!"] = "/reload of the UI required!"
+
+
+--------------------------------------------------------------------------------
+-- Options - Mouse Look
+--------------------------------------------------------------------------------
 L["Mouse Look"] = "Mouse Look"
 L["Horizontal Speed"] = "Horizontal Speed"
 L["How much the camera yaws horizontally when in mouse look mode."] = "How much the camera yaws horizontally when in mouse look mode."
 L["Vertical Speed"] = "Vertical Speed"
 L["How much the camera pitches vertically when in mouse look mode."] = "How much the camera pitches vertically when in mouse look mode."
 L["<mouseLook_desc>"] = "How much the camera moves when you move the mouse in \"mouse look\" mode; i.e. while the left or right mouse button is pressed.\n\nThe \"Mouse Look Speed\" slider of WoW's default interface settings controls horizontal and vertical speed at the same time: automatically setting horizontal speed to 2 x vertical speed. DynamicCam overrides this and allows you a more customized setup."
+
+
+--------------------------------------------------------------------------------
+-- Options - Horizontal Offset
+--------------------------------------------------------------------------------
 L["Horizontal Offset"] = "Horizontal Offset"
 L["Camera Over Shoulder Offset"] = "Camera Over Shoulder Offset"
 L["Positions the camera left or right from your character."] = "Positions the camera left or right from your character."
 L["<cameraOverShoulder_desc>"] = "For this to come into effect, DynamicCam automatically temporarily disables WoW's motion sickness setting. So if you need the Motion Sickness setting, do not use the horizontal offset in these situations.\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this."
-L["Adjust shoulder offset according to zoom level"] = "Adjust shoulder offset according to zoom level"
-L["Enable"] = "Enable"
-L["and"] = "and"
-L["No offset when below this zoom level:"] = "No offset when below this zoom level:"
-L["When the camera is closer than this zoom level, the offset has reached zero."] = "When the camera is closer than this zoom level, the offset has reached zero."
-L["Real offset when above this zoom level:"] = "Real offset when above this zoom level:"
-L["When the camera is further away than this zoom level, the offset has reached its set value."] = "When the camera is further away than this zoom level, the offset has reached its set value."
-L["<shoulderOffsetZoom_desc>"] = "Make the shoulder offset gradually transition to zero while zooming in. The two sliders define between what zoom levels this transition takes place. This setting is global and not situation-specific."
+
+
+--------------------------------------------------------------------------------
+-- Options - Vertical Pitch
+--------------------------------------------------------------------------------
 L["Vertical Pitch"] = "Vertical Pitch"
 L["Pitch (on ground)"] = "Pitch (on ground)"
 L["Pitch (flying)"] = "Pitch (flying)"
 L["Down Scale"] = "Down Scale"
 L["Smart Pivot Cutoff Distance"] = "Smart Pivot Cutoff Distance"
 L["<pitch_desc>"] = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs an upwards pitch on the spot of the camera-to-ground collision. An alternative is that the camera moves closer to your character's feet while performing this pitch. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n"
+
+
+--------------------------------------------------------------------------------
+-- Options - Target Focus
+--------------------------------------------------------------------------------
 L["Target Focus"] = "Target Focus"
 L["Enemy Target"] = "Enemy Target"
 L["Horizontal Strength"] = "Horizontal Strength"
 L["Vertical Strength"] = "Vertical Strength"
 L["Interaction Target (NPCs)"] = "Interaction Target (NPCs)"
 L["<targetFocus_desc>"] = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\", is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat)."
+
+
+--------------------------------------------------------------------------------
+-- Options - Head Tracking
+--------------------------------------------------------------------------------
 L["Head Tracking"] = "Head Tracking"
 L["<headTrackingEnable_desc>"] = "(This could also be used as a continuous value between 0 and 1, but it is just multiplied with \"Strength (standing)\" and \"Strength (moving)\" respectively. So there is really no need for another slider.)"
 L["Strength (standing)"] = "Strength (standing)"
@@ -78,6 +111,11 @@ L["Radius of head movement not affecting the camera. (See explanation below.)"] 
 L["(slider value devided by 10)"] = "(slider value devided by 10)"
 L["Requires /reload to come into effect!"] = "Requires /reload to come into effect!"
 L["<headTracking_desc>"] = "With head tracking enabled the camera follows the movement of your character's head. (While this can be a benefit for immersion, it may also cause nausea if you are prone to motion sickness.)\n\nThe \"Strength\" setting determines the intensity of this effect. Setting it to 0 disables head tracking. The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking. The three cases \"standing\", \"moving\" and \"first person\" can be set up individually. There is no \"Strength\" setting for \"first person\" as it assumes the \"Strength\" settings of \"standing\" and \"moving\" respectively. If you want to enable or disable \"first person\" exclusively, use the \"Inertia\" sliders to disable the unwanted cases.\n\nWith the \"Range Scale\" setting you can set the camera distance beyond which head tracking is reduced or disabled. For example, with the slider set to 30 you will have no head tracking when the camera is more than 30 yards away from your character. However, there is a gradual transition from full head tracking to no head tracking, which starts at one third of the slider value. For example, with the slider value set to 30 you have full head tracking when the camera is closer than 10 yards. Beyond 10 yards, head tracking gradually decreases until it is completely gone beyond 30 yards. Hence, the slider's maximum value is 117 allowing for full head tracking at the maximum camera distance of 39 yards. (Hint: Use DynamicCam's \"Mouse Zoom\" visual aid to track the current camera distance while setting this up.)\n\nThe \"Dead Zone\" setting can be used to ignore smaller head movements. Setting it to 0 has the camera follow every slightest head movement, whereas setting it to a greater value results in it following only greater movements. Notice, that changing this setting only comes into effect after reloading the UI (type /reload into the console)."
+
+
+--------------------------------------------------------------------------------
+-- Situations Tab
+--------------------------------------------------------------------------------
 L["Situations"] = "Situations"
 L["Select a situation to setup"] = "Select a situation to setup"
 L["<selectedSituation_desc>"] = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\" (reset recommended).|r\n|cFFEE0000- Erroneous \"Situation Controls\" (fixing required).|r"
@@ -86,8 +124,43 @@ L["Custom:"] = "Custom:"
 L["(modified)"] = "(modified)"
 L["Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"] = "Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"
 L["Create a new custom situation."] = "Create a new custom situation."
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - General
+--------------------------------------------------------------------------------
 L["Situation Actions"] = "Situation Actions"
 L["Setup stuff to happen while in a situation or when entering/exiting it."] = "Setup stuff to happen while in a situation or when entering/exiting it."
+L["Transition Time"] = "Transition Time"
+L["Enter Transition Time"] = "Enter Transition Time"
+L["The time in seconds for the transition when ENTERING this situation."] = "The time in seconds for the transition when ENTERING this situation."
+L["Exit Transition Time"] = "Exit Transition Time"
+L["The time in seconds for the transition when EXITING this situation."] = "The time in seconds for the transition when EXITING this situation."
+L["<transitionTime_desc>"] = [[These transition times control how long it takes to transition between situations.
+
+When entering a situation, the "Enter Transition Time" is used for:
+  • Zoom transitions (when "Zoom/View" is enabled and NOT restoring a saved zoom)
+  • Camera rotations (when "Rotation" is enabled)
+    - For "Continuous" rotation: acceleration time to reach rotation speed
+    - For "By Degrees" rotation: time to complete the rotation
+  • UI fade out (when "Fade Out UI" is enabled)
+
+When exiting a situation, the "Exit Transition Time" is used for:
+  • Zoom restoration (when returning to a saved zoom level from "Restore Zoom" settings)
+  • Camera rotation exit (when "Rotation" is enabled)
+    - For "Continuous" rotation: deceleration time from rotation speed to stop
+    - For "By Degrees" rotation with "Rotate Back": time to rotate back
+  • Rotating the camera back (when "Rotate Back" is enabled)
+  • UI fade in (when "Fade Out UI" was active)
+
+IMPORTANT: When transitioning directly from one situation to another, the NEW situation's Enter Transition Time takes precedence over the old situation's Exit Transition Time for most features (camera rotation, UI fade). However, if zoom is being restored, the OLD situation's Exit Transition Time is used instead. The Exit Transition Time is also used when exiting to no situation.
+
+Note: If you set transition times in the on-enter script using "this.timeToEnter" (see "Situation Controls"), those will override the settings here.]]
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Zoom/View
+--------------------------------------------------------------------------------
 L["Zoom/View"] = "Zoom/View"
 L["Zoom to a certain zoom level or switch to a saved camera view when entering this situation."] = "Zoom to a certain zoom level or switch to a saved camera view when entering this situation."
 L["Set Zoom or Set View"] = "Set Zoom or Set View"
@@ -110,7 +183,6 @@ View 2:   Zoom 5.5, Pitch 10
 View 3:   Zoom 5.5, Pitch 20
 View 4:   Zoom 13.8, Pitch 30
 View 5:   Zoom 13.8, Pitch 10]]
-L["WARNING"] = "WARNING"
 L["You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view."] = "You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view."
 L["View %s is used as saved view in the situations:\n%sand as restore-to-default view in the situations:\n%s"] = "View %s is used as saved view in the situations:\n%sand as restore-to-default view in the situations:\n%s"
 L["<view_desc>"] = [[WoW allows to save up to 5 custom camera views. View 1 is used by DynamicCam to save the camera position when entering a situation, such that it can be restored upon exiting the situation again, if you check the "Restore" box above. This is particularly nice for short situations like NPC interaction, allowing to switch to one view while talking to the NPC and afterwards back to what the camera was before. This is why View 1 cannot be selected in the above drop down menu of saved views.
@@ -135,8 +207,6 @@ To make the view transition instant, add an "i" after the view number. E.g. to i
   /setView 3 i
 
 ]]
-L["Zoom Transition Time"] = "Zoom Transition Time"
-L["<transitionTime_desc>"] = "The time in seconds it takes to transition to the new zoom value.\n\nIf set lower than possible, the transition will be as fast as the current camera zoom speed allows (adjustable in the DynamicCam \"Mouse Zoom\" settings).\n\nIf a situation assigns the variable \"this.transitionTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a transition time for the duration of the spell cast."
 L["<zoomType_desc>"] = "\nSet: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in, if further away than the given maximum. Zoom out, if closer than the given minimum. Do nothing, if the current zoom is within the [min, max] range."
 L["Set"] = "Set"
 L["Out"] = "Out"
@@ -164,16 +234,17 @@ L["<zoom_desc>"] = [[To determine the current zoom level, you can either use the
 Or for short:
 
   /zi]]
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Rotation
+--------------------------------------------------------------------------------
 L["Rotation"] = "Rotation"
 L["Start a camera rotation when this situation is active."] = "Start a camera rotation when this situation is active."
 L["Rotation Type"] = "Rotation Type"
 L["<rotationType_desc>"] = "\nContinuously: The camera is rotating horizontally all the time while this situation is active. Only advisable for situations in which you are not mouse-moving the camera; e.g. teleport spell casting, taxi or AFK. Continuous vertical rotation is not possible as it would stop at the perpendicular upwards or downwards view.\n\nBy Degrees: After entering the situation, change the current camera yaw (horizontal) and/or pitch (vertical) by the given amount of degrees."
 L["Continuously"] = "Continuously"
 L["By Degrees"] = "By Degrees"
-L["Acceleration Time"] = "Acceleration Time"
-L["Rotation Time"] = "Rotation Time"
-L["<accelerationTime_desc>"] = "If you set a time greater than 0 here, the continuous rotation will not immediately start at its full rotation speed but will take that amount of time to accelerate. (Only noticeable for relatively high rotation speeds.)"
-L["<rotationTime_desc>"] = "How long it should take to assume the new camera angle. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached.\n\nIf a situation assigns the variable \"this.rotationTime\" in its on-enter script (see \"Situation Controls\"), the setting here is overriden. This is done e.g. in the \"Hearth/Teleport\" situation to allow a rotation time for the duration of the spell cast."
 L["Rotation Speed"] = "Rotation Speed"
 L["Speed at which to rotate in degrees per second. You can manually enter values between -900 and 900, if you want to get yourself really dizzy..."] = "Speed at which to rotate in degrees per second. You can manually enter values between -900 and 900, if you want to get yourself really dizzy..."
 L["Yaw (-Left/Right+)"] = "Yaw (-Left/Right+)"
@@ -182,16 +253,15 @@ L["Pitch (-Down/Up+)"] = "Pitch (-Down/Up+)"
 L["Degrees to pitch (up or down). There is no going beyond the perpendicular upwards or downwards view."] = "Degrees to pitch (up or down). There is no going beyond the perpendicular upwards or downwards view."
 L["Rotate Back"] = "Rotate Back"
 L["<rotateBack_desc>"] = "When exiting the situation, rotate back by the amount of degrees (modulo 360) rotated since entering the situation. This effectively brings you to the pre-entering camera position, unless you have in between changed the view angle with your mouse.\n\nIf you are entering a new situation with a rotation setting of its own, the \"rotate back\" of the exiting situation is ignored."
-L["Rotate Back Time"] = "Rotate Back Time"
-L["<rotateBackTime_desc>"] = "The time it takes to rotate back. If a too small value is given here, the camera might rotate too far, because we only check once per rendered frame if the desired angle is reached."
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Fade Out UI
+--------------------------------------------------------------------------------
 L["Fade Out UI"] = "Fade Out UI"
 L["Fade out or hide (parts of) the UI when this situation is active."] = "Fade out or hide (parts of) the UI when this situation is active."
 L["Adjust to Immersion"] = "Adjust to Immersion"
 L["<adjustToImmersion_desc>"] = "Many people use the Addon Immersion in combination with DynamicCam. Immersion has some hide UI features of its own which come into effect during NPC interaction. Under certain circumstances, DynamicCam's hide UI overrides that of Immersion. To prevent this, make your desired setting here in DynamicCam. Click this button to use the same fade-in and fade-out times as Immersion. For even more options, check out Ludius's other addon called \"Immersion ExtraFade\"."
-L["Fade Out Time"] = "Fade Out Time"
-L["Seconds it takes to fade out the UI when entering the situation."] = "Seconds it takes to fade out the UI when entering the situation."
-L["Fade In Time"] = "Fade In Time"
-L["<fadeInTime_desc>"] = "Seconds it takes to fade the UI back in when exiting the situation.\n\nWhen you transition between two situations, both of which have UI hiding enabled, the fade out time of the entering situation is used for the transition."
 L["Hide entire UI"] = "Hide entire UI"
 L["<hideEntireUI_desc>"] = "There is a difference between a \"hidden\" UI and a \"just faded out\" UI: the faded-out UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are automatically hiding most UI elements if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a relic. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"just faded out\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!"
 L["Keep FPS indicator"] = "Keep FPS indicator"
@@ -239,6 +309,11 @@ Using /showUI or /hideUI without any arguments takes the current situation's fad
 to show the UI without any delay.]]
 L["<hideUIHelp_desc>"] = "While setting up your desired UI fade effects, it can be annoying when this \"Interface\" settings frame fades out as well. If this box is checked, it will not be faded out.\n\nThis setting is global for all situations."
 L["Do not fade out this \"Interface\" settings frame."] = "Do not fade out this \"Interface\" settings frame."
+
+
+--------------------------------------------------------------------------------
+-- Situation Controls
+--------------------------------------------------------------------------------
 L["Situation Controls"] = "Situation Controls"
 L["<situationControls_help>"] = "Here you control when a situation is active. Knowledge of the WoW UI API may be required. If you are happy with the stock situations of DynamicCam, just ignore this section. But if you want to create custom situations, you can check the stock situations here. You can also modify them, but beware: your changed settings will persist even if future versions of DynamicCam introduce important updates.\n\n"
 L["Priority"] = "Priority"
@@ -246,9 +321,7 @@ L["The priority of this situation.\nMust be a number."] = "The priority of this 
 L["Restore stock setting"] = "Restore stock setting"
 L["Your \"Priority\" deviates from the stock setting for this situation (%s). Click here to restore it."] = "Your \"Priority\" deviates from the stock setting for this situation (%s). Click here to restore it."
 L["<priority_desc>"] = "If the conditions of several different DynamicCam situations are fulfilled at the same time, the situation with the highest priority is entered. For example, whenever the condition of \"World Indoors\" is fulfilled, the condition of \"World\" is fulfilled as well. But as \"World Indoor\" has a higher priority than \"World\", it is prioritised. You can also see the priorities of all situations in the drop down menu above.\n\n"
-L["Error message:"] = "Error message:"
 L["Events"] = "Events"
-L["Separated by commas."] = "Separated by commas."
 L["Your \"Events\" deviate from the default for this situation. Click here to restore them."] = "Your \"Events\" deviate from the default for this situation. Click here to restore them."
 L["<events_desc>"] = [[Here you define all the in-game events upon which DynamicCam should check the condition of this situation, to enter or exit it if applicable.
 
@@ -295,7 +368,7 @@ L["On-Enter Script"] = "On-Enter Script"
 L["Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it."] = "Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it."
 L["<executeOnEnter_desc>"] = [[The on-enter script of a situation is run every time the situation is entered.
 
-So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.transitionTime" and "this.rotationTime", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Not all teleport spells have the same cast times.)
+So far, the only example for this is the "Hearth/Teleport" situation in which we use the WoW API function "UnitCastingInfo()" to determine the cast duration of the current spell. We then assign this to the variables "this.timeToEnter", such that a zoom or rotation (see "Situation Actions") can take exactly as long as the spell cast. (Not all teleport spells have the same cast times.)
 
 ]]
 L["Exiting"] = "Exiting"
@@ -312,6 +385,13 @@ The delay determines how many seconds to wait before exiting the situation. So f
 L["Export"] = "Export"
 L["Coming soon(TM)."] = "Coming soon(TM)."
 L["Import"] = "Import"
+L["Restore all stock Situation Controls"] = "Restore all stock Situation Controls"
+
+
+--------------------------------------------------------------------------------
+-- About / Profiles
+--------------------------------------------------------------------------------
+L["Hello and welcome to DynamicCam!"] = "Hello and welcome to DynamicCam!"
 L["<welcomeMessage>"] = [[We're glad that you're here and we hope that you have fun with the addon.
 
 DynamicCam (DC) was started in May 2016 by mpstark when the WoW devs at Blizzard introduced the experimental ActionCam features into the game. The main purpose of DC has been to provide a user interface for the ActionCam settings. Within the game, the ActionCam is still designated as "experimental" and there has been no sign from Blizzard to develop it further. There are some shortcomings, but we should be thankful that ActionCam was left in the game for enthusiast like us to use. :-) DC does not just allow you to change the ActionCam settings but to have different settings for different game situations. Not related to ActionCam, DC also provides features regarding camera zoom and UI fade-out.
@@ -336,33 +416,65 @@ Here are some handy slash commands:
 L["About"] = "About"
 L["The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"] = "The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"
 L["<situationControlsWarning>"] = "\nIf you are doing this on purpose, it is fine. Just be aware that any updates to these settings by the DynamicCam developers will always be overridden by your modified (possibly outdated) version. You can check the \"Situation Controls\" tab of each situation for details. If you are not aware of any \"Situation Controls\" modifications from your side and simply want to restore the stock control settings for *all* situations, hit this button:"
-L["Restore all stock Situation Controls"] = "Restore all stock Situation Controls"
-L["Hello and welcome to DynamicCam!"] = "Hello and welcome to DynamicCam!"
 L["Profiles"] = "Profiles"
 L["Manage Profiles"] = "Manage Profiles"
 L["<manageProfilesWarning>"] = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\nIf you want to switch profiles via macro, you can use the following:\n/run DynamicCam.db:SetProfile(\"Profile name here\")\n\n"
 L["Profile presets"] = "Profile presets"
 L["Import / Export"] = "Import / Export"
-L["DynamicCam"] = "DynamicCam"
-L["Disabled"] = "Disabled"
-L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."] = "Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."
-L["Attention"] = "Attention"
-L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."] = "The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."
+
+
+--------------------------------------------------------------------------------
+-- MouseZoom.lua
+--------------------------------------------------------------------------------
+L["Current\nZoom\nValue"] = "Current\nZoom\nValue"
+L["Reactive\nZoom\nTarget"] = "Reactive\nZoom\nTarget"
+L["Reactive Zoom"] = "Reactive Zoom"
+L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "This graph helps you to\nunderstand how\nReactive Zoom works."
+
+
+--------------------------------------------------------------------------------
+-- ZoomBasedSettings.lua
+--------------------------------------------------------------------------------
+L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: Zoom-Based Setting"
+L["CVAR: "] = "CVAR: "
+L["Z\no\no\nm"] = "Z\no\no\nm"
+L["Value"] = "Value"
+L["Current Zoom:"] = "Current Zoom:"
+L["Current Value:"] = "Current Value:"
+L["Left-click: add/drag point | Right-click: remove point"] = "Left-click: add/drag point | Right-click: remove point"
+L["Cancel"] = "Cancel"
+L["OK"] = "OK"
+L["Close and revert all changes made since opening this editor."] = "Close and revert all changes made since opening this editor."
+L["Close and keep all changes."] = "Close and keep all changes."
+L["Zoom-based"] = "Zoom-based"
+L["Edit Curve"] = "Edit Curve"
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."
+
+
+--------------------------------------------------------------------------------
+-- Core.lua
+--------------------------------------------------------------------------------
+L["Enter name for custom situation:"] = "Enter name for custom situation:"
+L["Create"] = "Create"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"
 L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] = "While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"
+
+
+--------------------------------------------------------------------------------
+-- CvarMonitor.lua
+--------------------------------------------------------------------------------
+L["Disabled"] = "Disabled"
+L["Attention"] = "Attention"
+L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."] = "Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."
+L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."] = "The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."
 L["cameraView=%s prevented by DynamicCam!"] = "cameraView=%s prevented by DynamicCam!"
 
--- MouseZoom
-L["Current\nZoom\nValue"] = "Current\nZoom\nValue"
-L["Reactive\nZoom\nTarget"] = "Reactive\nZoom\nTarget"
 
--- Core
-L["Enter name for custom situation:"] = "Enter name for custom situation:"
-L["Create"] = "Create"
-L["Cancel"] = "Cancel"
-
--- DefaultSettings
+--------------------------------------------------------------------------------
+-- DefaultSettings.lua - Situation Names
+--------------------------------------------------------------------------------
 L["City"] = "City"
 L["City (Indoors)"] = "City (Indoors)"
 L["World"] = "World"

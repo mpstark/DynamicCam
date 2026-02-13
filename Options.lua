@@ -1,14 +1,16 @@
-
+﻿
 ---------------
 -- LIBRARIES --
 ---------------
 local LibCamera = LibStub("LibCamera-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
+
 -------------
 -- GLOBALS --
 -------------
 assert(DynamicCam)
-DynamicCam.Options = DynamicCam:NewModule("Options", "AceEvent-3.0")
+-- Options module is created in Options/Helpers.lua which loads first
+local Options = DynamicCam.Options
 
 
 DynamicCam.cameraDistanceMaxZoomFactor_max = 39
@@ -17,547 +19,106 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 end
 
 
+-- Store min/max ranges for cvars used with zoom-based controls
+-- These are the actual cvar value ranges (not transformed slider display values)
+DynamicCam.cvarRanges = {
+  test_cameraOverShoulder = { min = -15, max = 15 },
+  
+  test_cameraDynamicPitchBaseFovPad = { min = 0, max = 0.99 },
+  test_cameraDynamicPitchBaseFovPadFlying = { min = 0, max = 1 },
+  test_cameraDynamicPitchBaseFovPadDownScale = { min = 0, max = 1 },
+  
+  test_cameraTargetFocusEnemyStrengthYaw = { min = 0, max = 1 },
+  test_cameraTargetFocusEnemyStrengthPitch = { min = 0, max = 1 },
+  test_cameraTargetFocusInteractStrengthYaw = { min = 0, max = 1 },
+  test_cameraTargetFocusInteractStrengthPitch = { min = 0, max = 1 },
+  
+  test_cameraHeadMovementStandingStrength = { min = 0, max = 1 },
+  test_cameraHeadMovementStandingDampRate = { min = 0, max = 20 },
+  test_cameraHeadMovementMovingStrength = { min = 0, max = 1 },
+  test_cameraHeadMovementMovingDampRate = { min = 0, max = 20 },
+  test_cameraHeadMovementFirstPersonDampRate = { min = 0, max = 20 },
+}
+
 
 ------------
 -- LOCALS --
 ------------
-local function Round(num, numDecimalPlaces)
-  local mult = 10^(numDecimalPlaces or 0)
-  return math.floor(num * mult + 0.5) / mult
-end
+-- Round function is now in Options/Helpers.lua as Options.Round()
+local Round = Options.Round
 
-
-local Options = DynamicCam.Options
 local _
 
--- To store the currently selected situation and situation ID.
-local S, SID, lastSelectedSID
-local copiedSituationID
+-- Situation selection state is now managed in Options/Helpers.lua
+-- The local S and SID are proxies that stay synchronized with Options.S and Options.SID
+-- We use __index and __newindex metamethods to automatically sync them
+local S, SID, lastSelectedSID, copiedSituationID
+
+-- Helper functions to update the state and keep Options module in sync
+local function UpdateSituationState(situation, situationId)
+  S = situation
+  SID = situationId
+  Options.S = situation
+  Options.SID = situationId
+end
+
+local function UpdateLastSelectedSID(val)
+  lastSelectedSID = val
+  Options.lastSelectedSID = val
+end
+
+local function UpdateCopiedSituationID(val)
+  copiedSituationID = val
+  Options.copiedSituationID = val
+end
+
 local exportName, exportAuthor
 
 
 
 
 -- Checking if "situation controls" settings deviate from the stock settings.
-
-function DynamicCam:ScriptEqual(customScript, defaultScript)
-  if (customScript == "" and defaultScript == nil) or customScript == defaultScript then return true end
-end
-
-function DynamicCam:EventsEqual(customEvents, defaultEvents)
-  local customEventsCheck = {}
-  local defaultEventsCheck = {}
-
-  for k, v in pairs(customEvents) do
-    customEventsCheck[v] = true
-  end
-
-  for k, v in pairs(defaultEvents) do
-    if not customEventsCheck[v] then
-      return false
-    end
-    defaultEventsCheck[v] = true
-  end
-
-  for k, v in pairs(customEvents) do
-    if not defaultEventsCheck[v] then
-      return false
-    end
-  end
-
-  return true
-end
-
-
-local function EventsIsDefault(situationID)
-  if not DynamicCam.defaults.profile.situations[situationID] then return true end
-  return DynamicCam:EventsEqual(DynamicCam.db.profile.situations[situationID].events, DynamicCam.defaults.profile.situations[situationID].events)
-end
-
-local function ScriptIsDefault(situationID, scriptName)
-  if not DynamicCam.defaults.profile.situations[situationID] then return true end
-  return DynamicCam:ScriptEqual(DynamicCam.db.profile.situations[situationID][scriptName], DynamicCam.defaults.profile.situations[situationID][scriptName])
-end
-
-local function ValueIsDefault(situationID, valueName)
-  if not DynamicCam.defaults.profile.situations[situationID] then return true end
-  return DynamicCam.db.profile.situations[situationID][valueName] == DynamicCam.defaults.profile.situations[situationID][valueName]
-end
-
-
-local function SituationControlsAreDefault(situationID)
-  if ValueIsDefault(situationID, "priority") and
-      EventsIsDefault(situationID) and
-      ScriptIsDefault(situationID, "executeOnInit") and
-      ScriptIsDefault(situationID, "condition") and
-      ScriptIsDefault(situationID, "executeOnEnter") and
-      ScriptIsDefault(situationID, "executeOnExit") and
-      ValueIsDefault(situationID, "delay") then
-    return true
-  else
-    return false
-  end
-end
-
-local function SituationControlsToDefault(situationID)
-  local targetSituation = DynamicCam.db.profile.situations[situationID]
-  local defaultSituation = DynamicCam.defaults.profile.situations[situationID]
-
-  targetSituation.priority       = defaultSituation.priority
-  targetSituation.events         = defaultSituation.events
-  targetSituation.executeOnInit  = defaultSituation.executeOnInit
-  targetSituation.condition      = defaultSituation.condition
-  targetSituation.executeOnEnter = defaultSituation.executeOnEnter
-  targetSituation.executeOnExit  = defaultSituation.executeOnExit
-  targetSituation.delay          = defaultSituation.delay
-
-  DynamicCam:UpdateSituation(situationID)
-
-end
-
-
-local function ColourTextErrorOrModified(text, dataType, dataId)
-
-  -- Do we have an error at all, and is it an error for this script.
-  -- (dataId is left empty to colour the "Situation Controls" tab text.)
-  if S.errorEncountered and (not dataId or dataId == S.errorEncountered) then
-    return "|cFFEE0000".. text .. "|r"
-
-  -- Check if the given data is default. Different checking methods based on dataType.
-  else
-    if (not dataId and not SituationControlsAreDefault(SID))
-        or (dataType == "value"  and not ValueIsDefault(SID, dataId))
-        or (dataType == "events" and not EventsIsDefault(SID))
-        or (dataType == "script" and not ScriptIsDefault(SID, dataId)) then
-      return "|cFFFF6600" .. text .. "|r"
-    else
-      return text
-    end
-  end
-end
-
-
-
-
--- A function to get all views used by all situations.
-local function GetUsedViews()
-  local usedViews = {}
-  local usedDefaultViews = {}
-  -- Go through all situations.
-  for id, situation in pairs(DynamicCam.db.profile.situations) do
-
-    if situation.enabled and not situation.errorEncountered then
-
-      -- Shortcut variable.
-      local sc = situation.viewZoom
-
-      if sc.enabled and sc.viewZoomType == "view" then
-
-        if not usedViews[sc.viewNumber] then
-          usedViews[sc.viewNumber] = {}
-        end
-        -- Store the id of the situation using this view.
-        usedViews[sc.viewNumber][id] = true
-
-        if not usedDefaultViews[sc.def] then
-          usedDefaultViews[sc.restoreDefaultViewNumber] = {}
-        end
-        -- Store the id of the situation using this view.
-        usedDefaultViews[sc.restoreDefaultViewNumber][id] = true
-
-      end
-    end
-  end
-
-  return usedViews, usedDefaultViews
-end
-
-
-
-
--- We want to use the same CreateSettingsTab() function for the
--- standard settings and situation settings. Hence we need this function
--- to return the appropriate table.
-function DynamicCam:GetSettingsTable(situationId)
-  if situationId then
-    return self.db.profile.situations[situationId].situationSettings
-  else
-    return self.db.profile.standardSettings
-  end
-end
-
-
--- For the get functions of the options: if a situation has no setting,
--- we want to show the standard value.
-function DynamicCam:GetSettingsValue(situationId, index1, index2)
-
-  -- Is this a request for a standard or situation setting?
-  local settingsTable = self:GetSettingsTable(situationId)
-
-  -- Is this a request for the cvars sub table?
-  if index1 == "cvars" and index2 then
-    -- Is there a user setting?
-    if settingsTable.cvars[index2] ~= nil then
-      return settingsTable.cvars[index2]
-    -- If there is none, this must have been an unset situation setting,
-    -- so we are returning the standard setting.
-    else
-      return self.db.profile.standardSettings.cvars[index2]
-    end
-  else
-    if settingsTable[index1] ~= nil then
-      return settingsTable[index1]
-    else
-      return self.db.profile.standardSettings[index1]
-    end
-  end
-end
-
-
-function DynamicCam:GetSettingsDefault(index1, index2)
-  -- Is this a request for the cvars sub table?
-  if index1 == "cvars" and index2 then
-    return self.defaults.profile.standardSettings.cvars[index2]
-  else
-    return self.defaults.profile.standardSettings[index1]
-  end
-end
-
-
-function DynamicCam:SetSettingsValue(newValue, situationId, index1, index2)
-  -- Is this a request for a standard or situation setting?
-  local settingsTable = self:GetSettingsTable(situationId)
-
-  -- Is this a request for the cvars sub table?
-  if index1 == "cvars" and index2 then
-    settingsTable.cvars[index2] = newValue
-  else
-    settingsTable[index1] = newValue
-  end
-
-  self:ApplySettings()
-end
-
-function DynamicCam:SetSettingsDefault(situationId, index1, index2)
-  -- Is this a request for a standard or situation setting?
-  local settingsTable = self:GetSettingsTable(situationId)
-
-  -- Is this a request for the cvars sub table?
-  if index1 == "cvars" and index2 then
-    settingsTable.cvars[index2] = self.defaults.profile.standardSettings.cvars[index2]
-  else
-    settingsTable[index1] = self.defaults.profile.standardSettings[index1]
-  end
-
-  self:ApplySettings()
-end
-
-
-function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
-  GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
-  SettingsPanel:SetIgnoreParentAlpha(ignoreParentAlpha)
-  for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do
-    if _G["AceGUI30Pullout" .. i] then _G["AceGUI30Pullout" .. i]:SetIgnoreParentAlpha(ignoreParentAlpha) end
-  end
-end
-
-
--- We need this to disable a reset button when its parent group is disabled.
--- Thanks to vrul!
--- https://www.wowinterface.com/forums/showthread.php?p=338116#post338116
-local function GetInheritedDisabledStatus(info)
-  if not info or not info.options then return false end
-  local option, options = info.options, { }
-  local disabled = option.disabled
-  for index = 1, #info - 1 do
-    option = option.args[info[index]]
-    options[index] = option
-  end
-  for index = #options, 1, -1 do
-    if options[index].disabled ~= nil then
-      disabled = options[index].disabled
-      break
-    end
-  end
-  if type(disabled) == "function" then
-    disabled = disabled()
-  end
-  return disabled
-end
-
-
-local resetButtonImageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
-  resetButtonImageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875}
-end
-
-
-
-local function CreateSliderResetButton(order, forSituations, index1, index2, tooltipDefaultValue)
-
-  -- We allow to pass the tooltipDefaultValue as an extra argument, because for some
-  -- settings the slider value is a transformation of the cvar.
-  if tooltipDefaultValue == nil then
-    tooltipDefaultValue = DynamicCam:GetSettingsDefault(index1, index2)
-  end
-
-  return {
-    type = "execute",
-
-    -- -- You could also take the icon in the name, but this is not clickable.
-    -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
-
-    name = L["Reset"],
-    image = "Interface\\Transmogrify\\Transmogrify",
-    imageCoords = resetButtonImageCoords,
-    imageWidth = 25/1.5,
-    imageHeight = 24/1.5,
-    desc = L["Reset to global default"] .. ": " .. tooltipDefaultValue .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
-    order = order,
-    width = 0.25,
-    func =
-      function()
-        DynamicCam:SetSettingsDefault(forSituations and SID, index1, index2)
-      end,
-    disabled =
-      function(info)
-        return GetInheritedDisabledStatus(info) or (DynamicCam:GetSettingsValue(forSituations and SID, index1, index2) == DynamicCam:GetSettingsDefault(index1, index2))
-      end,
-  }
-end
-
-
-
-
-local zoomGroupVars = {
-  {"cvars", "cameraDistanceMaxZoomFactor"},
-  {"cvars", "cameraZoomSpeed"},
-  {"reactiveZoomAddIncrementsAlways"},
-  {"reactiveZoomEnabled"},
-  {"reactiveZoomAddIncrements"},
-  {"reactiveZoomIncAddDifference"},
-  {"reactiveZoomMaxZoomTime"},
-}
-
-local mouseLookGroupVars = {
-  {"cvars", "cameraYawMoveSpeed"},
-  {"cvars", "cameraPitchMoveSpeed"},
-}
-
-local shoulderOffsetGroupVars = {
-  {"cvars", "test_cameraOverShoulder"},
-  {"shoulderOffsetZoomEnabled"},
-  {"shoulderOffsetZoomLowerBound"},
-  {"shoulderOffsetZoomUpperBound"},
-}
-
-local pitchGroupVars = {
-  {"cvars", "test_cameraDynamicPitch"},
-  {"cvars", "test_cameraDynamicPitchBaseFovPad"},
-  {"cvars", "test_cameraDynamicPitchBaseFovPadFlying"},
-  {"cvars", "test_cameraDynamicPitchBaseFovPadDownScale"},
-  {"cvars", "test_cameraDynamicPitchSmartPivotCutoffDist"},
-}
-
-local targetFocusGroupVars = {
-  {"cvars", "test_cameraTargetFocusEnemyEnable"},
-  {"cvars", "test_cameraTargetFocusEnemyStrengthYaw"},
-  {"cvars", "test_cameraTargetFocusEnemyStrengthPitch"},
-  {"cvars", "test_cameraTargetFocusInteractEnable"},
-  {"cvars", "test_cameraTargetFocusInteractStrengthYaw"},
-  {"cvars", "test_cameraTargetFocusInteractStrengthPitch"},
-}
-
-local headTrackingGroupVars = {
-  {"cvars", "test_cameraHeadMovementStrength"},
-  {"cvars", "test_cameraHeadMovementStandingStrength"},
-  {"cvars", "test_cameraHeadMovementStandingDampRate"},
-  {"cvars", "test_cameraHeadMovementMovingStrength"},
-  {"cvars", "test_cameraHeadMovementMovingDampRate"},
-  {"cvars", "test_cameraHeadMovementFirstPersonDampRate"},
-  {"cvars", "test_cameraHeadMovementRangeScale"},
-  {"cvars", "test_cameraHeadMovementDeadZone"},
-}
-
-
-
--- Check if any of the group variables are set.
-local function CheckGroupVars(groupVarsTable, situationId)
-  if not situationId then
-    situationId = SID
-  end
-
-  for k, v in pairs(groupVarsTable) do
-    local index1, index2 = unpack(v)
-    local situationSettingsTable = DynamicCam.db.profile.situations[situationId].situationSettings
-    if index1 == "cvars" and index2 then
-      -- Is there a user setting?
-      if situationSettingsTable.cvars[index2] ~= nil then
-        return true
-      end
-    else
-      if situationSettingsTable[index1] ~= nil then
-        return true
-      end
-    end
-  end
-  return false
-end
-
-
--- Clear all group variables.
-local function SetGroupVars(groupVarsTable, override)
-  for k, v in pairs(groupVarsTable) do
-    local index1, index2 = unpack(v)
-    local situationSettingsTable = DynamicCam.db.profile.situations[SID].situationSettings
-    local standardSettingsTable = DynamicCam.db.profile.standardSettings
-
-    if index1 == "cvars" and index2 then
-      if override then
-        situationSettingsTable.cvars[index2] = standardSettingsTable.cvars[index2]
-      else
-        situationSettingsTable.cvars[index2] = nil
-      end
-    else
-      if override then
-        situationSettingsTable[index1] = standardSettingsTable[index1]
-      else
-        situationSettingsTable[index1] = nil
-      end
-    end
-  end
-
-  DynamicCam:ApplySettings()
-end
-
-
-local function GreyWhenInactive(name, enabled)
-  if not enabled then
-    return "|cff909090"..name.."|r"
-  end
-  return name
-end
-
-local function ColoredNames(name, groupVarsTable, forSituations)
-  if not forSituations then
-    if DynamicCam.currentSituationID and CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-      return "|cFF00FF00"..name.."|r"
-    end
-  else
-    if not CheckGroupVars(groupVarsTable) then
-      return "|cff909090"..name.."|r"
-    end
-  end
-  return name
-end
-
-
-local function CreateOverriddenText(groupVarsTable, forSituations)
-  return {
-    type = "description",
-    name =
-      function()
-        if DynamicCam.currentSituationID and CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-          return "|cFF00FF00" .. L["Currently overridden by the active situation \"%s\"."]:format(DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name) .. "|r\n"
-        end
-      end,
-    order = 0,
-    hidden =
-      function()
-        return forSituations
-      end,
-  }
-end
-
-
-local function CreateOverrideStandardToggle(groupVarsTable, forSituations)
-  return {
-    type = "toggle",
-    name = L["Override Standard Settings"],
-    desc = L["<overrideStandardToggle_desc>"],
-    order = 0,
-    width = "full",
-    hidden =
-      function()
-        return not forSituations
-      end,
-    get =
-      function()
-        return CheckGroupVars(groupVarsTable)
-      end,
-    set =
-      function(_, newValue)
-        SetGroupVars(groupVarsTable, newValue)
-      end,
-  }
-end
-
-
-local function ApplyContinuousRotation()
-  if SID == DynamicCam.currentSituationID then
-    LibCamera:StopRotating()
-
-    if S.rotation.enabled and S.rotation.rotationType == "continuous" then
-      LibCamera:BeginContinuousYaw(S.rotation.rotationSpeed, 0)
-    end
-  end
-end
-
-
-local function ApplyUIFade()
-  if SID == DynamicCam.currentSituationID then
-    DynamicCam:FadeInUI(0)
-    if S.hideUI.enabled then
-      DynamicCam:FadeOutUI(0, S.hideUI)
-    end
-  end
-end
-
-
-local function GetSituationList()
-  local situationList = {}
-
-  for id, situation in pairs(DynamicCam.db.profile.situations) do
-
-    if not situation.name or not situation.priority then
-      DynamicCam.db.profile.situations[id] = nil
-      -- print("Purging situation", id)
-    else
-
-      local prefix = ""
-      local suffix = ""
-      local customPrefix = ""
-      local modifiedSuffix = ""
-
-      if situation.errorEncountered then
-        prefix = "|cFFEE0000"
-        suffix = "|r"
-      elseif DynamicCam.currentSituationID == id then
-        prefix = "|cFF00FF00"
-        suffix = "|r"
-      elseif not situation.enabled then
-        prefix = "|cFF808A87"
-        suffix = "|r"
-      elseif DynamicCam.conditionExecutionCache[id] then
-        prefix = "|cFF63B8FF"
-        suffix = "|r"
-      end
-
-      if string.find(id, "custom") then
-        customPrefix = L["Custom:"] .. " "
-      end
-
-      if not SituationControlsAreDefault(id) then
-        modifiedSuffix = "|cFFFF6600  " .. L["(modified)"] .. "|r"
-      end
-
-      -- print(id, situation.name)
-      situationList[id] = prefix .. customPrefix .. situation.name .. " [" .. L["Priority"] .. ": " .. situation.priority .. "]" .. suffix .. modifiedSuffix
-    end
-  end
-
-  return situationList
-end
+-- These functions are now defined in Options/Helpers.lua
+
+
+local EventsIsDefault = Options.EventsIsDefault
+local ScriptIsDefault = Options.ScriptIsDefault
+local ValueIsDefault = Options.ValueIsDefault
+local SituationControlsAreDefault = Options.SituationControlsAreDefault
+local SituationControlsToDefault = Options.SituationControlsToDefault
+local ColourTextErrorOrModified = Options.ColourTextErrorOrModified
+local GetUsedViews = Options.GetUsedViews
+
+
+-- GetSettingsTable, GetSettingsValue, GetSettingsDefault, SetSettingsValue, SetSettingsDefault
+-- are now defined on DynamicCam in Options/Helpers.lua
+
+
+-- GetInheritedDisabledStatus is now in Options/Helpers.lua
+local GetInheritedDisabledStatus = Options.GetInheritedDisabledStatus
+
+
+-- Control factory functions are now in Options/ControlFactories.lua
+local CreateZoomBasedControl = Options.CreateZoomBasedControl
+local CreateSliderResetButton = Options.CreateSliderResetButton
+local CreateOverriddenText = Options.CreateOverriddenText
+local CreateOverrideStandardToggle = Options.CreateOverrideStandardToggle
+
+
+-- Group variables and helper functions are now in Options/Helpers.lua
+local zoomGroupVars = Options.zoomGroupVars
+local mouseLookGroupVars = Options.mouseLookGroupVars
+local shoulderOffsetGroupVars = Options.shoulderOffsetGroupVars
+local pitchGroupVars = Options.pitchGroupVars
+local targetFocusGroupVars = Options.targetFocusGroupVars
+local headTrackingGroupVars = Options.headTrackingGroupVars
+local CheckGroupVars = Options.CheckGroupVars
+local SetGroupVars = Options.SetGroupVars
+local GreyWhenInactive = Options.GreyWhenInactive
+local ColoredNames = Options.ColoredNames
+local GetSituationList = Options.GetSituationList
+local ApplyContinuousRotation = Options.ApplyContinuousRotation
+local ApplyUIFade = Options.ApplyUIFade
 
 
 
@@ -617,7 +178,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(zoomGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(zoomGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
 
           zoomSubGroup = {
@@ -638,7 +199,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 desc = L["How many yards the camera can zoom away from your character."] .. "\n|cff909090cvar: cameraDistanceMaxZoomFactor|r",
                 _dbPath = forExport and {"cvars", "cameraDistanceMaxZoomFactor"} or nil,
                 order = 1,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 min = 15,
                 max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                 step = 0.5,
@@ -654,7 +215,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               cameraDistanceMaxFactorReset =
                 CreateSliderResetButton(1.1, forSituations, "cvars", "cameraDistanceMaxZoomFactor",
                                         DynamicCam:GetSettingsDefault("cvars", "cameraDistanceMaxZoomFactor") * 15),
-              blank1 = {type = "description", name = " ", order = 1.2, },
+              blank12 = {type = "description", name = " ", order = 1.2, },
 
               cameraZoomSpeed = {
                 type = "range",
@@ -662,7 +223,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 desc = L["How fast the camera can zoom."] .. "\n|cff909090cvar: cameraZoomSpeed|r",
                 _dbPath = forExport and {"cvars", "cameraZoomSpeed"} or nil,
                 order = 2,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 min = 1,
                 max = 50,
                 step = 0.5,
@@ -677,14 +238,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               cameraZoomSpeedReset =
                 CreateSliderResetButton(2.1, forSituations, "cvars", "cameraZoomSpeed"),
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               addIncrementsAlways = {
                 type = "range",
                 name = L["Zoom Increments"],
                 desc = L["How many yards the camera should travel for each \"tick\" of the mouse wheel."],
                 order = 3,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 min = 0.05,
                 max = 10,
                 step = 0.05,
@@ -700,7 +261,8 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               addIncrementsAlwaysReset =
                 CreateSliderResetButton(3.1, forSituations, "reactiveZoomAddIncrementsAlways", nil,
                                         DynamicCam:GetSettingsDefault("reactiveZoomAddIncrementsAlways") + 1),
-              blank3 = {type = "description", name = "\n\n", order = 3.2, },
+              
+              blank32 = {type = "description", name = "\n\n", order = 3.2, },
 
 
               reactiveZoomToggle = {
@@ -733,7 +295,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     name = L["Quick-Zoom Additional Increments"],
                     desc = L["How many yards per mouse wheel \"tick\" should be added when quick-zooming."],
                     order = 1,
-                    width = sliderWidth,
+                    width = sliderWidth + 0.2,
                     min = 0,
                     max = 10,
                     step = 0.1,
@@ -748,14 +310,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   },
                   addIncrementsReset =
                     CreateSliderResetButton(1.1, forSituations, "reactiveZoomAddIncrements"),
-                  blank1 = {type = "description", name = " ", order = 1.2, },
+                  blank12 = {type = "description", name = " ", order = 1.2, },
 
                   incAddDifference = {
                     type = "range",
                     name = L["Quick-Zoom Enter Threshold"],
                     desc = L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."],
                     order = 2,
-                    width = sliderWidth,
+                    width = sliderWidth + 0.2,
                     min = 0.1,
                     max = 5,
                     step = 0.1,
@@ -770,14 +332,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   },
                   incAddDifferenceReset =
                     CreateSliderResetButton(2.1, forSituations, "reactiveZoomIncAddDifference"),
-                  blank2 = {type = "description", name = " ", order = 2.2, },
+                  blank22 = {type = "description", name = " ", order = 2.2, },
 
                   maxZoomTime = {
                     type = "range",
                     name = L["Maximum Zoom Time"],
                     desc = L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."],
                     order = 3,
-                    width = sliderWidth,
+                    width = sliderWidth + 0.2,
                     min = 0.1,
                     max = 5,
                     step = 0.05,
@@ -790,19 +352,20 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                         DynamicCam:SetSettingsValue(newValue, forSituations and SID, "reactiveZoomMaxZoomTime")
                       end,
                   },
-                  maxZoomTimeReset = CreateSliderResetButton(3.1, forSituations, "reactiveZoomMaxZoomTime"),
-                  blank3 = {type = "description", name = "\n\n", order = 3.2, },
-
+                  maxZoomTimeReset =
+                    CreateSliderResetButton(3.1, forSituations, "reactiveZoomMaxZoomTime"),
                 },
               },
-
             },
           },
+          
+          blank11 = {type = "description", name = "\n\n", order = 1.1, },
+
 
           reactiveZoomDescriptionGroup = {
             type = "group",
             name = L["Help"],
-            order = 6,
+            order = 2,
             inline = true,
             args = {
 
@@ -813,7 +376,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 order = 1,
                 width = "full",
               },
-              blank1 = {type = "description", name = " ", order = 1.1, },
+              blank11 = {type = "description", name = " ", order = 1.1, },
 
               reactiveZoomDescription = {
                 type = "description",
@@ -821,7 +384,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 order = 2,
               },
 
-              blank2 = {type = "description", name = "\n\n", order = 2.1, },
+              blank21 = {type = "description", name = " ", order = 2.1, },
 
               enhancedMinZoom = {
                 type = "toggle",
@@ -848,6 +411,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
                 order = 4,
               },
+              -- Placeholder when reloadMessage is not shown.
               blank4 = {
                 type = "description",
                 name = " ",
@@ -855,8 +419,8 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   function()
                     return not DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
                   end,
-                order = 4, },
-
+                order = 4,
+              },
             },
           },
         },
@@ -875,7 +439,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(mouseLookGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(mouseLookGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
           mouseLookSubGroup = {
             type = "group",
@@ -895,7 +459,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 desc = L["How much the camera yaws horizontally when in mouse look mode."] .. "\n|cff909090cvar: cameraYawMoveSpeed|r",
                 _dbPath = forExport and {"cvars", "cameraYawMoveSpeed"} or nil,
                 order = 1,
-                width = sliderWidth + 0.1,
+                width = sliderWidth + 0.2,
                 min = 1,
                 max = 360,
                 step = 1,
@@ -910,7 +474,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               cameraYawMoveSpeedReset =
                 CreateSliderResetButton(1.1, forSituations, "cvars", "cameraYawMoveSpeed"),
-              blank1 = {type = "description", name = " ", order = 1.2, },
+              blank12 = {type = "description", name = " ", order = 1.2, },
 
               cameraPitchMoveSpeed = {
                 type = "range",
@@ -918,7 +482,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 desc = L["How much the camera pitches vertically when in mouse look mode."] .. "\n|cff909090cvar: cameraPitchMoveSpeed|r",
                 _dbPath = forExport and {"cvars", "cameraPitchMoveSpeed"} or nil,
                 order = 2,
-                width = sliderWidth + 0.1,
+                width = sliderWidth + 0.2,
                 min = 1,
                 max = 360,
                 step = 1,
@@ -933,7 +497,9 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               cameraPitchMoveSpeedReset =
                 CreateSliderResetButton(2.1, forSituations, "cvars", "cameraPitchMoveSpeed"),
-              blank2 = {type = "description", name = "\n\n", order = 2.2, },
+                
+              blank22 = {type = "description", name = "\n\n", order = 2.2, },
+
 
               mouseLookDescriptionGroup = {
                 type = "group",
@@ -965,7 +531,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(shoulderOffsetGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(shoulderOffsetGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
           shoulderOffsetSubGroup = {
             type = "group",
@@ -978,155 +544,48 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 return forSituations and not CheckGroupVars(shoulderOffsetGroupVars)
               end,
             args = {
-
-              cameraOverShoulderGroup = {
-                type = "group",
+              cameraOverShoulder = {
+                type = "range",
                 name = L["Camera Over Shoulder Offset"],
-                _dbPath = forExport and "cameraOverShoulderGroup" or nil,
+                desc = L["Positions the camera left or right from your character."] .. "\n|cff909090cvar: test_cameraOverShoulder|r\n\n",
+                _dbPath = forExport and {"cvars", "test_cameraOverShoulder"} or nil,
                 order = 1,
-                args = {
-
-                  cameraOverShoulderDescription = {
-                    type = "description",
-                    name = L["Positions the camera left or right from your character."] .. "\n|cff909090cvar: test_cameraOverShoulder|r\n\n" .. L["<cameraOverShoulder_desc>"],
-                    order = 0,
-                  },
-
-                  cameraOverShoulder = {
-                    type = "range",
-                    name = "",
-                    _dbPath = forExport and {"cvars", "test_cameraOverShoulder"} or nil,
-                    order = 1,
-                    width = sliderWidth - 0.15,
-                    min = -15,
-                    max = 15,
-                    step = 0.1,
-                    get =
-                      function()
-                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraOverShoulder")
-                      end,
-                    set =
-                      function(_, newValue)
-                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraOverShoulder")
-                      end,
-                  },
-                  cameraOverShoulderReset = CreateSliderResetButton(1.1, forSituations, "cvars", "test_cameraOverShoulder"),
-                },
+                width = sliderWidth - 0.2,
+                min = DynamicCam.cvarRanges.test_cameraOverShoulder.min,
+                max = DynamicCam.cvarRanges.test_cameraOverShoulder.max,
+                step = 0.1,
+                disabled = function(info)
+                  return GetInheritedDisabledStatus(info) or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraOverShoulder")
+                end,
+                get =
+                  function()
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraOverShoulder")
+                  end,
+                set =
+                  function(_, newValue)
+                    DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraOverShoulder")
+                  end,
               },
-              blank1 = {type = "description", name = " ", order = 1.1, },
+              cameraOverShoulderReset =
+                CreateSliderResetButton(1.1, forSituations, "cvars", "test_cameraOverShoulder"),
+              blank12 = {type = "description", name = " ", width = 0.1, order = 1.2, },
+              cameraOverShoulderZoomBased = CreateZoomBasedControl(1.3, forSituations, "test_cameraOverShoulder"),
+              
+              blank14 = {type = "description", name = "\n\n", order = 1.4, },
 
-              shoulderOffsetZoomGroup = {
+
+              cameraOverShoulderDescriptionGroup = {
                 type = "group",
-                name = L["Adjust shoulder offset according to zoom level"],
-                _dbPath = forExport and "shoulderOffsetZoomGroup" or nil,
+                name = L["Help"],
                 order = 2,
                 args = {
-
-                  shoulderOffsetZoomEnabled = {
-                    type = "toggle",
-                    name = L["Enable"],
-                    _dbPath = forExport and "shoulderOffsetZoomEnabled" or nil,
-                    order = 1,
-                    get =
-                      function()
-                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
-                      end,
-                    set =
-                      function(_, newValue)
-                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomEnabled")
-                      end,
-                  },
-                  blank1 = {type = "description", name = " ", width = sliderWidth - 1.15, order = 1.1, },
-                  -- Make a custom reset button, because we need to reset both values at once.
-                  shoulderOffsetZoomReset = {
-                    type = "execute",
-                    name = L["Reset"],
-                    image = "Interface\\Transmogrify\\Transmogrify",
-                    imageCoords = resetButtonImageCoords,
-                    imageWidth = 25/1.5,
-                    imageHeight = 24/1.5,
-                    desc = L["Reset to global default"] .. ": " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomLowerBound") .. " " .. L["and"] .. " " .. DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound") .. "\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
-                    order = 1.2,
-                    width = 0.25,
-                    func =
-                      function()
-                        DynamicCam:SetSettingsDefault(forSituations and SID, "shoulderOffsetZoomLowerBound")
-                        DynamicCam:SetSettingsDefault(forSituations and SID, "shoulderOffsetZoomUpperBound")
-                      end,
-                    disabled =
-                      function()
-                        return
-                        (DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound") == DynamicCam:GetSettingsDefault( "shoulderOffsetZoomLowerBound")
-                        and
-                        DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound") == DynamicCam:GetSettingsDefault("shoulderOffsetZoomUpperBound"))
-                        or not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
-                      end,
-                  },
-
-                  shoulderOffsetZoomLowerBound = {
-                    type = "range",
-                    name = L["No offset when below this zoom level:"],
-                    _dbPath = forExport and "shoulderOffsetZoomLowerBound" or nil,
-                    order = 2,
-                    width = "full",
-                    desc = L["When the camera is closer than this zoom level, the offset has reached zero."],
-                    min = 0.8,
-                    max = DynamicCam.cameraDistanceMaxZoomFactor_max,
-                    step = 0.1,
-                    disabled =
-                      function(info)
-                        return GetInheritedDisabledStatus(info) or not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
-                      end,
-                    get =
-                      function()
-                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound")
-                      end,
-                    set =
-                      function(_, newValue)
-                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomLowerBound")
-                        if DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound") < newValue then
-                          DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomUpperBound")
-                        end
-                      end,
-                  },
-                  blank2 = {type = "description", name = " ", order = 2.2, },
-
-                  shoulderOffsetZoomUpperBound = {
-                    type = "range",
-                    name = L["Real offset when above this zoom level:"],
-                    _dbPath = forExport and "shoulderOffsetZoomUpperBound" or nil,
-                    order = 3,
-                    width = "full",
-                    desc = L["When the camera is further away than this zoom level, the offset has reached its set value."],
-                    min = 0.8,
-                    max = DynamicCam.cameraDistanceMaxZoomFactor_max,
-                    step = 0.1,
-                    disabled =
-                      function(info)
-                        return GetInheritedDisabledStatus(info) or not DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomEnabled")
-                      end,
-                    get =
-                      function()
-                        return DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomUpperBound")
-                      end,
-                    set =
-                      function(_, newValue)
-                        DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomUpperBound")
-                        if DynamicCam:GetSettingsValue(forSituations and SID, "shoulderOffsetZoomLowerBound") > newValue then
-                          DynamicCam:SetSettingsValue(newValue, forSituations and SID, "shoulderOffsetZoomLowerBound")
-                        end
-                      end,
-                  },
-                  blank3 = {type = "description", name = " ", order = 3.1, },
-
-                  shoulderOffsetZoomDescription = {
+                  cameraOverShoulderDescription = {
                     type = "description",
-                    name = L["<shoulderOffsetZoom_desc>"],
-                    order = 4,
+                    name = L["<cameraOverShoulder_desc>"],
                   },
-
                 },
               },
+
             },
           },
         },
@@ -1146,7 +605,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(pitchGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(pitchGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
           pitchSubGroup = {
             type = "group",
@@ -1180,21 +639,21 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     end
                   end,
               },
-              blank1 = {type = "description", name = " ", order = 1.1, },
+              blank11 = {type = "description", name = " ", order = 1.1, },
 
               baseFovPad = {
                 type = "range",
                 name = L["Pitch (on ground)"],
                 _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPad"} or nil,
                 order = 2,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPad|r",
-                min = 0,
-                max = 0.99,
+                min = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPad.min,
+                max = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPad.max,
                 step = 0.01,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraDynamicPitchBaseFovPad")
                   end,
                 get =
                   function()
@@ -1206,22 +665,30 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               baseFovPadReset =
-                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPad"),
-              blank2 = {type = "description", name = " ", order = 2.2, },
+                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPad", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                  end),
+              blank22 = {type = "description", name = " ", width = 0.1, order = 2.2, },
+              baseFovPadZoomBased = CreateZoomBasedControl(2.3, forSituations, "test_cameraDynamicPitchBaseFovPad",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                end),
+              blank24 = {type = "description", name = " ", order = 2.4, },
 
               baseFovPadFlying = {
                 type = "range",
                 name = L["Pitch (flying)"],
                 _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPadFlying"} or nil,
                 order = 3,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadFlying|r",
-                min = 0,
-                max = 1,
+                min = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPadFlying.min,
+                max = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPadFlying.max,
                 step = 0.01,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraDynamicPitchBaseFovPadFlying")
                   end,
                 get =
                   function()
@@ -1233,22 +700,31 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               baseFovPadFlyingReset =
-                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadFlying"),
-              blank3 = {type = "description", name = "\n\n", order = 3.2, },
+                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadFlying", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                  end),
+              blank32 = {type = "description", name = " ", width = 0.1, order = 3.2, },
+              baseFovPadFlyingZoomBased = CreateZoomBasedControl(3.3, forSituations, "test_cameraDynamicPitchBaseFovPadFlying",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                end),
+              
+              blank34 = {type = "description", name = "\n\n", order = 3.4, },
 
               baseFovPadDownScale = {
                 type = "range",
                 name = L["Down Scale"],
                 _dbPath = forExport and {"cvars", "test_cameraDynamicPitchBaseFovPadDownScale"} or nil,
                 order = 4,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nBaseFovPadDownScale|r",
-                min = 0,
-                max = 1,
+                min = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPadDownScale.min,
+                max = DynamicCam.cvarRanges.test_cameraDynamicPitchBaseFovPadDownScale.max,
                 step = 0.01,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraDynamicPitchBaseFovPadDownScale")
                   end,
                 get =
                   function()
@@ -1260,22 +736,31 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               baseFovPadDownScaleReset =
-                CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale"),
-              blank4 = {type = "description", name = "\n\n", order = 4.2, },
+                CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraDynamicPitchBaseFovPadDownScale", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                  end),
+              blank42 = {type = "description", name = " ", width = 0.1, order = 4.2, },
+              baseFovPadDownScaleZoomBased = CreateZoomBasedControl(4.3, forSituations, "test_cameraDynamicPitchBaseFovPadDownScale",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                end),
+              
+              blank44 = {type = "description", name = "\n\n", order = 4.4, },
 
               smartPivotCutoffDist = {
                 type = "range",
                 name = L["Smart Pivot Cutoff Distance"],
                 _dbPath = forExport and {"cvars", "test_cameraDynamicPitchSmartPivotCutoffDist"} or nil,
                 order = 5,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 desc = "|cff909090cvar: test_cameraDynamicPitch\nSmartPivotCutoffDist|r",
                 min = 0,
                 max = DynamicCam.cameraDistanceMaxZoomFactor_max,
                 step = 0.5,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraDynamicPitchSmartPivotCutoffDist")
                   end,
                 get =
                   function()
@@ -1287,8 +772,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               smartPivotCutoffDistReset =
-                CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist"),
-              blank5 = {type = "description", name = " ", order = 5.2, },
+                CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraDynamicPitchSmartPivotCutoffDist", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
+                  end),
+              -- No zoom-based settings for this variable, as its effect itself is zoom based.
+              
+              blank52 = {type = "description", name = "\n\n", width = 0.1, order = 5.2, },
+
 
               pitchDescriptionGroup = {
                 type = "group",
@@ -1320,7 +811,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(targetFocusGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(targetFocusGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
           targetFocusSubGroup = {
             type = "group",
@@ -1367,14 +858,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     name = L["Horizontal Strength"],
                     _dbPath = forExport and {"cvars", "test_cameraTargetFocusEnemyStrengthYaw"} or nil,
                     order = 2,
-                    width = sliderWidth - 0.15,
+                    width = sliderWidth - 0.4,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthYaw|r",
-                    min = 0,
-                    max = 1,
+                    min = DynamicCam.cvarRanges.test_cameraTargetFocusEnemyStrengthYaw.min,
+                    max = DynamicCam.cvarRanges.test_cameraTargetFocusEnemyStrengthYaw.max,
                     step = 0.05,
                     disabled =
                       function(info)
-                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraTargetFocusEnemyStrengthYaw")
                       end,
                     get =
                       function()
@@ -1386,22 +877,30 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                       end,
                   },
                   targetFocusEnemyStrengthYawReset =
-                    CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthYaw"),
-                  blank2 = {type = "description", name = " ", order = 2.2, },
+                    CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthYaw", nil,
+                      function(info)
+                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                      end),
+                  blank22 = {type = "description", name = " ", width = 0.1, order = 2.2, },
+                  targetFocusEnemyStrengthYawZoomBased = CreateZoomBasedControl(2.3, forSituations, "test_cameraTargetFocusEnemyStrengthYaw",
+                    function(info)
+                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                    end),
+                  blank24 = {type = "description", name = " ", order = 2.4, },
 
                   targetFocusEnemyStrengthPitch = {
                     type = "range",
                     name = L["Vertical Strength"],
                     _dbPath = forExport and {"cvars", "test_cameraTargetFocusEnemyStrengthPitch"} or nil,
                     order = 3,
-                    width = sliderWidth - 0.15,
+                    width = sliderWidth - 0.4,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nEnemyStrengthPitch|r",
-                    min = 0,
-                    max = 1,
+                    min = DynamicCam.cvarRanges.test_cameraTargetFocusEnemyStrengthPitch.min,
+                    max = DynamicCam.cvarRanges.test_cameraTargetFocusEnemyStrengthPitch.max,
                     step = 0.05,
                     disabled =
                       function(info)
-                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraTargetFocusEnemyStrengthPitch")
                       end,
                     get =
                       function()
@@ -1413,10 +912,19 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                       end,
                   },
                   targetFocusEnemyStrengthPitchReset =
-                    CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthPitch"),
+                    CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusEnemyStrengthPitch", nil,
+                      function(info)
+                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                      end),
+                  blank32 = {type = "description", name = " ", width = 0.1, order = 3.2, },
+                  targetFocusEnemyStrengthPitchZoomBased = CreateZoomBasedControl(3.3, forSituations, "test_cameraTargetFocusEnemyStrengthPitch",
+                    function(info)
+                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusEnemyEnable") == 0
+                    end),
+                  -- No blank because end of group box.
                 },
               },
-              blank1 = {type = "description", name = " ", order = 1.1,},
+              blank11 = {type = "description", name = " ", order = 1.1,},
 
               targetFocusNPCsGroup = {
                 type = "group",
@@ -1430,7 +938,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     name = L["Enable"],
                     _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractEnable"} or nil,
                     order = 1,
-                    width = sliderWidth - 0.15,
+                    width = "full",
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractEnable|r",
                     get =
                       function()
@@ -1451,14 +959,14 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     name = L["Horizontal Strength"],
                     _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractStrengthYaw"} or nil,
                     order = 2,
-                    width = sliderWidth - 0.15,
+                    width = sliderWidth - 0.4,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthYaw|r",
-                    min = 0,
-                    max = 1,
+                    min = DynamicCam.cvarRanges.test_cameraTargetFocusInteractStrengthYaw.min,
+                    max = DynamicCam.cvarRanges.test_cameraTargetFocusInteractStrengthYaw.max,
                     step = 0.05,
                     disabled =
                       function(info)
-                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraTargetFocusInteractStrengthYaw")
                       end,
                     get =
                       function()
@@ -1470,22 +978,30 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                       end,
                   },
                   targetFocusInteractStrengthYawReset =
-                    CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthYaw"),
-                  blank2 = {type = "description", name = " ", order = 2.2, },
+                    CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthYaw", nil,
+                      function(info)
+                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                      end),
+                  blank22 = {type = "description", name = " ", width = 0.1, order = 2.2, },
+                  targetFocusInteractStrengthYawZoomBased = CreateZoomBasedControl(2.3, forSituations, "test_cameraTargetFocusInteractStrengthYaw",
+                    function(info)
+                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                    end),
+                  blank24 = {type = "description", name = " ", order = 2.4, },
 
                   targetFocusInteractStrengthPitch = {
                     type = "range",
                     name = L["Vertical Strength"],
                     _dbPath = forExport and {"cvars", "test_cameraTargetFocusInteractStrengthPitch"} or nil,
                     order = 3,
-                    width = sliderWidth - 0.15,
+                    width = sliderWidth - 0.4,
                     desc = "|cff909090cvar: test_cameraTargetFocus\nInteractStrengthPitch|r",
-                    min = 0,
-                    max = 1,
+                    min = DynamicCam.cvarRanges.test_cameraTargetFocusInteractStrengthPitch.min,
+                    max = DynamicCam.cvarRanges.test_cameraTargetFocusInteractStrengthPitch.max,
                     step = 0.05,
                     disabled =
                       function(info)
-                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                        return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraTargetFocusInteractStrengthPitch")
                       end,
                     get =
                       function()
@@ -1497,11 +1013,21 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                       end,
                   },
                   targetFocusInteractStrengthPitchReset =
-                    CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthPitch"),
+                    CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraTargetFocusInteractStrengthPitch", nil,
+                      function(info)
+                        return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                      end),
+                  blank32 = {type = "description", name = " ", width = 0.1, order = 3.2, },
+                  targetFocusInteractStrengthPitchZoomBased = CreateZoomBasedControl(3.3, forSituations, "test_cameraTargetFocusInteractStrengthPitch",
+                    function(info)
+                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraTargetFocusInteractEnable") == 0
+                    end),
+                  -- No blank because end of group box.
                 },
               },
 
-              blank2 = {type = "description", name = " ", order = 2.1, },
+              blank21 = {type = "description", name = "\n\n", order = 2.1, },
+
 
               targetFocusDescriptionGroup = {
                 type = "group",
@@ -1533,7 +1059,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           overriddenText = CreateOverriddenText(headTrackingGroupVars, forSituations),
 
           overrideStandardToggle = CreateOverrideStandardToggle(headTrackingGroupVars, forSituations),
-          blank0 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
 
           headTrackingSubGroup = {
             type = "group",
@@ -1552,7 +1078,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 name = L["Enable"],
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementStrength"} or nil,
                 order = 1,
-                width = sliderWidth - 0.15,
+                width = "full",
                 desc = "|cff909090cvar: test_cameraHeadMovementStrength\n\n" .. L["<headTrackingEnable_desc>"] .. "|r",
                 get =
                   function()
@@ -1567,21 +1093,21 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     end
                   end,
               },
-              blank1 = {type = "description", name = " ", order = 1.1, },
+              blank11 = {type = "description", name = " ", order = 1.1, },
 
               standingStrength = {
                 type = "range",
                 order = 2,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 name = L["Strength (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingStrength|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementStandingStrength"} or nil,
-                min = 0,
-                max = 1,   -- No effect above 1.
+                min = DynamicCam.cvarRanges.test_cameraHeadMovementStandingStrength.min,
+                max = DynamicCam.cvarRanges.test_cameraHeadMovementStandingStrength.max,   -- No effect above 1.
                 step = 0.01,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementStandingStrength")
                   end,
                 get =
                   function()
@@ -1593,22 +1119,30 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               standingStrengthReset =
-                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraHeadMovementStandingStrength"),
-              blank2 = {type = "description", name = " ", order = 2.2, },
+                CreateSliderResetButton(2.1, forSituations, "cvars", "test_cameraHeadMovementStandingStrength", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              blank22 = {type = "description", name = " ", width = 0.1, order = 2.2, },
+              standingStrengthZoomBased = CreateZoomBasedControl(2.3, forSituations, "test_cameraHeadMovementStandingStrength",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                end),
+              blank24 = {type = "description", name = " ", order = 2.4, },
 
               standingDampRate = {
                 type = "range",
                 order = 3,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 name = L["Inertia (standing)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nStandingDampRate|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementStandingDampRate"} or nil,
-                min = 0,
-                max = 20,
+                min = DynamicCam.cvarRanges.test_cameraHeadMovementStandingDampRate.min,
+                max = DynamicCam.cvarRanges.test_cameraHeadMovementStandingDampRate.max,
                 step = 0.05,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementStandingDampRate")
                   end,
                 get =
                   function()
@@ -1627,22 +1161,32 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               standingDampRateReset =
-                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraHeadMovementStandingDampRate"),
-              blank3 = {type = "description", name = "\n\n", order = 3.2, },
+                CreateSliderResetButton(3.1, forSituations, "cvars", "test_cameraHeadMovementStandingDampRate", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              blank32 = {type = "description", name = " ", width = 0.1, order = 3.2, },
+              standingDampRateZoomBased = CreateZoomBasedControl(3.3, forSituations, "test_cameraHeadMovementStandingDampRate",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                end),
+              
+              blank34 = {type = "description", name = "\n\n", order = 3.4, },
+
 
               movingStrength = {
                 type = "range",
                 order = 4,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 name = L["Strength (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingStrength|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementMovingStrength"} or nil,
-                min = 0,
-                max = 1,   -- No effect above 1.
+                min = DynamicCam.cvarRanges.test_cameraHeadMovementMovingStrength.min,
+                max = DynamicCam.cvarRanges.test_cameraHeadMovementMovingStrength.max,   -- No effect above 1.
                 step = 0.01,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementMovingStrength")
                   end,
                 get =
                   function()
@@ -1654,22 +1198,30 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               movingStrengthReset =
-                CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraHeadMovementMovingStrength"),
-              blank4 = {type = "description", name = " ", order = 4.2, },
+                CreateSliderResetButton(4.1, forSituations, "cvars", "test_cameraHeadMovementMovingStrength", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              blank42 = {type = "description", name = " ", width = 0.1, order = 4.2, },
+              movingStrengthZoomBased = CreateZoomBasedControl(4.3, forSituations, "test_cameraHeadMovementMovingStrength",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                end),
+              blank44 = {type = "description", name = " ", order = 4.4, },
 
               movingDampRate = {
                 type = "range",
                 order = 5,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 name = L["Inertia (moving)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nMovingDampRate|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementMovingDampRate"} or nil,
-                min = 0,
-                max = 20,
+                min = DynamicCam.cvarRanges.test_cameraHeadMovementMovingDampRate.min,
+                max = DynamicCam.cvarRanges.test_cameraHeadMovementMovingDampRate.max,
                 step = 0.05,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementMovingDampRate")
                   end,
                 get =
                   function()
@@ -1688,22 +1240,32 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               movingDampRateReset =
-                  CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraHeadMovementMovingDampRate"),
-              blank5 = {type = "description", name = "\n\n", order = 5.2, },
+                CreateSliderResetButton(5.1, forSituations, "cvars", "test_cameraHeadMovementMovingDampRate", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              blank52 = {type = "description", name = " ", width = 0.1, order = 5.2, },
+              movingDampRateZoomBased = CreateZoomBasedControl(5.3, forSituations, "test_cameraHeadMovementMovingDampRate",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                end),
+              
+              blank54 = {type = "description", name = "\n\n", order = 5.4, },
+
 
               firstPersonDampRate = {
                 type = "range",
                 order = 6,
-                width = sliderWidth,
+                width = sliderWidth - 0.3,
                 name = L["Inertia (first person)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nFirstPersonDampRate|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementFirstPersonDampRate"} or nil,
-                min = 0,
-                max = 20,
+                min = DynamicCam.cvarRanges.test_cameraHeadMovementFirstPersonDampRate.min,
+                max = DynamicCam.cvarRanges.test_cameraHeadMovementFirstPersonDampRate.max,
                 step = 0.05,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementFirstPersonDampRate")
                   end,
                 get =
                   function()
@@ -1722,13 +1284,23 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   end,
               },
               firstPersonDampRateReset =
-                CreateSliderResetButton(6.1, forSituations, "cvars", "test_cameraHeadMovementFirstPersonDampRate"),
-              blank6 = {type = "description", name = "\n\n", order = 6.2, },
+                CreateSliderResetButton(6.1, forSituations, "cvars", "test_cameraHeadMovementFirstPersonDampRate", nil,
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              blank62 = {type = "description", name = " ", width = 0.1, order = 6.2, },
+              firstPersonDampRateZoomBased = CreateZoomBasedControl(6.3, forSituations, "test_cameraHeadMovementFirstPersonDampRate",
+                function(info)
+                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                end),
+              
+              blank64 = {type = "description", name = "\n\n", order = 6.4, },
+
 
               rangeScale = {
                 type = "range",
                 order = 7,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 name = L["Range Scale"],
                 desc = L["Camera distance beyond which head tracking is reduced or disabled. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementRangeScale\n" .. L["(slider value transformed)"] .. "|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementRangeScale"} or nil,
@@ -1737,7 +1309,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 step = 0.5,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementRangeScale")
                   end,
                 get =
                   function()
@@ -1751,13 +1323,17 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               rangeScaleReset =
                 CreateSliderResetButton(7.1, forSituations, "cvars", "test_cameraHeadMovementRangeScale",
-                                        Round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2)),
-              blank7 = {type = "description", name = "\n\n", order = 7.2, },
+                                        Round((DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementRangeScale") * 3.25) + 0.1625, 2),
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              -- No zoom-based settings for this variable, as its effect itself is zoom based.
+              blank73 = {type = "description", name = " ", order = 7.3, },
 
               deadZone = {
                 type = "range",
                 order = 8,
-                width = sliderWidth,
+                width = sliderWidth + 0.2,
                 name = L["Dead Zone"],
                 desc = L["Radius of head movement not affecting the camera. (See explanation below.)"] .. "\n|cff909090cvar: test_ cameraHeadMovementDeadZone\n" .. L["(slider value devided by 10)"] .. "|r\n|cffe00000" .. L["Requires /reload to come into effect!"] .. "|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementDeadZone"} or nil,
@@ -1766,7 +1342,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 step = 0.05,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementDeadZone")
                   end,
                 get =
                   function()
@@ -1779,8 +1355,12 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               deadZoneReset =
                 CreateSliderResetButton(8.1, forSituations, "cvars", "test_cameraHeadMovementDeadZone",
-                                            Round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2)),
-
+                                            Round(DynamicCam:GetSettingsDefault("cvars", "test_cameraHeadMovementDeadZone") * 10, 2),
+                  function(info)
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
+                  end),
+              -- No zoom-based settings for this variable, as it does not take effect without /reload.
+              blank83 = {type = "description", name = " ", order = 8.3, },
 
               headTrackingDescriptionGroup = {
                 type = "group",
@@ -1821,14 +1401,14 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
         desc = L["<selectedSituation_desc>"],
         get =
           function()
-            lastSelectedSID = SID
+            UpdateLastSelectedSID(SID)
             return SID
           end,
         set =
           function(_, newValue)
-            S = DynamicCam.db.profile.situations[newValue]
-            SID = newValue
-            lastSelectedSID = newValue
+            local newSituation = DynamicCam.db.profile.situations[newValue]
+            UpdateSituationState(newSituation, newValue)
+            UpdateLastSelectedSID(newValue)
           end,
         values =
           function()
@@ -1837,7 +1417,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
         width = 2.2,
         order = 1,
       },
-      blank1 = {type = "description", name = " ", width = 0.1, order = 1.5, },
+      blank15 = {type = "description", name = " ", width = 0.1, order = 1.5, },
 
       enabled = {
         type = "toggle",
@@ -1866,7 +1446,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
         width = 0.7,
         order = 2,
       },
-      blank2 = {type = "description", name = " ", width = 0.1, order = 2.5, },
+      blank25 = {type = "description", name = " ", width = 0.1, order = 2.5, },
 
       deleteCustom = {
         type = "execute",
@@ -1896,7 +1476,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
         width = 0.23,
         order = 3,
       },
-      blank3 = {type = "description", name = " ", width = 0.03, order = 3.5, },
+      blank35 = {type = "description", name = " ", width = 0.03, order = 3.5, },
 
       newSituation = {
         type = "execute",
@@ -1923,6 +1503,109 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
             type = "description",
             name = L["Setup stuff to happen while in a situation or when entering/exiting it."] .. "\n\n",
             order = 0,
+          },
+
+          transitionTimeSettings = {
+            type = "group",
+            name =
+              function()
+                -- Grey out when both times are 0
+                local isActive = S.transitionTime.timeToEnter > 0 or S.transitionTime.timeToExit > 0
+                return GreyWhenInactive(L["Transition Time"], isActive)
+              end,
+            order = 0.5,
+            args = {
+
+              transitionTimeReset = {
+                type = "execute",
+                name = L["Reset"],
+                image = "Interface\\Transmogrify\\Transmogrify",
+                imageCoords = Options.resetButtonImageCoords,
+                imageWidth = 25/1.5,
+                imageHeight = 24/1.5,
+                desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
+                order = 1.5,
+                width = 0.25,
+                func =
+                  function()
+                    for k in pairs(S.transitionTime) do
+                      S.transitionTime[k] = DynamicCam.situationDefaults.transitionTime[k]
+                    end
+                  end,
+                disabled =
+                  function()
+                    for k in pairs(S.transitionTime) do
+                      if S.transitionTime[k] ~= DynamicCam.situationDefaults.transitionTime[k] then
+                        return false
+                      end
+                    end
+                    return true
+                  end,
+              },
+
+              transitionTimeGroup = {
+                type = "group",
+                name = "",
+                order = 2,
+                inline = true,
+                args = {
+
+                  timeToEnter = {
+                    type = "range",
+                    name = L["Enter Transition Time"],
+                    desc = L["The time in seconds for the transition when ENTERING this situation."],
+                    width = "full",
+                    min = 0,
+                    max = 5,
+                    step = 0.1,
+                    get =
+                      function()
+                        return S.transitionTime.timeToEnter
+                      end,
+                    _dbPath = forExport and {"transitionTime", "timeToEnter"} or nil,
+                    set =
+                      function(info, newValue)
+                        S.transitionTime.timeToEnter = newValue
+                      end,
+                    order = 1,
+                  },
+
+                  timeToExit = {
+                    type = "range",
+                    name = L["Exit Transition Time"],
+                    desc = L["The time in seconds for the transition when EXITING this situation."],
+                    width = "full",
+                    min = 0,
+                    max = 5,
+                    step = 0.1,
+                    get =
+                      function()
+                        return S.transitionTime.timeToExit
+                      end,
+                    _dbPath = forExport and {"transitionTime", "timeToExit"} or nil,
+                    set =
+                      function(info, newValue)
+                        S.transitionTime.timeToExit = newValue
+                      end,
+                    order = 2,
+                  },
+                  blank21 = {type = "description", name = " ", order = 2.1, },
+
+                  transitionTimeDescriptionGroup = {
+                    type = "group",
+                    name = L["Help"],
+                    order = 3,
+                    args = {
+                      transitionTimeDescription = {
+                        type = "description",
+                        name = L["<transitionTime_desc>"],
+                      },
+                    },
+                  },
+
+                },
+              },
+            },
           },
 
           viewZoomSettings = {
@@ -1954,7 +1637,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
-                imageCoords = resetButtonImageCoords,
+                imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
                 desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
@@ -1970,6 +1653,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 disabled =
                   function()
+                    if not S.viewZoom.enabled then return true end
                     for k in pairs(S.viewZoom) do
                       if k ~= "enabled" and k ~= "viewZoomType" and S.viewZoom[k] ~= DynamicCam.situationDefaults.viewZoom[k] then
                         return false
@@ -2017,7 +1701,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     },
                     order = 2,
                   },
-                  blank2 = {type = "description", name = " ", order = 2.1, },
+                  blank21 = {type = "description", name = " ", order = 2.1, },
 
 
                   viewBox = {
@@ -2052,7 +1736,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                         order = 1,
                         width = 0.8,
                       },
-                      blank1 = {type = "description", name = " ", order = 1.1, width = 0.1, },
+                      blank11 = {type = "description", name = " ", order = 1.1, width = 0.1, },
                       instant = {
                         type = "toggle",
                         name = L["Instant"],
@@ -2182,7 +1866,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                       },
                     },
                   },
-                  viewBlank = {type = "description", name = " ", order = 3.1, },
+                  blank31 = {type = "description", name = " ", order = 3.1, },
 
                   viewDescriptionGroup = {
                     type = "group",
@@ -2211,26 +1895,6 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                       end,
                     args = {
 
-                      transitionTime = {
-                        type = "range",
-                        name = L["Zoom Transition Time"],
-                        desc = L["<transitionTime_desc>"],
-                        min = 0,
-                        max = 5,
-                        step = .05,
-                        get =
-                          function()
-                            return S.viewZoom.zoomTransitionTime
-                          end,
-                        set =
-                          function(_, newValue)
-                            S.viewZoom.zoomTransitionTime = newValue
-                          end,
-                        width = "full",
-                        order = 1,
-                      },
-                      blank1 = {type = "description", name = "\n\n", order = 1.2, },
-
                       zoomType = {
                         type = "select",
                         name = L["Zoom Type"],
@@ -2258,7 +1922,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                         },
                         order = 2,
                       },
-                      blank2 = {type = "description", name = " ", order = 2.1, width = 0.2, },
+                      blank21 = {type = "description", name = " ", order = 2.1, width = 0.2, },
 
                       zoomTimeIsMaxToggle = {
                         type = "toggle",
@@ -2275,7 +1939,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                         width = 0.8,
                         order = 2.2,
                       },
-                      blank22 = {type = "description", name = " ", order = 2.5, },
+                      blank23 = {type = "description", name = " ", order = 2.3, },
 
                       zoomValue = {
                         type = "range",
@@ -2334,7 +1998,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           end,
                         order = 3,
                       },
-                      blank3 = {
+                      blank31 = {
                         type = "description",
                         name = " ",
                         order = 3.1,
@@ -2372,7 +2036,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     },
 
                   },
-                  zoomBlank1 = {
+                  blank31 = {
                     type = "description",
                     name = " ",
                     order = 3.1,
@@ -2427,7 +2091,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
 
                     },
                   },
-                  zoomBlank2 = {
+                  blank41 = {
                     type = "description",
                     name = " ",
                     order = 4.1,
@@ -2490,7 +2154,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
-                imageCoords = resetButtonImageCoords,
+                imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
                 desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
@@ -2507,6 +2171,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 disabled =
                   function()
+                    if not S.rotation.enabled then return true end
                     for k in pairs(S.rotation) do
                       if k ~= "enabled" and S.rotation[k] ~= DynamicCam.situationDefaults.rotation[k] then
                         return false
@@ -2547,41 +2212,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     width = "full",
                     order = 1,
                   },
-                  blank1 = {type = "description", name = "\n\n", order = 1.1, },
-
-                  rotationOrAccelerationTime = {
-                    type = "range",
-                    name =
-                      function()
-                        if S.rotation.rotationType == "continuous" then
-                          return L["Acceleration Time"]
-                        else
-                          return L["Rotation Time"]
-                        end
-                      end,
-                    desc =
-                      function()
-                        if S.rotation.rotationType == "continuous" then
-                          return L["<accelerationTime_desc>"]
-                        else
-                          return L["<rotationTime_desc>"]
-                        end
-                      end,
-                    min = 0,
-                    max = 5,
-                    step = .05,
-                    get =
-                      function()
-                        return S.rotation.rotationTime
-                      end,
-                    set =
-                      function(_, newValue)
-                        S.rotation.rotationTime = newValue
-                      end,
-                    width = "full",
-                    order = 2,
-                  },
-                  blank2 = {type = "description", name = " ", order = 2.1, },
+                  blank11 = {type = "description", name = "\n\n", order = 1.1, },
 
                   rotationSpeed = {
                     type = "range",
@@ -2633,7 +2264,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     width = "full",
                     order = 3,
                   },
-                  blank3 = {
+                  blank31 = {
                     type = "description",
                     name = " ",
                     hidden =
@@ -2666,7 +2297,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   },
 
 
-                  blank4 = {type = "description", name = "\n\n", order = 4.1, },
+                  blank41 = {type = "description", name = "\n\n", order = 4.1, },
 
                   rotateBack = {
                     type = "toggle",
@@ -2683,29 +2314,6 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     width = "normal",
                     order = 5,
                   },
-                  rotateBackTime = {
-                    type = "range",
-                    name = L["Rotate Back Time"],
-                    desc = L["<rotateBackTime_desc>"],
-                    min = 0,
-                    max = 5,
-                    step = .05,
-                    disabled =
-                      function()
-                        return not S.rotation.enabled or not S.rotation.rotateBack
-                      end,
-                    get =
-                      function()
-                        return S.rotation.rotateBackTime
-                      end,
-                    set =
-                      function(_, newValue)
-                        S.rotation.rotateBackTime = newValue
-                      end,
-                    width = "full",
-                    order = 6,
-                  },
-                  blank6 = {type = "description", name = " ", order = 6.1, },
                 },
               },
             },
@@ -2740,7 +2348,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
                 image = "Interface\\Transmogrify\\Transmogrify",
-                imageCoords = resetButtonImageCoords,
+                imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
                 desc = L["Reset to global default"] .. "!\n" .. L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"],
@@ -2757,6 +2365,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 disabled =
                   function()
+                    if not S.hideUI.enabled then return true end
                     for k in pairs(S.hideUI) do
                       if k ~= "enabled" and S.hideUI[k] ~= DynamicCam.situationDefaults.hideUI[k] then
                         return false
@@ -2765,7 +2374,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     return true
                   end,
               },
-              blank0 = {type = "description", name = "", width = 0.3, order = 1.6, },
+              blank16 = {type = "description", name = "", width = 0.3, order = 1.6, },
 
               adjustToImmersion = {
                 type = "execute",
@@ -2773,8 +2382,8 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 desc = L["<adjustToImmersion_desc>"],
                 func =
                   function()
-                    S.hideUI.fadeOutTime = 0.2
-                    S.hideUI.fadeInTime = 0.5
+                    S.transitionTime.timeToEnter = 0.2
+                    S.transitionTime.timeToExit = 0.5
                   end,
                 order = 1.7,
                 width = 1,
@@ -2783,7 +2392,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     return SID ~= "300"
                   end,
               },
-              blank1 = {type = "description", name = " ", order = 1.9, },
+              blank18 = {type = "description", name = " ", order = 1.8, },
 
               hideUIGroup = {
                 type = "group",
@@ -2795,45 +2404,6 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 inline = true,
                 args = {
-
-                  fadeOutTime = {
-                    type = "range",
-                    name = L["Fade Out Time"],
-                    desc = L["Seconds it takes to fade out the UI when entering the situation."],
-                    min = 0,
-                    max = 5,
-                    step = .05,
-                    get =
-                      function()
-                        return S.hideUI.fadeOutTime
-                      end,
-                    set =
-                      function(_, newValue)
-                        S.hideUI.fadeOutTime = newValue
-                      end,
-                    width = "full",
-                    order = 1,
-                  },
-                  blank1 = {type = "description", name = " ", order = 1.1, },
-                  fadeInTime = {
-                    type = "range",
-                    name = L["Fade In Time"],
-                    desc = L["<fadeInTime_desc>"],
-                    min = 0,
-                    max = 5,
-                    step = .05,
-                    get =
-                      function()
-                        return S.hideUI.fadeInTime
-                      end,
-                    set =
-                      function(_, newValue)
-                        S.hideUI.fadeInTime = newValue
-                      end,
-                    width = "full",
-                    order = 2,
-                  },
-                  blank2 = {type = "description", name = "\n\n", order = 2.1, },
 
                   hideEntireUI = {
                     type = "toggle",
@@ -2883,7 +2453,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                       end,
                     order = 4,
                   },
-                  blank4 = {type = "description", name = "\n\n", order = 4.2, },
+                  blank42 = {type = "description", name = "\n\n", order = 4.2, },
 
                   hideUIFadeOpacity = {
                     type = "range",
@@ -2908,7 +2478,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     width = "full",
                     order = 5,
                   },
-                  blank5 = {type = "description", name = "\n\n", order = 5.2, },
+                  blank52 = {type = "description", name = "\n\n", order = 5.2, },
 
                   excludedFramesGroup = {
                     type = "group",
@@ -3046,7 +2616,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                         width = "full",
                       },
 
-                      n7 = {order = 7, type = "description", name = " ",},
+                      blank61 = {type = "description", name = " ", order = 6.1, },
 
                       keepCustomFrames = {
                         type = "toggle",
@@ -3110,7 +2680,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
 
                     },
                   },
-                  blank6 = {type = "description", name = " ", order = 6.2, },
+                  blank62 = {type = "description", name = " ", order = 6.2, },
 
                   emergencyShowGroup = {
                     type = "group",
@@ -3144,7 +2714,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   },
                 },
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               hideUIHelpGroup = {
                 type = "group",
@@ -3235,7 +2805,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 order = 2,
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               priorityDescriptionGroup = {
                 type = "group",
@@ -3312,7 +2882,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 order = 2,
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               eventsDescriptionGroup = {
                 type = "group",
@@ -3393,7 +2963,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 order = 2,
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               initialisationDescriptionGroup = {
                 type = "group",
@@ -3465,7 +3035,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 order = 2,
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               conditionDescriptionGroup = {
                 type = "group",
@@ -3537,7 +3107,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   end,
                 order = 2,
               },
-              blank2 = {type = "description", name = " ", order = 2.2, },
+              blank22 = {type = "description", name = " ", order = 2.2, },
 
               executeOnEnterDescriptionGroup = {
                 type = "group",
@@ -3621,7 +3191,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     return ScriptIsDefault(SID, "executeOnExit")
                   end,
               },
-              blank2 = {type = "description", name = " ", order = 2.1, },
+              blank21 = {type = "description", name = " ", order = 2.1, },
 
               exitDelay = {
                 type = "input",
@@ -3662,7 +3232,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     return ValueIsDefault(SID, "delay")
                   end,
               },
-              blank4 = {type = "description", name = " ", order = 4.1, },
+              blank41 = {type = "description", name = " ", order = 4.1, },
 
               executeOnExitDescriptionGroup = {
                 type = "group",
@@ -3787,12 +3357,6 @@ end
 
 
 
-
-local welcomeMessage = L["<welcomeMessage>"]
-
-
-
-
 local about = {
   type = "group",
   name = L["About"],
@@ -3873,7 +3437,7 @@ local about = {
         },
         message = {
           type = "description",
-          name = welcomeMessage,
+          name = L["<welcomeMessage>"],
         },
       }
     },
@@ -4056,8 +3620,8 @@ end
 -- GUI --
 ---------
 function Options:ClearSelection()
-  SID = nil
-  S = nil
+  UpdateSituationState(nil, nil)
+  UpdateLastSelectedSID(nil)
 end
 
 -- This function is needed to call SelectSituation() and
@@ -4071,13 +3635,12 @@ end
 -- do not change the currently selected situation.
 function Options:SelectSituation(selectMe)
   if selectMe and DynamicCam.db.profile.situations[selectMe] then
-    S = DynamicCam.db.profile.situations[selectMe]
-    SID = selectMe
+    UpdateSituationState(DynamicCam.db.profile.situations[selectMe], selectMe)
   elseif not lastSelectedSID and DynamicCam.currentSituationID then
-    S = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
-    SID = DynamicCam.currentSituationID
+    UpdateSituationState(DynamicCam.db.profile.situations[DynamicCam.currentSituationID], DynamicCam.currentSituationID)
   elseif not SID or not S then
-    SID, S = next(DynamicCam.db.profile.situations)
+    local firstSID, firstS = next(DynamicCam.db.profile.situations)
+    UpdateSituationState(firstS, firstSID)
   end
 
   LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
@@ -4114,955 +3677,11 @@ function Options:RegisterMenus()
 end
 
 
+-- Export the settings tab creation functions to the Options module
+-- so they can be called from Options/Widgets.lua for the SituationExport widget
+Options.CreateSettingsTab = CreateSettingsTab
+Options.CreateSituationSettingsTab = CreateSituationSettingsTab
 
 
-
-local function DrawLine(f, startRelativeAnchor, startOffsetX, startOffsetY,
-                           endRelativeAnchor, endOffsetX, endOffsetY,
-                           thickness, r, g, b, a)
-
-  local line = f:CreateLine()
-  line:SetThickness(thickness)
-  line:SetColorTexture(r, g, b, a)
-  line:SetStartPoint(startRelativeAnchor, f, startOffsetX, startOffsetY)
-  line:SetEndPoint(endRelativeAnchor, f, endOffsetX, endOffsetY)
-
-end
-
-
-local function SetFrameBorder(f, thickness, r, g, b, a)
-  -- Bottom line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Top line.
-  DrawLine(f, "TOPLEFT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Left line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "TOPLEFT", 0, 0, thickness, r, g, b, a)
-  -- Right line.
-  DrawLine(f, "BOTTOMRIGHT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-end
-
-
-
-
--- Registry for custom widget builders.
-DynamicCam.customWidgetBuilders = {}
-
-DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
-
-  -- Description text on top of the page.
-  if not f.help then
-    f.help = f:CreateFontString(nil, "OVERLAY")
-    f.help:SetFontObject("GameFontHighlightSmall")
-    f.help:SetJustifyH("LEFT")
-    f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
-    f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-    f.help:SetText("Select the settings you want to export.")
-  end
-
-  if not f.contentFrame then
-    f.contentFrame = CreateFrame("Frame", nil, f)
-    local cf = f.contentFrame
-    local yOffset = -10
-    cf:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, yOffset)
-    cf:SetPoint("TOPRIGHT", f.help, "TOPRIGHT", 0, yOffset)
-
-    -- We use cf directly as the container for rows.
-    -- Scrolling is handled by the parent AceGUI container.
-
-    -- --- Tree Building Logic ---
-
-    local function BuildTreeData(args)
-      local tree = {}
-      for key, entry in pairs(args) do
-        -- Check disabled status
-        local isDisabled = false
-        if entry.disabled then
-            if type(entry.disabled) == "function" then
-                isDisabled = entry.disabled({})
-            else
-                isDisabled = entry.disabled
-            end
-        end
-
-        -- Check hidden status
-        local isHidden = false
-        if entry.hidden then
-            if type(entry.hidden) == "function" then
-                isHidden = entry.hidden({})
-            else
-                isHidden = entry.hidden
-            end
-        end
-
-        if not isDisabled and not isHidden then
-            if entry.type == "group" then
-              local children = BuildTreeData(entry.args)
-              if next(children) then
-                local rawName = (type(entry.name) == "function" and entry.name() or entry.name)
-                local name = rawName and rawName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
-
-                -- Optimization: If group has name, but contains only 1 child,
-                -- hoist the child and merge the names.
-                if name and name ~= "" and #children == 1 then
-                    local child = children[1]
-                    local cleanChildName = child.name and child.name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
-
-                    if cleanChildName ~= "" then
-                        child.name = name .. " |cFFFFFFFF- " .. cleanChildName .. "|r"
-                    else
-                        if child.children then
-                            child.name = name
-                        else
-                            child.name = "|cFFFFFFFF" .. name .. "|r"
-                        end
-                    end
-                    child.order = entry.order or child.order
-                    table.insert(tree, child)
-                elseif not name or name == "" then
-                    -- If the group has no name (like inline groups), flatten it by merging children up
-                    for _, child in ipairs(children) do
-                        table.insert(tree, child)
-                    end
-                else
-                    table.insert(tree, {
-                      key = key,
-                      name = name,
-                      children = children,
-                      order = entry.order or 100,
-                      checked = false,
-                      notCollapsible = entry.notCollapsible
-                    })
-                end
-              end
-            elseif entry._dbPath or entry.get then
-              local rawName = (type(entry.name) == "function" and entry.name() or entry.name)
-              local cleanName = rawName and rawName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
-
-              local finalName = cleanName
-              if cleanName ~= "" then
-                  finalName = "|cFFFFFFFF" .. cleanName .. "|r"
-              end
-
-              table.insert(tree, {
-                key = key,
-                name = finalName,
-                dbPath = entry._dbPath,
-                order = entry.order or 100,
-                get = entry.get,
-                arg = entry.arg,
-                type = entry.type,
-                multiline = entry.multiline,
-                checked = false
-              })
-            end
-        end
-      end
-      table.sort(tree, function(a,b) return a.order < b.order end)
-      return tree
-    end
-
-    -- Get options structure
-    local fullOptions = CreateSituationSettingsTab(0, true)
-    local exportArgs = {
-        everything = {
-            type = "group",
-            name = "Everything",
-            order = 1,
-            notCollapsible = true,
-            args = {
-                situationSettings = {
-                    type = "group",
-                    name = L["Situation Settings"],
-                    order = 1,
-                    args = CreateSettingsTab(0, true, true).args
-                },
-                situationActions = {
-                    type = "group",
-                    name = L["Situation Actions"],
-                    order = 2,
-                    args = fullOptions.args.situationActions.args
-                },
-                situationControls = {
-                    type = "group",
-                    name = L["Situation Controls"],
-                    order = 3,
-                    args = fullOptions.args.situationControls.args
-                }
-            }
-        }
-    }
-
-    local treeData = BuildTreeData(exportArgs)
-
-    -- --- Tree Rendering Logic ---
-
-    local ROW_HEIGHT = 24
-    local INDENT = 20
-    local allRows = {} -- Flat list of all rows in visual order
-
-    local function ReLayout()
-        local currentY = 0
-        for _, row in ipairs(allRows) do
-            if row:IsShown() then
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", cf, "TOPLEFT", row.level * INDENT, currentY)
-                row:SetPoint("RIGHT", cf, "RIGHT")
-                currentY = currentY - row:GetHeight()
-            end
-        end
-        cf:SetHeight(math.abs(currentY))
-
-        if widget.AdjustHeightFunction then
-            widget:AdjustHeightFunction()
-        end
-
-        -- Force parent to update layout to accommodate new height
-        if widget.parent and widget.parent.DoLayout then
-            widget.parent:DoLayout()
-        end
-    end
-
-    local function CreateRow(parent, node, level, parentRow)
-      local row = CreateFrame("Frame", nil, parent)
-      row:SetHeight(ROW_HEIGHT)
-      row.level = level -- Store level for ReLayout
-      row.parentRow = parentRow
-
-      -- Expand Button (if children)
-      if node.children then
-        if not node.notCollapsible then
-            local expandBtn = CreateFrame("Button", nil, row)
-            expandBtn:SetSize(22, 22)
-            expandBtn:SetPoint("LEFT", 0, 0)
-
-            -- Use textures instead of text
-            expandBtn:SetNormalAtlas("common-button-dropdown-open")
-            expandBtn:SetPushedAtlas("common-button-dropdown-openpressed")
-            expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
-
-            expandBtn:SetScript("OnClick", function(self)
-               row.expanded = not row.expanded
-               local show = row.expanded
-
-               if show then
-                   self:SetNormalAtlas("common-button-dropdown-open")
-                   self:SetPushedAtlas("common-button-dropdown-openpressed")
-               else
-                   self:SetNormalAtlas("common-button-dropdown-closed")
-                   self:SetPushedAtlas("common-button-dropdown-closedpressed")
-               end
-
-               -- Define ToggleChildren locally or use upvalue?
-               -- ToggleChildren is defined below, need to move it up or use forward declaration?
-               -- Actually ToggleChildren is defined inside the if block in the original code?
-               -- No, it was defined inside the if block.
-
-               -- Wait, I need to be careful about scope.
-               -- In original code:
-               -- local function ToggleChildren(row, show) ... end
-               -- expandBtn:SetScript(...) calls ToggleChildren
-
-               -- I will keep the structure but wrap expandBtn creation.
-            end)
-            row.expandBtn = expandBtn
-        end
-
-        row.expanded = true -- Default to expanded
-
-        local function ToggleChildren(row, show)
-            if not row.childRows then return end
-            for _, childRow in ipairs(row.childRows) do
-                if show then
-                    childRow:Show()
-                    -- If the child itself is expanded, show its children too
-                    if childRow.expanded then
-                        ToggleChildren(childRow, true)
-                    end
-                else
-                    childRow:Hide()
-                    -- Recursively hide all descendants
-                    ToggleChildren(childRow, false)
-                end
-            end
-        end
-
-        if row.expandBtn then
-            row.expandBtn:SetScript("OnClick", function(self)
-               row.expanded = not row.expanded
-               local show = row.expanded
-
-               if show then
-                   self:SetNormalAtlas("common-button-dropdown-open")
-                   self:SetPushedAtlas("common-button-dropdown-openpressed")
-               else
-                   self:SetNormalAtlas("common-button-dropdown-closed")
-                   self:SetPushedAtlas("common-button-dropdown-closedpressed")
-               end
-
-               ToggleChildren(row, show)
-               ReLayout()
-            end)
-        end
-      end
-
-      -- Checkbox
-      local cb = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-      cb:SetSize(24, 24)
-
-      local cbOffsetX = 24
-      if node.notCollapsible then
-          cbOffsetX = 0
-      end
-      cb:SetPoint("TOPLEFT", cbOffsetX, 0)
-
-      cb.text:SetText(" " .. node.name)
-
-      cb.text:SetFontObject("GameFontNormal")
-
-      row.cb = cb
-      row.node = node
-      row.childRows = {}
-
-      -- Multiline handling
-      if node.multiline then
-          local val = ""
-          if node.get then
-             local success, v = pcall(node.get)
-             if success and v then val = v end
-          end
-
-          local hasContent = (val and val ~= "")
-          local boxHeight = hasContent and 80 or 24
-
-          local scrollFrameBorder = CreateFrame("Frame", nil, row, "TooltipBackdropTemplate")
-          scrollFrameBorder:SetPoint("TOPLEFT", 28, -24)
-          scrollFrameBorder:SetPoint("RIGHT", -30, 0)
-          scrollFrameBorder:SetHeight(boxHeight)
-
-          local template = hasContent and "UIPanelScrollFrameTemplate" or nil
-          local scrollFrame = CreateFrame("ScrollFrame", nil, scrollFrameBorder, template)
-          scrollFrame:SetPoint("TOPLEFT", 8, -4)
-          if hasContent then
-              scrollFrame:SetPoint("BOTTOMRIGHT", -26, 4)
-          else
-              scrollFrame:SetPoint("BOTTOMRIGHT", -8, 4)
-          end
-
-          local bg = scrollFrame:CreateTexture(nil, "BACKGROUND")
-          bg:SetAllPoints()
-          bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
-
-          local editBox = CreateFrame("EditBox", nil, scrollFrame)
-          editBox:SetMultiLine(true)
-          editBox:SetFontObject("GameFontHighlightSmall")
-          editBox:SetTextColor(0.533, 0.533, 0.533)
-          editBox:SetTextInsets(2, 2, 4, 2)
-          editBox:SetText(val)
-          editBox:SetAutoFocus(false)
-          editBox:EnableMouse(false)
-
-          scrollFrame:SetScript("OnSizeChanged", function(self, w, h)
-              editBox:SetWidth(w)
-          end)
-
-          scrollFrame:SetScrollChild(editBox)
-
-          row:SetHeight(24 + boxHeight + 5)
-      else
-          -- Append value if available (single line)
-          if node.get then
-              local success, val = pcall(node.get)
-              if success and val ~= nil then
-                  if type(val) == "number" then
-                      val = math.floor(val * 100 + 0.5) / 100 -- Round to 2 decimals
-                  end
-                  cb.text:SetText(" " .. node.name .. " |cFF888888[" .. tostring(val) .. "]|r")
-              end
-          end
-          row:SetHeight(ROW_HEIGHT)
-      end
-
-      table.insert(allRows, row) -- Add to flat list
-
-      -- Helper to calculate state based on children
-      local function GetState(r)
-          if not r.childRows or #r.childRows == 0 then
-              return r.node.checked
-          end
-
-          local allChecked = true
-          local allUnchecked = true
-
-          for _, child in ipairs(r.childRows) do
-              local childState = GetState(child)
-              if childState == false then
-                  allChecked = false
-              elseif childState == true then
-                  allUnchecked = false
-              else -- mixed
-                  allChecked = false
-                  allUnchecked = false
-              end
-          end
-
-          if allChecked then return true end
-          if allUnchecked then return false end
-          return "mixed"
-      end
-
-      -- Helper to update visuals
-      local function UpdateVisuals(r)
-          local state = GetState(r)
-          local tex = r.cb:GetCheckedTexture()
-
-          if state == true then
-              r.cb:SetChecked(true)
-              tex:SetAlpha(1)
-          elseif state == false then
-              r.cb:SetChecked(false)
-          else -- mixed
-              r.cb:SetChecked(true)
-              tex:SetAlpha(0.4)
-          end
-      end
-      row.UpdateVisuals = UpdateVisuals
-
-      -- Checkbox Logic
-      cb:SetScript("OnClick", function(self)
-          local currentState = GetState(row)
-          local newState = true
-          if currentState == true then
-              newState = false
-          end
-
-          -- Apply to self (leaf) or children (recursive)
-          local function SetStateRecursive(r, state)
-              r.node.checked = state
-              if r.childRows then
-                  for _, child in ipairs(r.childRows) do
-                      SetStateRecursive(child, state)
-                  end
-              end
-              r.UpdateVisuals(r)
-          end
-
-          SetStateRecursive(row, newState)
-
-          -- Update parents upwards
-          local p = row.parentRow
-          while p do
-              p.UpdateVisuals(p)
-              p = p.parentRow
-          end
-      end)
-
-      if node.children then
-        for _, child in ipairs(node.children) do
-          local childRow = CreateRow(parent, child, level + 1, row)
-          table.insert(row.childRows, childRow)
-        end
-      end
-
-      -- Initialize state
-      if node.checked == nil then node.checked = false end
-      UpdateVisuals(row)
-
-      return row
-    end
-
-    -- Use real treeData
-    for _, node in ipairs(treeData) do
-      CreateRow(cf, node, 0, nil)
-    end
-
-    -- Initial Layout
-    ReLayout()
-  end
-
-  -- Whenever OnWidthSet() is called, we set the height of frames to the height of their children frames.
-  widget.AdjustHeightFunction = function(self)
-    local cf = f.contentFrame
-
-    -- Set the container frame (f) height.
-    local point, _, _, _, yOffset = cf:GetPoint()
-    -- yOffset is negative (e.g. -10), so we subtract it to add the spacing
-    local totalHeight = f.help:GetStringHeight() + math.abs(yOffset) + cf:GetHeight()
-    f:SetHeight(totalHeight)
-
-    -- Set the widget frame height to match the container.
-    self:SetHeight(totalHeight)
-  end
-
-end
-
-
-
--- My custom widget for Situation Export.
--- Inspired by https://github.com/SFX-WoW/AceGUI-3.0_SFX-Widgets/.
-do
-
-  local Type, Version = "DynamicCam_CustomWidget", 1
-  local AceGUI = LibStub("AceGUI-3.0", true)
-
-  -- Standard Ace3 version check: If a newer version of this widget is already registered, don't overwrite it.
-  if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
-
-  local function Constructor()
-
-    local Widget     = {}
-    Widget.frame     = CreateFrame("Frame", nil, UIParent)
-    Widget.frame.obj = Widget
-    Widget.type      = Type
-    Widget.num       = AceGUI:GetNextWidgetNum(Type)
-
-    -- Reccommended place to store ephemeral widget information.
-    Widget.userdata = {}
-
-    -- Storage for our different views (builders)
-    Widget.views = {}
-
-    -- OnAcquire, SetLabel, SetText, SetDisabled(nil)
-    -- all get called when showing the widget.
-    Widget.OnAcquire = function(self)
-      self.resizing = true
-
-      self:SetDisabled(true)
-
-      -- Hide all views
-      for _, view in pairs(self.views) do
-        view:Hide()
-      end
-      self.currentView = nil
-      self.AdjustHeightFunction = nil
-
-      self.resizing = nil
-    end
-
-    Widget.SetLabel = function(self, name)
-      -- Use 'name' as the ID to look up the builder.
-      local builder = DynamicCam.customWidgetBuilders[name]
-      if not builder then return end
-
-      -- Always rebuild to ensure fresh data (e.g. when situation changes)
-      if self.views[name] then
-        self.views[name]:Hide()
-        self.views[name]:SetParent(nil)
-      end
-
-      local f = CreateFrame("Frame", nil, self.frame)
-      f:SetPoint("TOPLEFT")
-      f:SetPoint("TOPRIGHT")
-
-      builder(self, f)
-      self.views[name] = f
-
-      self.currentView = self.views[name]
-      self.currentView:Show()
-
-      -- Trigger a resize now that we have content
-      if self.AdjustHeightFunction then
-         self:AdjustHeightFunction()
-      end
-    end
-
-    -- Not useful to us, but Ace3 needs to call it.
-    Widget.SetText = function(self) end
-
-    Widget.OnWidthSet = function(self)
-      if self.resizing then return end
-
-      -- Whenever OnWidthSet() is called, adjust the height of the frames to contain all child frames.
-      if self.AdjustHeightFunction then self:AdjustHeightFunction() end
-    end
-
-    Widget.SetDisabled = function(self, Disabled)
-      self.disabled = Disabled
-    end
-
-    -- OnRelease gets called when hiding the widget.
-    Widget.OnRelease = function(self)
-      self:SetDisabled(true)
-      self.frame:ClearAllPoints()
-      if self.currentView then
-        self.currentView:Hide()
-      end
-      self.currentView = nil
-      self.AdjustHeightFunction = nil
-    end
-
-    return AceGUI:RegisterAsWidget(Widget)
-  end
-
-  AceGUI:RegisterWidgetType(Type, Constructor, Version)
-end
-
-
-
-
-
-
--- Disable mouse look slider and motion sickness options
--- and leave a tooltip note in the default UI settings.
-
-local mouseLookSpeedSlider = nil
-local MouseLookSpeedSliderOrignialTooltipEnter = nil
-local MouseLookSpeedSliderOrignialTooltipLeave = nil
-
-local motionSicknessElement = nil
-local indexCentered = nil
-local indexReduced = nil
-local indexBoth = nil
-local indexNone = nil
-local motionSicknessElementOriginalTooltipEnter = nil
-local motionSicknessElementOriginalTooltipLeave = nil
-
-hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
-
-  local foundMouseLookSpeedSlider = false
-  local foundMotionSicknessElement = false
-
-  -- ###################### Mouse ######################
-  if SettingsPanel.Container.SettingsList.Header.Title:GetText() == CONTROLS_LABEL then
-
-    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-    for i, child in ipairs(children) do
-      if child.Text then
-        if child.Text:GetText() == MOUSE_LOOK_SPEED then
-          -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
-          foundMouseLookSpeedSlider = true
-
-          if not mouseLookSpeedSlider then
-            -- print("Disabling slider")
-            mouseLookSpeedSlider = child.SliderWithSteppers
-
-            if not MouseLookSpeedSliderOrignialTooltipEnter then
-              MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
-              MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
-            end
-
-            -- Change tooltip.
-            mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000" .. L["Disabled"] .. "|r", _, _, _, true)
-              GameTooltip:AddLine(L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."], _, _, _, true)
-              GameTooltip:Show()
-            end)
-            mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-            end)
-          end
-
-          -- Got to make sure, the slider stays disabled.
-          if mouseLookSpeedSlider.Slider:IsEnabled() then
-            -- Function name "SetEnabled" introduced in 11.0.0.
-            if mouseLookSpeedSlider.SetEnabled then
-              mouseLookSpeedSlider:SetEnabled(false)
-            else
-              mouseLookSpeedSlider:SetEnabled_(false)
-            end
-          end
-
-          break
-        end
-      end
-    end
-
-
-
-  -- ###################### Motion Sickness ######################
-  elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
-
-    -- Retail got rid of the drop down and only uses a single checkbox now.
-
-    -- Bizarrely, since 11.0.2 checking the checkbox sets
-    -- CameraKeepCharacterCentered = false  and  CameraReduceUnexpectedMovement = true
-    -- whereas unchecking the checkbox sets
-    -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
-    -- Either variable will stop shoulder offset to take effect, so we disable the checkbox completely.
-
-
-    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-    for i, child in ipairs(children) do
-      if child.Text then
-        if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
-          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
-          foundMotionSicknessElement = true
-
-          if not motionSicknessElement then
-            -- print("Disabling motion sickness checkox.")
-            -- Renamed to "Checkbox" in 11.0.0.
-            if child.Checkbox then
-              motionSicknessElement = child.Checkbox
-            else
-              motionSicknessElement = child.CheckBox
-            end
-
-            if not motionSicknessElementOriginalTooltipEnter then
-              motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-              motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-            end
-
-            -- Change tooltip.
-            motionSicknessElement:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000" .. L["Attention"] .. "|r", _, _, _, true)
-              GameTooltip:AddLine(L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."]:format(MOTION_SICKNESS_CHECKBOX), _, _, _, true)
-              GameTooltip:Show()
-            end)
-            motionSicknessElement:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-            end)
-
-          end
-
-          break
-        end
-      end
-    end
-
-  end
-
-
-
-  -- If the slider is used for something else and we have changed it before, undo the change.
-  if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
-    -- print("Re-enabling slider")
-    mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
-    mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
-    if not mouseLookSpeedSlider.Slider:IsEnabled() then
-      -- Function name "SetEnabled" introduced in 11.0.0.
-      if mouseLookSpeedSlider.SetEnabled then
-        mouseLookSpeedSlider:SetEnabled(false)
-      else
-        mouseLookSpeedSlider:SetEnabled_(false)
-      end
-    end
-    mouseLookSpeedSlider = nil
-  end
-
-
-  -- If the checkbox is used for something else and we have changed it before, undo the change.
-  if motionSicknessElement and not foundMotionSicknessElement then
-    -- print("Re-enabling checkbox")
-    motionSicknessElement:SetScript("OnEnter", motionSicknessElementOriginalTooltipEnter)
-    motionSicknessElement:SetScript("OnLeave", motionSicknessElementOriginalTooltipLeave)
-
-    motionSicknessElement = nil
-  end
-
-
-
-
-end)
-
-
-
-
-
--- Remember which view is active and which as been reset,
--- so when the user activates cameraSmoothStyle, we only reset to view 1 once.
-local viewIsActive = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
-local viewIsReset = {[1] = nil, [2] = nil, [3] = nil, [4] = nil, [5] = nil,}
-hooksecurefunc("SetView", function(view)
-  for i = 1, 5 do
-    if i == tonumber(view) then
-      viewIsActive[i] = true
-    else
-      viewIsActive[i] = false
-    end
-  end
-end)
-hooksecurefunc("SaveView", function(view) viewIsReset[tonumber(view)] = false end)
-hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true end)
-
-local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
-
-hooksecurefunc("SetCVar", function(cvar, value, flag)
-  -- print(cvar, value, flag)
-
-  -- We are only handling cvar calls not done by DynamicCam.
-  if flag == "DynamicCam" then return end
-
-
-  -- Automatically undo forbidden motion sickness setting.
-  if cvar == "CameraKeepCharacterCentered" then
-    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
-    DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
-    -- print("|cFF0000FFStoring userCameraKeepCharacterCentered!|r", GetCVar("CameraKeepCharacterCentered"))
-
-    if value == true or tonumber(value) == 1 then
-      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
-        print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
-        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
-
-      elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
-        print("|cFFFF0000" .. L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
-        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
-      end
-    end
-
-
-  -- As off 11.0.2 this is also needed for shoulder offset to take effect.
-  elseif cvar == "CameraReduceUnexpectedMovement" then
-    -- Remember what the user setup. We use GetCVar instead of value, because it returns 0/1 instead of false/true.
-    DynamicCam.userCameraReduceUnexpectedMovement = GetCVar("CameraReduceUnexpectedMovement")
-    -- print("|cFF0000FFStoring userCameraReduceUnexpectedMovement!|r", GetCVar("CameraReduceUnexpectedMovement"))
-
-    if value == true or tonumber(value) == 1 then
-      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
-        print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] .. "|r")
-        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
-      end
-    end
-
-
-  elseif cvar == "test_cameraOverShoulder" then
-
-    -- If necessary, prevent Motion Sickness.
-    if tonumber(value) ~= 0 then
-
-      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
-        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
-        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
-        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
-      end
-      if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
-        -- print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
-        assert(DynamicCam.userCameraReduceUnexpectedMovement == GetCVar("CameraReduceUnexpectedMovement"))
-        SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
-      end
-
-    -- If no longer necessary, restore Motion Sickness.
-    -- (cvar may become 0 "according to zoom level", so we check
-    elseif DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "cvars", "test_cameraOverShoulder") == 0 then
-      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
-        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
-        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
-      end
-      if DynamicCam.userCameraReduceUnexpectedMovement ~= GetCVar("CameraReduceUnexpectedMovement") then
-        -- print("|cFF00FF00Restoring CameraReduceUnexpectedMovement!|r")
-        SetCVar("CameraReduceUnexpectedMovement", DynamicCam.userCameraReduceUnexpectedMovement, "DynamicCam")
-      end
-    end
-
-
-  elseif cvar == "test_cameraDynamicPitch" then
-
-    -- If necessary, prevent Motion Sickness.
-    if tonumber(value) == 1 then
-      if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
-        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
-        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
-        SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
-      end
-
-    -- If no longer necessary, restore Motion Sickness.
-    else
-      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
-        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
-        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
-      end
-    end
-
-
-
-
-  -- https://github.com/Mpstark/DynamicCam/issues/40
-  elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
-    print("|cFFFF0000" .. L["cameraView=%s prevented by DynamicCam!"]:format(value) .. "|r")
-    SetCVar("cameraView", GetCVarDefault("cameraView"), "DynamicCam")
-
-  -- Switch to a default view, if user switches to cameraSmoothStyle.
-  elseif cvar == "cameraSmoothStyle" and value ~= "0" then
-    -- The order (first reset then set) is important, because if you are already
-    -- in view 1 and do a reset, it also sets the view. If this is followed by
-    -- another setView, you get an undesired instant view switch.
-    if not viewIsReset[1] then ResetView(1) end
-    if not viewIsActive[1] then SetView(1) end
-  end
-
-end)
-
-
-
-
-
-
-
-
-
-
--- This is not working reliably. Especially the zoom when not set to default.
--- So we hide this for now.
-
--- local easingValues = {
-  -- Linear = "Linear",
-  -- InQuad = "In Quadratic",
-  -- OutQuad = "Out Quadratic",
-  -- InOutQuad = "In/Out Quadratic",
-  -- OutInQuad = "Out/In Quadratic",
-  -- InCubic = "In Cubic",
-  -- OutCubic = "Out Cubic",
-  -- InOutCubic = "In/Out Cubic",
-  -- OutInCubic = "Out/In Cubic",
-  -- InQuart = "In Quartic",
-  -- OutQuart = "Out Quartic",
-  -- InOutQuart = "In/Out Quartic",
-  -- OutInQuart = "Out/In Quartic",
-  -- InQuint = "In Quintic",
-  -- OutQuint = "Out Quintic",
-  -- InOutQuint = "In/Out Quintic",
-  -- OutInQuint = "Out/In Quintic",
-  -- InSine = "In Sine",
-  -- OutSine = "Out Sine",
-  -- InOutSine = "In/Out Sine",
-  -- OutInSine = "Out/In Sine",
-  -- InExpo = "In Exponent",
-  -- OutExpo = "Out Exponent",
-  -- InOutExpo = "In/Out Exponent",
-  -- OutInExpo = "Out/In Exponent",
-  -- InCirc = "In Circular",
-  -- OutCirc = "Out Circular",
-  -- InOutCirc = "In/Out Circular",
-  -- OutInCirc = "Out/In Circular",
--- }
-
-
--- defaultEasing = {
-  -- type = "group",
-  -- name = "Default Easing Functions",
-  -- order = 2,
-  -- inline = true,
-  -- args = {
-    -- easingZoom = {
-      -- type = "select",
-      -- name = "Zoom Easing",
-      -- desc = "Which easing function to use for zoom.",
-      -- get = function() return DynamicCam.db.profile.easingZoom end,
-      -- set = function(_, newValue) DynamicCam.db.profile.easingZoom = newValue; end,
-      -- values = easingValues,
-      -- order = 1,
-    -- },
-    -- easingYaw = {
-      -- type = "select",
-      -- name = "Yaw Easing",
-      -- desc = "Which easing function to use for yaw.",
-      -- get = function() return DynamicCam.db.profile.easingYaw end,
-      -- set = function(_, newValue) DynamicCam.db.profile.easingYaw = newValue end,
-      -- values = easingValues,
-      -- order = 2,
-    -- },
-    -- easingPitch = {
-      -- type = "select",
-      -- name = "Pitch Easing",
-      -- desc = "Which easing function to use for pitch.",
-      -- get = function() return DynamicCam.db.profile.easingPitch end,
-      -- set = function(_, newValue) DynamicCam.db.profile.easingPitch = newValue end,
-      -- values = easingValues,
-      -- order = 3,
-    -- },
-  -- },
--- },
-
-
-
+-- Custom widgets are now defined in Options/Widgets.lua
+-- CVar monitoring is now in Options/CvarMonitor.lua

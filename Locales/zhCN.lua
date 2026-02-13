@@ -1,18 +1,35 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("DynamicCam", "zhCN")
-if not L then return end
+﻿local L = LibStub("AceLocale-3.0"):NewLocale("DynamicCam", "zhCN") if not L then return end
 
--- Options
+
+--------------------------------------------------------------------------------
+-- General UI Elements
+--------------------------------------------------------------------------------
 L["Reset"] = "重置"
 L["Reset to global default"] = "重置为全局默认值"
 L["(To restore the settings of a specific profile, restore the profile in the \"Profiles\" tab.)"] = "（要恢复特定配置文件的设置，请在“配置文件”标签中恢复该配置文件。）"
-L["Currently overridden by the active situation \"%s\"."] = "当前被活动情境覆盖: \"%s\"."
-L["Override Standard Settings"] = "覆盖标准情境"
-L["<overrideStandardToggle_desc>"] = "勾选这个复选框，允许你在激活当前情境时，覆盖标准情境。取消勾选将删除此类型的情境设置。"
 L["Standard Settings"] = "标准设置"
-L["Situation Settings"] = "情境设置"
 L["<standardSettings_desc>"] = "当没有任何情境处于激活状态，或者激活的情境没有设置覆盖标准设置的情境设置时，将应用这些标准设置。"
 L["<standardSettingsOverridden_desc>"] = "绿色的类型表示目前被激活的情境覆盖。因此，在覆盖情境激活时，绿色类型的标准设置不会生效。"
+L["Currently overridden by the active situation \"%s\"."] = "当前被活动情境覆盖: \\\"%s\\\"."
+L["Help"] = "帮助"
+L["WARNING"] = "警告"
+L["Error message:"] = "错误信息："
+L["DynamicCam"] = "DynamicCam"
+
+
+--------------------------------------------------------------------------------
+-- Common Controls (Used Across Multiple Sections)
+--------------------------------------------------------------------------------
+L["Override Standard Settings"] = "覆盖标准情境"
+L["<overrideStandardToggle_desc>"] = "勾选这个复选框，允许你在激活当前情境时，覆盖标准情境。取消勾选将删除此类型的情境设置。"
+L["Situation Settings"] = "情境设置"
 L["These Situation Settings override the Standard Settings when the respective situation is active."] = "当相应的情境激活时，这些情境设置将覆盖标准设置。"
+L["Enable"] = "启用"
+
+
+--------------------------------------------------------------------------------
+-- Options - Mouse Zoom
+--------------------------------------------------------------------------------
 L["Mouse Zoom"] = "鼠标缩放"
 L["Maximum Camera Distance"] = "最大镜头距离"
 L["How many yards the camera can zoom away from your character."] = "镜头镜头可以从你的角色拉远多少码的距离。"
@@ -24,45 +41,61 @@ L["Use Reactive Zoom"] = "使用响应缩放"
 L["Quick-Zoom Additional Increments"] = "快速缩放额外增量"
 L["How many yards per mouse wheel \"tick\" should be added when quick-zooming."] = "当快速缩放时，每次鼠标滚轮滚动应该增加多少码。"
 L["Quick-Zoom Enter Threshold"] = "快速缩放阈值"
-L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."] = "\"响应缩放目标\"与\"实际缩放值\"之间至少需要多少码的距离，才能触发快速缩放功能。"
+L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" have to be apart to enter quick-zooming."] = "\\\"响应缩放目标\\\"与\\\"实际缩放值\\\"之间至少需要多少码的距离，才能触发快速缩放功能。"
 L["Maximum Zoom Time"] = "最大缩放时间"
-L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."] = "镜头会在这个时间内将\"当前缩放值\"调整到\"响应缩放目标\"。"
-L["Help"] = "帮助"
+L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."] = "镜头会在这个时间内将\\\"当前缩放值\\\"调整到\\\"响应缩放目标\\\"。"
 L["Toggle Visual Aid"] = "视觉辅助开关"
-L["<reactiveZoom_desc>"] = "使用 DynamicCam 的响应缩放功能，鼠标滚轮控制\"响应缩放目标\"。每当\"响应缩放目标\"与\"实际缩放值\"不同时，DynamicCam 会改变\"实际缩放值\"，直到他再次与\"响应缩放目标\"相同。\n\n这种缩放变化的速度取决于\"镜头缩放速度\"和 \"最大缩放时间\"。如果\"最大缩放时间\"设置的比较短，无论\"镜头缩放速度\"如何设置，缩放总会很快执行。要实现舒缓的缩放变化，你必须将\"最大缩放时间\"设置得更长，同时把\"镜头缩放速度\"设置为较低的值。\n\n为了实现随着鼠标滚轮快速滚动更快地缩放镜头，请使用\"快速缩放功能\"：如果\"响应缩放目标\"与\"实际缩放值\"的偏差超过了\"快速缩放阈值\"，每次鼠标滚轮的滚动都会增加\"快速缩放额外增量\"。\n\n为了感受这些功能是如何工作的，你可以在寻找合适设置的同时，开启视觉辅助。你也可以通过左键拖弋操作来自动移动这个图表。右键点击可以关闭它。"
+L["<reactiveZoom_desc>"] = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Current Zoom Value\" are different, DynamicCam changes the \"Current Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Current Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it."
 L["Enhanced minimal zoom-in"] = "强化最小视角"
-L["<enhancedMinZoom_desc>"] = "响应缩放允许你把镜头放大到比最近还近。你可以通过在第一人称视角时再次滚动鼠标实现这一点。\n\n启用\"强化最小视角\"后，我们会强制镜头在放大时也停留在这个视角上，而不是立即切换回第一人称视角。你也可以把此理解为\"狙击模式\"。\n\n|cFFFF0000启用\"强化最小视角\"可能会在CPU受限的情境下导致帧率下降15%。|r"
+L["<enhancedMinZoom_desc>"] = "响应缩放允许你把镜头放大到比最近还近。你可以通过在第一人称视角时再次滚动鼠标实现这一点。\n\n启用\\\"强化最小视角\\\"后，我们会强制镜头在放大时也停留在这个视角上，而不是立即切换回第一人称视角。你也可以把此理解为\\\"狙击模式\\\"。\n\n|cFFFF0000启用\\\"强化最小视角\\\"可能会在CPU受限的情境下导致帧率下降15%。|r"
 L["/reload of the UI required!"] = "需要使用 /reload 重载界面！"
+
+
+--------------------------------------------------------------------------------
+-- Options - Mouse Look
+--------------------------------------------------------------------------------
 L["Mouse Look"] = "鼠标观察"
 L["Horizontal Speed"] = "水平速度"
 L["How much the camera yaws horizontally when in mouse look mode."] = "当处于鼠标观察模式时，镜头水平偏转的程度。"
 L["Vertical Speed"] = "垂直速度"
 L["How much the camera pitches vertically when in mouse look mode."] = "当处于鼠标观察模式时，镜头垂直俯仰的程度。"
 L["<mouseLook_desc>"] = "当您在“鼠标观察”模式下移动鼠标时（即按下鼠标左键或右键时），镜头移动的程度。\n\nWoW 默认界面设置中的“鼠标观察速度”滑块同时控制水平和垂直速度：自动将水平速度设置为垂直速度的 2 倍。DynamicCam 覆盖此设置，并允许您进行更加个性化的设置。"
+
+
+--------------------------------------------------------------------------------
+-- Options - Horizontal Offset
+--------------------------------------------------------------------------------
 L["Horizontal Offset"] = "水平偏移"
 L["Camera Over Shoulder Offset"] = "镜头肩部偏移"
 L["Positions the camera left or right from your character."] = "将镜头置于你角色的左侧或右侧。"
 L["<cameraOverShoulder_desc>"] = "为使此功能生效，DynamicCam 会自动暂时禁用 WoW 的「动态眩晕」设置。因此，如果你需要「动态眩晕」设置，请不要在这些情境下使用水平偏移。\n\n当你选择你自己的角色时，WoW 会自动居中镜头。对此我们无能为力。对于镜头与墙壁碰撞时可能发生的偏移抽搐，我们也无能为力。一种解决方法是在建筑物内部使用极少或不使用偏移。\n\n此外，WoW 会根据角色模型或坐骑的不同，奇怪地应用不同的偏移。对于所有偏爱永久偏移的人，Ludius 正在开发另一个插件（“CameraOverShoulder Fix”）来解决这个问题。"
-L["Adjust shoulder offset according to zoom level"] = "根据缩放级别调整偏移"
-L["Enable"] = "启用"
-L["and"] = "和"
-L["No offset when below this zoom level:"] = "低于此缩放级别时无偏移:"
-L["When the camera is closer than this zoom level, the offset has reached zero."] = "当镜头比此缩放级别更近时，偏移量已达到零。"
-L["Real offset when above this zoom level:"] = "高于此缩放级别时的实际偏移:"
-L["When the camera is further away than this zoom level, the offset has reached its set value."] = "当镜头比此缩放级别更远时，偏移量已达到其设定值。"
-L["<shoulderOffsetZoom_desc>"] = "使肩部偏移在放大时逐渐过渡到零。两个滑块定义了此过渡发生的缩放级别范围。此设置为全局设置，不针对特定情境。"
+
+
+--------------------------------------------------------------------------------
+-- Options - Vertical Pitch
+--------------------------------------------------------------------------------
 L["Vertical Pitch"] = "垂直俯仰"
 L["Pitch (on ground)"] = "俯仰 (地面)"
 L["Pitch (flying)"] = "俯仰 (飞行)"
 L["Down Scale"] = "俯视缩放"
 L["Smart Pivot Cutoff Distance"] = "智能转轴截止距离"
-L["<pitch_desc>"] = "如果镜头向上倾斜（较低的“俯仰”值），“俯视缩放”设置决定了从上方看向您角色时，这种倾斜生效的程度。将“俯视缩放”设置为 0 会使从上方看时向上倾斜的效果无效。相反，当您不是从上方看，或者镜头向下倾斜时（较高的“俯仰”值），“俯视缩放”设置几乎没有影响。\n\n因此，您应该首先在从背后看向您角色时，找到您偏好的“俯仰”设置。在您选择了向上倾斜后，接着在从上方看时找到您偏好的“俯视缩放”设置。\n\n\n当镜头与地面碰撞时，它通常会在镜头与地面的碰撞点执行向上倾斜。另一种选择是，在执行此倾斜的同时，镜头会向您角色的脚部靠近。“智能转轴截止距离”决定了镜头必须处于离您角色多近的距离内，才会发生这种情况。当值为 0 时，镜头永远不会靠近（WoW默认）。然而，当值为最大值 39 时，它总是会靠近。\n\n"
+L["<pitch_desc>"] = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs an upwards pitch on the spot of the camera-to-ground collision. An alternative is that the camera moves closer to your character's feet while performing this pitch. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n"
+
+
+--------------------------------------------------------------------------------
+-- Options - Target Focus
+--------------------------------------------------------------------------------
 L["Target Focus"] = "目标焦点"
 L["Enemy Target"] = "敌方目标"
 L["Horizontal Strength"] = "水平强度"
 L["Vertical Strength"] = "垂直强度"
 L["Interaction Target (NPCs)"] = "交互目标 (NPC)"
 L["<targetFocus_desc>"] = "如果启用，镜头会自动尝试将目标拉近屏幕中心。强度决定了这种效果的强度。\n\n如果“敌方目标”和“交互目标”都启用，后者似乎有一个奇怪的错误：当首次与 NPC 交互时，镜头会像预期的那样平滑移动到新角度。但是当您退出交互时，它会立即跳转到之前的角度。然后当您再次开始交互时，它再次跳转到新角度。这在与新 NPC 交谈时是可重复的：只有第一次过渡是平滑的，所有后续的都是立即的。\n如果您想要同时使用“敌方目标”和“交互目标”，一个变通方法是只在需要它且不太可能发生 NPC 交互的 DynamicCam 情境下激活“敌方目标”（比如战斗）。"
+
+
+--------------------------------------------------------------------------------
+-- Options - Head Tracking
+--------------------------------------------------------------------------------
 L["Head Tracking"] = "头部追踪"
 L["<headTrackingEnable_desc>"] = "（这也可以作为一个 0 到 1 之间的连续值，但它只是分别乘以“强度（站立）”和“强度（移动）”。所以真的不需要另一个滑块。）"
 L["Strength (standing)"] = "强度（站立）"
@@ -77,17 +110,57 @@ L["Dead Zone"] = "死区"
 L["Radius of head movement not affecting the camera. (See explanation below.)"] = "头部移动不影响镜头的半径。（见下文解释。）"
 L["(slider value devided by 10)"] = "（滑块值除以 10）"
 L["Requires /reload to come into effect!"] = "需要 /reload 才能生效！"
-L["<headTracking_desc>"] = "启用头部追踪后，镜头会跟随您角色头部的移动。（虽然这可能有助于沉浸感，但如果您对“动态眩晕”敏感，也可能导致恶心。）\n\n“强度”设置决定了这种效果的强度。将其设置为 0 可以禁用头部追踪。“惯性”设置决定了镜头对头部移动的反应速度。将其设置为 0 也会禁用头部追踪。“站立”、“移动”和“第一人称”三种情况可以单独设置。“第一人称”没有“强度”设置，因为它分别沿用“站立”和“移动”的“强度”设置。如果您想单独激活或禁用“第一人称”，请使用“惯性”滑块来禁用不需要的情况。\n\n使用“范围缩放”设置，您可以设定超过此镜头距离时减少或禁用头部追踪。例如，如果滑块设置为 30，当镜头距离您角色超过 30 码时，将没有头部追踪。但是，从完全头部追踪到无头部追踪有一个逐渐过渡的过程，从滑块值的三分之一开始。例如，如果值设置为 30，当镜头距离小于 10 码时，有完全的头部追踪。从 10 码开始，头部追踪逐渐减少，直到从 30 码开始完全禁用。因此，最大值 117 允许在最大镜头距离 39 码时进行完全头部追踪。（提示：使用 DynamicCam 的“鼠标缩放”视觉辅助工具在设置期间了解当前镜头距离。）\n\n“死区”设置可以用来忽略较小的头部移动。将其设置为 0 可以让镜头跟随每一个微小的头部移动，而将其设置为更大的值则只跟随较大的移动。请注意，更改此设置只有在重新加载界面（在控制台中输入 /reload）后才生效。"
+L["<headTracking_desc>"] = "With head tracking enabled the camera follows the movement of your character's head. (While this can be a benefit for immersion, it may also cause nausea if you are prone to motion sickness.)\n\nThe \"Strength\" setting determines the intensity of this effect. Setting it to 0 disables head tracking. The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking. The three cases \"standing\", \"moving\" and \"first person\" can be set up individually. There is no \"Strength\" setting for \"first person\" as it assumes the \"Strength\" settings of \"standing\" and \"moving\" respectively. If you want to enable or disable \"first person\" exclusively, use the \"Inertia\" sliders to disable the unwanted cases.\n\nWith the \"Range Scale\" setting you can set the camera distance beyond which head tracking is reduced or disabled. For example, with the slider set to 30 you will have no head tracking when the camera is more than 30 yards away from your character. However, there is a gradual transition from full head tracking to no head tracking, which starts at one third of the slider value. For example, with the slider value set to 30 you have full head tracking when the camera is closer than 10 yards. Beyond 10 yards, head tracking gradually decreases until it is completely gone beyond 30 yards. Hence, the slider's maximum value is 117 allowing for full head tracking at the maximum camera distance of 39 yards. (Hint: Use DynamicCam's \"Mouse Zoom\" visual aid to track the current camera distance while setting this up.)\n\nThe \"Dead Zone\" setting can be used to ignore smaller head movements. Setting it to 0 has the camera follow every slightest head movement, whereas setting it to a greater value results in it following only greater movements. Notice, that changing this setting only comes into effect after reloading the UI (type /reload into the console)."
+
+
+--------------------------------------------------------------------------------
+-- Situations Tab
+--------------------------------------------------------------------------------
 L["Situations"] = "情境"
 L["Select a situation to setup"] = "选择一个情境来设置"
-L["<selectedSituation_desc>"] = "\n|cffffcc00颜色代码：|r\n|cFF808A87- 禁用的情境。|r\n- 启用的情境。\n|cFF00FF00- 启用且当前激活的情境。|r\n|cFF63B8FF- 启用且条件满足但优先级低于当前激活情境的情境。|r\n|cFFFF6600- 修改过的原始“情境控制”（建议重置）。|r\n|cFFEE0000- 错误的“情境控制”（需要修正）。|r"
+L["<selectedSituation_desc>"] = "\n|cffffcc00Colour codes:|r\n|cFF808A87- Disabled situation.|r\n- Enabled situation.\n|cFF00FF00- Enabled and currently active situation.|r\n|cFF63B8FF- Enabled situation with fulfilled condition but lower priority than the currently active situation.|r\n|cFFFF6600- Modified stock \"Situation Controls\" (reset recommended).|r\n|cFFEE0000- Erroneous \"Situation Controls\" (fixing required).|r"
 L["If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."] = "如果勾选此框，只要其条件满足且没有其他更高优先级的活跃情境，DynamicCam 将进入情境“%s”。"
 L["Custom:"] = "自定义："
 L["(modified)"] = "(已修改)"
 L["Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"] = "删除自定义情境“%s”。\n|cFFEE0000注意：不会有“你确定吗？”的提示！|r"
 L["Create a new custom situation."] = "创建一个新的自定义情境。"
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - General
+--------------------------------------------------------------------------------
 L["Situation Actions"] = "情境指令"
 L["Setup stuff to happen while in a situation or when entering/exiting it."] = "设置在情境中或进入/退出时要执行的操作。"
+L["Transition Time"] = "过渡时间"
+L["Enter Transition Time"] = "进入过渡时间"
+L["The time in seconds for the transition when ENTERING this situation."] = "进入该情境时的过渡时间（秒）。"
+L["Exit Transition Time"] = "退出过渡时间"
+L["The time in seconds for the transition when EXITING this situation."] = "退出该情境时的过渡时间（秒）。"
+L["<transitionTime_desc>"] = [[这些过渡时间控制情况之间切换持续的时间。
+
+进入情况时，“进入过渡时间”用于：
+  • 缩放过渡（如果“缩放/视图”已启用且未恢复保存的缩放）
+  • 摄像机旋转（如果“旋转”已启用）
+    - 对于“连续”旋转：加速到旋转速度的时间
+    - 对于“按度数”旋转：完成旋转的时间
+  • 隐藏 UI（如果“隐藏界面”已启用）
+
+退出情况时，“退出过渡时间”用于：
+  • 恢复缩放（从“恢复缩放”设置返回保存的缩放时）
+  • 摄像机旋转退出（如果“旋转”已启用）
+    - 对于“连续”旋转：从旋转速度减速到停止的时间
+    - 对于“按度数”旋转并带有“旋转回”：旋转回的时间
+  • 将摄像机旋转回（如果“旋转回”已启用）
+  • 显示 UI（如果“隐藏界面”处于活动状态）
+
+重要提示：当直接从一种情况过渡到另一种情况时，对于大多数功能，新情况的进入过渡时间优先于旧情况的退出过渡时间。但是，如果是恢复缩放，则使用旧情况的退出过渡时间。
+
+注意：如果您在进入脚本中使用“this.timeToEnter”设置过渡时间，则会覆盖此处的设置。]]
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Zoom/View
+--------------------------------------------------------------------------------
 L["Zoom/View"] = "缩放/视角"
 L["Zoom to a certain zoom level or switch to a saved camera view when entering this situation."] = "在进入这个情境时，调整到特定的缩放级别或切换到保存的镜头视角。"
 L["Set Zoom or Set View"] = "设置缩放或设置视角"
@@ -110,7 +183,6 @@ L["<viewRestoreToDefault_desc>"] = [[选择退出此情境时返回的默认视�
 视角3：缩放5.5，俯仰20
 视角4：缩放13.8，俯仰30
 视角5：缩放13.8，俯仰10]]
-L["WARNING"] = "警告"
 L["You are using the same view as saved view and as restore-to-default view. Using a view as restore-to-default view will reset it. Only do this if you really want to use it as a non-customized saved view."] = "您要设置的保存视角与要恢复的默认视角相同。如果一个视角被用作恢复到默认，它将被重置。只有在您确实想将其用作非自定义保存视角时才这样做。"
 L["View %s is used as saved view in the situations:\n%sand as restore-to-default view in the situations:\n%s"] = "视角 %s 在以下情境中被用作保存视角：\n%s并且在以下情境中被用作恢复默认视角：\n%s"
 L["<view_desc>"] = [[魔兽世界允许保存最多5个自定义镜头视角。视角1由DynamicCam使用，用于保存进入情境时的镜头位置，以便在退出情境时可以恢复，如果您在上面勾选了“恢复”。这对于短暂的情境（如与NPC互动）特别有用，允许在与NPC对话时切换到一个视角，然后回到镜头之前的位置。这就是为什么视角1不能在上述保存视角的下拉菜单中选择。
@@ -135,9 +207,7 @@ DynamicCam还提供了一个控制台命令，用于无论进入还是退出情�
   /setView 3 i
 
 ]]
-L["Zoom Transition Time"] = "缩放过渡时间"
-L["<transitionTime_desc>"] = "过渡到新缩放值所需的时间（以秒为单位）。\n\n如果设置的值低于可能的最低值，过渡速度将尽可能快，以当前镜头缩放速度为准（可在DynamicCam的“鼠标缩放”设置中调整）。\n\n如果某个情境在其进入脚本中分配了变量“this.transitionTime”（参见“情境控制”），这里的设置将被覆盖。例如，在“炉石/传送”情境中这样做，以便为施法持续时间允许一个过渡时间。"
-L["<zoomType_desc>"] = "\n设置：始终将缩放设置为此值。\n\n拉远：仅当镜头当前比此值更近时，才设置缩放。\n\n推近：仅当镜头当前比此值更远时，才设置缩放。\n\n范围：如果比给定的最大值更远，则放大；如果比给定的最小值更近，则缩小。如果当前缩放在[min, max]范围内，则不执行任何操作。"
+L["<zoomType_desc>"] = "\nSet: Always set the zoom to this value.\n\nOut: Only set the zoom, if the camera is currently closer than this.\n\nIn: Only set the zoom, if the camera is currently further away than this.\n\nRange: Zoom in, if further away than the given maximum. Zoom out, if closer than the given minimum. Do nothing, if the current zoom is within the [min, max] range."
 L["Set"] = "设置"
 L["Out"] = "拉远"
 L["In"] = "推近"
@@ -164,16 +234,17 @@ L["<zoom_desc>"] = [[要确定当前的缩放级别，您可以使用“视觉�
 或者简写为：
 
   /zi]]
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Rotation
+--------------------------------------------------------------------------------
 L["Rotation"] = "转动"
 L["Start a camera rotation when this situation is active."] = "当此情境激活时开始镜头转动。"
 L["Rotation Type"] = "转动方式"
 L["<rotationType_desc>"] = "\n持续转动：当此情境激活时，镜头会持续水平转动。这只建议用于不使用鼠标移动摄像机的情况；例如，传送法术施放、飞行或暂离。无法持续垂直转动，因为它会在达到垂直俯视或仰视视角时停止。\n\n按度数转动：进入情境后，根据给定的度数改变当前摄像机的水平偏转（yaw）和/或垂直俯仰（pitch）。"
 L["Continuously"] = "持续转动"
 L["By Degrees"] = "按角度转动"
-L["Acceleration Time"] = "加速时间"
-L["Rotation Time"] = "转动时间"
-L["<accelerationTime_desc>"] = "如果您在这里设置的时间大于 0，持续转动不会立即以全速开始，而是会花费这段时间来加速。（只有在相对较高的转动速度下才会明显感知。）"
-L["<rotationTime_desc>"] = "需要多长时间来调整到新的摄像机角度。如果这里给出的值太小，摄像机可能会转动过头，因为我们每渲染一帧时只检查一次是否达到了期望的角度。\n\n如果某个情境在其进入脚本中分配了变量“this.rotationTime”（参见“情境控制”），这里的设置将被覆盖。例如，在“炉石/传送”情境中这样做，以便为施法时间内塞入一个转动时间。"
 L["Rotation Speed"] = "转动速度"
 L["Speed at which to rotate in degrees per second. You can manually enter values between -900 and 900, if you want to get yourself really dizzy..."] = "每秒转动的度数。如果您想让自己真的头晕目眩，可以手动输入 -900 到 900 之间的值..."
 L["Yaw (-Left/Right+)"] = "偏转（-左/右+）"
@@ -182,18 +253,17 @@ L["Pitch (-Down/Up+)"] = "俯仰（-下/上+）"
 L["Degrees to pitch (up or down). There is no going beyond the perpendicular upwards or downwards view."] = "俯仰的度数（上或下）。无法超过垂直俯视或仰视视角。"
 L["Rotate Back"] = "转动返回"
 L["<rotateBack_desc>"] = "退出情境时，按进入情境后转动的度数（360）反向转动。这实际上会将您带回进入前的摄像机位置，除非您在此过程中用鼠标改变了视角。\n\n如果您正在进入一个自带转动设置的新情境，那么退出情境的“转动返回”将被忽略。"
-L["Rotate Back Time"] = "转动返回时间"
-L["<rotateBackTime_desc>"] = "转动返回所需的时间。如果这里给出的值太小，摄像机可能会转动过头，因为我们每渲染一帧时只检查一次是否达到了期望的角度。"
+
+
+--------------------------------------------------------------------------------
+-- Situation Actions - Fade Out UI
+--------------------------------------------------------------------------------
 L["Fade Out UI"] = "渐隐界面"
 L["Fade out or hide (parts of) the UI when this situation is active."] = "当此情境激活时，渐隐或隐藏（部分）用户界面。"
 L["Adjust to Immersion"] = "调整以适应沉浸"
 L["<adjustToImmersion_desc>"] = "许多人将 Immersion 插件与 DynamicCam 结合使用。Immersion 在 NPC 互动期间有一些自己的隐藏 UI 特性。在某些情况下，DynamicCam 的隐藏界面会覆盖 Immersion 的设置。为了防止这种情况，您可以在 DynamicCam 中进行所需的设置。点击此按钮使用与 Immersion 相同的渐显和渐隐时间。想要更多选项，请查看 Ludius 的另一个插件“Immersion ExtraFade”。"
-L["Fade Out Time"] = "渐隐时间"
-L["Seconds it takes to fade out the UI when entering the situation."] = "进入情境时，界面渐隐所需的秒数。"
-L["Fade In Time"] = "渐显时间"
-L["<fadeInTime_desc>"] = "退出情境时，UI 渐显所需的秒数。\n\n当您在两个都启用了 UI 隐藏的情境之间切换时，将使用进入情境的渐隐时间进行过渡。"
 L["Hide entire UI"] = "隐藏整个界面"
-L["<hideEntireUI_desc>"] = "“隐藏”的界面和“只是渐隐”的界面之间有区别：“渐隐”的界面元素的不透明度为 0，但仍然可以与之交互。从 DynamicCam 2.0 开始，如果界面元素的不透明度为 0，我们会自动隐藏大多数界面元素。因此，渐隐后隐藏整个界面的选项更像是一个遗留物。仍然使用它的原因可能是为了避免不希望的交互（例如鼠标悬停提示）DynamicCam 仍然没有正确隐藏的界面元素。\n\n隐藏界面的不透明度当然是 0，所以您不能选择不同的不透明度，也不能保留任何界面元素可见（除了 FPS 指示器）。\n\n在战斗中我们不能改变受保护的界面元素的隐藏状态。因此，此类元素在战斗中始终只是“渐隐”。请注意，小地图上“光点”的不透明度无法降低。因此，如果您尝试隐藏小地图，在战斗中“光点”始终可见。\n\n如果您为当前激活的情境选中此框，它不会立即生效，因为这也会隐藏这个设置框。您必须进入情境才能使其生效，这也可以通过上面的情境“启用”复选框来实现。\n\n另请注意，隐藏整个界面会取消与邮箱或 NPC 的交互。所以不要在这些情境下使用它！"
+L["<hideEntireUI_desc>"] = "There is a difference between a \"hidden\" UI and a \"just faded out\" UI: the faded-out UI elements have an opacity of 0 but can still be interacted with. Since DynamicCam 2.0 we are automatically hiding most UI elements if their opacity is 0. Thus, this option of hiding the entire UI after fade out is more of a relic. A reason to still use it may be to avoid unwanted interactions (e.g. mouse-over tooltips) of UI elements DynamicCam is still not hiding properly.\n\nThe opacity of the hidden UI is of course 0, so you cannot choose a different opacity nor can you keep any UI elements visible (except the FPS indicator).\n\nDuring combat we cannot change the hidden status of protected UI elements. Hence, such elements are always set to \"just faded out\" during combat. Notice that the opacity of the Minimap \"blips\" cannot be reduced. Thus, if you try to hide the Minimap, the \"blips\" are always visible during combat.\n\nWhen you check this box for the currently active situation, it will not be applied at once, because this would also hide this settings frame. You have to enter the situation for it to take effect, which is also possible with the situation \"Enable\" checkbox above.\n\nAlso notice that hiding the entire UI cancels Mailbox or NPC interactions. So do not use it for such situations!"
 L["Keep FPS indicator"] = "保留 FPS 指示器"
 L["Do not fade out or hide the FPS indicator (the one you typically toggle with Ctrl + R)."] = "不要渐隐或隐藏 FPS 指示器（通常用 Ctrl+R 切换的那个）。"
 L["Fade Opacity"] = "渐隐不透明度"
@@ -239,6 +309,11 @@ L["<emergencyShow_desc>"] = [[有时您可能希望在常态隐藏界面的情�
 来实现立即显示界面，没有任何延迟。]]
 L["<hideUIHelp_desc>"] = "在设置您期望的界面渐隐效果时，如果这个“界面”设置框也一起渐隐，可能会很烦人。如果选中这个框，它将不会被渐隐。\n\n此设置适用于所有情况。"
 L["Do not fade out this \"Interface\" settings frame."] = "不要渐隐这个“界面”设置框。"
+
+
+--------------------------------------------------------------------------------
+-- Situation Controls
+--------------------------------------------------------------------------------
 L["Situation Controls"] = "情境控制"
 L["<situationControls_help>"] = "在这里控制情境何时激活。可能需要 WoW UI API 的知识。如果您对 DynamicCam 的原始情境感到满意，请直接忽略此部分。但如果您想创建自定义情境，可以在这里查看原始情境。您也可以修改它们，但请注意：即使 DynamicCam 的未来版本引入了重要更新，您更改的设置也会保留。\n\n"
 L["Priority"] = "优先级"
@@ -246,9 +321,7 @@ L["The priority of this situation.\nMust be a number."] = "此情境的优先级
 L["Restore stock setting"] = "恢复原始设置"
 L["Your \"Priority\" deviates from the stock setting for this situation (%s). Click here to restore it."] = "您的“优先级”偏离了此情境（%s）的原始设置。点击此处恢复。"
 L["<priority_desc>"] = "如果同时满足多个不同 DynamicCam 情境的条件，则进入优先级最高的情境。例如，只要满足“世界（室内）”的条件，也就满足了“世界”的条件。但由于“世界（室内）”的优先级高于“世界”，因此会优先考虑它。您也可以在上面的下拉菜单中查看所有情境的优先级。\n\n"
-L["Error message:"] = "错误信息："
 L["Events"] = "事件"
-L["Separated by commas."] = "用逗号分隔。"
 L["Your \"Events\" deviate from the default for this situation. Click here to restore them."] = "您的“事件”偏离了此情境的原始设置。点击此处恢复。"
 L["<events_desc>"] = [[在这里定义 DynamicCam 应该检查此情境条件的所有游戏内事件，以便在适用的情况下进入或退出它。
 
@@ -295,7 +368,7 @@ L["On-Enter Script"] = "进入脚本"
 L["Your \"On-Enter Script\" deviates from the stock setting for this situation. Click here to restore it."] = "您的“进入脚本”偏离了此情境的原始设置。点击此处恢复。"
 L["<executeOnEnter_desc>"] = [[情境的进入脚本在每次进入情境时运行。
 
-到目前为止，唯一的例子是“炉石/传送”情境，其中我们使用 WoW API 函数“UnitCastingInfo()”来确定当前法术的施法持续时间。然后我们将其分配给变量“this.transitionTime”和“this.rotationTime”，以便缩放或旋转（参见“情境指令”）可以正好持续法术施法的时间。（并非所有传送法术都有相同的施法时间。）
+到目前为止，唯一的例子是“炉石/传送”情境，其中我们使用 WoW API 函数“UnitCastingInfo()”来确定当前法术的施法持续时间。然后我们将其分配给变量“this.timeToEnter”和“this.timeToEnter”，以便缩放或旋转（参见“情境指令”）可以正好持续法术施法的时间。（并非所有传送法术都有相同的施法时间。）
 
 ]]
 L["Exiting"] = "退出"
@@ -312,6 +385,13 @@ L["<executeOnExit_desc>"] = [[情境的退出脚本在每次退出情境时运�
 L["Export"] = "导出"
 L["Coming soon(TM)."] = "即将推出(TM)。"
 L["Import"] = "导入"
+L["Restore all stock Situation Controls"] = "恢复所有原始情境控制"
+
+
+--------------------------------------------------------------------------------
+-- About / Profiles
+--------------------------------------------------------------------------------
+L["Hello and welcome to DynamicCam!"] = "您好，欢迎使用 DynamicCam！"
 L["<welcomeMessage>"] = [[我们很高兴您在这里，希望您能在这个插件中获得乐趣。
 
 DynamicCam (DC) 由 mpstark 于 2016 年 5 月启动，当时暴雪的 WoW 开发人员在游戏中引入了实验性的 ActionCam 功能。DC 的主要目的是为 ActionCam 设置提供一个用户界面。在游戏中，ActionCam 仍被指定为“实验性”，暴雪也没有进一步开发它的迹象。虽然有一些缺陷，但我们应该感谢 ActionCam 被保留在游戏中供像我们这样的爱好者使用。 :-) DC 不仅允许您更改 ActionCam 设置，还可以针对不同的游戏情境使用不同的设置。与 ActionCam 无关，DC 还提供有关镜头缩放和界面渐隐的功能。
@@ -336,33 +416,65 @@ mpstark 在 DC 上的工作持续到 2018 年 8 月。虽然大多数功能对�
 L["About"] = "关于"
 L["The following game situations have \"Situation Controls\" deviating from DynamicCam's stock settings.\n\n"] = "以下游戏情境的“情境控制”偏离了 DynamicCam 的原始设置。\n\n"
 L["<situationControlsWarning>"] = "\n如果您是有意为之，那没关系。请注意，DynamicCam 开发人员对这些设置的任何更新都将始终被您的修改版（可能已过时）覆盖。您可以查看每个情境的“情境控制”标签以获取详细信息。如果您不知道自己方面有任何“情境控制”修改，并且只想恢复*所有*情境的原始控制设置，请点击此按钮："
-L["Restore all stock Situation Controls"] = "恢复所有原始情境控制"
-L["Hello and welcome to DynamicCam!"] = "您好，欢迎使用 DynamicCam！"
 L["Profiles"] = "配置文件"
 L["Manage Profiles"] = "管理配置文件"
-L["<manageProfilesWarning>"] = "像许多插件一样，DynamicCam 使用“AceDB-3.0”库来管理配置文件。您必须理解的是，这里没有“保存配置文件”之类的东西。您只能创建新配置文件，并且可以将设置从另一个配置文件复制到当前激活的配置文件中。无论您对当前激活的配置文件进行什么更改，都会立即保存！没有“取消”或“放弃更改”之类的东西。“重置配置文件”按钮仅重置为全局默认配置文件。\n\n因此，如果您喜欢您的 DynamicCam 设置，您应该创建另一个配置文件，将这些设置复制进去作为备份。当您不使用此备份配置文件作为活动配置文件时，您可以试验设置，并通过在“复制自”框中选择您的备份配置文件，随时返回到您的原始配置文件。\n\n如果您想通过宏切换配置文件，可以使用以下命令：\n/run DynamicCam.db:SetProfile(\"此处填写配置文件名称\")\n\n"
+L["<manageProfilesWarning>"] = "Like many addons, DynamicCam uses the \"AceDB-3.0\" library to manage profiles. What you have to understand is that there is nothing like \"Save Profile\" here. You can only create new profiles and you can copy settings from another profile into the currently active one. Whatever change you make for the currently active profile is immediately saved! There is nothing like \"cancel\" or \"discard changes\". The \"Reset Profile\" button only resets to the global default profile.\n\nSo if you like your DynamicCam settings, you should create another profile into which you copy these settings as a backup. When you don't use this backup profile as your active profile, you can experiment with the settings and return to your original profile at any time by selecting your backup profile in the \"Copy from\" box.\n\nIf you want to switch profiles via macro, you can use the following:\n/run DynamicCam.db:SetProfile(\"Profile name here\")\n\n"
 L["Profile presets"] = "配置文件预设"
 L["Import / Export"] = "导入 / 导出"
-L["DynamicCam"] = "DynamicCam"
-L["Disabled"] = "已禁用"
-L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."] = "您的 DynamicCam 插件允许您分别调整水平和垂直鼠标观察速度！只需转到 DynamicCam 的“鼠标观察”设置即可在那里进行调整。"
-L["Attention"] = "注意"
-L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."] = "DynamicCam 禁用了“%s”设置，因为您正在使用水平镜头肩部偏移。"
+
+
+--------------------------------------------------------------------------------
+-- MouseZoom.lua
+--------------------------------------------------------------------------------
+L["Current\nZoom\nValue"] = "当前\n缩放\n值"
+L["Reactive\nZoom\nTarget"] = "响应\n缩放\n目标"
+L["Reactive Zoom"] = "反应式缩放"
+L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "此图表有助于您\n了解反应式缩放\n的工作原理。"
+
+
+--------------------------------------------------------------------------------
+-- ZoomBasedSettings.lua
+--------------------------------------------------------------------------------
+L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: 基于缩放的设置"
+L["CVAR: "] = "CVAR: "
+L["Z\no\no\nm"] = "缩\n放"
+L["Value"] = "值"
+L["Current Zoom:"] = "当前缩放:"
+L["Current Value:"] = "当前值:"
+L["Left-click: add/drag point | Right-click: remove point"] = "左键: 添加/拖动点 | 右键: 删除点"
+L["Cancel"] = "取消"
+L["OK"] = "确定"
+L["Close and revert all changes made since opening this editor."] = "关闭并撤销自打开此编辑器以来所做的所有更改。"
+L["Close and keep all changes."] = "关闭并保留所有更改。"
+L["Zoom-based"] = "基于缩放"
+L["Edit Curve"] = "编辑曲线"
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "启用基于缩放的曲线。\n\n启用后，该值将根据摄像机缩放级别平滑变化，而不是使用单一固定值。点击齿轮图标编辑曲线。"
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "打开曲线编辑器。\n\n允许您确切定义此设置如何随缩放而变化。您可以添加控制点来创建自定义曲线。"
+
+
+--------------------------------------------------------------------------------
+-- Core.lua
+--------------------------------------------------------------------------------
+L["Enter name for custom situation:"] = "输入自定义情境的名称："
+L["Create"] = "创建"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "当您使用水平镜头偏移时，DynamicCam 会阻止 CameraKeepCharacterCentered！"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "当您使用水平镜头偏移时，DynamicCam 会阻止 CameraReduceUnexpectedMovement！"
 L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] = "当您使用垂直镜头俯仰时，DynamicCam 会阻止 CameraKeepCharacterCentered！"
+
+
+--------------------------------------------------------------------------------
+-- CvarMonitor.lua
+--------------------------------------------------------------------------------
+L["Disabled"] = "已禁用"
+L["Attention"] = "注意"
+L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."] = "您的 DynamicCam 插件允许您分别调整水平和垂直鼠标观察速度！只需转到 DynamicCam 的“鼠标观察”设置即可在那里进行调整。"
+L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."] = "DynamicCam 禁用了“%s”设置，因为您正在使用水平镜头肩部偏移。"
 L["cameraView=%s prevented by DynamicCam!"] = "cameraView=%s 被 DynamicCam 阻止！"
 
--- MouseZoom
-L["Current\nZoom\nValue"] = "当前\n缩放\n值"
-L["Reactive\nZoom\nTarget"] = "响应\n缩放\n目标"
 
--- Core
-L["Enter name for custom situation:"] = "输入自定义情境的名称："
-L["Create"] = "创建"
-L["Cancel"] = "取消"
-
--- DefaultSettings
+--------------------------------------------------------------------------------
+-- DefaultSettings.lua - Situation Names
+--------------------------------------------------------------------------------
 L["City"] = "城市"
 L["City (Indoors)"] = "城市（室内）"
 L["World"] = "世界"

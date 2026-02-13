@@ -362,92 +362,91 @@ end
 -- ReactiveZoom Visual Aid (RZVA) --
 ------------------------------------
 
-local function DrawLine(f, startRelativeAnchor, startOffsetX, startOffsetY,
-                           endRelativeAnchor, endOffsetX, endOffsetY,
-                           thickness, r, g, b, a)
+-- RZVA Colors
+local RZVA_COLORS = {
+  currentZoom = {1, 0.3, 0.3, 1},      -- Red for current zoom
+  targetZoom = {0.3, 0.3, 1, 1},       -- Blue for target
+  increment = {1, 1, 0, 1},            -- Yellow for increment
+  gridLabel = {0.7, 0.7, 0.7},
+  gridMajor = {0.4, 0.4, 0.5, 0.6},
+  disabled = {0.3, 0.3, 0.3, 1},
+}
 
-  local line = f:CreateLine()
-  line:SetThickness(thickness)
-  line:SetColorTexture(r, g, b, a)
-  line:SetStartPoint(startRelativeAnchor, f, startOffsetX, startOffsetY)
-  line:SetEndPoint(endRelativeAnchor, f, endOffsetX, endOffsetY)
-
-end
-
-
-local function SetFrameBorder(f, thickness, r, g, b, a)
-  -- Bottom line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Top line.
-  DrawLine(f, "TOPLEFT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-  -- Left line.
-  DrawLine(f, "BOTTOMLEFT", 0, 0, "TOPLEFT", 0, 0, thickness, r, g, b, a)
-  -- Right line.
-  DrawLine(f, "BOTTOMRIGHT", 0, 0, "TOPRIGHT", 0, 0, thickness, r, g, b, a)
-end
-
-
-local rzvaWidth = 120
-local rzvaHeight = 200
-local rzvaHalfWidth = rzvaWidth/2
+-- RZVA Dimensions
+local RZVA_WIDTH = 170
+local RZVA_HEIGHT = 400
+local RZVA_GRAPH_WIDTH = 120
+local RZVA_GRAPH_HEIGHT = 250
+local RZVA_GRAPH_HALF_WIDTH = RZVA_GRAPH_WIDTH / 2
 
 local rzvaFrame = nil
-
 local lastReactiveZoomTarget = reactiveZoomTarget
 local reactiveZoomGraphUpdateFrame = CreateFrame("Frame")
 
 
-local function ReactiveZoomGraphUpdateFunction()
+local function RZVADrawLine(parent, startX, startY, endX, endY, thickness, r, g, b, a)
+  local line = parent:CreateLine()
+  line:SetThickness(thickness)
+  line:SetColorTexture(r, g, b, a)
+  line:SetStartPoint("BOTTOMLEFT", parent, startX, startY)
+  line:SetEndPoint("BOTTOMLEFT", parent, endX, endY)
+  return line
+end
 
-  rzvaFrame.zm:ClearAllPoints()
-  rzvaFrame.zm:SetPoint("BOTTOMRIGHT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight() * GetCameraZoom() / DynamicCam.cameraDistanceMaxZoomFactor_max) )
-  rzvaFrame.cameraZoomValue:SetText(Round(GetCameraZoom(), 3))
+
+local function ReactiveZoomGraphUpdateFunction()
+  local graphFrame = rzvaFrame.graphFrame
+  local graphHeight = RZVA_GRAPH_HEIGHT
+  local maxZoom = DynamicCam.cameraDistanceMaxZoomFactor_max
+  local currentZoom = GetCameraZoom()
+  
+  -- Update current zoom marker.
+  local currentY = graphHeight - (graphHeight * currentZoom / maxZoom)
+  graphFrame.zm:ClearAllPoints()
+  graphFrame.zm:SetPoint("BOTTOMRIGHT", graphFrame, "BOTTOMRIGHT", 0, currentY)
+  rzvaFrame.cameraZoomValue:SetText(string.format("%.1f", currentZoom))
 
   if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "reactiveZoomEnabled") then
 
-    if not rzvaFrame.rzt:IsShown() then
-      rzvaFrame.rzt:Show()
-      rzvaFrame.rzi:Show()
-      rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-      rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
+    if not graphFrame.rzt:IsShown() then
+      graphFrame.rzt:Show()
+      graphFrame.rzi:Show()
+      rzvaFrame.reactiveZoomTargetLabelText:SetTextColor(unpack(RZVA_COLORS.targetZoom))
+      rzvaFrame.reactiveZoomTargetValue:SetTextColor(unpack(RZVA_COLORS.targetZoom))
     end
 
-    rzvaFrame.rzt:ClearAllPoints()
+    graphFrame.rzt:ClearAllPoints()
     if reactiveZoomTarget then
-      rzvaFrame.rzt:SetPoint("BOTTOMLEFT", 0, rzvaFrame:GetHeight() - (rzvaFrame:GetHeight()* reactiveZoomTarget / DynamicCam.cameraDistanceMaxZoomFactor_max) )
+      local targetY = graphHeight - (graphHeight * reactiveZoomTarget / maxZoom)
+      graphFrame.rzt:SetPoint("BOTTOMLEFT", graphFrame, "BOTTOMLEFT", 0, targetY)
 
-      rzvaFrame.reactiveZoomTargetValue:SetText(Round(reactiveZoomTarget, 3))
+      rzvaFrame.reactiveZoomTargetValue:SetText(string.format("%.1f", reactiveZoomTarget))
 
       if lastReactiveZoomTarget then
-
         local step = lastReactiveZoomTarget - reactiveZoomTarget
 
-        if step > 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / DynamicCam.cameraDistanceMaxZoomFactor_max)
-          rzvaFrame.rzi:Show()
-        elseif step < 0 then
-          rzvaFrame.rzi:SetHeight(rzvaFrame:GetHeight() * step / DynamicCam.cameraDistanceMaxZoomFactor_max)
-          rzvaFrame.rzi:Show()
+        if step ~= 0 then
+          graphFrame.rzi:SetHeight(graphHeight * math.abs(step) / maxZoom)
+          graphFrame.rzi:Show()
         else
-          rzvaFrame.rzi:Hide()
+          graphFrame.rzi:Hide()
         end
-
       end
 
       lastReactiveZoomTarget = reactiveZoomTarget
 
     else
-      rzvaFrame.rzi:Hide()
-      rzvaFrame.rzt:Hide()
+      graphFrame.rzi:Hide()
+      graphFrame.rzt:Hide()
       rzvaFrame.reactiveZoomTargetValue:SetText("---")
     end
 
   else
-    if rzvaFrame.rzt:IsShown() then
-      rzvaFrame.rzt:Hide()
-      rzvaFrame.rzi:Hide()
-      rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, .3, 1)
-      rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, .3, 1)
+    if graphFrame.rzt:IsShown() then
+      graphFrame.rzt:Hide()
+      graphFrame.rzi:Hide()
+      rzvaFrame.reactiveZoomTargetLabelText:SetTextColor(unpack(RZVA_COLORS.disabled))
+      rzvaFrame.reactiveZoomTargetValue:SetTextColor(unpack(RZVA_COLORS.disabled))
       rzvaFrame.reactiveZoomTargetValue:SetText("---")
     end
   end
@@ -459,99 +458,136 @@ function DynamicCam:ToggleRZVA()
 
   if not rzvaFrame then
 
-    rzvaFrame = CreateFrame("Frame", "reactiveZoomVisualAid", UIParent)
-    rzvaFrame:SetFrameStrata("TOOLTIP")
+    -- Main frame with same styling as curve editor
+    rzvaFrame = CreateFrame("Frame", "DynamicCamRZVA", UIParent, "BackdropTemplate")
+    rzvaFrame:SetSize(RZVA_WIDTH, RZVA_HEIGHT)
+    rzvaFrame:SetPoint("BOTTOMRIGHT", SettingsPanel, "BOTTOMLEFT", -20, -20)
+    rzvaFrame:SetFrameStrata("DIALOG")
     rzvaFrame:SetMovable(true)
     rzvaFrame:EnableMouse(true)
-    rzvaFrame:RegisterForDrag("LeftButton")
-    rzvaFrame:SetScript("OnDragStart", rzvaFrame.StartMoving)
-    rzvaFrame:SetScript("OnDragStop", rzvaFrame.StopMovingOrSizing)
     rzvaFrame:SetClampedToScreen(true)
 
-    -- Closes with right button.
+    -- Immediate dragging without threshold
     rzvaFrame:SetScript("OnMouseDown", function(self, button)
-      if button == "RightButton" then
-        self:Hide()
+      if button == "LeftButton" then
+        self:StartMoving()
+      end
+    end)
+    rzvaFrame:SetScript("OnMouseUp", function(self, button)
+      if button == "LeftButton" then
+        self:StopMovingOrSizing()
       end
     end)
 
+    -- Backdrop
+    rzvaFrame:SetBackdrop({
+      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true, tileSize = 16, edgeSize = 16,
+      insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    rzvaFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+    rzvaFrame:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 
-    rzvaFrame:SetWidth(rzvaWidth)
-    rzvaFrame:SetHeight(rzvaHeight)
-    rzvaFrame:ClearAllPoints()
-    rzvaFrame:SetPoint("BOTTOMLEFT", SettingsPanel.Container, "BOTTOMLEFT", 45, 35)
+    -- Title bar
+    rzvaFrame.titleBar = CreateFrame("Frame", nil, rzvaFrame)
+    rzvaFrame.titleBar:SetPoint("TOPLEFT", 4, -4)
+    rzvaFrame.titleBar:SetPoint("TOPRIGHT", -4, -4)
+    rzvaFrame.titleBar:SetHeight(20)
 
-    rzvaFrame.t = rzvaFrame:CreateTexture()
-    rzvaFrame.t:SetAllPoints()
-    rzvaFrame.t:SetTexture("Interface/BUTTONS/WHITE8X8")
-    rzvaFrame.t:SetColorTexture(1, 1, 1, .1)
+    rzvaFrame.titleBar.bg = rzvaFrame.titleBar:CreateTexture(nil, "BACKGROUND")
+    rzvaFrame.titleBar.bg:SetAllPoints()
+    rzvaFrame.titleBar.bg:SetColorTexture(0.2, 0.2, 0.3, 1)
 
-    SetFrameBorder(rzvaFrame, 2, 1, 1, 1, 1)
+    rzvaFrame.title = rzvaFrame.titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
+    rzvaFrame.title:SetPoint("LEFT", rzvaFrame.titleBar, "LEFT", 5, 0)
+    rzvaFrame.title:SetText(L["Reactive Zoom"])
 
+    -- Close button
+    rzvaFrame.closeButton = CreateFrame("Button", nil, rzvaFrame, "UIPanelCloseButton")
+    rzvaFrame.closeButton:SetPoint("TOPRIGHT", -1, -1)
+    rzvaFrame.closeButton:SetScript("OnClick", function()
+      rzvaFrame:Hide()
+    end)
 
-    rzvaFrame.cameraZoomLabel = rzvaFrame:CreateFontString()
-    rzvaFrame.cameraZoomLabel:SetWidth(rzvaHalfWidth)
-    rzvaFrame.cameraZoomLabel:SetJustifyH("CENTER")
-    rzvaFrame.cameraZoomLabel:SetJustifyV("MIDDLE")
-    rzvaFrame.cameraZoomLabel:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 19)
-    rzvaFrame.cameraZoomLabel:SetFontObject("Game12Font")
-    rzvaFrame.cameraZoomLabel:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomLabel:SetText(L["Current\nZoom\nValue"])
+    -- Graph frame (the visual area)
+    rzvaFrame.graphFrame = CreateFrame("Frame", nil, rzvaFrame)
+    rzvaFrame.graphFrame:SetSize(RZVA_GRAPH_WIDTH, RZVA_GRAPH_HEIGHT)
+    rzvaFrame.graphFrame:SetPoint("TOP", rzvaFrame, "TOP", 7, -40)
 
-    rzvaFrame.cameraZoomValue = rzvaFrame:CreateFontString()
-    rzvaFrame.cameraZoomValue:SetWidth(rzvaHalfWidth)
-    rzvaFrame.cameraZoomValue:SetJustifyH("CENTER")
-    rzvaFrame.cameraZoomValue:SetJustifyV("MIDDLE")
-    rzvaFrame.cameraZoomValue:SetPoint("BOTTOMRIGHT", rzvaFrame, "TOPRIGHT", 0, 4)
-    rzvaFrame.cameraZoomValue:SetFontObject("Game15Font")
-    rzvaFrame.cameraZoomValue:SetTextColor(1, .3, .3, 1)
-    rzvaFrame.cameraZoomValue:SetText(GetCameraZoom())
+    -- Graph background
+    rzvaFrame.graphFrame.bg = rzvaFrame.graphFrame:CreateTexture(nil, "BACKGROUND")
+    rzvaFrame.graphFrame.bg:SetAllPoints()
+    rzvaFrame.graphFrame.bg:SetColorTexture(0.05, 0.05, 0.1, 1)
 
+    -- Graph border lines
+    local graphFrame = rzvaFrame.graphFrame
+    RZVADrawLine(graphFrame, 0, 0, RZVA_GRAPH_WIDTH, 0, 1, unpack(RZVA_COLORS.gridMajor))  -- Bottom
+    RZVADrawLine(graphFrame, 0, RZVA_GRAPH_HEIGHT, RZVA_GRAPH_WIDTH, RZVA_GRAPH_HEIGHT, 1, unpack(RZVA_COLORS.gridMajor))  -- Top
+    RZVADrawLine(graphFrame, 0, 0, 0, RZVA_GRAPH_HEIGHT, 1, unpack(RZVA_COLORS.gridMajor))  -- Left
+    RZVADrawLine(graphFrame, RZVA_GRAPH_WIDTH, 0, RZVA_GRAPH_WIDTH, RZVA_GRAPH_HEIGHT, 1, unpack(RZVA_COLORS.gridMajor))  -- Right
 
-    rzvaFrame.reactiveZoomTargetLabel = rzvaFrame:CreateFontString()
-    rzvaFrame.reactiveZoomTargetLabel:SetWidth(rzvaHalfWidth)
-    rzvaFrame.reactiveZoomTargetLabel:SetJustifyH("CENTER")
-    rzvaFrame.reactiveZoomTargetLabel:SetJustifyV("MIDDLE")
-    rzvaFrame.reactiveZoomTargetLabel:SetPoint("BOTTOMLEFT", rzvaFrame, "TOPLEFT", 0, 19)
-    rzvaFrame.reactiveZoomTargetLabel:SetFontObject("Game12Font")
-    rzvaFrame.reactiveZoomTargetLabel:SetTextColor(.3, .3, 1, 1)
-    rzvaFrame.reactiveZoomTargetLabel:SetText(L["Reactive\nZoom\nTarget"])
+    -- Y-axis labels (Zoom values)
+    rzvaFrame.yAxisMin = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rzvaFrame.yAxisMin:SetPoint("RIGHT", graphFrame, "TOPLEFT", -5, 0)
+    rzvaFrame.yAxisMin:SetText("0")
+    rzvaFrame.yAxisMin:SetTextColor(unpack(RZVA_COLORS.gridLabel))
 
-    rzvaFrame.reactiveZoomTargetValue = rzvaFrame:CreateFontString()
-    rzvaFrame.reactiveZoomTargetValue:SetWidth(rzvaHalfWidth)
-    rzvaFrame.reactiveZoomTargetValue:SetJustifyH("CENTER")
-    rzvaFrame.reactiveZoomTargetValue:SetJustifyV("MIDDLE")
-    rzvaFrame.reactiveZoomTargetValue:SetPoint("BOTTOMLEFT", rzvaFrame, "TOPLEFT", 0, 4)
-    rzvaFrame.reactiveZoomTargetValue:SetFontObject("Game15Font")
-    rzvaFrame.reactiveZoomTargetValue:SetTextColor(.3, .3, 1, 1)
+    rzvaFrame.yAxisMax = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rzvaFrame.yAxisMax:SetPoint("RIGHT", graphFrame, "BOTTOMLEFT", -5, 0)
+    rzvaFrame.yAxisMax:SetText(tostring(DynamicCam.cameraDistanceMaxZoomFactor_max))
+    rzvaFrame.yAxisMax:SetTextColor(unpack(RZVA_COLORS.gridLabel))
 
+    -- Current zoom marker (red, right side)
+    graphFrame.zm = CreateFrame("Frame", nil, graphFrame)
+    graphFrame.zm:SetSize(RZVA_GRAPH_HALF_WIDTH, 1)
+    graphFrame.zm:Show()
+    RZVADrawLine(graphFrame.zm, 0, 0, RZVA_GRAPH_HALF_WIDTH, 0, 5, unpack(RZVA_COLORS.currentZoom))
 
+    -- Reactive zoom target marker (blue, left side)
+    graphFrame.rzt = CreateFrame("Frame", nil, graphFrame)
+    graphFrame.rzt:SetSize(RZVA_GRAPH_HALF_WIDTH, 1)
+    graphFrame.rzt:Show()
+    RZVADrawLine(graphFrame.rzt, 0, 0, RZVA_GRAPH_HALF_WIDTH, 0, 5, unpack(RZVA_COLORS.targetZoom))
 
-    rzvaFrame.zm = CreateFrame("Frame", "cameraZoomMarker", rzvaFrame)
-    rzvaFrame.zm:SetWidth(rzvaHalfWidth)
-    rzvaFrame.zm:SetHeight(1)
-    rzvaFrame.zm:Show()
-    DrawLine(rzvaFrame.zm, "BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, 5, 1, .3, .3, 1)
+    -- Reactive zoom increment marker (yellow area)
+    graphFrame.rzi = CreateFrame("Frame", nil, graphFrame)
+    graphFrame.rzi:SetWidth(RZVA_GRAPH_HALF_WIDTH)
+    graphFrame.rzi:SetPoint("TOP", graphFrame.rzt, "BOTTOM", 0, 0)
+    graphFrame.rzi.t = graphFrame.rzi:CreateTexture()
+    graphFrame.rzi.t:SetAllPoints()
+    graphFrame.rzi.t:SetColorTexture(unpack(RZVA_COLORS.increment))
 
+    -- Current zoom display (static label + dynamic value)
+    rzvaFrame.cameraZoomLabelText = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rzvaFrame.cameraZoomLabelText:SetPoint("TOP", graphFrame, "BOTTOM", RZVA_GRAPH_WIDTH/4, -8)
+    rzvaFrame.cameraZoomLabelText:SetText(L["Current\nZoom\nValue"])
+    rzvaFrame.cameraZoomLabelText:SetTextColor(unpack(RZVA_COLORS.currentZoom))
 
-    rzvaFrame.rzt = CreateFrame("Frame", "reactiveZoomTargetMarker", rzvaFrame)
-    rzvaFrame.rzt:SetWidth(rzvaHalfWidth)
-    rzvaFrame.rzt:SetHeight(1)
-    rzvaFrame.rzt:Show()
-    DrawLine(rzvaFrame.rzt, "BOTTOMRIGHT", 0, 0, "BOTTOMLEFT", 0, 0, 5, .3, .3, 1, 1)
+    rzvaFrame.cameraZoomValue = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    rzvaFrame.cameraZoomValue:SetPoint("TOP", rzvaFrame.cameraZoomLabelText, "BOTTOM", 0, -3)
+    rzvaFrame.cameraZoomValue:SetTextColor(unpack(RZVA_COLORS.currentZoom))
+    rzvaFrame.cameraZoomValue:SetText("0.0")
 
+    -- Reactive zoom target display (static label + dynamic value)
+    rzvaFrame.reactiveZoomTargetLabelText = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rzvaFrame.reactiveZoomTargetLabelText:SetPoint("TOP", graphFrame, "BOTTOM", -RZVA_GRAPH_WIDTH/4, -8)
+    rzvaFrame.reactiveZoomTargetLabelText:SetText(L["Reactive\nZoom\nTarget"])
+    rzvaFrame.reactiveZoomTargetLabelText:SetTextColor(unpack(RZVA_COLORS.targetZoom))
 
-    rzvaFrame.rzi = CreateFrame("Frame", "reactiveZoomIncrementMarker", rzvaFrame)
-    rzvaFrame.rzi:SetWidth(rzvaHalfWidth)
-    -- Must set points here, otherwise the texture is not created...
-    rzvaFrame.rzi:SetPoint("TOP", rzvaFrame.rzt, "BOTTOM", 0, 0)
-    rzvaFrame.rzi.t = rzvaFrame.rzi:CreateTexture()
-    rzvaFrame.rzi.t:SetAllPoints()
-    rzvaFrame.rzi.t:SetTexture("Interface/BUTTONS/WHITE8X8")
-    rzvaFrame.rzi.t:SetColorTexture(1, 1, 0, 1)
+    rzvaFrame.reactiveZoomTargetValue = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    rzvaFrame.reactiveZoomTargetValue:SetPoint("TOP", rzvaFrame.reactiveZoomTargetLabelText, "BOTTOM", 0, -3)
+    rzvaFrame.reactiveZoomTargetValue:SetTextColor(unpack(RZVA_COLORS.targetZoom))
+    rzvaFrame.reactiveZoomTargetValue:SetText("---")
 
+    -- Instructions
+    rzvaFrame.instructions = rzvaFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rzvaFrame.instructions:SetPoint("BOTTOM", rzvaFrame, "BOTTOM", 0, 10)
+    rzvaFrame.instructions:SetText(L["This graph helps you to\nunderstand how\nReactive Zoom works."])
+    rzvaFrame.instructions:SetTextColor(unpack(RZVA_COLORS.gridLabel))
+
+    -- Initial hide
     rzvaFrame:Hide()
-
 
     rzvaFrame:HookScript("OnShow", function()
       reactiveZoomGraphUpdateFrame:SetScript("OnUpdate", ReactiveZoomGraphUpdateFunction)
@@ -569,5 +605,3 @@ function DynamicCam:ToggleRZVA()
   end
 
 end
-
-
