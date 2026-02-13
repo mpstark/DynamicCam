@@ -1042,6 +1042,11 @@ function DynamicCam:EvaluateSituations()
       -- evaluate the condition, if it checks out and the priority is larger than any other, set it
       local lastEvaluate = self.conditionExecutionCache[id]
       local thisEvaluate = self:RunScript(id, "condition")
+
+      if issecretvalue and issecretvalue(thisEvaluate) then
+        thisEvaluate = false
+      end
+
       self.conditionExecutionCache[id] = thisEvaluate
 
       if thisEvaluate then

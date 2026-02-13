@@ -603,13 +603,14 @@ end
   if UnitBuff then     -- Classic
     _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
   else     -- Retail
-    -- Cannot read auras during combat (any more).
-    if InCombatLockdown() then return false end
     local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-    if aura then spellId = aura.spellId end
+    -- Cannot read auras during combat (any more).
+    if aura and not issecretvalue(aura.spellId) then
+      spellId = aura.spellId
+    end
   end
 
-  if this.annoyingSpells[spellId] then return true end
+  if spellId and this.annoyingSpells[spellId] then return true end
 end
 return false]],
 },
