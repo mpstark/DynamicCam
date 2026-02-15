@@ -1684,6 +1684,7 @@ function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, cu
   expectedZoomEasing = nil
   
   -- If instant transition, don't set up easing
+  -- CvarUpdateFunction will apply the direct values immediately
   if transitionTime <= 0 then
     return
   end
@@ -1797,15 +1798,7 @@ local function CvarUpdateFunction(self, elapsed)
   
   -- Get the current situation's settings
   local situationId = DynamicCam.currentSituationID
-  local settings
-  if situationId then
-    local situation = DynamicCam.db.profile.situations[situationId]
-    if situation then
-      settings = situation.situationSettings
-    end
-  else
-    settings = DynamicCam.db.profile.standardSettings
-  end
+  local settings = DynamicCam:GetSettingsTable(situationId)
   
   -- Track whether we need to update zoom-based values (optimization)
   local zoomChanged = not lastAppliedZoom or math.abs(cameraZoom - lastAppliedZoom) >= 0.01
@@ -1850,6 +1843,11 @@ local function CvarUpdateFunction(self, elapsed)
          settings.cvarsZoomBased[cvarName] and 
          settings.cvarsZoomBased[cvarName].enabled then
         value = DynamicCam:GetInterpolatedValue(situationId, cvarName, cameraZoom)
+      end
+      
+      -- Priority 3: Direct value (non-zoom-based, not easing)
+      if value == nil then
+        value = DynamicCam:GetSettingsValue(situationId, "cvars", cvarName)
       end
       
       -- Apply the value if we have one

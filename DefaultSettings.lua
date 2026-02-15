@@ -23,10 +23,10 @@ DynamicCam.situationDefaults = {
   delay = 0,
 
 
-  -- Generalized transition times for entering and exiting this situation
+  -- Transition times for entering and exiting this situation
   transitionTime = {
-    timeToEnter = 0,  -- Transition time when ENTERING this situation
-    timeToExit = 0,   -- Transition time when EXITING this situation
+    timeToEnter = 1,
+    timeToExit = 1,
   },
 
 
