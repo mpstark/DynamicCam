@@ -632,7 +632,7 @@ this.mountVendors = {
         condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID then
+  if npcGUID and not issecretvalue(npcGUID) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- Uncomment this to find out npcId and mountId pairs.
     -- print("NPC Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
@@ -667,7 +667,7 @@ return shown and UnitExists("npc")]],
 -- Exclude Trader's Gilded Brutosaur Mailbox.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID then
+  if npcGUID and not issecretvalue(npcGUID) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- print("Mailbox Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
     if npcId == "231086" and DynamicCam:GetCurrentMount() == 2265 then
