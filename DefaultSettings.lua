@@ -384,7 +384,7 @@ if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
   local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
   -- Cannot read auras during combat (any more).
-  if aura and not issecretvalue(aura.spellId) and this.raceBuffs[aura.spellId] then
+  if aura and (not issecretvalue or not issecretvalue(aura.spellId)) and this.raceBuffs[aura.spellId] then
     return true
   end
 end
@@ -601,7 +601,7 @@ end
   else     -- Retail
     local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
     -- Cannot read auras during combat (any more).
-    if aura and not issecretvalue(aura.spellId) then
+    if aura and (not issecretvalue or not issecretvalue(aura.spellId)) then
       spellId = aura.spellId
     end
   end
@@ -631,7 +631,7 @@ this.mountVendors = {
         condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID and not issecretvalue(npcGUID) then
+  if npcGUID and (not issecretvalue or not issecretvalue(npcGUID)) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- Uncomment this to find out npcId and mountId pairs.
     -- print("NPC Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
@@ -666,7 +666,7 @@ return shown and UnitExists("npc")]],
 -- Exclude Trader's Gilded Brutosaur Mailbox.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID and not issecretvalue(npcGUID) then
+  if npcGUID and (not issecretvalue or not issecretvalue(npcGUID)) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- print("Mailbox Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
     if npcId == "231086" and DynamicCam:GetCurrentMount() == 2265 then
