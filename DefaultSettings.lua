@@ -379,13 +379,12 @@ for _, v in pairs(raceBuffList) do
 end
 ]],
         priority = 103,
-        condition = [[-- Cannot read auras during combat (any more).
-if InCombatLockdown() then return false end
--- Check for "Racing" buff first, which is the most common one.
+        condition = [[-- Check for "Racing" buff first, which is the most common one.
 if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
   local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-  if aura and aura.spellId and this.raceBuffs[aura.spellId] then
+  -- Cannot read auras during combat (any more).
+  if aura and not issecretvalue(aura.spellId) and this.raceBuffs[aura.spellId] then
     return true
   end
 end
