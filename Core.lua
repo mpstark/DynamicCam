@@ -172,7 +172,7 @@ end
 -- Returns: shoulderOffset * cosFix.currentModelFactor (or unchanged if cosFix not present)
 -- Made global so ZoomBasedSettings.lua can use it too.
 function DynamicCam.ApplyCameraOverShoulderFixCompensation(shoulderOffset)
-  local cosFix = _G.CameraOverShoulderFix
+  local cosFix = _G.cosFix
   if cosFix then
     if not cosFix.currentModelFactor then
       cosFix.currentModelFactor = cosFix:CorrectShoulderOffset()
@@ -189,7 +189,7 @@ end
 function DynamicCam.UpdateCurrentShoulderOffset(offset)
 
   -- If offset changes sign while mounted, CameraOverShoulderFix needs to update currentModelFactor!
-  local cosFix = _G.CameraOverShoulderFix
+  local cosFix = _G.cosFix
   if cosFix and IsMounted() then
     if (DynamicCam.currentShoulderOffset < 0 and offset >= 0)
     or (DynamicCam.currentShoulderOffset >= 0 and offset < 0) then
