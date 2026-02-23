@@ -33,4 +33,9 @@ DefaultSettings.lua
 
 Sharing.lua
 Presets.lua
+
+Options\Helpers.lua
+Options\ControlFactories.lua
+Options\Widgets.lua
+Options\CvarMonitor.lua
 Options.lua
