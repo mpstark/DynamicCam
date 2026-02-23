@@ -550,6 +550,7 @@ return false]],
   460271,  -- Teleporting to Silithus
   463481,  -- Notorious Thread's Hearthstone
  1217281,  -- Redeployment Module
+ 1220729,  -- Explosive Hearthstone
  1221356,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221357,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221359,  -- Teleport: Stormwind (Guild Cloaks)
@@ -558,6 +559,7 @@ return false]],
  1225969,  -- Nostwin's Return Service
  1233637,  -- Teleport Home
  1240219,  -- P.O.S.T. Master's Express Hearthstone
+ 1242509,  -- Cosmic Hearthstone
  1250878,  -- Timerunner's Hearthstone
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
