@@ -390,6 +390,11 @@ function Options.SetGroupVars(groupVarsTable, override)
         situationSettingsTable.cvars[index2] = standardSettingsTable.cvars[index2]
       else
         situationSettingsTable.cvars[index2] = nil
+        -- Also clear any zoom-based settings for this cvar so that
+        -- the standard settings take effect immediately.
+        if situationSettingsTable.cvarsZoomBased and situationSettingsTable.cvarsZoomBased[index2] then
+          situationSettingsTable.cvarsZoomBased[index2] = nil
+        end
       end
     else
       if override then
@@ -400,6 +405,8 @@ function Options.SetGroupVars(groupVarsTable, override)
     end
   end
 
+  -- Reset zoom-based cache so that standard zoom-based settings (if any) are applied right away.
+  DynamicCam:ResetZoomBasedSettingsCache()
   DynamicCam:ApplySettings()
 end
 
