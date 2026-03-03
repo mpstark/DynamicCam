@@ -690,8 +690,9 @@ function DynamicCam:ApplySettings()
       value = curSituation.situationSettings.cvars[cvar]
     end
 
-    -- Skip cvars that are zoom-based or currently being eased - CvarUpdateFunction handles them
-    if not (self:IsCvarZoomBased(self.currentSituationID, cvar) or self:IsCvarBeingEased(cvar)) then
+    -- Skip cvars that are zoom-based, currently being eased, or controlled
+    -- by a toggle group transition - CvarUpdateFunction handles them.
+    if not (self:IsCvarZoomBased(self.currentSituationID, cvar) or self:IsCvarBeingEased(cvar) or self:IsCvarToggleControlled(cvar)) then
       self:DC_SetCVar(cvar, value)
     end
   end

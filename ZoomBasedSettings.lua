@@ -247,24 +247,10 @@ end
 --]]
 
 
--- Helper to get the settings table for a situation or standard
-local function GetSettingsTable(situationId)
-  if situationId then
-    local situation = DynamicCam.db.profile.situations[situationId]
-    if situation then
-      return situation.situationSettings
-    end
-    return nil
-  else
-    return DynamicCam.db.profile.standardSettings
-  end
-end
-
-
 -- Get the zoom-based cvar data for a specific cvar
 -- Returns nil if zoom-based is not enabled for this cvar
 function DynamicCam:GetZoomBasedCvar(situationId, cvarName)
-  local settings = GetSettingsTable(situationId)
+  local settings = self:GetSettingsTable(situationId)
   if settings and settings.cvarsZoomBased and
      settings.cvarsZoomBased[cvarName] and
      settings.cvarsZoomBased[cvarName].enabled then
@@ -284,7 +270,7 @@ end
 -- Set whether a cvar should be zoom-based
 -- currentValue is the current slider value, used for initializing default points
 function DynamicCam:SetCvarZoomBased(situationId, cvarName, enabled, currentValue)
-  local settings = GetSettingsTable(situationId)
+  local settings = self:GetSettingsTable(situationId)
   if not settings then return end
 
   -- Initialize cvarsZoomBased if needed
@@ -336,7 +322,7 @@ end
 
 -- Set the points for a zoom-based cvar
 function DynamicCam:SetZoomBasedPoints(situationId, cvarName, points)
-  local settings = GetSettingsTable(situationId)
+  local settings = self:GetSettingsTable(situationId)
   if not settings then return end
 
   if settings.cvarsZoomBased and settings.cvarsZoomBased[cvarName] then
@@ -1564,6 +1550,40 @@ end
 -- and values snap to the new curve.
 -------------------------------------------------------------------------------
 
+-- Simple toggle cvars (0/1) with no associated strength variables.
+-- These are set immediately at the start of a transition.
+local SIMPLE_TOGGLE_CVARS = {
+  ["test_cameraDynamicPitch"] = true,
+}
+
+-- Toggle cvars with associated strength variables.
+-- When these toggles change during a situation transition, the strength
+-- variables are eased from/to 0 to create a smooth visual transition.
+-- Disabling: the toggle stays enabled while strengths ease to 0, then the toggle is set at the end.
+-- Enabling: the toggle is set immediately, strengths ease from 0 to their target values.
+local TOGGLE_CVAR_GROUPS = {
+  ["test_cameraTargetFocusEnemyEnable"] = {
+    "test_cameraTargetFocusEnemyStrengthYaw",
+    "test_cameraTargetFocusEnemyStrengthPitch",
+  },
+  ["test_cameraTargetFocusInteractEnable"] = {
+    "test_cameraTargetFocusInteractStrengthYaw",
+    "test_cameraTargetFocusInteractStrengthPitch",
+  },
+  ["test_cameraHeadMovementStrength"] = {
+    "test_cameraHeadMovementStandingStrength",
+    "test_cameraHeadMovementMovingStrength",
+  },
+}
+
+-- Track which cvars are currently controlled by a toggle group transition
+-- (so they are excluded from normal easing and ApplySettings).
+local toggleControlledCvars = {}
+
+-- Pending toggle values to be applied at the end of a transition.
+-- Key: cvarName, Value: { value, endTime }
+local pendingToggles = {}
+
 -- Active easing state for each cvar
 -- Key: cvarName, Value: { startValue, targetValue, startTime, duration, easingFunc, isZoomBased }
 local activeCvarEasings = {}
@@ -1580,6 +1600,7 @@ end
 -- Calculate expected zoom at current time during transition
 local function GetExpectedZoom()
   if not expectedZoomEasing then return nil end
+  if not expectedZoomEasing.startTime then return nil end  -- Not yet initialized (first frame)
   
   local elapsed = GetTime() - expectedZoomEasing.startTime
   local t = elapsed / expectedZoomEasing.duration
@@ -1672,7 +1693,14 @@ end
 
 -- Start easing all cvars for a situation transition
 -- Called from ChangeSituation()
-function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, currentZoom, targetZoom, transitionTime, easingFunc)
+function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, currentZoom, targetZoom, transitionTime, zoomTransitionTime, easingFunc)
+  -- Apply any pending toggles from a previous unfinished transition.
+  for cvarName, info in pairs(pendingToggles) do
+    _G.SetCVar(cvarName, info.value)
+  end
+  pendingToggles = {}
+  toggleControlledCvars = {}
+
   -- Store which cvars were being eased before we clear (so we can read their current values)
   local wasBeingEased = {}
   for cvarName, _ in pairs(activeCvarEasings) do
@@ -1694,13 +1722,16 @@ function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, cu
     easingFunc = LibEasing.Linear
   end
   
-  -- Store expected zoom easing (to detect manual zoom)
+  -- Store expected zoom easing (to detect manual zoom).
+  -- startTime is nil initially and set on the first CvarUpdateFunction frame,
+  -- so that it aligns with LibCamera's beginTime (also set one frame after SetZoom).
+  -- Use zoomTransitionTime (not transitionTime) because LibCamera:SetZoom uses it.
   if math.abs(currentZoom - targetZoom) > 0.01 then
     expectedZoomEasing = {
       startZoom = currentZoom,
       targetZoom = targetZoom,
-      startTime = GetTime(),
-      duration = transitionTime,
+      startTime = nil,  -- Initialized on first CvarUpdateFunction frame
+      duration = zoomTransitionTime or transitionTime,
       easingFunc = easingFunc,
     }
   end
@@ -1723,28 +1754,104 @@ function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, cu
     end
   end
   
-  -- Set up easing for each cvar
   local now = GetTime()
-  for cvarName, _ in pairs(cvarsToEase) do
-    local startValue
-    if cvarName == "test_cameraOverShoulder" and DynamicCam.currentShoulderOffset then
-      startValue = DynamicCam.currentShoulderOffset
-    else
-      startValue = tonumber(GetCVar(cvarName)) or 0
-    end
 
-    local targetValue, isZoomBased = GetTargetCvarValue(newSituationId, cvarName, targetZoom)
-    
-    -- Only set up easing if values differ
-    if startValue and targetValue and math.abs(startValue - targetValue) > 0.0001 then
-      activeCvarEasings[cvarName] = {
-        startValue = startValue,
-        targetValue = targetValue,
-        startTime = now,
-        duration = transitionTime,
-        easingFunc = easingFunc,
-        isZoomBased = isZoomBased,
-      }
+  -- Process toggle cvar groups before the main easing loop.
+  -- When a toggle changes, we ease its associated strength variables from/to 0
+  -- instead of toggling the enable flag immediately.
+  for toggleCvar, strengthCvars in pairs(TOGGLE_CVAR_GROUPS) do
+    if cvarsToEase[toggleCvar] then
+      local currentToggleValue = tonumber(GetCVar(toggleCvar)) or 0
+      local targetToggleValue = GetTargetCvarValue(newSituationId, toggleCvar, targetZoom)
+
+      if targetToggleValue and math.abs(currentToggleValue - targetToggleValue) > 0.0001 then
+        local isCurrentlyEnabled = math.abs(currentToggleValue) > 0.0001
+        local isTargetEnabled = math.abs(targetToggleValue) > 0.0001
+
+        if isCurrentlyEnabled and not isTargetEnabled then
+          -- DISABLING: keep the toggle enabled during transition.
+          -- Ease sub-strength cvars from their current values to 0.
+          -- Apply the toggle at the end of the transition.
+          pendingToggles[toggleCvar] = { value = targetToggleValue, endTime = now + transitionTime }
+          toggleControlledCvars[toggleCvar] = true
+
+          for _, strengthCvar in ipairs(strengthCvars) do
+            local currentStrength = tonumber(GetCVar(strengthCvar)) or 0
+            if math.abs(currentStrength) > 0.0001 then
+              activeCvarEasings[strengthCvar] = {
+                startValue = currentStrength,
+                targetValue = 0,
+                startTime = now,
+                duration = transitionTime,
+                easingFunc = easingFunc,
+                isZoomBased = false,
+              }
+            end
+            toggleControlledCvars[strengthCvar] = true
+          end
+
+        elseif not isCurrentlyEnabled and isTargetEnabled then
+          -- ENABLING: set the toggle immediately.
+          -- Set sub-strength cvars to 0 first (so there's no visual jump),
+          -- then ease them from 0 to their target values.
+          _G.SetCVar(toggleCvar, targetToggleValue)
+          toggleControlledCvars[toggleCvar] = true
+
+          for _, strengthCvar in ipairs(strengthCvars) do
+            local targetStrength, isZoomBasedStrength = GetTargetCvarValue(newSituationId, strengthCvar, targetZoom)
+            if targetStrength and math.abs(targetStrength) > 0.0001 then
+              _G.SetCVar(strengthCvar, 0)
+              activeCvarEasings[strengthCvar] = {
+                startValue = 0,
+                targetValue = targetStrength,
+                startTime = now,
+                duration = transitionTime,
+                easingFunc = easingFunc,
+                isZoomBased = isZoomBasedStrength,
+              }
+            end
+            toggleControlledCvars[strengthCvar] = true
+          end
+        end
+      end
+    end
+  end
+
+  -- Set up easing for each cvar
+  for cvarName, _ in pairs(cvarsToEase) do
+    -- Skip cvars already handled by toggle group logic above.
+    if toggleControlledCvars[cvarName] then
+      -- Already handled.
+
+    -- Simple toggles (no sub-strength vars) are applied immediately.
+    elseif SIMPLE_TOGGLE_CVARS[cvarName] then
+      local targetValue = GetTargetCvarValue(newSituationId, cvarName, targetZoom)
+      if targetValue then
+        _G.SetCVar(cvarName, targetValue)
+      end
+
+    else
+      -- Normal easing.
+      local startValue
+      if cvarName == "test_cameraOverShoulder" and DynamicCam.currentShoulderOffset then
+        startValue = DynamicCam.currentShoulderOffset
+      else
+        startValue = tonumber(GetCVar(cvarName)) or 0
+      end
+
+      local targetValue, isZoomBased = GetTargetCvarValue(newSituationId, cvarName, targetZoom)
+
+      -- Only set up easing if values differ
+      if startValue and targetValue and math.abs(startValue - targetValue) > 0.0001 then
+        activeCvarEasings[cvarName] = {
+          startValue = startValue,
+          targetValue = targetValue,
+          startTime = now,
+          duration = transitionTime,
+          easingFunc = easingFunc,
+          isZoomBased = isZoomBased,
+        }
+      end
     end
   end
 end
@@ -1753,6 +1860,13 @@ end
 -- Check if a cvar has an active transition easing
 function DynamicCam:IsCvarBeingEased(cvarName)
   return activeCvarEasings[cvarName] ~= nil
+end
+
+
+-- Check if a cvar is currently controlled by a toggle group transition
+-- (either the toggle itself is pending, or a sub-strength is being eased).
+function DynamicCam:IsCvarToggleControlled(cvarName)
+  return pendingToggles[cvarName] ~= nil or toggleControlledCvars[cvarName] ~= nil
 end
 
 
@@ -1782,10 +1896,35 @@ local function CvarUpdateFunction(self, elapsed)
   -- Skip if temporarily disabled
   if DynamicCam.shoulderOffsetZoomTmpDisable then return end
   
+  -- Initialize expected zoom tracking on the first frame (aligns with LibCamera's
+  -- one-frame-delayed beginTime, preventing false HasUserManuallyZoomed triggers).
+  if expectedZoomEasing and not expectedZoomEasing.startTime then
+    expectedZoomEasing.startTime = GetTime()
+    expectedZoomEasing.startZoom = _G.GetCameraZoom()
+  end
+  
   -- Check for manual zoom (cancels zoom-based easings)
   if HasUserManuallyZoomed() then
     CancelZoomBasedEasings()
     DynamicCam:ResetZoomBasedSettingsCache()
+  end
+  
+  -- Process pending toggles (applied at the end of a transition).
+  if next(pendingToggles) then
+    local currentTime = GetTime()
+    for cvarName, info in pairs(pendingToggles) do
+      if currentTime >= info.endTime then
+        _G.SetCVar(cvarName, info.value)
+        pendingToggles[cvarName] = nil
+        -- Clean up toggle-controlled flags for this group.
+        if TOGGLE_CVAR_GROUPS[cvarName] then
+          toggleControlledCvars[cvarName] = nil
+          for _, strengthCvar in ipairs(TOGGLE_CVAR_GROUPS[cvarName]) do
+            toggleControlledCvars[strengthCvar] = nil
+          end
+        end
+      end
+    end
   end
   
   -- Get current zoom (virtual or actual)
@@ -1803,9 +1942,10 @@ local function CvarUpdateFunction(self, elapsed)
   -- Track whether we need to update zoom-based values (optimization)
   local zoomChanged = not lastAppliedZoom or math.abs(cameraZoom - lastAppliedZoom) >= 0.01
   local hasActiveEasings = next(activeCvarEasings) ~= nil
+  local hasPendingToggles = next(pendingToggles) ~= nil
   
   -- Skip if nothing to do
-  if not zoomChanged and not hasActiveEasings then
+  if not zoomChanged and not hasActiveEasings and not hasPendingToggles then
     return
   end
   
@@ -1832,6 +1972,8 @@ local function CvarUpdateFunction(self, elapsed)
     -- Skip if curve editor is dragging this setting
     if DynamicCam:IsEditorDraggingCvar(cvarName) then
       -- Do nothing, editor handles preview
+    elseif pendingToggles[cvarName] then
+      -- Skip: this toggle is waiting for its sub-strength transitions to complete.
     else
       local value = nil
       
@@ -1872,7 +2014,7 @@ local function CvarUpdateFunction(self, elapsed)
   DynamicCam.easeShoulderOffsetInProgress = (activeCvarEasings["test_cameraOverShoulder"] ~= nil)
   
   -- Clean up completed zoom easing
-  if expectedZoomEasing then
+  if expectedZoomEasing and expectedZoomEasing.startTime then
     local elapsed = GetTime() - expectedZoomEasing.startTime
     if elapsed >= expectedZoomEasing.duration then
       expectedZoomEasing = nil

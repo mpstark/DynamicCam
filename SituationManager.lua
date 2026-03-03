@@ -973,24 +973,27 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   elseif newSituation then
     transitionTime = newSituation.transitionTime.timeToEnter
 
-    -- If the "Don't slow" option is selected for zoom, we have to check
-    -- if actually a faster transition time is possible.
-    if transitionTime > 0 and newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "zoom" and newSituation.viewZoom.zoomTimeIsMax then
-
-      local difference = math.abs(newZoomLevel - GetCameraZoom())
-      local linearSpeed = difference / transitionTime
-      local currentSpeed = self:GetSettingsValue(newSituationID, "cvars", "cameraZoomSpeed")
-      if linearSpeed < currentSpeed then
-        -- min time 10 frames
-        transitionTime = math.max(DynamicCam.secondsPerFrame*10, difference / currentSpeed)
-      end
-    end
-
   -- Default is this "magic number"...
   else
     transitionTime = 0.75
   end
 
+  -- If the "Don't slow" option is selected for zoom, we check if the zoom
+  -- can complete faster than transitionTime. This shorter time only affects
+  -- the zoom easing itself; other transitions (cvars, rotation, UI fade)
+  -- use the full transitionTime so that e.g. shoulder offset doesn't snap
+  -- when the camera is already at or near the target zoom.
+  local zoomTransitionTime = transitionTime
+  if newSituation and transitionTime > 0 and newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "zoom" and newSituation.viewZoom.zoomTimeIsMax then
+
+    local difference = math.abs(newZoomLevel - GetCameraZoom())
+    local linearSpeed = difference / transitionTime
+    local currentSpeed = self:GetSettingsValue(newSituationID, "cvars", "cameraZoomSpeed")
+    if linearSpeed < currentSpeed then
+      -- min time 10 frames
+      zoomTransitionTime = math.max(DynamicCam.secondsPerFrame*10, difference / currentSpeed)
+    end
+  end
 
   -- Start the actual easing.
 
@@ -1001,13 +1004,13 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     -- We only need to zoom when not going into a view.
     -- Whenever the zoom changes we need to reset the reactiveZoomTarget.
     DynamicCam:ResetReactiveZoomTarget()
-    LibCamera:SetZoom(newZoomLevel, transitionTime, easeFunction)
+    LibCamera:SetZoom(newZoomLevel, zoomTransitionTime, easeFunction)
   end
 
   -- Start easing all cvars from current values to target values.
   -- This handles both zoom-based curves and direct cvar values.
   local currentZoom = GetCameraZoom()
-  self:StartCvarTransitionEasing(oldSituationID, newSituationID, currentZoom, newZoomLevel, transitionTime, easeFunction)
+  self:StartCvarTransitionEasing(oldSituationID, newSituationID, currentZoom, newZoomLevel, transitionTime, zoomTransitionTime, easeFunction)
 
 
   -- Set default values (possibly for new situation, may be nil).

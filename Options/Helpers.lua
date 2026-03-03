@@ -196,7 +196,11 @@ end
 -------------------------------------------------------------------------------
 function DynamicCam:GetSettingsTable(situationId)
   if situationId then
-    return self.db.profile.situations[situationId].situationSettings
+    local situation = self.db.profile.situations[situationId]
+    if situation then
+      return situation.situationSettings
+    end
+    return nil
   else
     return self.db.profile.standardSettings
   end
