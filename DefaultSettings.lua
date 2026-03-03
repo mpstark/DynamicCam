@@ -23,11 +23,17 @@ DynamicCam.situationDefaults = {
   delay = 0,
 
 
+  -- Transition times for entering and exiting this situation
+  transitionTime = {
+    timeToEnter = 1,
+    timeToExit = 1,
+  },
+
+
   viewZoom = {
     enabled = false,
     viewZoomType = "zoom",
 
-    zoomTransitionTime = 1,
     zoomType = "set",
     zoomValue = 10,
     zoomMin = 5,
@@ -44,22 +50,18 @@ DynamicCam.situationDefaults = {
     enabled = false,
     rotationType = "continuous",
 
-    rotationTime = 1,
     rotationSpeed = 10,
 
     yawDegrees = 0,
     pitchDegrees = 0,
 
     rotateBack = true,
-    rotateBackTime = 1,
   },
 
   hideUI = {
     enabled            = false,
 
     fadeOpacity        = 0.6,
-    fadeOutTime        = 1,
-    fadeInTime         = 1,
 
     emergencyShowEscEnabled = true,
 
@@ -118,10 +120,6 @@ DynamicCam.defaults = {
       reactiveZoomAddIncrements = 2.5,
       reactiveZoomIncAddDifference = 1.2,
       reactiveZoomMaxZoomTime = 0.1,
-
-      shoulderOffsetZoomEnabled = true,
-      shoulderOffsetZoomLowerBound = 2,
-      shoulderOffsetZoomUpperBound = 7,
 
       -- cvars
       cvars = {
@@ -198,28 +196,28 @@ DynamicCam.defaults = {
         condition = "return not IsInInstance() and UnitAffectingCombat(\"player\")",
       },
       ["020"] = {
-        name = L["Dungeon/Scenerio"],
+        name = L["Dungeon/Scenario"],
         events = {"ZONE_CHANGED_NEW_AREA"},
         priority = 2,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario")]],
       },
       ["021"] = {
-        name = L["Dungeon/Scenerio (Outdoors)"],
+        name = L["Dungeon/Scenario (Outdoors)"],
         events = {"ZONE_CHANGED_INDOORS", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "SPELL_UPDATE_USABLE"},
         priority = 12,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and IsOutdoors()]],
       },
       ["023"] = {
-        name = L["Dungeon/Scenerio (Combat, Boss)"],
+        name = L["Dungeon/Scenario (Combat, Boss)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 302,
         condition = [[local isInstance, instanceType = IsInInstance()
 return isInstance and (instanceType == "party" or instanceType == "scenario") and UnitAffectingCombat("player") and IsEncounterInProgress()]],
       },
       ["024"] = {
-        name = L["Dungeon/Scenerio (Combat, Trash)"],
+        name = L["Dungeon/Scenario (Combat, Trash)"],
         events = {"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA", "ENCOUNTER_START", "ENCOUNTER_END", "INSTANCE_ENCOUNTER_ENGAGE_UNIT"},
         priority = 202,
         condition = [[local isInstance, instanceType = IsInInstance()
@@ -385,7 +383,8 @@ end
 if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
   local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-  if aura and aura.spellId and this.raceBuffs[aura.spellId] then
+  -- Cannot read auras during combat (any more).
+  if aura and (not issecretvalue or not issecretvalue(aura.spellId)) and this.raceBuffs[aura.spellId] then
     return true
   end
 end
@@ -447,6 +446,7 @@ return false]],
    94719,  -- The Innkeeper's Daughter
   120145,  -- Ancient Teleport: Dalaran
   126755,  -- Wormhole Generator: Pandaria
+  126892,  -- Zen Pilgrimage
   132621,  -- Teleport: Vale of Eternal Blossoms
   132627,  -- Teleport: Vale of Eternal Blossoms
   136508,  -- Dark Portal
@@ -501,8 +501,15 @@ return false]],
   299084,  -- Wormhole Generator: Zandalar
   308742,  -- Eternal Traveler's Hearthstone
   311643,  -- Hearth to Faol's Rest
+  311678,  -- Nexus Teleport Scroll
   311681,  -- Tirisfal Camp Scroll
+  311704,  -- Duskwood Scroll
+  311705,  -- Hearth to Booty Bay
+  311709,  -- Duskwood Scroll
+  311711,  -- Blasted Lands Scroll
+  311712,  -- Elwynn Forest Scroll
   311749,  -- Hearth to Uther's Tomb
+  311897,  -- Hearth to Moonglade
   312372,  -- Return to Camp
   324031,  -- Wormhole Generator: Shadowlands
   325624,  -- Cypher of Relocation
@@ -542,11 +549,21 @@ return false]],
   450410,  -- Dalaran Hearthstone (Dark Heart Quest)
   460271,  -- Teleporting to Silithus
   463481,  -- Notorious Thread's Hearthstone
+ 1217281,  -- Redeployment Module
+ 1220729,  -- Explosive Hearthstone
  1221356,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221357,  -- Teleport: Orgrimmar (Guild Cloaks)
  1221359,  -- Teleport: Stormwind (Guild Cloaks)
  1221360,  -- Teleport: Stormwind (Guild Cloaks)
-
+ 1225967,  -- Nostwin's Voucher
+ 1225969,  -- Nostwin's Return Service
+ 1233637,  -- Teleport Home
+ 1240219,  -- P.O.S.T. Master's Express Hearthstone
+ 1242509,  -- Cosmic Hearthstone
+ 1250878,  -- Timerunner's Hearthstone
+ 1258476,  -- Teleport to Founder's Point
+ 1258484,  -- Teleport to Razorwind Shores
+ 1265142,  -- Visit House
 }
 
 -- For faster lookups:
@@ -560,11 +577,10 @@ end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
-this.transitionTime = (endTime - startTime)/1000
-this.rotationTime = this.transitionTime]],
+this.timeToEnter = (endTime - startTime)/1000]],
       },
       ["201"] = {
-        name = L["Annoying Spells"],
+        name = L["Annoying Spells"] .. " (no combat in retail)",
         events = {"UNIT_AURA"},
         executeOnInit = [[local annoyingSpellList = {
    46924,  -- Bladestorm
@@ -586,10 +602,13 @@ end
     _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
   else     -- Retail
     local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-    if aura then spellId = aura.spellId end
+    -- Cannot read auras during combat (any more).
+    if aura and (not issecretvalue or not issecretvalue(aura.spellId)) then
+      spellId = aura.spellId
+    end
   end
 
-  if this.annoyingSpells[spellId] then return true end
+  if spellId and this.annoyingSpells[spellId] then return true end
 end
 return false]],
 },
@@ -614,7 +633,7 @@ this.mountVendors = {
         condition = [[-- Don't want to apply this to my own mount vendors while mounted.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID then
+  if npcGUID and (not issecretvalue or not issecretvalue(npcGUID)) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- Uncomment this to find out npcId and mountId pairs.
     -- print("NPC Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
@@ -649,7 +668,7 @@ return shown and UnitExists("npc")]],
 -- Exclude Trader's Gilded Brutosaur Mailbox.
 if IsMounted() then
   local npcGUID = UnitGUID("npc")
-  if npcGUID then
+  if npcGUID and (not issecretvalue or not issecretvalue(npcGUID)) then
     local _, _, _, _, _, npcId = strsplit("-", npcGUID)
     -- print("Mailbox Condition: Current npc", npcId, "current mount", DynamicCam:GetCurrentMount())
     if npcId == "231086" and DynamicCam:GetCurrentMount() == 2265 then
@@ -672,6 +691,18 @@ else     -- Retail
 end]],
         delay = 1,
       },
+      ["303"] = {
+        name = L["AFK"],
+        events = {"PLAYER_FLAGS_CHANGED"},
+        priority = 120,
+        condition = "return UnitIsAFK(\"player\")",
+      },
+      ["310"] = {
+        name = L["Pet Battle"],
+        events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
+        priority = 130,
+        condition = "return C_PetBattles.IsInBattle()",
+      },
       ["320"] = {
         name = L["Gathering"],
         events = {"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_INTERRUPTED"},
@@ -692,17 +723,14 @@ for _, v in pairs(this.spells) do
 end
 return false]]
       },
-      ["303"] = {
-        name = L["AFK"],
-        events = {"PLAYER_FLAGS_CHANGED"},
-        priority = 120,
-        condition = "return UnitIsAFK(\"player\")",
-      },
-      ["310"] = {
-        name = L["Pet Battle"],
-        events = {"PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE"},
-        priority = 130,
-        condition = "return C_PetBattles.IsInBattle()",
+      ["330"] = {
+        name = L["Professions Frame Open"],
+        events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},
+        priority = 1100,
+        condition = [[if ProfessionsFrame then return ProfessionsFrame:IsShown() end
+-- For classic:
+if TradeSkillFrame then return TradeSkillFrame:IsShown() end
+        ]]
       },
     },
 
@@ -776,9 +804,12 @@ end
 
 
 
--- With DC 2.0, some default values changed. As AceDB does not store default values,
--- non-existent entries may have to be set to the old default when modernizing a profile.
-DynamicCam.oldDefaults = {
+-- Profile migration defaults.
+-- These preserve old default values when migrating profiles between versions.
+-- AceDB doesn't store actual defaults, so we need these for accurate migration.
+
+-- Defaults from DC pre-2.0 (used for version 1 -> 2 migration).
+DynamicCam.v2Defaults = {
 
   shoulderOffsetZoom = {
     enabled = true,
@@ -870,7 +901,30 @@ DynamicCam.oldDefaults = {
       hideUI = true,
     },
 
-  }
+  },
 
+}
+
+-- Defaults for shoulder offset zoom (used for version 4 -> 5 migration).
+DynamicCam.v4ShoulderOffsetZoomDefaults = {
+  shoulderOffsetZoomEnabled = true,
+  shoulderOffsetZoomLowerBound = 2,
+  shoulderOffsetZoomUpperBound = 7,
+}
+
+-- Defaults for transition times (used for version 4 -> 5 migration).
+-- These fields existed before being replaced by transitionTime.timeToEnter/timeToExit in version 5.
+DynamicCam.v4TransitionTimeDefaults = {
+  viewZoom = {
+    zoomTransitionTime = 1,
+  },
+  rotation = {
+    rotationTime = 1,
+    rotateBackTime = 1,
+  },
+  hideUI = {
+    fadeOutTime = 1,
+    fadeInTime = 1,
+  },
 }
 

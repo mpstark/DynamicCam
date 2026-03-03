@@ -1,11 +1,11 @@
-## Interface: 50500
+## Interface: 50503
 ## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
 ## Notes: A more dynamic camera.
 ## Notes-zhCN: 智能动态相机镜头。
 
-## OptionalDeps: Ace3, LibCamera, LibEasing, LibCompress, Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
+## OptionalDeps: Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
 ## SavedVariables: DynamicCamDB, minZoomValues
 
 ## X-Curse-Project-ID: 101120
@@ -26,9 +26,15 @@ Core.lua
 
 MouseZoom.lua
 SituationManager.lua
+ZoomBasedSettings.lua
 
 DefaultSettings.lua
 
 Sharing.lua
 Presets.lua
+
+Options\Helpers.lua
+Options\ControlFactories.lua
+Options\Widgets.lua
+Options\CvarMonitor.lua
 Options.lua

@@ -1,5 +1,6 @@
 local LibCamera = LibStub("LibCamera-1.0")
 local LibEasing = LibStub("LibEasing-1.0")
+local LibMountInfo = LibStub("LibMountInfo-1.1")
 
 
 
@@ -16,21 +17,6 @@ local SET_VIEW_TRANSITION_TIME = 0.5
 ------------
 -- LOCALS --
 ------------
-
-local C_MountJournal_GetCollectedFilterSetting = C_MountJournal.GetCollectedFilterSetting
-local C_MountJournal_GetDisplayedMountInfo = C_MountJournal.GetDisplayedMountInfo
-local C_MountJournal_GetNumDisplayedMounts = C_MountJournal.GetNumDisplayedMounts
-local C_MountJournal_IsSourceChecked = C_MountJournal.IsSourceChecked
-local C_MountJournal_IsTypeChecked = C_MountJournal.IsTypeChecked
-local C_MountJournal_IsValidSourceFilter = C_MountJournal.IsValidSourceFilter
-local C_MountJournal_IsValidTypeFilter = C_MountJournal.IsValidTypeFilter
-local C_MountJournal_SetCollectedFilterSetting = C_MountJournal.SetCollectedFilterSetting
-local C_MountJournal_SetDefaultFilters = C_MountJournal.SetDefaultFilters
-local C_MountJournal_SetSourceFilter = C_MountJournal.SetSourceFilter
-local C_MountJournal_SetTypeFilter = C_MountJournal.SetTypeFilter
-local C_PetJournal_GetNumPetSources = C_PetJournal.GetNumPetSources
-local Enum_MountTypeMeta_NumValues = Enum.MountTypeMeta.NumValues
-
 
 local function Round(num, numDecimalPlaces)
   local mult = 10^(numDecimalPlaces or 0)
@@ -237,12 +223,18 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
 
   text = "%s",
 
-  OnShow = function (self)
-    self.ludius_originalTextWidth = self.text:GetWidth()
-    self.text:SetWidth(borderFrame:GetWidth())
+  OnShow = function(self)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    self.ludius_originalTextWidth = textFrame:GetWidth()
+    textFrame:SetWidth(borderFrame:GetWidth())
   end,
   OnHide = function(self)
-    self.text:SetWidth(self.ludius_originalTextWidth)
+    -- Since 11.2 it is Text instead of text.
+    local textFrame = self.text or self.Text
+
+    textFrame:SetWidth(self.ludius_originalTextWidth)
     self.ludius_originalTextWidth = nil
   end,
 
@@ -332,6 +324,10 @@ function DynamicCam:ScriptError(situationID, scriptID, errorType, errorMessage)
 
   -- Only show the default button, if there is a default to return to.
   hideDefaultButton = isCustomSituation or alreadyUsingDefault
+
+  -- Got to manually show, otherwise the inserted frame is not shown except for the first show.
+  -- https://www.wowinterface.com/forums/showthread.php?p=345109
+  outerFrame:Show()
   StaticPopup_Show("DYNAMICCAM_SCRIPT_ERROR", text, nil, data, outerFrame)
 end
 
@@ -519,7 +515,6 @@ local function StartRotation(newSituation, transitionTime)
 
   if r.enabled then
     if r.rotationType == "continuous" then
-
       LibCamera:BeginContinuousYaw(r.rotationSpeed, transitionTime)
 
     elseif r.rotationType == "degrees" then
@@ -537,25 +532,37 @@ end
 
 
 -- Stop rotating when leaving a situation.
-local function StopRotation(oldSituation)
+local function StopRotation(oldSituation, transitionTime)
   local r = oldSituation.rotation
   local profile = DynamicCam.db.profile
-  if r.enabled then
+  if r and r.enabled then
     if r.rotationType == "continuous" then
-      local yaw = LibCamera:StopYawing()
+      -- Use transitionTime for deceleration if provided and NOT rotating back.
+      -- If we want to rotate back, we skip deceleration to avoid a weird "stop then go back" effect.
+      if not r.rotateBack and transitionTime and transitionTime > 0 then
+        -- Decelerate to speed 0 over transitionTime
+        LibCamera:BeginContinuousYaw(0, transitionTime)
+        
+        -- After deceleration completes, stop.
+        C_Timer.After(transitionTime, function()
+          LibCamera:StopYawing()
+        end)
+      else
+        -- Instant stop (no deceleration)
+        local yaw = LibCamera:StopYawing()
 
-      -- rotate back if we want to
-      if r.rotateBack then
-        -- print("Ended rotate, degrees rotated, yaw:", yaw)
-        if yaw then
-          local yawBack = yaw % 360
+        -- rotate back if we want to
+        if r.rotateBack then
+          if yaw then
+            local yawBack = yaw % 360
 
-          -- we're beyond 180 degrees, go the other way
-          if yawBack > 180 then
-            yawBack = yawBack - 360
+            -- we're beyond 180 degrees, go the other way
+            if yawBack > 180 then
+              yawBack = yawBack - 360
+            end
+
+            LibCamera:Yaw(-yawBack, transitionTime, LibEasing[profile.easingYaw])
           end
-
-          LibCamera:Yaw(-yawBack, r.rotateBackTime, LibEasing[profile.easingYaw])
         end
       end
     elseif r.rotationType == "degrees" then
@@ -565,23 +572,22 @@ local function StopRotation(oldSituation)
 
         -- rotate back if we want to
         if r.rotateBack then
-          -- print("Ended rotate early, degrees rotated, yaw:", yaw, "pitch:", pitch)
           if yaw then
-            LibCamera:Yaw(-yaw, r.rotateBackTime, LibEasing[profile.easingYaw])
+            LibCamera:Yaw(-yaw, transitionTime, LibEasing[profile.easingYaw])
           end
 
           if pitch then
-            LibCamera:Pitch(-pitch, r.rotateBackTime, LibEasing[profile.easingPitch])
+            LibCamera:Pitch(-pitch, transitionTime, LibEasing[profile.easingPitch])
           end
         end
       else
         if r.rotateBack then
           if r.yawDegrees ~= 0 then
-            LibCamera:Yaw(-r.yawDegrees, r.rotateBackTime, LibEasing[profile.easingYaw])
+            LibCamera:Yaw(-r.yawDegrees, transitionTime, LibEasing[profile.easingYaw])
           end
 
           if r.pitchDegrees ~= 0 then
-            LibCamera:Pitch(-r.pitchDegrees, r.rotateBackTime, LibEasing[profile.easingPitch])
+            LibCamera:Pitch(-r.pitchDegrees, transitionTime, LibEasing[profile.easingPitch])
           end
         end
       end
@@ -738,10 +744,11 @@ local function gotoView(view, instant)
   local cameraZoomAfter = GetCameraZoom()
   -- print("Going from", cameraZoomBefore, "to", cameraZoomAfter)
 
-  -- If "Adjust Shoulder offset according to zoom level" is activated,
-  -- the shoulder offset will be instantaneously set according to the new
-  -- camera zoom level. However, we should instead ease it for SET_VIEW_TRANSITION_TIME.
-  if DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "shoulderOffsetZoomEnabled") and not DynamicCam.shoulderOffsetZoomTmpDisable then
+  -- If any zoom-based cvars are enabled, their values would snap when the game's
+  -- GetCameraZoom() instantly returns the view's zoom level. We simulate a smooth
+  -- virtual zoom transition so CvarUpdateFunction applies smooth curve values.
+  -- Check for any zoom-based cvar (shoulder offset is the most common).
+  if DynamicCam:IsCvarZoomBased(DynamicCam.currentSituationID, "test_cameraOverShoulder") and not DynamicCam.shoulderOffsetZoomTmpDisable then
     DynamicCam.easeShoulderOffsetInProgress = true
     DynamicCam.virtualCameraZoom = cameraZoomBefore
 
@@ -807,8 +814,11 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   -- If we are exiting another situation.
   if oldSituation then
 
+    -- Determine transition time: prefer new situation's enter time if available
+    local exitTransitionTime = (newSituation and newSituation.transitionTime.timeToEnter) or oldSituation.transitionTime.timeToExit
+
     -- Stop rotating if applicable.
-    StopRotation(oldSituation)
+    StopRotation(oldSituation, exitTransitionTime)
 
     -- Restore view if the new situation does not have a view itself.
     -- (Setting a new view has a higher priority than reseting an old one.)
@@ -839,7 +849,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- Unhide UI if applicable.
     if oldSituation.hideUI.enabled then
-      self:FadeInUI(oldSituation.hideUI.fadeInTime)
+      self:FadeInUI(exitTransitionTime)
     end
 
     self:SendMessage("DC_SITUATION_EXITED")
@@ -869,7 +879,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
     -- Hide UI if applicable.
     if newSituation.hideUI and newSituation.hideUI.enabled then
-      self:FadeOutUI(newSituation.hideUI.fadeOutTime, newSituation.hideUI)
+      self:FadeOutUI(newSituation.transitionTime.timeToEnter, newSituation.hideUI)
     -- If we are currently exiting a situation, we have already called
     -- FadeInUI() above. Only if we are neither entering nor exiting a situation
     -- with UI fade, we show the UI, to be on the safe side.
@@ -887,20 +897,19 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
 
 
   -- These values are needed for the actual transition.
-  local newZoomLevel
-  local newShoulderOffset
+  local newZoomLevel = GetCameraZoom()
   local transitionTime
+  local isRestoringZoom
 
-
-  -- ##### Determine newZoomLevel. #####
-  newZoomLevel = GetCameraZoom()
 
   -- We only need to determine newZoomLevel if we are zooming.
+  --If we have a settingView, we never want to restore zoom either.
   if not settingView then
 
     -- Check if we should restore a stored zoom level.
-    local shouldRestore, zoomLevel = ShouldRestoreZoom(oldSituationID, newSituationID)
-    if shouldRestore then
+    local zoomLevel
+    isRestoringZoom, zoomLevel = ShouldRestoreZoom(oldSituationID, newSituationID)
+    if isRestoringZoom then
 
       newZoomLevel = zoomLevel
 
@@ -931,13 +940,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     end
   end
 
-  -- ##### Determine newShoulderOffset. #####
-  if newSituation and newSituation.situationSettings.cvars.test_cameraOverShoulder then
-    newShoulderOffset = newSituation.situationSettings.cvars.test_cameraOverShoulder
-  else
-    newShoulderOffset = self.db.profile.standardSettings.cvars.test_cameraOverShoulder
-  end
-
 
 
   -- ##### Determine transitionTime. #####
@@ -946,9 +948,15 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   if not self.enteredSituationAtLogin then
     transitionTime = 0
 
-  -- If there is a transitionTime in the environment, it has maximum priority.
-  elseif newSituationID and situationEnvironments[newSituationID].this.transitionTime then
-    transitionTime = situationEnvironments[newSituationID].this.transitionTime
+  -- If there is a timeToEnter in the environment, it has maximum priority.
+  elseif newSituationID and situationEnvironments[newSituationID].this.timeToEnter then
+    transitionTime = situationEnvironments[newSituationID].this.timeToEnter
+    -- print("Using transition time from environment:", transitionTime)
+
+  -- When restoring zoom from a previous situation, use the old situation's exit time.
+  elseif isRestoringZoom and oldSituation then
+    transitionTime = oldSituation.transitionTime.timeToExit
+    -- print("Using exit transition time for zoom restoration:", transitionTime)
 
   -- When restoring or setting a view, there is no additional zoom.
   -- The shoulder offset transition should be as fast at the view change.
@@ -962,12 +970,12 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     end
 
   -- Otherwise the new situation's transition time is taken.
-  elseif newSituation and newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "zoom" then
-    transitionTime = newSituation.viewZoom.zoomTransitionTime
+  elseif newSituation then
+    transitionTime = newSituation.transitionTime.timeToEnter
 
-    -- If the "Don't slow" option is selected, we have to check
+    -- If the "Don't slow" option is selected for zoom, we have to check
     -- if actually a faster transition time is possible.
-    if transitionTime > 0 and newSituation.viewZoom.zoomTimeIsMax then
+    if transitionTime > 0 and newSituation.viewZoom.enabled and newSituation.viewZoom.viewZoomType == "zoom" and newSituation.viewZoom.zoomTimeIsMax then
 
       local difference = math.abs(newZoomLevel - GetCameraZoom())
       local linearSpeed = difference / transitionTime
@@ -983,8 +991,6 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     transitionTime = 0.75
   end
 
-  -- print("transitionTime", transitionTime)
-
 
   -- Start the actual easing.
 
@@ -998,28 +1004,28 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
     LibCamera:SetZoom(newZoomLevel, transitionTime, easeFunction)
   end
 
-  self:EaseShoulderOffset(newShoulderOffset, transitionTime, easeFunction)
+  -- Start easing all cvars from current values to target values.
+  -- This handles both zoom-based curves and direct cvar values.
+  local currentZoom = GetCameraZoom()
+  self:StartCvarTransitionEasing(oldSituationID, newSituationID, currentZoom, newZoomLevel, transitionTime, easeFunction)
 
 
   -- Set default values (possibly for new situation, may be nil).
   self.currentSituationID = newSituationID
-  self:ApplySettings(true)
+  self:ResetZoomBasedSettingsCache()  -- Force zoom-based cvars to recalculate for the new situation
+  self:ApplySettings()
 
   -- Set situation specific values.
   -- (Except shoulder offset, which we are easing above.)
   if newSituation then
 
-    -- If there is a rotationTime in the environment, it has priority.
-    local rotationTime = situationEnvironments[newSituationID].this.rotationTime or newSituation.rotation.rotationTime
+    -- Start rotating if applicable. The check if rotation is enabled is done inside the function.
+    StartRotation(newSituation, transitionTime)
 
-    -- Start rotating if applicable.
-    StartRotation(newSituation, rotationTime)
-
-    for cvar, value in pairs(newSituation.situationSettings.cvars) do
-      if cvar ~= "test_cameraOverShoulder" then
-        self:DC_SetCVar(cvar, value)
-      end
-    end
+    -- Note: No need to set situation-specific cvars here!
+    -- StartCvarTransitionEasing already handles all cvars (standard + situation-specific):
+    -- - If a cvar is being eased: CvarUpdateFunction applies the eased values
+    -- - If a cvar is not being eased: The value didn't change, so it's already correct
 
     self:SendMessage("DC_SITUATION_ENTERED")
   end
@@ -1046,6 +1052,11 @@ function DynamicCam:EvaluateSituations()
       -- evaluate the condition, if it checks out and the priority is larger than any other, set it
       local lastEvaluate = self.conditionExecutionCache[id]
       local thisEvaluate = self:RunScript(id, "condition")
+
+      if issecretvalue and issecretvalue(thisEvaluate) then
+        thisEvaluate = false
+      end
+
       self.conditionExecutionCache[id] = thisEvaluate
 
       if thisEvaluate then
@@ -1126,81 +1137,17 @@ end
 
 -- Storing which mounts are flying mounts, because the game does not provide a direct reliable way to determine this.
 -- See: https://www.wowinterface.com/forums/showthread.php?p=344234#post344234
+-- Now handled by LibMountInfo
 DynamicCam.FlyingMountList = {}
 
+-- Proxy to LibMountInfo for backwards compatibility
 local maintainFlyingMountListFrame = CreateFrame ("Frame")
 maintainFlyingMountListFrame:RegisterEvent("PLAYER_LOGIN")
 maintainFlyingMountListFrame:SetScript("OnEvent", function()
-
   if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
-
-
-  -- Store current mount journal filter settings for later restoring.
-
-  local collectedFilters = {}
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
-  collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] = C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE)
-  -- DynamicCam:PrintTable(collectedFilters, 0)
-
-  local typeFilters = {}
-  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
-    if C_MountJournal_IsValidTypeFilter(filterIndex) then
-      typeFilters[filterIndex] = C_MountJournal_IsTypeChecked(filterIndex)
-    end
-  end
-  -- DynamicCam:PrintTable(typeFilters, 0)
-
-  local sourceFilters = {}
-  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
-    if C_MountJournal_IsValidSourceFilter(filterIndex) then
-      sourceFilters[filterIndex] = C_MountJournal_IsSourceChecked(filterIndex)
-    end
-  end
-  -- DynamicCam:PrintTable(sourceFilters, 0)
-
-
-  -- Set filters to flying mounts.
-
-  C_MountJournal_SetDefaultFilters()
-  C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, true)  -- Include unusable.
-  C_MountJournal_SetTypeFilter(1, false)   -- No Ground.
-  C_MountJournal_SetTypeFilter(3, false)   -- No Aquatic.
-  -- Filter index 5 is "Ride Along", which is automatically flying, so we can ignore it.
-
-  -- Fill list of flying mount IDs.
-  DynamicCam.FlyingMountList = {}
-  for displayIndex = 1, C_MountJournal_GetNumDisplayedMounts() do
-    local mountId = select(12, C_MountJournal_GetDisplayedMountInfo(displayIndex))
-    -- print(displayIndex, mountId)
-    DynamicCam.FlyingMountList[mountId] = true
-  end
-
-
-  -- Restore the mount journal filter settings.
-
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_COLLECTED])
-  end
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, collectedFilters[LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED])
-  end
-  if collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE] ~= C_MountJournal_GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE) then
-    C_MountJournal_SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_UNUSABLE, collectedFilters[LE_MOUNT_JOURNAL_FILTER_UNUSABLE])
-  end
-
-  for filterIndex = 1, Enum_MountTypeMeta_NumValues do
-    if C_MountJournal_IsValidTypeFilter(filterIndex) and typeFilters[filterIndex] ~= C_MountJournal_IsTypeChecked(filterIndex) then
-      C_MountJournal_SetTypeFilter(filterIndex, typeFilters[filterIndex])
-    end
-  end
-
-  for filterIndex = 1, C_PetJournal_GetNumPetSources() do
-    if C_MountJournal_IsValidSourceFilter(filterIndex) and sourceFilters[filterIndex] ~= C_MountJournal_IsSourceChecked(filterIndex) then
-      C_MountJournal_SetSourceFilter(filterIndex, sourceFilters[filterIndex])
-    end
-  end
-
+  
+  -- Update our local reference to match LibMountInfo
+  DynamicCam.FlyingMountList = LibMountInfo.flyingMounts
 end)
 
 
@@ -1211,85 +1158,31 @@ DynamicCam.lastActiveMount = nil
 
 
 function DynamicCam:GetCurrentMount()
-  -- In situation conditions we should always check IsMounted() before GetCurrentMount().
-  -- But just to be on the safe side, check again here.
-  if not IsMounted() then return nil end
-
-  -- Check last active mount first to save time.
-  if self.lastActiveMount then
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-    if active then
-      return self.lastActiveMount
-    end
+  local mountID = LibMountInfo:GetCurrentMount()
+  if mountID then
+    self.lastActiveMount = mountID
   end
-
-  -- Must be a new new mount, so go through all to find active one.
-  for _, v in pairs(C_MountJournal.GetMountIDs()) do
-    local _, _, _, active = C_MountJournal.GetMountInfoByID(v)
-    if active then
-      self.lastActiveMount = v
-      return v
-    end
-  end
-
-  -- Should never happen, as we have checked IsMounted() above.
-  return nil
+  return mountID
 end
 
 
 
 function DynamicCam:CurrentMountCanFly()
-
-  -- IsMounted() is checked at the beginning of GetCurrentMount().
-  local currentlyActiveMount = self:GetCurrentMount()
-  if currentlyActiveMount then
-
-    if self.FlyingMountList[currentlyActiveMount] then
-      -- print("I believe mount", currentlyActiveMount, "can fly")
-      return true
-    else
-      -- print("I believe mount", currentlyActiveMount, "cannot fly")
-      return false
-    end
-  end
-
-  return false
+  return LibMountInfo:CurrentMountCanFly()
 end
 
 
 function DynamicCam:SkyridingOn()
-  -- local seconds = GetTimePreciseSec()
-  -- local milliseconds = debugprofilestop()
-
-  local checkedActiveMount = false
-  if self.lastActiveMount then
-    local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(self.lastActiveMount)
-    if isActive then
-      checkedActiveMount = true
-      if isSteadyFlight then return false end
-    end
+  -- Use LibMountInfo first for mounted check
+  if IsMounted() then
+    return LibMountInfo:IsSkyriding()
   end
-
-  if not checkedActiveMount then
-    for _, v in pairs (C_MountJournal.GetMountIDs()) do
-      local _, _, _, isActive, _, _, _, _, _, _, _, _, isSteadyFlight = C_MountJournal.GetMountInfoByID(v)
-      if isActive then
-        self.lastActiveMount = v
-        if isSteadyFlight then return false end
-        break
-      end
-    end
-  end
-
-  -- print(GetTimePreciseSec() - seconds)
-  -- print("1", debugprofilestop() - milliseconds)
-
+  
+  -- If not mounted, check auras to determine default mode
   if C_UnitAuras.GetPlayerAuraBySpellID(404464) ~= nil then return true end
   if C_UnitAuras.GetPlayerAuraBySpellID(404468) ~= nil then return false end
 
-  -- print("2", debugprofilestop() - milliseconds)
-
-  -- If you have never switched, you have neither buff and Skyriding it the default.
+  -- If you have never switched, you have neither buff and Skyriding is the default.
   return true
 end
 
