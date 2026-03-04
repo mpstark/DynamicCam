@@ -518,3 +518,102 @@ function Options.ApplyUIFade()
     end
   end
 end
+
+
+-------------------------------------------------------------------------------
+-- DEBUG OUTPUT FRAME (commented out — uncomment to re-enable)
+--
+-- A floating, scrollable text window for development diagnostic output.
+-- Usage: DC_DebugPrint("some message")   (appends a timestamped line)
+--        /debugdc                         (toggles the frame on/off)
+-------------------------------------------------------------------------------
+
+--[[
+
+local debugBoxWidth  = 620
+local debugBoxHeight = 400
+
+local debugOuterFrame = CreateFrame("Frame", "DynamicCamDebugFrame", UIParent, "TooltipBackdropTemplate")
+debugOuterFrame:SetSize(debugBoxWidth + 60, debugBoxHeight + 60)
+debugOuterFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+debugOuterFrame:SetMovable(true)
+debugOuterFrame:EnableMouse(true)
+debugOuterFrame:RegisterForDrag("LeftButton")
+debugOuterFrame:SetScript("OnDragStart", debugOuterFrame.StartMoving)
+debugOuterFrame:SetScript("OnDragStop",  debugOuterFrame.StopMovingOrSizing)
+debugOuterFrame:SetFrameStrata("HIGH")
+debugOuterFrame:Hide()
+
+-- Title bar
+local debugTitle = debugOuterFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+debugTitle:SetPoint("TOP", debugOuterFrame, "TOP", 0, -8)
+debugTitle:SetText("DynamicCam Debug")
+
+-- Scroll frame + editbox
+local debugScrollBorder = CreateFrame("Frame", nil, debugOuterFrame, "TooltipBackdropTemplate")
+debugScrollBorder:SetSize(debugBoxWidth + 14, debugBoxHeight + 10)
+debugScrollBorder:SetPoint("TOP", debugTitle, "BOTTOM", 0, -8)
+
+local debugScrollFrame = CreateFrame("ScrollFrame", nil, debugOuterFrame, "UIPanelScrollFrameTemplate")
+debugScrollFrame:SetSize(debugBoxWidth - 20, debugBoxHeight)
+debugScrollFrame:SetPoint("TOP", debugScrollBorder, "TOP", -10, -5)
+
+local debugEditBox = CreateFrame("EditBox", nil, debugScrollFrame, "InputBoxScriptTemplate")
+debugEditBox:SetMultiLine(true)
+debugEditBox:SetAutoFocus(false)
+debugEditBox:SetFontObject(ChatFontNormal)
+debugEditBox:SetWidth(debugBoxWidth - 20)
+debugScrollFrame:SetScrollChild(debugEditBox)
+
+-- "Clear" button
+local debugClearBtn = CreateFrame("Button", nil, debugOuterFrame, "UIPanelButtonTemplate")
+debugClearBtn:SetSize(80, 22)
+debugClearBtn:SetPoint("BOTTOMLEFT", debugScrollBorder, "BOTTOMLEFT", 0, -30)
+debugClearBtn:SetText("Clear")
+debugClearBtn:SetScript("OnClick", function()
+  debugEditBox:SetText("")
+end)
+
+-- "Select All" button
+local debugSelectBtn = CreateFrame("Button", nil, debugOuterFrame, "UIPanelButtonTemplate")
+debugSelectBtn:SetSize(80, 22)
+debugSelectBtn:SetPoint("LEFT", debugClearBtn, "RIGHT", 8, 0)
+debugSelectBtn:SetText("Select All")
+debugSelectBtn:SetScript("OnClick", function()
+  debugEditBox:HighlightText()
+  debugEditBox:SetFocus()
+end)
+
+-- "Close" button
+local debugCloseBtn = CreateFrame("Button", nil, debugOuterFrame, "UIPanelButtonTemplate")
+debugCloseBtn:SetSize(80, 22)
+debugCloseBtn:SetPoint("BOTTOMRIGHT", debugScrollBorder, "BOTTOMRIGHT", 0, -30)
+debugCloseBtn:SetText("Close")
+debugCloseBtn:SetScript("OnClick", function() debugOuterFrame:Hide() end)
+
+-- Toggle the debug frame with /debugdc
+SLASH_DCDEBUG1 = "/debugdc"
+SlashCmdList["DCDEBUG"] = function()
+  if debugOuterFrame:IsShown() then
+    debugOuterFrame:Hide()
+  else
+    debugOuterFrame:Show()
+  end
+end
+
+-- Append a timestamped line to the debug window and auto-scroll to bottom
+function DC_DebugPrint(msg)
+  debugOuterFrame:Show()
+  local t = string.format("%.3f", _G.GetTime())
+  local line = "[" .. t .. "] " .. tostring(msg)
+  local current = debugEditBox:GetText()
+  if current == "" then
+    debugEditBox:SetText(line)
+  else
+    debugEditBox:SetText(current .. "\n" .. line)
+  end
+  -- Scroll to bottom so the latest message is always visible
+  debugScrollFrame:SetVerticalScroll(debugScrollFrame:GetVerticalScrollRange())
+end
+
+--]]

@@ -1010,7 +1010,7 @@ function DynamicCam:ChangeSituation(oldSituationID, newSituationID)
   -- Start easing all cvars from current values to target values.
   -- This handles both zoom-based curves and direct cvar values.
   local currentZoom = GetCameraZoom()
-  self:StartCvarTransitionEasing(oldSituationID, newSituationID, currentZoom, newZoomLevel, transitionTime, zoomTransitionTime, easeFunction)
+  self:StartCvarTransitionEasing(oldSituationID, newSituationID, currentZoom, newZoomLevel, transitionTime, easeFunction)
 
 
   -- Set default values (possibly for new situation, may be nil).
