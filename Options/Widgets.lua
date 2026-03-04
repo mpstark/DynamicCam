@@ -3,6 +3,8 @@
 -- Custom widgets for the Options interface
 -------------------------------------------------------------------------------
 
+local folderName = ...
+
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
 
 assert(DynamicCam)
@@ -614,7 +616,10 @@ do
 
     -- Base texture path
     -- https://wago.tools/files?search=interface%2Fcommon%2Fcommondropdownsettings2x
-    local texturePath = "Interface\\Common\\CommonDropdownSettings2x"
+    -- In classic, this texture is not included in the game files, so we use a local copy.
+    local texturePath = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+      and "Interface\\Common\\CommonDropdownSettings2x"
+      or  "Interface\\AddOns\\" .. folderName .. "\\BLP\\commondropdownsettings2x"
 
     -- Store the texture coordinates for different highlight states
     Widget.noHighlightNormalCoords  = {0.21875, 0.43750, 0.00000, 0.43750}  -- Texture: center, top
