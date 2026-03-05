@@ -564,6 +564,7 @@ return false]],
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
  1265142,  -- Visit House
+ 1270311,  -- Return from Home
 }
 
 -- For faster lookups:
