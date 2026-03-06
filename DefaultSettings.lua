@@ -565,6 +565,7 @@ return false]],
  1258484,  -- Teleport to Razorwind Shores
  1265142,  -- Visit House
  1270311,  -- Return from Home
+ 1270583,  -- Naaru's Enfold (Hearthstone)
 }
 
 -- For faster lookups:
