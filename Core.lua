@@ -1327,19 +1327,8 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
 }
 
 function DynamicCam:OpenMenu()
-
-  if not SettingsPanel or not SettingsPanel:IsShown() then
-    -- Cannot open menu during combat.
-    if InCombatLockdown() then
-      self:Print("Addon code cannot open menu during combat.")
-      return
-    else
-      Settings.OpenToCategory(self.Options.menu.name)
-    end
-  end
-
+  self.Options:OpenDetached()
   self.Options:SelectSituation()
-
 end
 
 function DynamicCam:SaveViewSlash(input)

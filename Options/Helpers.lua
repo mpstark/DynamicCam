@@ -277,6 +277,11 @@ function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
   for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do
     if _G["AceGUI30Pullout" .. i] then _G["AceGUI30Pullout" .. i]:SetIgnoreParentAlpha(ignoreParentAlpha) end
   end
+  -- Also apply to the detached pop-out frame if it is open.
+  local acd = LibStub("AceConfigDialog-3.0")
+  if acd.OpenFrames and acd.OpenFrames["DynamicCam"] then
+    acd.OpenFrames["DynamicCam"].frame:SetIgnoreParentAlpha(ignoreParentAlpha)
+  end
 end
 
 

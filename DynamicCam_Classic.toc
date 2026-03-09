@@ -38,4 +38,5 @@ Options\Helpers.lua
 Options\ControlFactories.lua
 Options\Widgets.lua
 Options\CvarMonitor.lua
+Options\DetachFrame.lua
 Options.lua

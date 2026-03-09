@@ -3687,6 +3687,8 @@ function Options:RegisterMenus()
   LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
   self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
 
+  -- Detach button and detached frame logic are in Options/DetachFrame.lua.
+  self:CreateDetachButton()
 end
 
 
