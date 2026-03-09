@@ -721,7 +721,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     -- Frame was ignoring parent alpha before.
     -- Start the fade with the frame's alpha, fade to UIParent's target alpha
     -- and only then unset ignore parent alpha.
-    -- Notice that the frame's alpha is not overriden by parent alpha but combined.
+    -- Notice that the frame's alpha is not overridden by parent alpha but combined.
     -- So we have to set the child's alpha to 1 at the same time as we stop ignoring
     -- parent alpha.
     if frame:IsIgnoringParentAlpha() then

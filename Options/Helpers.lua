@@ -138,8 +138,9 @@ function Options.ColourTextErrorOrModified(text, dataType, dataId)
 
   -- Do we have an error at all, and is it an error for this script.
   -- (dataId is left empty to colour the "Situation Controls" tab text.)
+  local sc = DynamicCam.situationColors
   if S.errorEncountered and (not dataId or dataId == S.errorEncountered) then
-    return "|cFFEE0000".. text .. "|r"
+    return sc.error .. text .. sc.colorEnd
 
   -- Check if the given data is default. Different checking methods based on dataType.
   else
@@ -147,7 +148,7 @@ function Options.ColourTextErrorOrModified(text, dataType, dataId)
         or (dataType == "value"  and not Options.ValueIsDefault(SID, dataId))
         or (dataType == "events" and not Options.EventsIsDefault(SID))
         or (dataType == "script" and not Options.ScriptIsDefault(SID, dataId)) then
-      return "|cFFFF6600" .. text .. "|r"
+      return sc.modified .. text .. sc.colorEnd
     else
       return text
     end
@@ -420,19 +421,21 @@ end
 -------------------------------------------------------------------------------
 function Options.GreyWhenInactive(name, enabled)
   if not enabled then
-    return "|cff909090"..name.."|r"
+    local sc = DynamicCam.situationColors
+    return sc.disabled .. name .. sc.colorEnd
   end
   return name
 end
 
 function Options.ColoredNames(name, groupVarsTable, forSituations)
+  local sc = DynamicCam.situationColors
   if not forSituations then
     if DynamicCam.currentSituationID and Options.CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-      return "|cFF00FF00"..name.."|r"
+      return sc.overridden .. name .. sc.colorEnd
     end
   else
     if not Options.CheckGroupVars(groupVarsTable) then
-      return "|cff909090"..name.."|r"
+      return sc.disabled .. name .. sc.colorEnd
     end
   end
   return name
@@ -453,22 +456,22 @@ function Options.GetSituationList()
     else
 
       local prefix = ""
-      local suffix = ""
       local customPrefix = ""
       local modifiedSuffix = ""
 
+      local sc = DynamicCam.situationColors
+      local suffix = sc.colorEnd
+
       if situation.errorEncountered then
-        prefix = "|cFFEE0000"
-        suffix = "|r"
+        prefix = sc.error
       elseif DynamicCam.currentSituationID == id then
-        prefix = "|cFF00FF00"
-        suffix = "|r"
+        prefix = sc.active
       elseif not situation.enabled then
-        prefix = "|cFF808A87"
-        suffix = "|r"
+        prefix = sc.disabled
       elseif DynamicCam.conditionExecutionCache[id] then
-        prefix = "|cFF63B8FF"
-        suffix = "|r"
+        prefix = sc.overridden
+      else
+        prefix = sc.inactive
       end
 
       if string.find(id, "custom") then
@@ -476,7 +479,7 @@ function Options.GetSituationList()
       end
 
       if not Options.SituationControlsAreDefault(id) then
-        modifiedSuffix = "|cFFFF6600  " .. L["(modified)"] .. "|r"
+        modifiedSuffix = sc.modified .. "  " .. L["(modified)"] .. sc.colorEnd
       end
 
       -- print(id, situation.name)

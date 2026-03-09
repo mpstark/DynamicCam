@@ -28,6 +28,7 @@ Core.lua
 MouseZoom.lua
 SituationManager.lua
 ZoomBasedSettings.lua
+ZoomBasedEditor.lua
 
 DefaultSettings.lua
 

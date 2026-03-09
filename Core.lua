@@ -20,6 +20,18 @@ DynamicCam.LibCamera = LibCamera
 
 DynamicCam.currentSituationID = nil
 
+-- Situation status color codes for UI text.
+DynamicCam.situationColors = {
+  disabled   = "|cFF808A87",
+  inactive   = "|cFFFFFFFF",
+  active     = "|cFF00FF00",
+  overridden = "|cFF63B8FF",
+  modified   = "|cFFFF6600",
+  error      = "|cFFEE0000",
+  header     = "|cffffcc00",
+  colorEnd   = "|r",
+}
+
 
 -- For other Addons (like Narcissus) to temporarily disable
 -- "Adjust Shoulder offset according to zoom level" without
@@ -131,21 +143,21 @@ function DynamicCam:DC_SetCVar(cvar, setting)
   -- Special handling for shoulder offset
   if cvar == "test_cameraOverShoulder" then
     UpdateCurrentShoulderOffset(setting)
-    
+
     -- If zoom-based curves are enabled, CvarUpdateFunction will handle application
     if self:IsCvarZoomBased(self.currentSituationID, "test_cameraOverShoulder") then
       return
     end
-    
+
     -- If zooming or easing, don't apply now
     if LibCamera:IsZooming() or DynamicCam.easeShoulderOffsetInProgress then
       return
     end
-    
+
     -- Apply with CameraOverShoulderFix compensation
     setting = DynamicCam.ApplyCameraOverShoulderFixCompensation(DynamicCam.currentShoulderOffset)
   end
-  
+
   -- Apply the cvar if it's not already set to the new value
   if GetCVar(cvar) ~= tostring(setting) then
     SetCVar(cvar, setting)
@@ -627,12 +639,23 @@ function DynamicCam:Startup()
 
 
   -- -- For coding
-  -- C_Timer.After(0, function()
-    -- self:OpenMenu()
-    -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
-    -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationSettings")
-    -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
-  -- end)
+  -- -- Got to make sure that this is only called once, otherwise changing profiles
+  -- -- (which runs Shutdown/Startup) while a curve editor is open leads to an infinite loop.
+  -- if not self.codingTimerFired then
+    -- self.codingTimerFired = true
+    -- C_Timer.After(0, function()
+
+      -- -- To test the options UI.
+      -- self:OpenMenu()
+      -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
+      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationSettings")
+      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+
+      -- -- To test the zoom-based editor frame UI.
+      -- -- self:OpenCurveEditor(nil, "test_cameraOverShoulder", -15, 15)
+
+    -- end)
+  -- end
 
   -- C_Timer.After(3, function()
     -- if BugSack then
@@ -1273,10 +1296,11 @@ StaticPopupDialogs["DYNAMICCAM_NEW_CUSTOM_SITUATION"] = {
     DynamicCam:CreateCustomSituation(editBox:GetText())
   end,
   EditBoxOnEnterPressed = function(self)
-    -- self.editBox is no longer accessible since 11.2.
-    local editBox = self:GetParent().editBox or _G[self:GetName() .. "EditBox"]
+    -- In retail 11.2+, self IS the editBox (self.editBox and _G fallback both return nil).
+    -- In Classic, self is the dialog, so the fallbacks resolve the editBox correctly.
+    local editBox = self.editBox or _G[self:GetName() .. "EditBox"] or self
     DynamicCam:CreateCustomSituation(editBox:GetText())
-    self:GetParent():Hide()
+    editBox:GetParent():Hide()
   end,
 }
 
@@ -1305,7 +1329,6 @@ StaticPopupDialogs["DYNAMICCAM_EXPORT"] = {
 function DynamicCam:OpenMenu()
 
   if not SettingsPanel or not SettingsPanel:IsShown() then
-  
     -- Cannot open menu during combat.
     if InCombatLockdown() then
       self:Print("Addon code cannot open menu during combat.")
@@ -1313,7 +1336,6 @@ function DynamicCam:OpenMenu()
     else
       Settings.OpenToCategory(self.Options.menu.name)
     end
-  
   end
 
   self.Options:SelectSituation()

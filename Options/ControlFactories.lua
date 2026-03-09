@@ -65,7 +65,7 @@ function Options.CreateZoomBasedControl(order, forSituations, cvarName, customDi
     end,
     editFunc = function(isOpen, widget)
       if isOpen then
-        DynamicCam:OpenCurveEditor(forSituations and Options.SID, cvarName, minValue, maxValue, cvarName, widget)
+        DynamicCam:OpenCurveEditor(forSituations and Options.SID, cvarName, minValue, maxValue, widget)
       else
         DynamicCam:CloseCurveEditor(forSituations and Options.SID, cvarName)
       end
@@ -144,7 +144,10 @@ function Options.CreateOverriddenText(groupVarsTable, forSituations)
     name =
       function()
         if DynamicCam.currentSituationID and Options.CheckGroupVars(groupVarsTable, DynamicCam.currentSituationID) then
-          return "|cFF00FF00" .. L["Currently overridden by the active situation \"%s\"."]:format(DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name) .. "|r\n"
+          local sc = DynamicCam.situationColors
+          local sitName = DynamicCam.db.profile.situations[DynamicCam.currentSituationID].name
+          local coloredName = sc.colorEnd .. sc.active .. "\"" .. sitName .. "\"" .. sc.colorEnd .. sc.overridden
+          return sc.overridden .. L["Currently overridden by the active situation %s."]:format(coloredName) .. sc.colorEnd .. "\n"
         end
       end,
     order = 0,

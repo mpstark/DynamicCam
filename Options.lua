@@ -153,7 +153,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               text = L["<standardSettings_desc>"]
 
               if DynamicCam.currentSituationID then
-                text = text .. " |cFF00FF00" .. L["<standardSettingsOverridden_desc>"] .. "|r"
+                text = text .. " " .. DynamicCam.situationColors.overridden .. L["<standardSettingsOverridden_desc>"] .. DynamicCam.situationColors.colorEnd
               end
 
             else
@@ -1398,7 +1398,20 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
       selectedSituation = {
         type = "select",
         name = L["Select a situation to setup"],
-        desc = L["<selectedSituation_desc>"],
+        desc =
+          function()
+            local sc = DynamicCam.situationColors
+            local e = sc.colorEnd
+            return L["<selectedSituation_desc>"]:format(
+              sc.header, e,
+              sc.disabled, e,
+              sc.inactive, e,
+              sc.active, e,
+              sc.overridden, e,
+              sc.modified, e,
+              sc.error, e
+            )
+          end,
         get =
           function()
             UpdateLastSelectedSID(SID)
