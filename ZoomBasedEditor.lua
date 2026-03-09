@@ -910,10 +910,27 @@ local function CreateZoomBasedEditorFrame()
   end)
 
   -- Info labels (in top region above Inset)
-  -- Line 1: CVAR name
+  -- Line 1: CVAR name (bounded before the close button; clips if too long)
   f.settingLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   f.settingLabel:SetPoint("TOPLEFT", f.TopTileStreaks, "TOPLEFT", 6, -6)
+  f.settingLabel:SetPoint("RIGHT", f, "RIGHT", -32, 0)
   f.settingLabel:SetJustifyH("LEFT")
+
+  -- Invisible mouse-capture frame so the (potentially clipped) label shows a tooltip
+  f.settingLabelHover = CreateFrame("Frame", nil, f)
+  f.settingLabelHover:SetPoint("TOPLEFT",     f.settingLabel, "TOPLEFT",     0,  4)
+  f.settingLabelHover:SetPoint("BOTTOMRIGHT", f.settingLabel, "BOTTOMRIGHT", 0, -4)
+  f.settingLabelHover:EnableMouse(true)
+  f.settingLabelHover:Hide()  -- shown only when text is truncated
+  f.settingLabelHover:SetScript("OnEnter", function(self)
+    if not f.cvarInfo then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(L["CVAR: "] .. f.cvarInfo.cvarName, 1, 0.82, 0)
+    GameTooltip:Show()
+  end)
+  f.settingLabelHover:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+  end)
 
   -- Line 2: Situation/Standard label (colored by status)
   f.situationLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1453,7 +1470,21 @@ function DynamicCam:OpenCurveEditor(situationId, cvarName, minValue, maxValue, w
 
   -- Update labels
   frame.lastStatusKey = nil
-  frame.settingLabel:SetText(L["CVAR: "] .. cvarName)
+  local prefix = L["CVAR: "]
+  local fullText = prefix .. cvarName
+  frame.settingLabel:SetText(fullText)
+  -- availableWidth: EDITOR_WIDTH minus ~14px left inset (TopTileStreaks+6) and 32px for close button
+  local availableWidth = EDITOR_WIDTH - 46
+  if frame.settingLabel:GetStringWidth() > availableWidth then
+    local truncated = cvarName
+    repeat
+      truncated = truncated:sub(1, #truncated - 1)
+      frame.settingLabel:SetText(prefix .. truncated .. "...")
+    until frame.settingLabel:GetStringWidth() <= availableWidth or #truncated == 0
+    frame.settingLabelHover:Show()
+  else
+    frame.settingLabelHover:Hide()
+  end
   local statusLabel, isActive, explanationText = GetSituationStatus(frame.cvarInfo)
   UpdateStatusDisplay(frame, statusLabel, isActive, explanationText)
   -- Show and raise
