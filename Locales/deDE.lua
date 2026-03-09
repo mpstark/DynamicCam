@@ -16,7 +16,7 @@ L["Situation enabled but condition not fulfilled."] = "Situation aktiviert, aber
 L["Situation has a script error."] = "Situation hat einen Skriptfehler."
 L["Help"] = "Hilfe"
 L["Detach"] = "Ablösen"
-L["<detach_tooltip>"] = "Öffnet die DynamicCam-Einstellungen in einem frei verschiebbaren, größenveränderbaren Fenster. So blockiert es nicht die Bildschirmmitte, während du Anpassungen vornimmst."
+L["<detach_tooltip>"] = "Öffnet die DynamicCam-Einstellungen in einem frei verschiebbaren, größenveränderbaren Fenster. So blockiert es nicht die Bildschirmmitte, während du Anpassungen vornimmst.\n\nDu kannst auch jederzeit /dc in den Chat eingeben, um dieses Fenster zu öffnen."
 L["Reattach"] = "Anhängen"
 L["<reattach_tooltip>"] = "Dieses Fenster schließen und die DynamicCam-Einstellungen im Optionsmenü des Spiels öffnen."
 L["<reattach_combat>"] = "Im Kampf können wir das WoW-Optionsmenü nicht automatisch öffnen."
@@ -445,26 +445,36 @@ L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "Dieses Dia
 --------------------------------------------------------------------------------
 -- ZoomBasedSettings.lua
 --------------------------------------------------------------------------------
+L["Zoom-based"] = "Zoom-basiert"
+L["Edit Curve"] = "Kurve bearbeiten"
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Aktiviere zoom-basierte Kurve für diese Einstellung.\n\nWenn aktiviert, ändert sich der Wert fließend basierend auf der Kameradistanz anstatt einen festen Wert zu nutzen. Klicke auf das Zahnradsymbol um die Kurve zu bearbeiten."
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Öffne den Kurveneditor.\n\nErlaubt es genau zu definieren, wie sich diese Einstellung beim Zoomen ändert. Du kannst Kontrollpunkte hinzufügen um eine eigene Kurve zu erstellen."
 L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: Zoom-basierte Einstellung"
 L["CVAR: "] = "CVAR: "
 L["Z\no\no\nm"] = "Z\no\no\nm"
 L["Value"] = "Wert"
 L["Current Zoom/Value:"] = "Aktueller Zoom/Wert:"
 L["Left-click: add/drag point\nRight-click: remove point"] = "Linksklick: Punkt hinzufügen/ziehen\nRechtsklick: Punkt entfernen"
-L["Cancel"] = "Abbrechen"
-L["OK"] = "OK"
-L["Close and revert all changes made since opening this editor."] = "Schließen und alle Änderungen verwerfen."
-L["Close and keep all changes."] = "Schließen und Änderungen beibehalten."
-L["Zoom-based"] = "Zoom-basiert"
-L["Edit Curve"] = "Kurve bearbeiten"
-L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Aktiviere zoom-basierte Kurve für diese Einstellung.\n\nWenn aktiviert, ändert sich der Wert fließend basierend auf der Kameradistanz anstatt einen festen Wert zu nutzen. Klicke auf das Zahnradsymbol um die Kurve zu bearbeiten."
-L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Öffne den Kurveneditor.\n\nErlaubt es genau zu definieren, wie sich diese Einstellung beim Zoomen ändert. Du kannst Kontrollpunkte hinzufügen um eine eigene Kurve zu erstellen."
+L["Copy"] = "Kopieren"
+L["<copy_tooltip>"] = "Diese Kurve in die Zwischenablage kopieren. Sie kann dann in jeden anderen Kurveneditor eingefügt werden und wird automatisch auf den Zielwertebereich skaliert."
+L["Paste"] = "Einfügen"
+L["<paste_tooltip>"] = "Diese Kurve durch die Kurve aus der Zwischenablage ersetzen, skaliert auf den Wertebereich dieser Einstellung."
+L["<paste_disabled_tooltip>"] = "Keine Kurve in der Zwischenablage. Verwende zuerst Kopieren in einem Kurveneditor."
+L["Revert"] = "Zurück"
+L["<revert_tooltip>"] = "Die Kurve auf den letzten gespeicherten Zustand zurücksetzen."
+L["<revert_disabled_tooltip>"] = "Keine ungespeicherten Änderungen zum Zurücksetzen."
+L["Save"] = "Speichern"
+L["<save_tooltip>"] = "Die aktuelle Kurve speichern. Ungespeicherte Änderungen gehen beim Schließen des Editors verloren."
+L["<save_disabled_tooltip>"] = "Keine ungespeicherten Änderungen zum Speichern."
+L["Close"] = "Schließen"
+L["<close_tooltip>"] = "Den Editor schließen. Alle ungespeicherten Änderungen werden verworfen."
 
 
 --------------------------------------------------------------------------------
 -- Core.lua
 --------------------------------------------------------------------------------
 L["Enter name for custom situation:"] = "Namen für eigene Situation eingeben:"
+L["Cancel"] = "Abbrechen"
 L["Create"] = "Erstellen"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "Während ihr den horizontalen Kameraversatz verwendet, verhindert DynamicCam CameraKeepCharacterCentered!"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "Während ihr den horizontalen Kameraversatz verwendet, verhindert DynamicCam CameraReduceUnexpectedMovement!"

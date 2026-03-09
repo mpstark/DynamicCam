@@ -177,6 +177,10 @@ local curveEditorFramePool = {}
 local openEditors = {}
 local editorStrataCounter = 0
 
+-- Shared clipboard: stores normalized points (values in 0-1 range) so curves
+-- can be pasted across settings with different value ranges.
+local clipboard = nil
+
 local function GetConfigId(situationId, cvarName)
   return (situationId or "standard") .. "_" .. cvarName
 end
@@ -478,6 +482,76 @@ end
 
 
 -------------------------------------------------------------------------------
+-- BUTTON STATE HELPERS
+-------------------------------------------------------------------------------
+
+local function DeepCopyPoints(points)
+  local copy = {}
+  for i, point in ipairs(points) do
+    copy[i] = {zoom = point.zoom, value = point.value}
+  end
+  return copy
+end
+
+local function HasUnsavedChanges(editorFrame)
+  if not editorFrame.savedPoints or not editorFrame.cvarInfo then return false end
+  local currentPoints = DynamicCam:GetZoomBasedPoints(editorFrame.cvarInfo.situationId, editorFrame.cvarInfo.cvarName)
+  if not currentPoints then return false end
+  if #currentPoints ~= #editorFrame.savedPoints then return true end
+  local sortedCurrent = DeepCopyPoints(currentPoints)
+  local sortedSaved = DeepCopyPoints(editorFrame.savedPoints)
+  SortPointsByZoom(sortedCurrent)
+  SortPointsByZoom(sortedSaved)
+  for i = 1, #sortedCurrent do
+    if sortedCurrent[i].zoom ~= sortedSaved[i].zoom or sortedCurrent[i].value ~= sortedSaved[i].value then
+      return true
+    end
+  end
+  return false
+end
+
+-- Visually grey out / restore a UIPanelButtonTemplate button to emulate disabled.
+-- (WoW does not fire OnEnter on truly-disabled buttons, so we fake it.)
+local function SetButtonActive(button, active)
+  button.dcActive = active
+  if active then
+    if button.Left then button.Left:SetDesaturated(false) end
+    if button.Right then button.Right:SetDesaturated(false) end
+    if button.Middle then button.Middle:SetDesaturated(false) end
+    if button:GetHighlightTexture() then
+      button:GetHighlightTexture():SetAlpha(1)
+    end
+    button:GetFontString():SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+  else
+    if button.Left then button.Left:SetDesaturated(true) end
+    if button.Right then button.Right:SetDesaturated(true) end
+    if button.Middle then button.Middle:SetDesaturated(true) end
+    if button:GetHighlightTexture() then
+      button:GetHighlightTexture():SetAlpha(0)
+    end
+    button:GetFontString():SetTextColor(DISABLED_FONT_COLOR:GetRGB())
+  end
+end
+
+local function UpdateButtonStates(editorFrame)
+  if not editorFrame.saveButton then return end
+  local hasChanges = HasUnsavedChanges(editorFrame)
+  SetButtonActive(editorFrame.saveButton, hasChanges)
+  SetButtonActive(editorFrame.revertButton, hasChanges)
+  SetButtonActive(editorFrame.pasteButton, clipboard ~= nil)
+end
+
+-- Refresh paste-button state on every open editor (called after copy).
+local function UpdateAllPasteButtons()
+  for _, frame in pairs(openEditors) do
+    if frame:IsShown() and frame.pasteButton then
+      SetButtonActive(frame.pasteButton, clipboard ~= nil)
+    end
+  end
+end
+
+
+-------------------------------------------------------------------------------
 -- UPDATE CURVE EDITOR
 -------------------------------------------------------------------------------
 
@@ -746,7 +820,7 @@ UpdateCurveEditor = function(editorFrame)
 
     if not graphFrame.zoomIndicator then
       graphFrame.zoomIndicator = CreateFrame("Frame", nil, graphFrame)
-      graphFrame.zoomIndicator:SetSize(POINT_RADIUS * 2 + 4, POINT_RADIUS * 2 + 4)
+      graphFrame.zoomIndicator:SetSize(POINT_RADIUS * 2 + 2, POINT_RADIUS * 2 + 2)
       graphFrame.zoomIndicator:SetFrameLevel(graphFrame:GetFrameLevel() + ZOOM_INDICATOR_FRAME_LEVEL_OFFSET)
       graphFrame.zoomIndicator.texture = graphFrame.zoomIndicator:CreateTexture(nil, "OVERLAY")
       graphFrame.zoomIndicator.texture:SetAllPoints()
@@ -759,6 +833,8 @@ UpdateCurveEditor = function(editorFrame)
 
     editorFrame.currentValueValue:SetText(string.format("%.1f / %.2f", currentZoom, currentValue))
   end
+
+  UpdateButtonStates(editorFrame)
 end
 
 
@@ -821,6 +897,17 @@ local function CreateZoomBasedEditorFrame()
 
   -- Title
   f.TitleContainer.TitleText:SetText(L["DynamicCam: Zoom-Based Setting"])
+
+  -- Close button tooltip
+  f.CloseButton:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+    GameTooltip:SetText(L["Close"], 1, 0.82, 0, 1, true)
+    GameTooltip:AddLine(L["<close_tooltip>"], 1, 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  f.CloseButton:HookScript("OnLeave", function(self)
+    GameTooltip:Hide()
+  end)
 
   -- Info labels (in top region above Inset)
   -- Line 1: CVAR name
@@ -891,68 +978,162 @@ local function CreateZoomBasedEditorFrame()
   f.xAxisTitle:SetText(L["Value"])
 
 
-  -- OK button
-  f.okButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  f.okButton:SetSize(80, 22)
-  f.okButton:SetPoint("BOTTOMRIGHT", -6, 4)
-  f.okButton:SetText(L["OK"])
-  f.okButton:SetScript("OnClick", function()
-    -- Keep changes (discard backup)
-    f.originalPoints = nil
-    DynamicCam:CloseCurveEditorFrame(f)
+  -- Bottom button bar: [Copy] [Paste] [Revert] [Save]
+  -- Each button gets 1/4 of the frame width minus side padding and inter-button gaps.
+  local BTN_SIDE_PAD = 4
+  local BTN_GAP      = 1
+  local BTN_H        = 22
+  local BTN_Y        = 4
+  local BTN_W        = (EDITOR_WIDTH - BTN_SIDE_PAD * 2 - BTN_GAP * 3) / 4
+
+  -- Copy button (leftmost)
+  f.copyButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  f.copyButton:SetSize(BTN_W, BTN_H)
+  f.copyButton:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", BTN_SIDE_PAD + 2, BTN_Y)
+  f.copyButton:SetText(L["Copy"])
+  f.copyButton:SetScript("OnClick", function(self)
+    if not f.cvarInfo then return end
+    local info = f.cvarInfo
+    local maxZoom = DynamicCam.cameraDistanceMaxZoomFactor_max
+    local points = DynamicCam:GetZoomBasedPoints(info.situationId, info.cvarName)
+    if not points or #points < 2 then return end
+    local valueRange = info.maxValue - info.minValue
+    -- Store normalized (0-1) values so the curve can be scaled to any range
+    clipboard = {}
+    for i, pt in ipairs(points) do
+      clipboard[i] = {
+        normZoom = pt.zoom / maxZoom,
+        normValue = (valueRange > 0) and ((pt.value - info.minValue) / valueRange) or 0,
+      }
+    end
+    UpdateAllPasteButtons()
   end)
-  f.okButton:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText(L["OK"], 1, 1, 1)
-    GameTooltip:AddLine(L["Close and keep all changes."], nil, nil, nil, true)
+  f.copyButton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText(L["Copy"], 1, 0.82, 0, 1, true)
+    GameTooltip:AddLine(L["<copy_tooltip>"], 1, 1, 1, 1, true)
     GameTooltip:Show()
   end)
-  f.okButton:SetScript("OnLeave", function(self)
+  f.copyButton:SetScript("OnLeave", function(self)
     GameTooltip:Hide()
   end)
 
-  -- Cancel button
-  f.cancelButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  f.cancelButton:SetSize(80, 22)
-  f.cancelButton:SetPoint("RIGHT", f.okButton, "LEFT", -5, 0)
-  f.cancelButton:SetText(L["Cancel"])
-  f.cancelButton:SetScript("OnClick", function()
-    -- Revert all changes made since opening
-    if f.originalPoints and f.cvarInfo then
-      DynamicCam:SetZoomBasedPoints(f.cvarInfo.situationId, f.cvarInfo.cvarName, f.originalPoints)
-      -- Immediately apply the reverted value at the current zoom
+  -- Paste button
+  f.pasteButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  f.pasteButton:SetSize(BTN_W, BTN_H)
+  f.pasteButton:SetPoint("LEFT", f.copyButton, "RIGHT", BTN_GAP, 0)
+  f.pasteButton:SetText(L["Paste"])
+  f.pasteButton:SetScript("OnClick", function(self)
+    if not self.dcActive then return end
+    if not clipboard or not f.cvarInfo then return end
+    local info = f.cvarInfo
+    local maxZoom = DynamicCam.cameraDistanceMaxZoomFactor_max
+    -- Scale normalized clipboard points into the target value range
+    local newPoints = {}
+    for i, pt in ipairs(clipboard) do
+      local scaledValue = info.minValue + pt.normValue * (info.maxValue - info.minValue)
+      -- Scale zoom proportionally to current max zoom
+      local scaledZoom = pt.normZoom * maxZoom
+      newPoints[i] = {zoom = Round(scaledZoom, 1), value = Round(scaledValue, 2)}
+    end
+    -- Ensure endpoints are exactly at zoom 0 and maxZoom
+    SortPointsByZoom(newPoints)
+    newPoints[1].zoom = 0
+    newPoints[#newPoints].zoom = maxZoom
+    DynamicCam:SetZoomBasedPoints(info.situationId, info.cvarName, newPoints)
+    DynamicCam:ResetZoomBasedSettingsCache()
+    UpdateCurveEditor(f)
+  end)
+  f.pasteButton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    if self.dcActive then
+      GameTooltip:SetText(L["Paste"], 1, 0.82, 0, 1, true)
+      GameTooltip:AddLine(L["<paste_tooltip>"], 1, 1, 1, 1, true)
+    else
+      GameTooltip:SetText(L["Paste"], 0.5, 0.5, 0.5, 1, true)
+      GameTooltip:AddLine(L["<paste_disabled_tooltip>"], 1, 1, 1, 1, true)
+    end
+    GameTooltip:Show()
+  end)
+  f.pasteButton:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+  end)
+
+  -- Revert button
+  f.revertButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  f.revertButton:SetSize(BTN_W, BTN_H)
+  f.revertButton:SetPoint("LEFT", f.pasteButton, "RIGHT", BTN_GAP, 0)
+  f.revertButton:SetText(L["Revert"])
+  f.revertButton:SetScript("OnClick", function(self)
+    if not self.dcActive then return end
+    -- Revert to last saved state
+    if f.savedPoints and f.cvarInfo then
+      DynamicCam:SetZoomBasedPoints(f.cvarInfo.situationId, f.cvarInfo.cvarName, DeepCopyPoints(f.savedPoints))
       local revertedValue = DynamicCam:GetInterpolatedValue(f.cvarInfo.situationId, f.cvarInfo.cvarName, GetCameraZoom())
       if revertedValue then
         SetCVar(f.cvarInfo.cvarName, revertedValue)
       end
       DynamicCam:ResetZoomBasedSettingsCache()
-      f.originalPoints = nil
+      UpdateCurveEditor(f)
     end
-    DynamicCam:CloseCurveEditorFrame(f)
   end)
-  f.cancelButton:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText(L["Cancel"], 1, 1, 1)
-    GameTooltip:AddLine(L["Close and revert all changes made since opening this editor."], nil, nil, nil, true)
+  f.revertButton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    if self.dcActive then
+      GameTooltip:SetText(L["Revert"], 1, 0.82, 0, 1, true)
+      GameTooltip:AddLine(L["<revert_tooltip>"], 1, 1, 1, 1, true)
+    else
+      GameTooltip:SetText(L["Revert"], 0.5, 0.5, 0.5, 1, true)
+      GameTooltip:AddLine(L["<revert_disabled_tooltip>"], 1, 1, 1, 1, true)
+    end
     GameTooltip:Show()
   end)
-  f.cancelButton:SetScript("OnLeave", function(self)
+  f.revertButton:SetScript("OnLeave", function(self)
     GameTooltip:Hide()
   end)
 
-  -- OnHide: handle Escape / CloseButton (X) — revert like Cancel
+  -- Save button (rightmost)
+  f.saveButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  f.saveButton:SetSize(BTN_W, BTN_H)
+  f.saveButton:SetPoint("LEFT", f.revertButton, "RIGHT", BTN_GAP, 0)
+  f.saveButton:SetText(L["Save"])
+  f.saveButton:SetScript("OnClick", function(self)
+    if not self.dcActive then return end
+    -- Update savedPoints to current state
+    local currentPoints = DynamicCam:GetZoomBasedPoints(f.cvarInfo.situationId, f.cvarInfo.cvarName)
+    if currentPoints then
+      f.savedPoints = DeepCopyPoints(currentPoints)
+    end
+    UpdateButtonStates(f)
+  end)
+  f.saveButton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    if self.dcActive then
+      GameTooltip:SetText(L["Save"], 1, 0.82, 0, 1, true)
+      GameTooltip:AddLine(L["<save_tooltip>"], 1, 1, 1, 1, true)
+    else
+      GameTooltip:SetText(L["Save"], 0.5, 0.5, 0.5, 1, true)
+      GameTooltip:AddLine(L["<save_disabled_tooltip>"], 1, 1, 1, 1, true)
+    end
+    GameTooltip:Show()
+  end)
+  f.saveButton:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+  end)
+
+  -- OnHide: handle Escape / CloseButton (X) — revert unsaved changes
   f:SetScript("OnHide", function(self)
     if self.isClosing then return end
-    -- Hidden by Escape or CloseButton — revert changes
-    if self.originalPoints and self.cvarInfo then
-      DynamicCam:SetZoomBasedPoints(self.cvarInfo.situationId, self.cvarInfo.cvarName, self.originalPoints)
-      -- Immediately apply the reverted value at the current zoom
+    if self.suppressOnHide then return end
+    -- Hidden by Escape or CloseButton — revert to last saved state
+    if self.savedPoints and self.cvarInfo then
+      DynamicCam:SetZoomBasedPoints(self.cvarInfo.situationId, self.cvarInfo.cvarName, self.savedPoints)
       local revertedValue = DynamicCam:GetInterpolatedValue(self.cvarInfo.situationId, self.cvarInfo.cvarName, GetCameraZoom())
       if revertedValue then
         SetCVar(self.cvarInfo.cvarName, revertedValue)
       end
       DynamicCam:ResetZoomBasedSettingsCache()
-      self.originalPoints = nil
+      self.savedPoints = nil
     end
     DynamicCam:CloseCurveEditorFrame(self)
   end)
@@ -1178,7 +1359,7 @@ local function CreateZoomBasedEditorFrame()
 
       if not graphFrame.zoomIndicator then
         graphFrame.zoomIndicator = CreateFrame("Frame", nil, graphFrame)
-        graphFrame.zoomIndicator:SetSize(POINT_RADIUS * 2 + 4, POINT_RADIUS * 2 + 4)
+        graphFrame.zoomIndicator:SetSize(POINT_RADIUS * 2 + 2, POINT_RADIUS * 2 + 2)
         graphFrame.zoomIndicator:SetFrameLevel(graphFrame:GetFrameLevel() + ZOOM_INDICATOR_FRAME_LEVEL_OFFSET)
         graphFrame.zoomIndicator.texture = graphFrame.zoomIndicator:CreateTexture(nil, "OVERLAY")
         graphFrame.zoomIndicator.texture:SetAllPoints()
@@ -1263,12 +1444,9 @@ function DynamicCam:OpenCurveEditor(situationId, cvarName, minValue, maxValue, w
   -- Store which profile this editor was opened in
   frame.openedInProfile = self.db:GetCurrentProfile()
 
-  -- Save original points for cancel functionality (deep copy)
+  -- Save initial points as the "saved" checkpoint (deep copy)
   local currentPoints = self:GetZoomBasedPoints(situationId, cvarName)
-  frame.originalPoints = {}
-  for i, point in ipairs(currentPoints) do
-    frame.originalPoints[i] = {zoom = point.zoom, value = point.value}
-  end
+  frame.savedPoints = DeepCopyPoints(currentPoints)
 
   -- Track open editor
   openEditors[configId] = frame
@@ -1329,6 +1507,26 @@ function DynamicCam:CloseAllCurveEditors()
   end
 end
 
+-- Suppress OnHide cleanup for all open editors, then re-show them after a
+-- one-frame delay.  Used by the reattach button so system-triggered hides
+-- (from Settings.OpenToCategory -> CloseSpecialWindows) don't discard state.
+function DynamicCam:ReshowCurveEditors()
+  local frames = {}
+  for _, frame in pairs(openEditors) do
+    frame.suppressOnHide = true
+    table.insert(frames, frame)
+  end
+  C_Timer.After(0, function()
+    for _, frame in ipairs(frames) do
+      frame.suppressOnHide = nil
+      if frame.cvarInfo then  -- still valid (not closed by other means)
+        frame:Show()
+        frame:Raise()
+      end
+    end
+  end)
+end
+
 
 function DynamicCam:RefreshAllCurveEditors()
   if self.refreshingCurveEditors then return end
@@ -1340,9 +1538,9 @@ function DynamicCam:RefreshAllCurveEditors()
     if frame:IsShown() and frame.cvarInfo then
       local info = frame.cvarInfo
 
-      if frame.openedInProfile and frame.openedInProfile ~= currentProfile and frame.originalPoints then
+      if frame.openedInProfile and frame.openedInProfile ~= currentProfile and frame.savedPoints then
         self.db:SetProfile(frame.openedInProfile)
-        self:SetZoomBasedPoints(info.situationId, info.cvarName, frame.originalPoints)
+        self:SetZoomBasedPoints(info.situationId, info.cvarName, frame.savedPoints)
         self.db:SetProfile(currentProfile)
       end
 
@@ -1354,10 +1552,7 @@ function DynamicCam:RefreshAllCurveEditors()
       else
         local currentPoints = self:GetZoomBasedPoints(info.situationId, info.cvarName)
         if currentPoints then
-          frame.originalPoints = {}
-          for i, point in ipairs(currentPoints) do
-            frame.originalPoints[i] = {zoom = point.zoom, value = point.value}
-          end
+          frame.savedPoints = DeepCopyPoints(currentPoints)
         end
 
         UpdateCurveEditor(frame)

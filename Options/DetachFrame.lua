@@ -105,6 +105,7 @@ function Options:OpenDetached()
           reattachBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
           reattachBtn:SetScript("OnClick", function()
             if InCombatLockdown() then return end
+            DynamicCam:ReshowCurveEditors()
             LibStub("AceConfigDialog-3.0"):Close("DynamicCam")
             Settings.OpenToCategory(Options.menu.name)
           end)

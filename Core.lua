@@ -646,13 +646,13 @@ function DynamicCam:Startup()
     -- C_Timer.After(0, function()
 
       -- -- To test the options UI.
-      -- self:OpenMenu()
-      -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
+      -- -- self:OpenMenu()
+      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
       -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationSettings")
       -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
 
       -- -- To test the zoom-based editor frame UI.
-      -- -- self:OpenCurveEditor(nil, "test_cameraOverShoulder", -15, 15)
+      -- self:OpenCurveEditor(nil, "test_cameraOverShoulder", -15, 15)
 
     -- end)
   -- end

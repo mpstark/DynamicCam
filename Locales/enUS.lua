@@ -16,7 +16,7 @@ L["Situation enabled but condition not fulfilled."] = "Situation enabled but con
 L["Situation has a script error."] = "Situation has a script error."
 L["Help"] = "Help"
 L["Detach"] = "Detach"
-L["<detach_tooltip>"] = "Open the DynamicCam settings in a freely movable, resizable window. So it doesn't block the center of the screen while you make adjustments."
+L["<detach_tooltip>"] = "Open the DynamicCam settings in a freely movable, resizable window. So it doesn't block the center of the screen while you make adjustments.\n\nYou can always type /dc into the chat to open this window as well."
 L["Reattach"] = "Reattach"
 L["<reattach_tooltip>"] = "Close this window and open the DynamicCam settings inside the game's Options panel."
 L["<reattach_combat>"] = "While in combat, we cannot automatically open the game's Options panel."
@@ -445,26 +445,36 @@ L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "This graph
 --------------------------------------------------------------------------------
 -- ZoomBasedSettings.lua
 --------------------------------------------------------------------------------
+L["Zoom-based"] = "Zoom-based"
+L["Edit Curve"] = "Edit Curve"
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."
 L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: Zoom-Based Setting"
 L["CVAR: "] = "CVAR: "
 L["Z\no\no\nm"] = "Z\no\no\nm"
 L["Value"] = "Value"
 L["Current Zoom/Value:"] = "Current Zoom/Value:"
 L["Left-click: add/drag point\nRight-click: remove point"] = "Left-click: add/drag point\nRight-click: remove point"
-L["Cancel"] = "Cancel"
-L["OK"] = "OK"
-L["Close and revert all changes made since opening this editor."] = "Close and revert all changes made since opening this editor."
-L["Close and keep all changes."] = "Close and keep all changes."
-L["Zoom-based"] = "Zoom-based"
-L["Edit Curve"] = "Edit Curve"
-L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
-L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."
+L["Copy"] = "Copy"
+L["<copy_tooltip>"] = "Copy this curve to the clipboard. It can then be pasted into any other curve editor, scaling automatically to fit the target value range."
+L["Paste"] = "Paste"
+L["<paste_tooltip>"] = "Replace this curve with the one from the clipboard, scaled to fit this setting's value range."
+L["<paste_disabled_tooltip>"] = "No curve in the clipboard. Use Copy in any curve editor first."
+L["Revert"] = "Revert"
+L["<revert_tooltip>"] = "Revert the curve to the last saved state."
+L["<revert_disabled_tooltip>"] = "No unsaved changes to revert."
+L["Save"] = "Save"
+L["<save_tooltip>"] = "Store the current curve. Unsaved changes are lost when closing the editor."
+L["<save_disabled_tooltip>"] = "No unsaved changes to store."
+L["Close"] = "Close"
+L["<close_tooltip>"] = "Close the editor. Any unsaved changes will be discarded."
 
 
 --------------------------------------------------------------------------------
 -- Core.lua
 --------------------------------------------------------------------------------
 L["Enter name for custom situation:"] = "Enter name for custom situation:"
+L["Cancel"] = "Cancel"
 L["Create"] = "Create"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"

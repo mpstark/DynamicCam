@@ -16,7 +16,7 @@ L["Situation enabled but condition not fulfilled."] = "상황이 활성화되었
 L["Situation has a script error."] = "상황에 스크립트 오류가 있습니다."
 L["Help"] = "도움말"
 L["Detach"] = "분리"
-L["<detach_tooltip>"] = "DynamicCam 설정을 자유롭게 이동하고 크기를 조절할 수 있는 창에서 엽니다. 설정을 조정하는 동안 화면 중앙을 가리지 않습니다."
+L["<detach_tooltip>"] = "DynamicCam 설정을 자유롭게 이동하고 크기를 조절할 수 있는 창에서 엽니다. 설정을 조정하는 동안 화면 중앙을 가리지 않습니다.\n\n채팅에 /dc를 입력하여 언제든지 이 창을 열 수도 있습니다."
 L["Reattach"] = "다시 붙이기"
 L["<reattach_tooltip>"] = "이 창을 닫고 게임의 옵션 패널에서 DynamicCam 설정을 엽니다."
 L["<reattach_combat>"] = "전투 중에는 게임의 옵션 패널을 자동으로 열 수 없습니다."
@@ -445,26 +445,36 @@ L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "이 그래
 --------------------------------------------------------------------------------
 -- ZoomBasedSettings.lua
 --------------------------------------------------------------------------------
+L["Zoom-based"] = "줌 기반"
+L["Edit Curve"] = "곡선 편집"
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "이 설정에 대해 줌 기반 곡선을 활성화합니다.\n\n활성화하면 단일 고정 값을 사용하는 대신 카메라 줌 레벨에 따라 값이 부드럽게 변경됩니다. 기어 아이콘을 클릭하여 곡선을 편집하세요."
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "곡선 에디터를 엽니다.\n\n줌 인/아웃에 따라 이 설정이 어떻게 변하는지 정확하게 정의할 수 있습니다. 제어점을 추가하여 사용자 지정 곡선을 만들 수 있습니다."
 L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: 줌 기반 설정"
 L["CVAR: "] = "CVAR: "
 L["Z\no\no\nm"] = "줌"
 L["Value"] = "값"
 L["Current Zoom/Value:"] = "현재 줌/값:"
 L["Left-click: add/drag point\nRight-click: remove point"] = "좌클릭: 점 추가/드래그\n우클릭: 점 제거"
-L["Cancel"] = "취소"
-L["OK"] = "확인"
-L["Close and revert all changes made since opening this editor."] = "닫고 이 에디터를 연 이후의 모든 변경 사항을 되돌립니다."
-L["Close and keep all changes."] = "닫고 모든 변경 사항을 유지합니다."
-L["Zoom-based"] = "줌 기반"
-L["Edit Curve"] = "곡선 편집"
-L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "이 설정에 대해 줌 기반 곡선을 활성화합니다.\n\n활성화하면 단일 고정 값을 사용하는 대신 카메라 줌 레벨에 따라 값이 부드럽게 변경됩니다. 기어 아이콘을 클릭하여 곡선을 편집하세요."
-L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "곡선 에디터를 엽니다.\n\n줌 인/아웃에 따라 이 설정이 어떻게 변하는지 정확하게 정의할 수 있습니다. 제어점을 추가하여 사용자 지정 곡선을 만들 수 있습니다."
+L["Copy"] = "복사"
+L["<copy_tooltip>"] = "이 곡선을 클립보드에 복사합니다. 다른 곡선 에디터에 붙여넣을 수 있으며, 대상 값 범위에 맞게 자동으로 스케일링됩니다."
+L["Paste"] = "붙여넣기"
+L["<paste_tooltip>"] = "클립보드의 곡선으로 이 곡선을 대체합니다. 이 설정의 값 범위에 맞게 스케일링됩니다."
+L["<paste_disabled_tooltip>"] = "클립보드에 곡선이 없습니다. 먼저 곡선 에디터에서 복사를 사용하세요."
+L["Revert"] = "되돌리기"
+L["<revert_tooltip>"] = "마지막으로 저장된 상태로 곡선을 되돌립니다."
+L["<revert_disabled_tooltip>"] = "되돌릴 저장되지 않은 변경 사항이 없습니다."
+L["Save"] = "저장"
+L["<save_tooltip>"] = "현재 곡선을 저장합니다. 저장하지 않은 변경 사항은 에디터를 닫으면 손실됩니다."
+L["<save_disabled_tooltip>"] = "저장할 변경 사항이 없습니다."
+L["Close"] = "닫기"
+L["<close_tooltip>"] = "에디터를 닫습니다. 저장하지 않은 변경 사항은 폐기됩니다."
 
 
 --------------------------------------------------------------------------------
 -- Core.lua
 --------------------------------------------------------------------------------
 L["Enter name for custom situation:"] = "사용자 지정 상황의 이름 입력:"
+L["Cancel"] = "취소"
 L["Create"] = "생성"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] = "수평 카메라 오프셋을 사용하는 동안 DynamicCam이 CameraKeepCharacterCentered를 방지합니다!"
 L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] = "수평 카메라 오프셋을 사용하는 동안 DynamicCam이 CameraReduceUnexpectedMovement를 방지합니다!"
