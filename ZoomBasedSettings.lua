@@ -75,6 +75,41 @@ function DynamicCam:IsCvarZoomBased(situationId, cvarName)
 end
 
 
+-- Get the zoom-based cvar data that is effectively active for a given situation,
+-- falling back to standard settings when the situation doesn't override the cvar.
+-- Returns (zoomBasedData, effectiveSituationId) or (nil, nil).
+-- effectiveSituationId is the situationId whose zoom-based data applies (nil = standard).
+function DynamicCam:GetEffectiveZoomBasedCvar(situationId, cvarName)
+  -- First check the given situation's own settings
+  local data = self:GetZoomBasedCvar(situationId, cvarName)
+  if data then
+    return data, situationId
+  end
+
+  -- If this is a situation (not standard) and it doesn't override this cvar,
+  -- fall back to standard settings' zoom-based
+  if situationId then
+    local sitSettings = self:GetSettingsTable(situationId)
+    if not sitSettings or not sitSettings.cvars or sitSettings.cvars[cvarName] == nil then
+      local standardData = self:GetZoomBasedCvar(nil, cvarName)
+      if standardData then
+        return standardData, nil
+      end
+    end
+  end
+
+  return nil, nil
+end
+
+
+-- Check if a cvar is effectively zoom-based for a given situation,
+-- considering fallback to standard settings.
+function DynamicCam:IsEffectivelyCvarZoomBased(situationId, cvarName)
+  local data = self:GetEffectiveZoomBasedCvar(situationId, cvarName)
+  return data ~= nil
+end
+
+
 -- Set whether a cvar should be zoom-based
 -- currentValue is the current slider value, used for initializing default points
 function DynamicCam:SetCvarZoomBased(situationId, cvarName, enabled, currentValue)
@@ -303,12 +338,13 @@ end
 
 
 -- Get the effective cvar value for a situation at a given zoom level.
--- If the cvar is zoom-based in that situation, returns the curve value at zoomLevel.
+-- If the cvar is zoom-based (in that situation or via standard settings fallback),
+-- returns the curve value at zoomLevel.
 -- Otherwise returns the fixed cvar value (situation override or standard fallback).
 local function GetCvarValueForSituation(situationId, cvarName, zoomLevel)
-  -- Check if zoom-based for this situation
-  if DynamicCam:IsCvarZoomBased(situationId, cvarName) then
-    return DynamicCam:GetInterpolatedValue(situationId, cvarName, zoomLevel)
+  local zoomBasedData, effectiveSituationId = DynamicCam:GetEffectiveZoomBasedCvar(situationId, cvarName)
+  if zoomBasedData then
+    return DynamicCam:GetInterpolatedValue(effectiveSituationId, cvarName, zoomLevel)
   end
   -- Not zoom-based, get direct value (situation override or standard fallback)
   return DynamicCam:GetSettingsValue(situationId, "cvars", cvarName)
@@ -317,23 +353,10 @@ end
 
 -- Get the target value for a cvar in the new situation
 local function GetTargetCvarValue(newSituationId, cvarName, targetZoom)
-  -- Check if zoom-based for the new situation
-  local newSettings
-  if newSituationId then
-    local situation = DynamicCam.db.profile.situations[newSituationId]
-    if situation then
-      newSettings = situation.situationSettings
-    end
-  else
-    newSettings = DynamicCam.db.profile.standardSettings
-  end
-  
-  -- Check if this cvar is zoom-based in the new situation
-  if newSettings and newSettings.cvarsZoomBased and 
-     newSettings.cvarsZoomBased[cvarName] and 
-     newSettings.cvarsZoomBased[cvarName].enabled then
-    -- Compute value from the new curve at target zoom
-    local points = newSettings.cvarsZoomBased[cvarName].points
+  -- Check if zoom-based (in the new situation or via standard settings fallback)
+  local zoomBasedData, effectiveSituationId = DynamicCam:GetEffectiveZoomBasedCvar(newSituationId, cvarName)
+  if zoomBasedData then
+    local points = zoomBasedData.points
     if points and #points >= 2 then
       -- Find interpolation segment
       local lowerPoint = points[1]
@@ -354,14 +377,8 @@ local function GetTargetCvarValue(newSituationId, cvarName, targetZoom)
     end
   end
   
-  -- Not zoom-based, get direct value
-  if newSettings and newSettings.cvars and newSettings.cvars[cvarName] ~= nil then
-    return newSettings.cvars[cvarName], false
-  end
-  
-  -- Fall back to standard settings
-  local standardValue = DynamicCam.db.profile.standardSettings.cvars[cvarName]
-  return standardValue, false
+  -- Not zoom-based, get direct value (situation override or standard fallback)
+  return DynamicCam:GetSettingsValue(newSituationId, "cvars", cvarName), false
 end
 
 
@@ -543,7 +560,7 @@ function DynamicCam:StartCvarTransitionEasing(oldSituationId, newSituationId, cu
       end
 
       local targetValue, targetIsZoomBased = GetTargetCvarValue(newSituationId, cvarName, targetZoom)
-      local oldIsZoomBased = DynamicCam:IsCvarZoomBased(oldSituationId, cvarName)
+      local oldIsZoomBased = DynamicCam:IsEffectivelyCvarZoomBased(oldSituationId, cvarName)
 
       -- Always create easing if either side is zoom-based, because intermediate
       -- zoom levels during the transition may produce different values even if
@@ -703,10 +720,11 @@ local function CvarUpdateFunction(self, elapsed)
       end
       
       -- Priority 2: Zoom-based curve (if no active easing)
-      if value == nil and settings and settings.cvarsZoomBased and 
-         settings.cvarsZoomBased[cvarName] and 
-         settings.cvarsZoomBased[cvarName].enabled then
-        value = DynamicCam:GetInterpolatedValue(situationId, cvarName, cameraZoom)
+      if value == nil then
+        local zoomBasedData, effectiveSituationId = DynamicCam:GetEffectiveZoomBasedCvar(situationId, cvarName)
+        if zoomBasedData then
+          value = DynamicCam:GetInterpolatedValue(effectiveSituationId, cvarName, cameraZoom)
+        end
       end
       
       -- Priority 3: Direct value (non-zoom-based, not easing)

@@ -37,7 +37,6 @@ DynamicCam.cvarRanges = {
   test_cameraHeadMovementStandingDampRate = { min = 0, max = 20 },
   test_cameraHeadMovementMovingStrength = { min = 0, max = 1 },
   test_cameraHeadMovementMovingDampRate = { min = 0, max = 20 },
-  test_cameraHeadMovementFirstPersonDampRate = { min = 0, max = 20 },
 }
 
 
@@ -777,7 +776,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                     return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraDynamicPitch") == 0
                   end),
               -- No zoom-based settings for this variable, as its effect itself is zoom based.
-              
+
               blank52 = {type = "description", name = "\n\n", width = 0.1, order = 5.2, },
 
 
@@ -1256,16 +1255,16 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               firstPersonDampRate = {
                 type = "range",
                 order = 6,
-                width = sliderWidth - 0.3,
+                width = sliderWidth + 0.2,
                 name = L["Inertia (first person)"],
                 desc = "|cff909090cvar: test_cameraHeadMovement\nFirstPersonDampRate|r",
                 _dbPath = forExport and {"cvars", "test_cameraHeadMovementFirstPersonDampRate"} or nil,
-                min = DynamicCam.cvarRanges.test_cameraHeadMovementFirstPersonDampRate.min,
-                max = DynamicCam.cvarRanges.test_cameraHeadMovementFirstPersonDampRate.max,
+                min = 0,
+                max = 20,
                 step = 0.05,
                 disabled =
                   function(info)
-                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0 or DynamicCam:IsCvarZoomBased(forSituations and SID, "test_cameraHeadMovementFirstPersonDampRate")
+                    return GetInheritedDisabledStatus(info) or DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
                   end,
                 get =
                   function()
@@ -1288,12 +1287,8 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                   function(info)
                     return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
                   end),
-              blank62 = {type = "description", name = " ", width = 0.1, order = 6.2, },
-              firstPersonDampRateZoomBased = CreateZoomBasedControl(6.3, forSituations, "test_cameraHeadMovementFirstPersonDampRate",
-                function(info)
-                  return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStrength") == 0
-                end),
-              
+              -- No zoom-based settings for this variable, as it only takes effect in first person when zoom is zero.
+
               blank64 = {type = "description", name = "\n\n", order = 6.4, },
 
 
@@ -3684,7 +3679,13 @@ function Options:RegisterMenus()
     }
   }
 
-  LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("DynamicCam", allOptions)
+  local reg = LibStub("AceConfigRegistry-3.0")
+  reg:RegisterOptionsTable("DynamicCam", allOptions)
+  -- Register the same options under a second name for the detached frame.
+  -- This gives it its own AceConfigDialog status tables and OpenFrames slot,
+  -- so both panels can be open simultaneously without interfering.
+  reg:RegisterOptionsTable("DynamicCam_Detached", allOptions)
+
   self.menu = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("DynamicCam", "DynamicCam")
 
   -- Detach button and detached frame logic are in Options/DetachFrame.lua.

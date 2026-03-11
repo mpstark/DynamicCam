@@ -19,8 +19,8 @@ local GetCameraZoom = _G.GetCameraZoom
 -- LOCALS --
 ------------
 
--- Colors
-local COLORS = {
+-- Colors (addon-wide, also used by the mini preview in Widgets.lua)
+DynamicCam.GRAPH_COLORS = {
   curveLine = {0.8, 0.0, 0.0, 1.0},
   pointNormal = {0.8, 0.0, 0.0, 1.0},
   pointHighlight = {1.0, 1.0, 1.0, 1.0},
@@ -29,6 +29,7 @@ local COLORS = {
   gridMinor = {0.3, 0.3, 0.4, 0.3},
   gridBackground = {0.0, 0.0, 0.25, 1},
 }
+local COLORS = DynamicCam.GRAPH_COLORS
 
 -- Point display
 local POINT_RADIUS = 8
@@ -860,25 +861,26 @@ local function CreateZoomBasedEditorFrame()
   f:SetToplevel(true)
   f:SetMovable(true)
   f:EnableMouse(true)
-  f:RegisterForDrag("LeftButton")
   f:SetClampedToScreen(true)
 
-  -- Drag to move + raise
-  f:SetScript("OnDragStart", function(self)
-    self:Raise()
-    self:StartMoving()
-  end)
-  f:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-  end)
+  -- Drag to move + raise (OnMouseDown fires immediately, no threshold)
   f:SetScript("OnMouseDown", function(self, button)
     if button == "LeftButton" then
       self:Raise()
+      self:StartMoving()
+    end
+  end)
+  f:SetScript("OnMouseUp", function(self, button)
+    if button == "LeftButton" then
+      self:StopMovingOrSizing()
     end
   end)
 
-  -- Escape to close
-  tinsert(UISpecialFrames, frameName)
+  -- ESC closing is handled by our CloseSpecialWindows wrapper in
+  -- DetachFrame.lua (calling EscAllCurveEditors).  We intentionally
+  -- do NOT register in UISpecialFrames because ShowUIPanel calls
+  -- CloseSpecialWindows which would close editors when the game
+  -- settings panel opens.
 
   -- Initialize per-frame pools
   f.pointFramePool = {}
@@ -897,6 +899,12 @@ local function CreateZoomBasedEditorFrame()
 
   -- Title
   f.TitleContainer.TitleText:SetText(L["DynamicCam: Zoom-Based Setting"])
+
+  -- Override the default OnClick which calls HideUIPanel() (a secure function
+  -- that is blocked during combat). We only need a plain Hide() here.
+  f.CloseButton:SetScript("OnClick", function(self)
+    self:GetParent():Hide()
+  end)
 
   -- Close button tooltip
   f.CloseButton:HookScript("OnEnter", function(self)
@@ -1122,6 +1130,10 @@ local function CreateZoomBasedEditorFrame()
       f.savedPoints = DeepCopyPoints(currentPoints)
     end
     UpdateButtonStates(f)
+    -- Refresh the export preview so it reflects the newly saved curve.
+    local acr = LibStub("AceConfigRegistry-3.0")
+    acr:NotifyChange("DynamicCam")
+    acr:NotifyChange("DynamicCam_Detached")
   end)
   f.saveButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
@@ -1468,6 +1480,18 @@ function DynamicCam:OpenCurveEditor(situationId, cvarName, minValue, maxValue, w
   -- Track open editor
   openEditors[configId] = frame
 
+  -- Update cog-wheel state on any other widget instances for this configId
+  -- (e.g. the same setting visible in both the SettingsPanel and detached frame).
+  local peers = self._activeZoomWidgets and self._activeZoomWidgets[configId]
+  if peers then
+    for w in pairs(peers) do
+      if w ~= widget then
+        w.isEditorOpen = true
+        w:UpdateButtonTextures()
+      end
+    end
+  end
+
   -- Update labels
   frame.lastStatusKey = nil
   local prefix = L["CVAR: "]
@@ -1491,6 +1515,7 @@ function DynamicCam:OpenCurveEditor(situationId, cvarName, minValue, maxValue, w
   frame:Raise()
   UpdateCurveEditor(frame)
   frame:Show()
+  self.Options:ShowEscProxy()
 end
 
 
@@ -1509,17 +1534,27 @@ function DynamicCam:CloseCurveEditorFrame(frame)
     openEditors[configId] = nil
   end
 
-  -- Notify the owning widget that the editor is closed
-  if frame.ownerWidget then
+  -- Update cog-wheel state on ALL widget instances for this configId
+  -- (covers the ownerWidget plus any duplicate in the other panel).
+  local configId2 = frame.cvarInfo and GetConfigId(frame.cvarInfo.situationId, frame.cvarInfo.cvarName)
+  local peers = configId2 and self._activeZoomWidgets and self._activeZoomWidgets[configId2]
+  if peers then
+    for w in pairs(peers) do
+      w.isEditorOpen = false
+      w:UpdateButtonTextures()
+    end
+  elseif frame.ownerWidget then
+    -- Fallback: only ownerWidget available (e.g. widget was released)
     frame.ownerWidget.isEditorOpen = false
     if frame.ownerWidget.UpdateButtonTextures then
       frame.ownerWidget:UpdateButtonTextures()
     end
-    frame.ownerWidget = nil
   end
+  frame.ownerWidget = nil
 
   frame.cvarInfo = nil
   frame.isClosing = nil
+  self.Options:HideEscProxyIfNeeded()
 end
 
 
@@ -1538,26 +1573,31 @@ function DynamicCam:CloseAllCurveEditors()
   end
 end
 
--- Suppress OnHide cleanup for all open editors, then re-show them after a
--- one-frame delay.  Used by the reattach button so system-triggered hides
--- (from Settings.OpenToCategory -> CloseSpecialWindows) don't discard state.
-function DynamicCam:ReshowCurveEditors()
-  local frames = {}
+function DynamicCam:HasVisibleCurveEditors()
   for _, frame in pairs(openEditors) do
-    frame.suppressOnHide = true
-    table.insert(frames, frame)
-  end
-  C_Timer.After(0, function()
-    for _, frame in ipairs(frames) do
-      frame.suppressOnHide = nil
-      if frame.cvarInfo then  -- still valid (not closed by other means)
-        frame:Show()
-        frame:Raise()
-      end
+    if frame:IsShown() then
+      return true
     end
-  end)
+  end
+  return false
 end
 
+-- Hide all open editors without isClosing so that OnHide reverts unsaved
+-- changes (matching the original ESC-via-UISpecialFrames behaviour).
+function DynamicCam:EscAllCurveEditors()
+  local found = false
+  local frames = {}
+  for _, frame in pairs(openEditors) do
+    if frame:IsShown() then
+      found = true
+      table.insert(frames, frame)
+    end
+  end
+  for _, frame in ipairs(frames) do
+    frame:Hide()
+  end
+  return found
+end
 
 function DynamicCam:RefreshAllCurveEditors()
   if self.refreshingCurveEditors then return end
@@ -1598,6 +1638,20 @@ end
 function DynamicCam:IsEditorOpenForSetting(situationId, cvarName)
   local configId = GetConfigId(situationId, cvarName)
   return openEditors[configId] ~= nil
+end
+
+
+-- Returns the last *saved* checkpoint for a zoom-based cvar.
+-- If a curve editor is currently open for that cvar, it may have unsaved
+-- in-progress changes in the db; this method returns savedPoints instead,
+-- which is what the export should show.
+function DynamicCam:GetSavedZoomBasedPoints(situationId, cvarName)
+  local configId = GetConfigId(situationId, cvarName)
+  local frame = openEditors[configId]
+  if frame and frame.savedPoints then
+    return frame.savedPoints
+  end
+  return self:GetZoomBasedPoints(situationId, cvarName)
 end
 
 

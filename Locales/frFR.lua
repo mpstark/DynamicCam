@@ -17,6 +17,7 @@ L["Situation has a script error."] = "La situation a une erreur de script."
 L["Help"] = "Aide"
 L["Detach"] = "Détacher"
 L["<detach_tooltip>"] = "Ouvre les paramètres de DynamicCam dans une fenêtre librement déplaçable et redimensionnable. Ainsi, elle ne bloque pas le centre de l'écran pendant vos réglages.\n\nVous pouvez aussi taper /dc dans le chat à tout moment pour ouvrir cette fenêtre."
+L["<detach_combat>"] = "En combat, nous ne pouvons pas fermer automatiquement le panneau des Options du jeu.\n\nVous pouvez toujours ouvrir la fenêtre détachée en tapant /dc dans le chat."
 L["Reattach"] = "Rattacher"
 L["<reattach_tooltip>"] = "Ferme cette fenêtre et ouvre les paramètres de DynamicCam dans le panneau d'options du jeu."
 L["<reattach_combat>"] = "En combat, nous ne pouvons pas ouvrir automatiquement le panneau des Options du jeu."
@@ -468,6 +469,12 @@ L["<save_tooltip>"] = "Sauvegarder la courbe actuelle. Les modifications non sau
 L["<save_disabled_tooltip>"] = "Aucune modification non sauvegardée."
 L["Close"] = "Fermer"
 L["<close_tooltip>"] = "Fermer l'éditeur. Toutes les modifications non sauvegardées seront perdues."
+
+
+--------------------------------------------------------------------------------
+-- Widgets.lua / SituationExport
+--------------------------------------------------------------------------------
+L["blank"] = "vide"
 
 
 --------------------------------------------------------------------------------
