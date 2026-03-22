@@ -529,7 +529,7 @@ end
 
 
 -------------------------------------------------------------------------------
--- DEBUG OUTPUT FRAME (commented out — uncomment to re-enable)
+-- DEBUG OUTPUT FRAME (commented out - uncomment to re-enable)
 --
 -- A floating, scrollable text window for development diagnostic output.
 -- Usage: DC_DebugPrint("some message")   (appends a timestamped line)

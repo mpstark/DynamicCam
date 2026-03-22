@@ -1150,11 +1150,11 @@ local function CreateZoomBasedEditorFrame()
     GameTooltip:Hide()
   end)
 
-  -- OnHide: handle Escape / CloseButton (X) — revert unsaved changes
+  -- OnHide: handle Escape / CloseButton (X) - revert unsaved changes
   f:SetScript("OnHide", function(self)
     if self.isClosing then return end
     if self.suppressOnHide then return end
-    -- Hidden by Escape or CloseButton — revert to last saved state
+    -- Hidden by Escape or CloseButton - revert to last saved state
     if self.savedPoints and self.cvarInfo then
       DynamicCam:SetZoomBasedPoints(self.cvarInfo.situationId, self.cvarInfo.cvarName, self.savedPoints)
       local revertedValue = DynamicCam:GetInterpolatedValue(self.cvarInfo.situationId, self.cvarInfo.cvarName, GetCameraZoom())
