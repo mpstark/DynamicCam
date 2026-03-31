@@ -564,6 +564,9 @@ return false]],
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
  1265142,  -- Visit House
+ 1270311,  -- Return from Home
+ 1270583,  -- Naaru's Enfold (Hearthstone)
+ 1255801,  -- Key to the Arcantina
 }
 
 -- For faster lookups:
