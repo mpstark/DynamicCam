@@ -3648,7 +3648,9 @@ function Options:SelectSituation(selectMe)
     UpdateSituationState(firstS, firstSID)
   end
 
-  LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+  local acr = LibStub("AceConfigRegistry-3.0")
+  acr:NotifyChange("DynamicCam")
+  acr:NotifyChange("DynamicCam_Detached")
 end
 
 

@@ -726,6 +726,12 @@ for _, v in pairs(this.spells) do
 end
 return false]]
       },
+      ["323"] = {
+        name = L["Swimming"],
+        events = {"UNIT_AURA"},
+        priority = 105,
+        condition = [[return IsSwimming("player")]]
+      },
       ["330"] = {
         name = L["Professions Frame Open"],
         events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},

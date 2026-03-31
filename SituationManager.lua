@@ -248,7 +248,9 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
   OnButton2 = function(_, data)
     DynamicCam.db.profile.situations[data.situationID].enabled = false
     DynamicCam:EvaluateSituations()
-    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+    local acr = LibStub("AceConfigRegistry-3.0")
+    acr:NotifyChange("DynamicCam")
+    acr:NotifyChange("DynamicCam_Detached")
   end,
 
   button3 = "Fix manually",
@@ -264,7 +266,9 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
     -- if data then print(data.situationID, data.scriptID) end
     DynamicCam.db.profile.situations[data.situationID][data.scriptID] = DynamicCam.defaults.profile.situations[data.situationID][data.scriptID]
     DynamicCam:UpdateSituation(data.situationID)
-    LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+    local acr = LibStub("AceConfigRegistry-3.0")
+    acr:NotifyChange("DynamicCam")
+    acr:NotifyChange("DynamicCam_Detached")
   end,
   DisplayButton4 = function() return not hideDefaultButton end,
 

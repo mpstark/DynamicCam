@@ -149,7 +149,9 @@ function DynamicCam:SetCvarZoomBased(situationId, cvarName, enabled, currentValu
   end
 
   -- Notify the UI to refresh so that the slider's disabled state updates
-  LibStub("AceConfigRegistry-3.0"):NotifyChange("DynamicCam")
+  local acr = LibStub("AceConfigRegistry-3.0")
+  acr:NotifyChange("DynamicCam")
+  acr:NotifyChange("DynamicCam_Detached")
 end
 
 
