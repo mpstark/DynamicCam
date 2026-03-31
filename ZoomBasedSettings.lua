@@ -317,6 +317,54 @@ local TOGGLE_CVAR_GROUPS = {
   },
 }
 
+-- All sub-cvars that have no visual effect when their parent toggle is disabled (0).
+-- This is a superset of TOGGLE_CVAR_GROUPS: it includes ALL sub-cvars per group
+-- (not just the strength variables used for transition easing).
+local TOGGLE_SUB_CVARS = {
+  ["test_cameraDynamicPitch"] = {
+    "test_cameraDynamicPitchBaseFovPad",
+    "test_cameraDynamicPitchBaseFovPadFlying",
+    "test_cameraDynamicPitchBaseFovPadDownScale",
+    "test_cameraDynamicPitchSmartPivotCutoffDist",
+  },
+  ["test_cameraTargetFocusEnemyEnable"] = {
+    "test_cameraTargetFocusEnemyStrengthYaw",
+    "test_cameraTargetFocusEnemyStrengthPitch",
+  },
+  ["test_cameraTargetFocusInteractEnable"] = {
+    "test_cameraTargetFocusInteractStrengthYaw",
+    "test_cameraTargetFocusInteractStrengthPitch",
+  },
+  ["test_cameraHeadMovementStrength"] = {
+    "test_cameraHeadMovementStandingStrength",
+    "test_cameraHeadMovementStandingDampRate",
+    "test_cameraHeadMovementMovingStrength",
+    "test_cameraHeadMovementMovingDampRate",
+    "test_cameraHeadMovementFirstPersonDampRate",
+    "test_cameraHeadMovementRangeScale",
+    "test_cameraHeadMovementDeadZone",
+  },
+}
+
+-- Reverse lookup: sub-cvar name -> parent toggle cvar name.
+local CVAR_TOGGLE_PARENT = {}
+for toggleCvar, subCvars in pairs(TOGGLE_SUB_CVARS) do
+  for _, subCvar in ipairs(subCvars) do
+    CVAR_TOGGLE_PARENT[subCvar] = toggleCvar
+  end
+end
+
+-- Cvars whose real minimum is greater than the cosmetic slider/curve minimum of 0.
+-- The zoom-based system must clamp to this before calling SetCVar,
+-- matching the slider set-functions that already do the same conversion.
+local CVAR_MIN_CLAMP = {
+  ["test_cameraHeadMovementStandingDampRate"] = 0.01,
+  ["test_cameraHeadMovementMovingDampRate"] = 0.01,
+  ["test_cameraHeadMovementFirstPersonDampRate"] = 0.01,
+}
+-- Expose for use in ZoomBasedEditor.
+DynamicCam.CVAR_MIN_CLAMP = CVAR_MIN_CLAMP
+
 -- Track which cvars are currently controlled by a toggle group transition
 -- (so they are excluded from normal easing and ApplySettings).
 local toggleControlledCvars = {}
@@ -676,13 +724,29 @@ local function CvarUpdateFunction(self, elapsed)
   for cvarName, _ in pairs(activeCvarEasings) do
     cvarsToCheck[cvarName] = true
   end
-  
+
+  -- Determine which toggle groups are currently disabled (once per frame).
+  -- Sub-cvars of a disabled toggle have no visual effect, so we can skip them
+  -- to avoid unnecessary zoom-based interpolation and SetCVar calls.
+  local toggleGroupDisabled = {}
+  for toggleCvar, _ in pairs(TOGGLE_SUB_CVARS) do
+    if not activeCvarEasings[toggleCvar] and not toggleControlledCvars[toggleCvar] and not pendingToggles[toggleCvar] then
+      local toggleValue = tonumber(_G.GetCVar(toggleCvar)) or 0
+      if math.abs(toggleValue) < 0.0001 then
+        toggleGroupDisabled[toggleCvar] = true
+      end
+    end
+  end
+
   for cvarName, _ in pairs(cvarsToCheck) do
     -- Skip if curve editor is dragging this setting
     if DynamicCam:IsEditorDraggingCvar(cvarName) then
       -- Do nothing, editor handles preview
     elseif pendingToggles[cvarName] then
       -- Skip: this toggle is waiting for its sub-strength transitions to complete.
+    elseif CVAR_TOGGLE_PARENT[cvarName] and toggleGroupDisabled[CVAR_TOGGLE_PARENT[cvarName]]
+           and not activeCvarEasings[cvarName] and not toggleControlledCvars[cvarName] then
+      -- Skip: the parent toggle is disabled, so this sub-cvar has no visual effect.
     else
       local value = nil
       
@@ -734,6 +798,12 @@ local function CvarUpdateFunction(self, elapsed)
       
       -- Apply the value if we have one
       if value ~= nil then
+        -- Clamp cvars whose real minimum is higher than the cosmetic minimum of 0.
+        local minClamp = CVAR_MIN_CLAMP[cvarName]
+        if minClamp and value < minClamp then
+          value = minClamp
+        end
+
         -- Special handling for shoulder offset (CameraOverShoulderFix)
         if cvarName == "test_cameraOverShoulder" then
           -- Update currentShoulderOffset using the function that handles mounted sign-change detection

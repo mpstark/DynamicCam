@@ -1146,16 +1146,15 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 get =
                   function()
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate") == 0.01 then
-                      return 0
-                    else
-                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
-                    end
+                    local value = DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementStandingDampRate"]
+                    return (minClamp and value == minClamp) and 0 or value
                   end,
                 set =
                   function(_, newValue)
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if newValue == 0 then newValue = 0.01 end
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementStandingDampRate"]
+                    if minClamp and newValue < minClamp then newValue = minClamp end
                     DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementStandingDampRate")
                   end,
               },
@@ -1225,16 +1224,15 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 get =
                   function()
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate") == 0.01 then
-                      return 0
-                    else
-                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
-                    end
+                    local value = DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementMovingDampRate"]
+                    return (minClamp and value == minClamp) and 0 or value
                   end,
                 set =
                   function(_, newValue)
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if newValue == 0 then newValue = 0.01 end
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementMovingDampRate"]
+                    if minClamp and newValue < minClamp then newValue = minClamp end
                     DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementMovingDampRate")
                   end,
               },
@@ -1269,16 +1267,15 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 get =
                   function()
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate") == 0.01 then
-                      return 0
-                    else
-                      return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
-                    end
+                    local value = DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementFirstPersonDampRate"]
+                    return (minClamp and value == minClamp) and 0 or value
                   end,
                 set =
                   function(_, newValue)
                     -- Real minimum is 0.01, but makes the slider look odd.
-                    if newValue == 0 then newValue = 0.01 end
+                    local minClamp = DynamicCam.CVAR_MIN_CLAMP["test_cameraHeadMovementFirstPersonDampRate"]
+                    if minClamp and newValue < minClamp then newValue = minClamp end
                     DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "test_cameraHeadMovementFirstPersonDampRate")
                   end,
               },

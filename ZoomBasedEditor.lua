@@ -1096,6 +1096,8 @@ local function CreateZoomBasedEditorFrame()
       DynamicCam:SetZoomBasedPoints(f.cvarInfo.situationId, f.cvarInfo.cvarName, DeepCopyPoints(f.savedPoints))
       local revertedValue = DynamicCam:GetInterpolatedValue(f.cvarInfo.situationId, f.cvarInfo.cvarName, GetCameraZoom())
       if revertedValue then
+        local minClamp = DynamicCam.CVAR_MIN_CLAMP[f.cvarInfo.cvarName]
+        if minClamp and revertedValue < minClamp then revertedValue = minClamp end
         SetCVar(f.cvarInfo.cvarName, revertedValue)
       end
       DynamicCam:ResetZoomBasedSettingsCache()
@@ -1159,6 +1161,8 @@ local function CreateZoomBasedEditorFrame()
       DynamicCam:SetZoomBasedPoints(self.cvarInfo.situationId, self.cvarInfo.cvarName, self.savedPoints)
       local revertedValue = DynamicCam:GetInterpolatedValue(self.cvarInfo.situationId, self.cvarInfo.cvarName, GetCameraZoom())
       if revertedValue then
+        local minClamp = DynamicCam.CVAR_MIN_CLAMP[self.cvarInfo.cvarName]
+        if minClamp and revertedValue < minClamp then revertedValue = minClamp end
         SetCVar(self.cvarInfo.cvarName, revertedValue)
       end
       DynamicCam:ResetZoomBasedSettingsCache()
@@ -1371,11 +1375,15 @@ local function CreateZoomBasedEditorFrame()
           currentValue = lowerPoint.value + t * (upperPoint.value - lowerPoint.value)
         end
 
+        local cvarValue = currentValue
+        local minClamp = DynamicCam.CVAR_MIN_CLAMP[info.cvarName]
+        if minClamp and cvarValue < minClamp then cvarValue = minClamp end
+
         if info.cvarName == "test_cameraOverShoulder" then
-          DynamicCam.UpdateCurrentShoulderOffset(currentValue)
-          SetCVar(info.cvarName, DynamicCam.ApplyCameraOverShoulderFixCompensation(currentValue))
+          DynamicCam.UpdateCurrentShoulderOffset(cvarValue)
+          SetCVar(info.cvarName, DynamicCam.ApplyCameraOverShoulderFixCompensation(cvarValue))
         else
-          SetCVar(info.cvarName, currentValue)
+          SetCVar(info.cvarName, cvarValue)
         end
       else
         currentValue = DynamicCam:GetInterpolatedValue(info.situationId, info.cvarName, currentZoom)

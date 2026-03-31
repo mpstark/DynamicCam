@@ -561,12 +561,12 @@ return false]],
  1240219,  -- P.O.S.T. Master's Express Hearthstone
  1242509,  -- Cosmic Hearthstone
  1250878,  -- Timerunner's Hearthstone
+ 1255801,  -- Key to the Arcantina
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
  1265142,  -- Visit House
  1270311,  -- Return from Home
- 1270583,  -- Naaru's Enfold (Hearthstone)
- 1255801,  -- Key to the Arcantina
+ 1270583,  -- Naaru's Enfold
 }
 
 -- For faster lookups:
