@@ -515,15 +515,22 @@ end
 
 
 
+-- Once addon code calls frame:SetIgnoreParentAlpha(), the return value of
+-- frame:IsIgnoringParentAlpha() becomes a tainted "secret boolean" that
+-- cannot be tested in addon code. We track the state ourselves instead.
+local trackedIgnoreParentAlpha = {}
+
+
 -- To prevent other addons (Immersion, I'm looking in your direction) from
 -- setting Minimap's and MinimapCluster's ignoreParentAlpha to false, when DynamicCam does not.
 local function ParentAlphaGuard(self, ignoreParentAlpha)
   -- print(self:GetName(), "SetIgnoreParentAlpha", ignoreParentAlpha, self.ludius_intendedIgnoreParentAlpha)
   if self.ludius_intendedIgnoreParentAlpha ~= nil and ignoreParentAlpha ~= self.ludius_intendedIgnoreParentAlpha then
-      -- print("no")
-      self:SetIgnoreParentAlpha(self.ludius_intendedIgnoreParentAlpha)
-  -- else
-      -- print("ok")
+    trackedIgnoreParentAlpha[self] = self.ludius_intendedIgnoreParentAlpha
+    self:SetIgnoreParentAlpha(self.ludius_intendedIgnoreParentAlpha)
+  else
+    -- External code changed it and we're not overriding; update tracking.
+    trackedIgnoreParentAlpha[self] = ignoreParentAlpha
   end
 end
 
@@ -531,6 +538,21 @@ hooksecurefunc(MinimapCluster, "SetIgnoreParentAlpha", ParentAlphaGuard)
 hooksecurefunc(Minimap, "SetIgnoreParentAlpha", ParentAlphaGuard)
 
 
+
+
+local function IsIgnoringParentAlpha(frame)
+  local tracked = trackedIgnoreParentAlpha[frame]
+  if tracked ~= nil then
+    return tracked
+  end
+  -- Frame hasn't been modified by us yet; the API value is untainted.
+  return frame:IsIgnoringParentAlpha()
+end
+
+local function TrackSetIgnoreParentAlpha(frame, ignoreParentAlpha)
+  trackedIgnoreParentAlpha[frame] = ignoreParentAlpha
+  frame:SetIgnoreParentAlpha(ignoreParentAlpha)
+end
 
 
 -- To restore frames to their pre-hide ignore-parent-alpha state,
@@ -541,23 +563,23 @@ local function ConditionalSetIgnoreParentAlpha(frame, ignoreParentAlpha)
   if not frame or ignoreParentAlpha == nil then return end
 
   if frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
-    frame.ludius_ignoreParentAlphaBeforeFadeOut = frame:IsIgnoringParentAlpha()
+    frame.ludius_ignoreParentAlphaBeforeFadeOut = IsIgnoringParentAlpha(frame)
   end
 
-  if frame:IsIgnoringParentAlpha() ~= ignoreParentAlpha then
+  if IsIgnoringParentAlpha(frame) ~= ignoreParentAlpha then
     frame.ludius_intendedIgnoreParentAlpha = ignoreParentAlpha
-    frame:SetIgnoreParentAlpha(ignoreParentAlpha)
+    TrackSetIgnoreParentAlpha(frame, ignoreParentAlpha)
   end
 end
 
 local function ConditionalResetIgnoreParentAlpha(frame)
-  -- if frame:GetName() == debugFrameName then print("ConditionalSetIgnoreParentAlpha", ignoreParentAlpha) end
+  -- if frame:GetName() == debugFrameName then print("ConditionalResetIgnoreParentAlpha") end
 
   if not frame or frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then return end
 
-  if frame:IsIgnoringParentAlpha() ~= frame.ludius_ignoreParentAlphaBeforeFadeOut then
+  if IsIgnoringParentAlpha(frame) ~= frame.ludius_ignoreParentAlphaBeforeFadeOut then
     frame.ludius_intendedIgnoreParentAlpha = frame.ludius_ignoreParentAlphaBeforeFadeOut
-    frame:SetIgnoreParentAlpha(frame.ludius_ignoreParentAlphaBeforeFadeOut)
+    TrackSetIgnoreParentAlpha(frame, frame.ludius_ignoreParentAlphaBeforeFadeOut)
   end
   frame.ludius_ignoreParentAlphaBeforeFadeOut = nil
 end
@@ -591,15 +613,16 @@ local function AlertFramesResetIgnoreParentAlpha()
 end
 
 
-local function CollectAlertFrame(_, frame)
-  -- print("CollectAlertFrame", frame, currentAlertFramesIgnoreParentAlpha, frame.ludius_collected)
+local function CollectAlertFrame(arg1, arg2)
+  local frame = arg2 or arg1
+  -- print("CollectAlertFrame", frame, currentAlertFramesIgnoreParentAlpha, frame and frame.ludius_collected)
 
   if frame and not frame.ludius_collected then
     tinsert(collectedAlertFrames, frame)
     frame.ludius_collected = true
   end
 
-  if currentAlertFramesIgnoreParentAlpha and not frame:IsIgnoringParentAlpha() then
+  if frame and currentAlertFramesIgnoreParentAlpha and not IsIgnoringParentAlpha(frame) then
     ConditionalSetIgnoreParentAlpha(frame, currentAlertFramesIgnoreParentAlpha)
   end
 end
@@ -609,6 +632,10 @@ for _, subSystem in pairs(AlertFrame.alertFrameSubSystems) do
   if type(pool) == "table" and type(pool.resetterFunc) == "function" then
     hooksecurefunc(pool, "resetterFunc", CollectAlertFrame)
   end
+end
+
+if AlertFrame_ShowNewAlert then
+  hooksecurefunc("AlertFrame_ShowNewAlert", CollectAlertFrame)
 end
 
 
@@ -701,7 +728,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
 
     -- Frame was adhering to parent alpha before.
     -- Start the fade with parent's current alpha.
-    if not frame:IsIgnoringParentAlpha() then
+    if not IsIgnoringParentAlpha(frame) then
       local parent = frame:GetParent()
       fadeInfo.startAlpha = parent and parent:GetAlpha() or 1
 
@@ -724,7 +751,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     -- Notice that the frame's alpha is not overridden by parent alpha but combined.
     -- So we have to set the child's alpha to 1 at the same time as we stop ignoring
     -- parent alpha.
-    if frame:IsIgnoringParentAlpha() then
+    if IsIgnoringParentAlpha(frame) then
 
       fadeInfo.startAlpha = frame:GetAlpha()
       fadeInfo.endAlpha = targetAlpha
@@ -825,7 +852,7 @@ local function FadeInFrame(frame, duration, enteringCombat)
 
     -- Frame was adhering to parent alpha before.
     -- Start the fade with parent's current alpha.
-    if not frame:IsIgnoringParentAlpha() then
+    if not IsIgnoringParentAlpha(frame) then
       fadeInfo.startAlpha = frame:GetParent():GetAlpha()
     -- Frame was already ignoring parent alpha before.
     else
@@ -842,7 +869,7 @@ local function FadeInFrame(frame, duration, enteringCombat)
     -- Start the fade with the frame's alpha, fade to UIParent's target alpha
     -- (which is always 1 when we fade the UI back in) and only then unset
     -- ignore parent alpha.
-    if frame:IsIgnoringParentAlpha() then
+    if IsIgnoringParentAlpha(frame) then
       fadeInfo.startAlpha = frame:GetAlpha()
       fadeInfo.endAlpha = 1
 

@@ -2737,7 +2737,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     name = L["Do not fade out this \"Interface\" settings frame."],
                     get =
                       function()
-                        return SettingsPanel:IsIgnoringParentAlpha()
+                        return DynamicCam.db.profile.settingsPanelIgnoreParentAlpha
                       end,
                     set =
                       function(_, newValue)

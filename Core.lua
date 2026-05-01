@@ -859,8 +859,10 @@ function DynamicCam:ModernizeProfile(p)
     p.standardSettings.shoulderOffsetZoomLowerBound    = ValueOrDefault(p.shoulderOffsetZoom, DynamicCam.v2Defaults.shoulderOffsetZoom, "lowerBound")
     p.standardSettings.shoulderOffsetZoomUpperBound    = ValueOrDefault(p.shoulderOffsetZoom, DynamicCam.v2Defaults.shoulderOffsetZoom, "upperBound")
 
-    for cvarName, _ in pairs(p.defaultCvars) do
-      p.standardSettings.cvars[cvarName] = ValueOrDefault(p.defaultCvars, DynamicCam.v2Defaults.defaultCvars, cvarName)
+    if p.defaultCvars then
+      for cvarName, _ in pairs(p.defaultCvars) do
+        p.standardSettings.cvars[cvarName] = ValueOrDefault(p.defaultCvars, DynamicCam.v2Defaults.defaultCvars, cvarName)
+      end
     end
 
 
