@@ -567,6 +567,7 @@ return false]],
  1265142,  -- Visit House
  1270311,  -- Return from Home
  1270583,  -- Naaru's Enfold
+ 1271410,  -- Visit House
 }
 
 -- For faster lookups:
