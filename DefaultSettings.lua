@@ -564,15 +564,15 @@ return false]],
  1255801,  -- Key to the Arcantina
  1258476,  -- Teleport to Founder's Point
  1258484,  -- Teleport to Razorwind Shores
+ 1259190,  -- Teleport: Silvermoon City
+ 1261979,  -- Lightcalled Hearthstone
  1265142,  -- Visit House
  1270311,  -- Return from Home
  1270583,  -- Naaru's Enfold
- 1271410,  -- Visit House
- 1261979,  -- Lightcalled Hearthstone
  1270814,  -- Preyseeker's Hearthstone
+ 1271410,  -- Visit House
  1273401,  -- Corewarden's Hearthstone
- 1259190,  -- Teleport: Silvermoon City
- 1259194,  -- Portal: Silvermoon City
+
 }
 
 -- For faster lookups:
