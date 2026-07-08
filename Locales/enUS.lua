@@ -74,6 +74,14 @@ L["<mouseLook_desc>"] = "How much the camera moves when you move the mouse in \"
 
 
 --------------------------------------------------------------------------------
+-- Options - Field of View
+--------------------------------------------------------------------------------
+L["Field of View"] = "Field of View"
+L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] = "The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."
+L["<cameraFov_desc>"] = "The field of view (FOV) determines how much of the game world is visible on your screen at once. A higher FOV shows more of your surroundings but makes everything appear a little further away, while a lower FOV zooms in for a more cinematic, close-up feel.\n\nUsing DynamicCam situations, you can for example widen the FOV while running around and narrow it during NPC interactions or combat."
+
+
+--------------------------------------------------------------------------------
 -- Options - Horizontal Offset
 --------------------------------------------------------------------------------
 L["Horizontal Offset"] = "Horizontal Offset"

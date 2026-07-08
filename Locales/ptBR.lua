@@ -73,6 +73,14 @@ L["How much the camera pitches vertically when in mouse look mode."] = "Quanto a
 L["<mouseLook_desc>"] = "Quanto a câmera se move quando você move o mouse no modo \"giro do mouse\"; ou seja, enquanto o botão esquerdo ou direito do mouse está pressionado.\n\nO controle deslizante \"Giro do mouse\" das configurações de interface padrão do WoW controla a velocidade horizontal e vertical ao mesmo tempo: definindo automaticamente a velocidade horizontal para 2 x a velocidade vertical. O DynamicCam substitui isso e permite uma configuração mais personalizada."
 
 
+  --------------------------------------------------------------------------------
+-- Options - Field of View
+--------------------------------------------------------------------------------
+L["Field of View"] = "Campo de visão"
+L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] = "O campo de visão da câmera. Valores mais baixos aproximam a imagem, valores mais altos mostram mais do seu entorno."
+L["<cameraFov_desc>"] = "O campo de visão (FOV) determina o quanto do mundo do jogo é visível na sua tela de uma só vez. Um FOV mais alto mostra mais do seu ambiente, mas faz com que tudo pareça um pouco mais distante, enquanto um FOV mais baixo aproxima a câmera para uma sensação mais cinematográfica.\n\nUsando as situações do DynamicCam, você pode, por exemplo, ampliar o FOV enquanto corre e reduzi-lo durante interações com NPCs ou em combate."
+
+  
 --------------------------------------------------------------------------------
 -- Options - Horizontal Offset
 --------------------------------------------------------------------------------

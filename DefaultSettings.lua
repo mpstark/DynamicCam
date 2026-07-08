@@ -128,6 +128,7 @@ DynamicCam.defaults = {
 
         cameraYawMoveSpeed = tonumber(GetCVarDefault("cameraYawMoveSpeed")),
         cameraPitchMoveSpeed = tonumber(GetCVarDefault("cameraPitchMoveSpeed")),
+        cameraFov = tonumber(GetCVarDefault("cameraFov")),
 
         test_cameraOverShoulder = tonumber(GetCVarDefault("test_cameraOverShoulder")),
 

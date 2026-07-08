@@ -221,22 +221,15 @@ StaticPopupDialogs["DYNAMICCAM_SCRIPT_ERROR"] = {
   hideOnEscape = true,
   preferredIndex = 3,  -- avoid some UI taint, see https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/226040-how-to-reduce-chance-of-ui-taint-from
 
+  -- Widen the message text to better match the error scroll box below it.
+  -- The dialog's text region is layout-driven (Resize() sets its width via
+  -- SetDesiredWidth right after OnShow), so a manual textFrame:SetWidth() in
+  -- OnShow is silently overwritten. wide/wideText are the supported fields for
+  -- this (290 -> 360 px on retail); they are harmlessly ignored where absent.
+  wide = true,
+  wideText = true,
+
   text = "%s",
-
-  OnShow = function(self)
-    -- Since 11.2 it is Text instead of text.
-    local textFrame = self.text or self.Text
-
-    self.ludius_originalTextWidth = textFrame:GetWidth()
-    textFrame:SetWidth(borderFrame:GetWidth())
-  end,
-  OnHide = function(self)
-    -- Since 11.2 it is Text instead of text.
-    local textFrame = self.text or self.Text
-
-    textFrame:SetWidth(self.ludius_originalTextWidth)
-    self.ludius_originalTextWidth = nil
-  end,
 
   -- So that we can have different functions for each button.
   selectCallbackByIndex = true,

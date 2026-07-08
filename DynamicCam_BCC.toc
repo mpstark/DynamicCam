@@ -1,4 +1,4 @@
-## Interface: 20505
+## Interface: 20506
 ## Version: @project-version@
 ## Title: DynamicCam
 ## IconTexture: interface/icons/inv_misc_spyglass_03.blp

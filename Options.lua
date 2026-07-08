@@ -39,6 +39,15 @@ DynamicCam.cvarRanges = {
   test_cameraHeadMovementMovingDampRate = { min = 0, max = 20 },
 }
 
+-- cameraFov bounds come from the runtime camera API (returns default, min, max).
+-- Fall back to Blizzard's usual 60-90 range if the API is unavailable (e.g. Classic).
+if GetCameraFOVDefaults then
+  local _, fovMin, fovMax = GetCameraFOVDefaults()
+  DynamicCam.cvarRanges.cameraFov = { min = fovMin, max = fovMax }
+else
+  DynamicCam.cvarRanges.cameraFov = { min = 60, max = 90 }
+end
+
 
 ------------
 -- LOCALS --
@@ -107,6 +116,7 @@ local CreateOverrideStandardToggle = Options.CreateOverrideStandardToggle
 -- Group variables and helper functions are now in Options/Helpers.lua
 local zoomGroupVars = Options.zoomGroupVars
 local mouseLookGroupVars = Options.mouseLookGroupVars
+local cameraFovGroupVars = Options.cameraFovGroupVars
 local shoulderOffsetGroupVars = Options.shoulderOffsetGroupVars
 local pitchGroupVars = Options.pitchGroupVars
 local targetFocusGroupVars = Options.targetFocusGroupVars
@@ -496,7 +506,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
               },
               cameraPitchMoveSpeedReset =
                 CreateSliderResetButton(2.1, forSituations, "cvars", "cameraPitchMoveSpeed"),
-                
+
               blank22 = {type = "description", name = "\n\n", order = 2.2, },
 
 
@@ -517,6 +527,79 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
       },  -- /mouseLookGroup
 
 
+      cameraFovGroup = {
+        type = "group",
+        name =
+          function()
+            return ColoredNames(L["Field of View"], cameraFovGroupVars, forSituations)
+          end,
+        order = 3,
+        args = {
+
+          overriddenText = CreateOverriddenText(cameraFovGroupVars, forSituations),
+
+          overrideStandardToggle = CreateOverrideStandardToggle(cameraFovGroupVars, forSituations),
+          blank01 = {type = "description", name = " ", order = 0.1, hidden = function() return not forSituations end, },
+
+          cameraFovSubGroup = {
+            type = "group",
+            name = "",
+            _dbPath = forExport and "cameraFovSubGroup" or nil,
+            order = 1,
+            inline = true,
+            disabled =
+              function()
+                return forSituations and not CheckGroupVars(cameraFovGroupVars)
+              end,
+            args = {
+
+              cameraFov = {
+                type = "range",
+                name = L["Field of View"],
+                desc = L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] .. "\n|cff909090cvar: cameraFov|r\n\n",
+                _dbPath = forExport and {"cvars", "cameraFov"} or nil,
+                order = 1,
+                width = sliderWidth - 0.2,
+                min = DynamicCam.cvarRanges.cameraFov.min,
+                max = DynamicCam.cvarRanges.cameraFov.max,
+                step = 0.5,
+                disabled = function(info)
+                  return GetInheritedDisabledStatus(info) or DynamicCam:IsCvarZoomBased(forSituations and SID, "cameraFov")
+                end,
+                get =
+                  function()
+                    return DynamicCam:GetSettingsValue(forSituations and SID, "cvars", "cameraFov")
+                  end,
+                set =
+                  function(_, newValue)
+                    DynamicCam:SetSettingsValue(newValue, forSituations and SID, "cvars", "cameraFov")
+                  end,
+              },
+              cameraFovReset =
+                CreateSliderResetButton(1.1, forSituations, "cvars", "cameraFov"),
+              blank12 = {type = "description", name = " ", width = 0.1, order = 1.2, },
+              cameraFovZoomBased = CreateZoomBasedControl(1.3, forSituations, "cameraFov"),
+
+              blank14 = {type = "description", name = "\n\n", order = 1.4, },
+
+
+              cameraFovDescriptionGroup = {
+                type = "group",
+                name = L["Help"],
+                order = 2,
+                args = {
+                  cameraFovDescription = {
+                    type = "description",
+                    name = L["<cameraFov_desc>"],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },  -- /cameraFovGroup
+
+
       shoulderOffsetGroup = {
 
         type = "group",
@@ -524,7 +607,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           function()
             return ColoredNames(L["Horizontal Offset"], shoulderOffsetGroupVars, forSituations)
           end,
-        order = 3,
+        order = 4,
         args = {
 
           overriddenText = CreateOverriddenText(shoulderOffsetGroupVars, forSituations),
@@ -588,7 +671,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
             },
           },
         },
-      },  -- shoulderOffsetGroup
+      },  -- /shoulderOffsetGroup
 
 
       pitchGroup = {
@@ -598,7 +681,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           function()
             return ColoredNames(L["Vertical Pitch"], pitchGroupVars, forSituations)
           end,
-        order = 4,
+        order = 5,
         args = {
 
           overriddenText = CreateOverriddenText(pitchGroupVars, forSituations),
@@ -804,7 +887,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           function()
             return ColoredNames(L["Target Focus"], targetFocusGroupVars, forSituations)
           end,
-        order = 5,
+        order = 6,
         args = {
 
           overriddenText = CreateOverriddenText(targetFocusGroupVars, forSituations),
@@ -1052,7 +1135,7 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
           function()
             return ColoredNames(L["Head Tracking"], headTrackingGroupVars, forSituations)
           end,
-        order = 6,
+        order = 7,
         args = {
 
           overriddenText = CreateOverriddenText(headTrackingGroupVars, forSituations),

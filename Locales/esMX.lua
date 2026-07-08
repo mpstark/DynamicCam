@@ -74,6 +74,14 @@ L["<mouseLook_desc>"] = "Cuánto se mueve la cámara cuando mueves el ratón en 
 
 
 --------------------------------------------------------------------------------
+-- Options - Field of View
+--------------------------------------------------------------------------------
+L["Field of View"] = "Campo de visión"
+L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] = "El campo de visión de la cámara. Los valores más bajos acercan la imagen, los valores más altos muestran más de tu entorno."
+L["<cameraFov_desc>"] = "El campo de visión (FOV) determina qué parte del mundo del juego es visible en tu pantalla al mismo tiempo. Un FOV más alto muestra más de tu entorno, pero hace que todo parezca un poco más lejano, mientras que un FOV más bajo hace un acercamiento para una sensación más cinematográfica.\n\nAl usar las situaciones de DynamicCam, puedes, por ejemplo, ampliar el FOV mientras corres y reducirlo durante las interacciones con los PNJ o en combate."
+
+
+--------------------------------------------------------------------------------
 -- Options - Horizontal Offset
 --------------------------------------------------------------------------------
 L["Horizontal Offset"] = "Desplazamiento horizontal"

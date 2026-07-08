@@ -328,6 +328,10 @@ Options.mouseLookGroupVars = {
   {"cvars", "cameraPitchMoveSpeed"},
 }
 
+Options.cameraFovGroupVars = {
+  {"cvars", "cameraFov"},
+}
+
 Options.shoulderOffsetGroupVars = {
   {"cvars", "test_cameraOverShoulder"},
 }

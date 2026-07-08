@@ -135,18 +135,14 @@ function DynamicCam:SetCvarZoomBased(situationId, cvarName, enabled, currentValu
     settings.cvarsZoomBased[cvarName].enabled = enabled
   end
 
-  -- Trigger an immediate update if this is for the active situation
-  local isActiveSituation = (situationId == nil and self.currentSituationID == nil)
-                         or (situationId == self.currentSituationID)
-  if isActiveSituation then
-    -- Reset the cache so ZoomBasedUpdateFunction will recalculate all zoom-based cvars on next frame
-    self:ResetZoomBasedSettingsCache()
-    
-    -- If we're disabling zoom-based mode, apply the current slider value immediately
-    if not enabled then
-      self:ApplySettings()
-    end
-  end
+  -- Update the camera immediately, just like a slider move does (SetSettingsValue
+  -- also always calls ApplySettings). Otherwise toggling the checkbox would only
+  -- take effect after the next slider move (when disabling) or zoom change (when
+  -- enabling, because the zoom-based update frame skips unchanged zoom levels).
+  -- Reset the cache first so the update frame re-applies the zoom-based value on
+  -- the next frame; ApplySettings handles the fixed (non-zoom-based) value now.
+  self:ResetZoomBasedSettingsCache()
+  self:ApplySettings()
 
   -- Notify the UI to refresh so that the slider's disabled state updates
   local acr = LibStub("AceConfigRegistry-3.0")

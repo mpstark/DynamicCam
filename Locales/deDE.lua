@@ -74,6 +74,14 @@ L["<mouseLook_desc>"] = "Wie stark sich die Kamera bewegt, wenn ihr die Maus im 
 
 
 --------------------------------------------------------------------------------
+-- Options - Field of View
+--------------------------------------------------------------------------------
+L["Field of View"] = "Sichtfeld"
+L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] = "Das Sichtfeld der Kamera. Niedrigere Werte zoomen weiter hinein, höhere Werte zeigen mehr von der Umgebung."
+L["<cameraFov_desc>"] = "Das Sichtfeld (FOV) bestimmt, wie viel von der Spielwelt gleichzeitig auf dem Bildschirm sichtbar ist. Ein höheres Sichtfeld zeigt mehr von der Umgebung, lässt aber alles etwas weiter entfernt erscheinen, während ein niedriges Sichtfeld für ein kinoreiferes Erlebnis näher heranzoomt.\n\nMit DynamicCam-Situationen kann das Sichtfeld beispielsweise beim Herumlaufen erweitert und bei NSC-Interaktionen oder im Kampf verringert werden."
+
+
+--------------------------------------------------------------------------------
 -- Options - Horizontal Offset
 --------------------------------------------------------------------------------
 L["Horizontal Offset"] = "Horizontaler Versatz"
