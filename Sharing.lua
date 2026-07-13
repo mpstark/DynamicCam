@@ -224,6 +224,87 @@ function DynamicCam:ExportSituation(situationID)
   return tableToString(exportTable)
 end
 
+-- Deep copy a value; tables are copied recursively, scalars returned as-is.
+local function deepCopyValue(v)
+  if type(v) ~= "table" then return v end
+  local copy = {}
+  for k, val in pairs(v) do
+    copy[k] = deepCopyValue(val)
+  end
+  return copy
+end
+
+-- Export only the user-selected settings of a situation.
+-- selected is an array of { path = {key1, key2, ...}, value = <any> }, where path
+-- is the situation-root-relative location of the setting (e.g. {"situationSettings",
+-- "cvars", "cameraFov"} or {"viewZoom", "enabled"} or {"priority"}).
+-- viewDescription (optional) is a free-text note the exporter wrote to explain how
+-- the importing user should manually recreate a client-specific saved view.
+function DynamicCam:ExportSelectedSituation(situationID, selected, viewDescription)
+  local situation = self.db.profile.situations[situationID]
+
+  local exportTable = {}
+  exportTable.type = "DC_SITUATION"
+  exportTable.version = self.db.profile.version
+  exportTable.situationID = situationID
+  exportTable.name = situation.name
+  exportTable.situation = {}
+
+  -- Write each selected value into exportTable.situation at its path, creating
+  -- intermediate sub-tables as needed.
+  for _, entry in ipairs(selected) do
+    local path = entry.path
+    local dst = exportTable.situation
+    for i = 1, #path - 1 do
+      local key = path[i]
+      if type(dst[key]) ~= "table" then
+        dst[key] = {}
+      end
+      dst = dst[key]
+    end
+    dst[path[#path]] = deepCopyValue(entry.value)
+  end
+
+  if viewDescription and viewDescription ~= "" then
+    exportTable.viewDescription = viewDescription
+  end
+
+  return tableToString(exportTable)
+end
+
+-- Decode an import string into its table form (or nil). Used by the import tree
+-- to inspect a pasted string without applying it.
+function DynamicCam:DecodeImportString(importString)
+  return stringToTable(importString)
+end
+
+-- Apply a cherry-picked subset of imported settings onto the target situation.
+-- selected is an array of { path = {k1, k2, ...}, value = <any> } (produced by the
+-- import tree). Each value is written verbatim at its path -- so the destination
+-- becomes an exact copy of exactly the settings the user ticked.
+function DynamicCam:ApplyImportedSettings(targetSituationID, selected)
+  local situation = self.db.profile.situations[targetSituationID]
+  if not situation then return false end
+
+  for _, entry in ipairs(selected) do
+    local path = entry.path
+    local dst = situation
+    local ok = true
+    for i = 1, #path - 1 do
+      -- Accessing an AceDB default sub-table instantiates a profile-owned copy,
+      -- so writing into it is safe.
+      dst = dst[path[i]]
+      if type(dst) ~= "table" then ok = false break end
+    end
+    if ok and type(dst) == "table" then
+      dst[path[#path]] = deepCopyValue(entry.value)
+    end
+  end
+
+  self:UpdateSituation(targetSituationID)
+  return true
+end
+
 function DynamicCam:Import(importString)
   -- convert the import string into a table
   local imported = stringToTable(importString)

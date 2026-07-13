@@ -13,113 +13,503 @@ local Options = DynamicCam.Options
 
 
 -------------------------------------------------------------------------------
--- Region Pool Helpers (for frame reuse without leaking)
--------------------------------------------------------------------------------
-local function AcquireLine(frame)
-  if not frame.linePool then frame.linePool = {} end
-  local count = (frame.lineCount or 0) + 1
-  frame.lineCount = count
-  local line = frame.linePool[count]
-  if not line then
-    line = frame:CreateLine()
-    frame.linePool[count] = line
-  end
-  line:Show()
-  return line
-end
-
-local function ReleaseAllLines(frame)
-  if not frame.linePool then return end
-  for i = 1, (frame.lineCount or 0) do
-    frame.linePool[i]:Hide()
-  end
-  frame.lineCount = 0
-end
-
-local function AcquireFontString(frame)
-  if not frame.fontStringPool then frame.fontStringPool = {} end
-  local count = (frame.fontStringCount or 0) + 1
-  frame.fontStringCount = count
-  local fs = frame.fontStringPool[count]
-  if not fs then
-    fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.fontStringPool[count] = fs
-  end
-  fs:ClearAllPoints()
-  fs:Show()
-  return fs
-end
-
-local function ReleaseAllFontStrings(frame)
-  if not frame.fontStringPool then return end
-  for i = 1, (frame.fontStringCount or 0) do
-    frame.fontStringPool[i]:Hide()
-  end
-  frame.fontStringCount = 0
-end
-
-
--------------------------------------------------------------------------------
 -- Registry for Custom Widget Builders
 -------------------------------------------------------------------------------
 DynamicCam.customWidgetBuilders = {}
 
 
 -------------------------------------------------------------------------------
--- SituationExport Widget Builder
+-- Export string popup
+-- Shows the generated export string in a read-only but selectable text box, so
+-- the user can select-all and copy it. Reuses the StaticPopup inserted-frame
+-- pattern (see the script error dialog in SituationManager.lua).
 -------------------------------------------------------------------------------
-DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
+local exportPopupWidth = 400
+local exportPopupHeight = 110
 
-  -- Description text on top of the page (created once).
+local exportOuterFrame = CreateFrame("Frame")
+exportOuterFrame:SetSize(exportPopupWidth + 80, exportPopupHeight + 20)
+
+local exportBorderFrame = CreateFrame("Frame", nil, exportOuterFrame, "TooltipBackdropTemplate")
+exportBorderFrame:SetSize(exportPopupWidth + 34, exportPopupHeight + 10)
+exportBorderFrame:SetPoint("CENTER")
+
+local exportScrollFrame = CreateFrame("ScrollFrame", nil, exportOuterFrame, "UIPanelScrollFrameTemplate")
+exportScrollFrame:SetPoint("CENTER", -10, 0)
+exportScrollFrame:SetSize(exportPopupWidth, exportPopupHeight)
+
+local exportEditBox = CreateFrame("EditBox", nil, exportScrollFrame)
+exportEditBox:SetMultiLine(true)
+exportEditBox:SetAutoFocus(false)
+exportEditBox:SetFontObject(ChatFontNormal)
+exportEditBox:SetWidth(exportPopupWidth)
+-- Read-only but still selectable: revert any user edit back to the export string,
+-- and re-highlight so a stray keypress does not lose the selection.
+exportEditBox:SetScript("OnTextChanged", function(self, userInput)
+  if userInput and self.dcExportString and self:GetText() ~= self.dcExportString then
+    self:SetText(self.dcExportString)
+    self:HighlightText()
+  end
+end)
+exportEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+exportScrollFrame:SetScrollChild(exportEditBox)
+
+StaticPopupDialogs["DYNAMICCAM_EXPORT_STRING"] = {
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+
+  wide = true,
+  wideText = true,
+
+  text = "%s",
+
+  OnShow = function(self)
+    exportEditBox:SetText(exportEditBox.dcExportString or "")
+    exportEditBox:SetCursorPosition(0)
+    exportEditBox:HighlightText()
+    exportEditBox:SetFocus()
+  end,
+
+  button1 = CLOSE,
+  OnButton1 = function() end,
+}
+
+function DynamicCam:PopupExportString(exportString, promptText)
+  exportEditBox.dcExportString = exportString
+  exportOuterFrame:Show()
+  StaticPopup_Show("DYNAMICCAM_EXPORT_STRING", promptText or L["Select all and copy the export string below."], nil, nil, exportOuterFrame)
+end
+
+
+-------------------------------------------------------------------------------
+-- Situation Export / Import tree widget
+-------------------------------------------------------------------------------
+-- Shared builder for both the export tree (mode "export") and the import tree
+-- (mode "import"). Export reads the live situation; import reads the decoded paste
+-- string (DynamicCam.Options.pendingImport) and prunes the tree to the settings it
+-- contains. The tree/checkbox/collapse machinery is identical.
+local function BuildSituationTreeWidget(widget, f, mode)
+
+  local isImport = (mode == "import")
+
+  -- Header with the action button and the (conditional) set-view section, sitting
+  -- above the "Select the settings..." text (created once).
+  if not f.headerFrame then
+    local header = CreateFrame("Frame", nil, f)
+    header:SetPoint("TOPLEFT", f, "TOPLEFT")
+    header:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+    header:SetHeight(24)
+    f.headerFrame = header
+
+    -- Action button (Export or Import).
+    local actionButton = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
+    actionButton:SetSize(120, 24)
+    actionButton:SetPoint("TOPLEFT", header, "TOPLEFT", 0, 0)
+    actionButton:SetText(isImport and L["Import"] or L["Export"])
+    f.actionButton = actionButton
+
+    -- Set-view section, shown only when a viewZoom setting is selected: export lets
+    -- the user write the view description; import shows it and offers Save View.
+    local viewSection = CreateFrame("Frame", nil, header)
+    viewSection:SetPoint("TOPLEFT", actionButton, "BOTTOMLEFT", 0, -10)
+    viewSection:SetPoint("RIGHT", header, "RIGHT")
+    viewSection:Hide()
+    f.viewSection = viewSection
+
+    local prompt = viewSection:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    prompt:SetJustifyH("LEFT")
+    prompt:SetPoint("TOPLEFT", viewSection, "TOPLEFT")
+    prompt:SetPoint("TOPRIGHT", viewSection, "TOPRIGHT")
+    viewSection.prompt = prompt
+
+    local editBg = CreateFrame("Frame", nil, viewSection, "TooltipBackdropTemplate")
+    editBg:SetPoint("TOPLEFT", prompt, "BOTTOMLEFT", 0, -5)
+    editBg:SetPoint("TOPRIGHT", prompt, "BOTTOMRIGHT", 0, -5)
+    editBg:SetHeight(60)
+    viewSection.editBg = editBg
+
+    local editbox = CreateFrame("EditBox", nil, editBg)
+    editbox:SetMultiLine(true)
+    editbox:SetAutoFocus(false)
+    editbox:SetFontObject(ChatFontNormal)
+    editbox:SetPoint("TOPLEFT", editBg, "TOPLEFT", 8, -8)
+    editbox:SetPoint("BOTTOMRIGHT", editBg, "BOTTOMRIGHT", -8, 8)
+    editbox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    -- Export: the user writes the description here. Import: read-only note display
+    -- (revert any edit back to the exporter's note).
+    if isImport then
+      editbox:SetScript("OnTextChanged", function(self, userInput)
+        if userInput and self.dcNote and self:GetText() ~= self.dcNote then
+          self:SetText(self.dcNote)
+        end
+      end)
+    end
+    viewSection.editbox = editbox
+
+    local testButton = CreateFrame("Button", nil, viewSection, "UIPanelButtonTemplate")
+    testButton:SetSize(120, 24)
+    testButton:SetPoint("TOPLEFT", editBg, "BOTTOMLEFT", 0, -8)
+    viewSection.testButton = testButton
+
+    -- Collect the checked leaves and whether a viewZoom setting is among them.
+    -- Returns (selected, setViewSelected, viewNumber) where selected is an array of
+    -- { path = fullPath, value = <value> }. Export reads the live situation; import
+    -- reads the value stashed on each node from the paste string.
+    function f.GatherSelection()
+      local selected = {}
+      local setViewSelected = false
+
+      -- Import: collect the checked leaves with their value from the paste string.
+      if isImport then
+        if f.dataProvider then
+          f.dataProvider:ForEach(function(node)
+            local data = node:GetData()
+            if data.fullPath and data.checked then
+              selected[#selected + 1] = { path = data.fullPath, value = data.importValue }
+              if data.fullPath[1] == "viewZoom" then
+                setViewSelected = true
+              end
+            end
+          end, TreeDataProviderConstants.IncludeCollapsed)
+        end
+        return selected, setViewSelected
+      end
+
+      local SID = DynamicCam.Options.SID
+      local situation = SID and DynamicCam.db.profile.situations[SID]
+      if f.dataProvider and situation then
+        f.dataProvider:ForEach(function(node)
+          local data = node:GetData()
+          if data.fullPath and data.checked then
+            local path = data.fullPath
+            local value
+
+            -- Read the actual value with its correct type. Note we do NOT use
+            -- data.get: some option get-functions return display strings (e.g.
+            -- priority and events), which would corrupt the export.
+            if path[1] == "situationSettings" and path[2] == "cvars" then
+              -- Effective cvar value (situation override or standard fallback).
+              value = DynamicCam:GetSettingsValue(SID, "cvars", path[3])
+            else
+              value = situation
+              for i = 1, #path do
+                if type(value) ~= "table" then
+                  value = nil
+                  break
+                end
+                value = value[path[i]]
+                if value == nil then break end
+              end
+            end
+
+            if value ~= nil then
+              selected[#selected + 1] = { path = path, value = value }
+            end
+            if path[1] == "viewZoom" then
+              setViewSelected = true
+            end
+          end
+        end, TreeDataProviderConstants.IncludeCollapsed)
+      end
+
+      -- Only a set-view export if the situation actually switches to a saved view.
+      local viewNumber
+      if setViewSelected and situation and situation.viewZoom
+         and situation.viewZoom.enabled and situation.viewZoom.viewZoomType == "view" then
+        viewNumber = situation.viewZoom.viewNumber
+      else
+        setViewSelected = false
+      end
+
+      return selected, setViewSelected, viewNumber
+    end
+
+    -- Reactively refresh the action button state and the view section.
+    function f.UpdateUI()
+      local selected, setViewSelected, viewNumber = f.GatherSelection()
+
+      if #selected > 0 then
+        actionButton:Enable()
+      else
+        actionButton:Disable()
+      end
+
+      local showView = false
+      if isImport then
+        local imp = DynamicCam.Options.pendingImport
+        local note = imp and imp.viewDescription
+        local slot = imp and imp.situation and imp.situation.viewZoom and imp.situation.viewZoom.viewNumber
+        if setViewSelected and note and note ~= "" then
+          showView = true
+          prompt:SetText(L["<importSetView_desc>"])
+          editbox.dcNote = note
+          editbox:SetText(note)
+          testButton:SetText(L["Save current camera to View %d"]:format(slot or 0))
+        end
+      elseif setViewSelected then
+        showView = true
+        prompt:SetText(L["<exportSetView_desc>"])
+        testButton:SetText(L["Test view %d"]:format(viewNumber or 0))
+      end
+
+      if showView then
+        viewSection:Show()
+        local h = prompt:GetStringHeight() + 5 + editBg:GetHeight() + 8 + testButton:GetHeight()
+        viewSection:SetHeight(h)
+        header:SetHeight(actionButton:GetHeight() + 10 + h)
+      else
+        viewSection:Hide()
+        header:SetHeight(actionButton:GetHeight())
+      end
+
+      if widget.AdjustHeightFunction then widget:AdjustHeightFunction() end
+    end
+
+    actionButton:SetScript("OnClick", function()
+      local selected, setViewSelected = f.GatherSelection()
+      if #selected == 0 then return end
+      local SID = DynamicCam.Options.SID
+
+      if isImport then
+        DynamicCam:ApplyImportedSettings(SID, selected)
+        local acr = LibStub("AceConfigRegistry-3.0")
+        acr:NotifyChange("DynamicCam")
+        acr:NotifyChange("DynamicCam_Detached")
+        DynamicCam:Print(L["Imported %d setting(s) into the current situation."]:format(#selected))
+      else
+        local viewDescription
+        if setViewSelected then
+          viewDescription = viewSection.editbox:GetText()
+        end
+        local exportString = DynamicCam:ExportSelectedSituation(SID, selected, viewDescription)
+        DynamicCam:PopupExportString(exportString)
+      end
+    end)
+
+    -- Export: switch to the saved view so the exporter can look at it while writing
+    -- the description. Import: save the current camera into the imported view slot.
+    testButton:SetScript("OnClick", function()
+      if isImport then
+        local imp = DynamicCam.Options.pendingImport
+        local slot = imp and imp.situation and imp.situation.viewZoom and imp.situation.viewZoom.viewNumber
+        if slot then SaveView(slot) end
+      else
+        local _, setViewSelected, viewNumber = f.GatherSelection()
+        if setViewSelected and viewNumber then
+          SetView(viewNumber)
+        end
+      end
+    end)
+  end
+
+  -- Description text ("Select the settings you want to export"), below the header.
   if not f.help then
     f.help = f:CreateFontString(nil, "OVERLAY")
     f.help:SetFontObject("GameFontHighlightSmall")
     f.help:SetJustifyH("LEFT")
-    f.help:SetPoint("TOPLEFT", f, "TOPLEFT")
-    f.help:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-    f.help:SetText("Select the settings you want to export.")
+    f.help:SetPoint("TOPLEFT", f.headerFrame, "BOTTOMLEFT", 0, -10)
+    f.help:SetPoint("TOPRIGHT", f.headerFrame, "BOTTOMRIGHT", 0, -10)
+    f.help:SetText(isImport and L["Select the settings you want to import."] or L["Select the settings you want to export."])
   end
 
-  -- Content frame and row pool (created once).
-  if not f.contentFrame then
-    f.contentFrame = CreateFrame("Frame", nil, f)
-    f.contentFrame:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, -10)
-    f.contentFrame:SetPoint("TOPRIGHT", f.help, "TOPRIGHT", 0, -10)
-    f.contentFrame.rowPool = {}
-    f.contentFrame.allRows = {}
-  end
+  -- Tree ScrollBox (created once). Uses Blizzard's ScrollBox + TreeDataProvider so
+  -- row frames are recycled and rendered reliably by the engine, and collapse/
+  -- expand is handled by the data provider. The ScrollBox has a FIXED height, so
+  -- our widget's height never changes on collapse -- the surrounding AceGUI
+  -- ScrollFrame is never perturbed, which is what made the old manual layout
+  -- fragile (empty box / invisible rows / drift).
+  local ROW_HEIGHT = 24
+  local TREE_INDENT = 20
 
-  local cf = f.contentFrame
+  if not f.scrollBox then
 
-  -- ---- Release existing rows back to the pool ----
-  for _, row in ipairs(cf.allRows) do
-    row:Hide()
-    row:ClearAllPoints()
-    row.cb:SetScript("OnClick", nil)
-    row.cb:SetChecked(false)
-    if row.expandBtn then
-      row.expandBtn:Hide()
-      row.expandBtn:SetScript("OnClick", nil)
+    -- Fill the area below the header down to the bottom of the widget frame; the
+    -- widget height itself tracks the available viewport (see AdjustHeightFunction),
+    -- so the tree grows/shrinks with the options frame instead of a fixed size.
+    f.scrollBox = CreateFrame("Frame", nil, f, "WowScrollBoxList")
+    f.scrollBox:SetPoint("TOPLEFT", f.help, "BOTTOMLEFT", 0, -10)
+    f.scrollBox:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -20, 0)
+
+    f.scrollBar = CreateFrame("EventFrame", nil, f, "MinimalScrollBar")
+    f.scrollBar:SetPoint("TOPLEFT", f.scrollBox, "TOPRIGHT", 4, 0)
+    f.scrollBar:SetPoint("BOTTOMLEFT", f.scrollBox, "BOTTOMRIGHT", 4, 0)
+
+    -- Tri-state (true / false / "mixed") of a node from its descendants.
+    local function GetNodeState(node)
+      local children = node:GetNodes()
+      if #children == 0 then
+        return node:GetData().checked and true or false
+      end
+      local allChecked, allUnchecked = true, true
+      for _, child in ipairs(children) do
+        local s = GetNodeState(child)
+        if s == true then allUnchecked = false
+        elseif s == false then allChecked = false
+        else allChecked = false; allUnchecked = false end
+      end
+      if allChecked then return true end
+      if allUnchecked then return false end
+      return "mixed"
     end
-    if row.graphFrame then
-      row.graphFrame:Hide()
-      ReleaseAllLines(row.graphFrame)
+
+    local function ApplyCheckVisual(cb, state)
+      local tex = cb:GetCheckedTexture()
+      if state == true then
+        cb:SetChecked(true); tex:SetAlpha(1)
+      elseif state == false then
+        cb:SetChecked(false)
+      else
+        cb:SetChecked(true); tex:SetAlpha(0.4)
+      end
     end
-    if row.multilineFrame then row.multilineFrame:Hide() end
-    ReleaseAllFontStrings(row)
-    wipe(row.childRows)
-    row.node = nil
-    row.parentRow = nil
-    row.expanded = nil
-    row.level = nil
-    row.UpdateVisuals = nil
-    table.insert(cf.rowPool, row)
+
+    local function SetNodeCheckedRecursive(node, checked)
+      local data = node:GetData()
+      data.checked = checked
+      local children = node:GetNodes()
+      if #children == 0 then
+        -- Leaf holds the source-of-truth checked state; persist it so the
+        -- selection survives switching tabs (groups derive their tri-state).
+        if data.pathKey and f.checkState then
+          f.checkState[data.pathKey] = checked
+        end
+      else
+        for _, child in ipairs(children) do
+          SetNodeCheckedRecursive(child, checked)
+        end
+      end
+    end
+
+    -- Refresh the checkbox visuals of all currently-visible rows (ancestors of a
+    -- toggled node change their mixed/checked state).
+    local function RefreshChecks()
+      f.scrollBox:ForEachFrame(function(frame)
+        if frame.cb then
+          ApplyCheckVisual(frame.cb, GetNodeState(frame:GetElementData()))
+        end
+      end)
+    end
+
+    -- Element initializer: build the row's sub-frames once, then reconfigure them
+    -- for the given tree node on each (re)bind.
+    local function InitRow(frame, node)
+      local data = node:GetData()
+
+      if not frame.created then
+        frame.created = true
+
+        frame.expandBtn = CreateFrame("Button", nil, frame)
+        frame.expandBtn:SetSize(22, 22)
+        frame.expandBtn:SetPoint("LEFT", 0, 0)
+        frame.expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+
+        frame.cb = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+        frame.cb:SetSize(24, 24)
+
+        frame.label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.label:SetJustifyH("LEFT")
+        frame.label:SetPoint("LEFT", frame.cb, "RIGHT", 2, 0)
+        frame.label:SetPoint("RIGHT", frame, "RIGHT", -4, 0)
+      end
+
+      local hasChildren = #node:GetNodes() > 0
+
+      -- Expand/collapse button (groups only, and not the non-collapsible root).
+      if hasChildren and not data.notCollapsible then
+        local function ApplyExpandAtlas()
+          local collapsed = node:IsCollapsed()
+          frame.expandBtn:SetNormalAtlas(collapsed and "common-button-dropdown-closed" or "common-button-dropdown-open")
+          frame.expandBtn:SetPushedAtlas(collapsed and "common-button-dropdown-closedpressed" or "common-button-dropdown-openpressed")
+        end
+        ApplyExpandAtlas()
+        frame.expandBtn:SetScript("OnClick", function()
+          node:ToggleCollapsed()
+          -- Update this button's atlas immediately: the ScrollBox re-lays out the
+          -- list, but does not re-initialize this already-visible header row.
+          ApplyExpandAtlas()
+          -- Remember the new state so it survives switching tabs.
+          if data.pathKey and f.collapseState then
+            f.collapseState[data.pathKey] = node:IsCollapsed()
+          end
+        end)
+        frame.expandBtn:Show()
+      else
+        frame.expandBtn:SetScript("OnClick", nil)
+        frame.expandBtn:Hide()
+      end
+
+      -- Checkbox: leave room for the expand-button column unless this is the root.
+      frame.cb:ClearAllPoints()
+      frame.cb:SetPoint("LEFT", data.notCollapsible and 0 or 24, 0)
+      ApplyCheckVisual(frame.cb, GetNodeState(node))
+      frame.cb:SetScript("OnClick", function()
+        SetNodeCheckedRecursive(node, GetNodeState(node) ~= true)
+        RefreshChecks()
+        if f.UpdateUI then f.UpdateUI() end
+      end)
+
+      -- Label (name, plus a compact value preview for leaves). Import shows the
+      -- value from the paste string; export shows the live value.
+      local text = data.name or ""
+      if not hasChildren then
+        local val
+        if isImport then
+          val = data.importValue
+        elseif data.get then
+          local ok, v = pcall(data.get)
+          if ok then val = v end
+        end
+        if val ~= nil then
+          if type(val) == "table" then
+            val = "{...}"
+          elseif type(val) == "number" then
+            val = math.floor(val * 100 + 0.5) / 100
+          end
+          val = tostring(val):gsub("\n", " ")
+          if #val > 40 then val = val:sub(1, 40) .. "..." end
+          text = text .. " |cFF888888[" .. val .. "]|r"
+        end
+      end
+      frame.label:SetText(text)
+    end
+
+    local view = CreateScrollBoxListTreeListView(TREE_INDENT, 0, 0, 0, 0, 0)
+    view:SetElementExtent(ROW_HEIGHT)
+    view:SetElementInitializer("Frame", InitRow)
+    ScrollUtil.InitScrollBoxListWithScrollBar(f.scrollBox, f.scrollBar, view)
+    -- Hide the scrollbar when everything fits (no scrolling possible).
+    ScrollUtil.AddManagedScrollBarVisibilityBehavior(f.scrollBox, f.scrollBar)
+    f.scrollBoxView = view
   end
-  wipe(cf.allRows)
 
   -- ---- Tree Building Logic (re-evaluated each rebuild) ----
 
-  local function BuildTreeData(args)
+  -- Each exportable leaf carries an _dbPath relative to one of three roots. The
+  -- situationSettings tab's paths are relative to situation.situationSettings,
+  -- while situationActions/situationControls paths are relative to the situation
+  -- root. We prefix accordingly so every leaf ends up with a full situation-root
+  -- relative path (fullPath) usable by ExportSelectedSituation.
+  local ROOT_PREFIX = {
+    situationSettings = {"situationSettings"},
+    situationActions = {},
+    situationControls = {},
+  }
+
+  local function MergePath(rootPath, dbPath)
+    local path = {}
+    for _, k in ipairs(rootPath) do path[#path + 1] = k end
+    if type(dbPath) == "table" then
+      for _, k in ipairs(dbPath) do path[#path + 1] = k end
+    else
+      path[#path + 1] = dbPath
+    end
+    return path
+  end
+
+  local function BuildTreeData(args, rootPath)
+    rootPath = rootPath or {}
     local tree = {}
     for key, entry in pairs(args) do
       -- Check disabled status
@@ -132,9 +522,11 @@ DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
         end
       end
 
-      -- Check hidden status
+      -- Check hidden status. Import includes hidden entries (e.g. the view fields
+      -- when the live situation is currently a Set Zoom): the tree is pruned to the
+      -- imported paths afterwards, so hidden filtering would wrongly drop them.
       local isHidden = false
-      if entry.hidden then
+      if entry.hidden and not isImport then
         if type(entry.hidden) == "function" then
           isHidden = entry.hidden({})
         else
@@ -147,7 +539,7 @@ DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
       local skipDisabled = isDisabled and not entry._dbPath
       if not skipDisabled and not isHidden then
         if entry.type == "group" then
-          local children = BuildTreeData(entry.args)
+          local children = BuildTreeData(entry.args, ROOT_PREFIX[key] or rootPath)
           if next(children) then
             local rawName = (type(entry.name) == "function" and entry.name() or entry.name)
             local name = rawName and rawName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
@@ -203,6 +595,7 @@ DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
             key = key,
             name = finalName,
             dbPath = entry._dbPath,
+            fullPath = entry._dbPath and MergePath(rootPath, entry._dbPath) or nil,
             order = entry.order or 100,
             get = entry.get,
             arg = entry.arg,
@@ -251,474 +644,151 @@ DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
 
   local treeData = BuildTreeData(exportArgs)
 
-  -- ---- Tree Rendering Logic ----
-
-  local ROW_HEIGHT = 24
-  local INDENT = 20
-  local allRows = cf.allRows
-
-  local function ReLayout()
-    local currentY = 0
-    for _, row in ipairs(allRows) do
-      if row:IsShown() then
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", cf, "TOPLEFT", row.level * INDENT, currentY)
-        row:SetPoint("RIGHT", cf, "RIGHT")
-        currentY = currentY - row:GetHeight()
+  -- Import: prune the tree to only the settings present in the paste string, and
+  -- stash each leaf's imported value on its node (for display and applying).
+  if isImport then
+    local importSituation = DynamicCam.Options.pendingImport and DynamicCam.Options.pendingImport.situation
+    local function ReadPath(tbl, path)
+      local v = tbl
+      for i = 1, #path do
+        if type(v) ~= "table" then return nil end
+        v = v[path[i]]
+        if v == nil then return nil end
       end
+      return v
     end
-    cf:SetHeight(math.abs(currentY))
-
-    if widget.AdjustHeightFunction then
-      widget:AdjustHeightFunction()
-    end
-
-    -- Force parent to update layout to accommodate new height
-    if widget.parent and widget.parent.DoLayout then
-      widget.parent:DoLayout()
-    end
-  end
-
-  -- Acquire a row frame from the pool (or create a new one).
-  local function AcquireRow()
-    local row = table.remove(cf.rowPool)
-    if row then
-      row:Show()
-      return row
-    end
-    row = CreateFrame("Frame", nil, cf)
-    row.childRows = {}
-    -- Checkbox (created once per row frame, reused across rebuilds)
-    row.cb = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.cb:SetSize(24, 24)
-    return row
-  end
-
-  local function CreateRow(parent, node, level, parentRow)
-    local row = AcquireRow()
-    row:SetHeight(ROW_HEIGHT)
-    row.level = level
-    row.parentRow = parentRow
-    row.node = node
-    wipe(row.childRows)
-
-    -- Expand Button (reused from row frame if it exists)
-    if node.children and not node.notCollapsible then
-      if not row.expandBtn then
-        row.expandBtn = CreateFrame("Button", nil, row)
-        row.expandBtn:SetSize(22, 22)
-        row.expandBtn:SetPoint("LEFT", 0, 0)
-        row.expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
-      end
-      row.expandBtn:SetNormalAtlas("common-button-dropdown-open")
-      row.expandBtn:SetPushedAtlas("common-button-dropdown-openpressed")
-      row.expandBtn:Show()
-    elseif row.expandBtn then
-      row.expandBtn:Hide()
-    end
-
-    row.expanded = node.children and true or nil
-
-    -- ToggleChildren (closure captures this specific row)
-    local function ToggleChildren(r, show)
-      if not r.childRows then return end
-      for _, childRow in ipairs(r.childRows) do
-        if show then
-          childRow:Show()
-          if childRow.expanded then
-            ToggleChildren(childRow, true)
+    local function Prune(nodes)
+      local kept = {}
+      for _, node in ipairs(nodes) do
+        if node.children then
+          node.children = Prune(node.children)
+          if #node.children > 0 then kept[#kept + 1] = node end
+        elseif node.fullPath then
+          local val = importSituation and ReadPath(importSituation, node.fullPath)
+          if val ~= nil then
+            node.importValue = val
+            kept[#kept + 1] = node
           end
+        end
+      end
+      return kept
+    end
+    treeData = importSituation and Prune(treeData) or {}
+  end
+
+  -- ---- Populate the tree ----
+
+  -- Collapse/selection state is remembered across tab switches (module-level, so it
+  -- survives the widget being released and reacquired), and resets when the selected
+  -- situation changes or on /reload. Export and import keep separate state.
+  local sidKey = isImport and "importStateSID" or "exportStateSID"
+  local collapseKey = isImport and "importCollapseState" or "exportCollapseState"
+  local checkKey = isImport and "importCheckState" or "exportCheckState"
+  local currentSID = Options.SID
+  if Options[sidKey] ~= currentSID then
+    Options[sidKey] = currentSID
+    Options[collapseKey] = {}
+    Options[checkKey] = {}
+    -- Also clear the exporter's view-instruction text, which belonged to the
+    -- previous situation. (Import re-fills the note from the paste string, so this
+    -- only affects the export description box.)
+    if not isImport and f.viewSection and f.viewSection.editbox then
+      f.viewSection.editbox:SetText("")
+    end
+  end
+  Options[collapseKey] = Options[collapseKey] or {}
+  Options[checkKey] = Options[checkKey] or {}
+  local collapseState = Options[collapseKey]
+  local checkState = Options[checkKey]
+  f.collapseState = collapseState
+  f.checkState = checkState
+
+  -- Build a fresh TreeDataProvider from the tree.
+  local dataProvider = CreateTreeDataProvider()
+  local function InsertNodes(parentNode, myNodes, parentKey, depth)
+    for _, myNode in ipairs(myNodes) do
+      local pathKey = parentKey .. "/" .. (myNode.name or myNode.key or "?")
+      myNode.pathKey = pathKey
+      local inserted = parentNode:Insert(myNode)
+      if myNode.children and #myNode.children > 0 then
+        -- Default: only the top level ("Everything", depth 1) is expanded; its
+        -- three children (depth 2) start collapsed. A remembered state overrides.
+        local collapsed
+        if collapseState[pathKey] ~= nil then
+          collapsed = collapseState[pathKey]
         else
-          childRow:Hide()
-          ToggleChildren(childRow, false)
+          collapsed = (depth == 2)
         end
-      end
-    end
-
-    if row.expandBtn and node.children then
-      row.expandBtn:SetScript("OnClick", function(self)
-        row.expanded = not row.expanded
-        local show = row.expanded
-
-        if show then
-          self:SetNormalAtlas("common-button-dropdown-open")
-          self:SetPushedAtlas("common-button-dropdown-openpressed")
-        else
-          self:SetNormalAtlas("common-button-dropdown-closed")
-          self:SetPushedAtlas("common-button-dropdown-closedpressed")
-        end
-
-        ToggleChildren(row, show)
-        ReLayout()
-      end)
-    end
-
-    -- Checkbox (already created on the row frame, just reconfigure)
-    local cb = row.cb
-    local cbOffsetX = node.notCollapsible and 0 or 24
-    cb:ClearAllPoints()
-    cb:SetPoint("TOPLEFT", cbOffsetX, 0)
-    cb.text:SetText(" " .. node.name)
-    cb.text:SetFontObject("GameFontNormal")
-    cb:SetChecked(false)
-    cb:Show()
-
-    -- Check if this cvar is currently set to zoom-based mode
-    local isZoomBased = false
-    local zoomPoints = nil
-    if node.cvarName then
-      isZoomBased = DynamicCam:IsCvarZoomBased(Options.SID, node.cvarName)
-      if isZoomBased then
-        zoomPoints = DynamicCam:GetSavedZoomBasedPoints(Options.SID, node.cvarName)
-      end
-    end
-
-    -- Hide any previously visible type-specific content
-    if row.graphFrame then row.graphFrame:Hide(); ReleaseAllLines(row.graphFrame) end
-    if row.multilineFrame then row.multilineFrame:Hide() end
-    ReleaseAllFontStrings(row)
-
-    -- ---- Multiline handling ----
-    if node.multiline then
-      local val = ""
-      if node.get then
-        local success, v = pcall(node.get)
-        if success and v then val = v end
-      end
-
-      if val ~= "" then
-        -- Lazily create the multiline sub-frames on this row frame.
-        if not row.multilineFrame then
-          row.multilineFrame = CreateFrame("Frame", nil, row, "TooltipBackdropTemplate")
-          row.multilineScrollFrame = CreateFrame("ScrollFrame", nil, row.multilineFrame, "UIPanelScrollFrameTemplate")
-
-          row.multilineBg = row.multilineScrollFrame:CreateTexture(nil, "BACKGROUND")
-          row.multilineBg:SetAllPoints()
-          row.multilineBg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
-
-          row.multilineEditBox = CreateFrame("EditBox", nil, row.multilineScrollFrame)
-          row.multilineEditBox:SetMultiLine(true)
-          row.multilineEditBox:SetFontObject("GameFontHighlightSmall")
-          row.multilineEditBox:SetTextColor(0.533, 0.533, 0.533)
-          row.multilineEditBox:SetTextInsets(2, 2, 4, 2)
-          row.multilineEditBox:SetAutoFocus(false)
-          row.multilineEditBox:EnableMouse(false)
-          row.multilineScrollFrame:SetScrollChild(row.multilineEditBox)
-
-          row.multilineScrollFrame:SetScript("OnSizeChanged", function(self, w, h)
-            row.multilineEditBox:SetWidth(w)
-          end)
-        end
-
-        row.multilineFrame:ClearAllPoints()
-        row.multilineFrame:SetPoint("TOPLEFT", cbOffsetX + 24, -24)
-        row.multilineFrame:SetPoint("RIGHT", -30, 0)
-        row.multilineFrame:SetHeight(80)
-        row.multilineFrame:Show()
-
-        row.multilineScrollFrame:ClearAllPoints()
-        row.multilineScrollFrame:SetPoint("TOPLEFT", 8, -4)
-        row.multilineScrollFrame:SetPoint("BOTTOMRIGHT", -26, 4)
-        row.multilineEditBox:SetText(val)
-
-        row:SetHeight(24 + 80 + 5)
+        inserted:SetCollapsed(collapsed)
+        InsertNodes(inserted, myNode.children, pathKey, depth + 1)
       else
-        -- No content: show [blank] inline instead of an empty text box.
-        cb.text:SetText(" " .. node.name .. " |cFF888888[" .. L["blank"] .. "]|r")
-        row:SetHeight(ROW_HEIGHT)
-      end
-
-    -- ---- Zoom-based curve graph ----
-    elseif isZoomBased and zoomPoints and #zoomPoints >= 2 then
-      local MINI_H = math.floor(77 * 1.5 * 1.5)   -- 172
-      local MINI_W = math.floor(MINI_H * 3 / 4)   -- 129
-
-      local range    = DynamicCam.cvarRanges[node.cvarName]
-      local minValue = range and range.min or 0
-      local maxValue = range and range.max or 1
-      local maxZoom  = DynamicCam.cameraDistanceMaxZoomFactor_max
-
-      cb.text:SetText(" " .. node.name .. " |cFF888888[" .. L["Zoom-based"] .. "]|r")
-
-      -- Shared constants and label formatter (used by both axes).
-      local charWidth  = 6.5  -- approx px/char for GameFontNormalSmall
-      local lineHeight = 9    -- approx px/line for GameFontNormalSmall
-      local axisGap    = 4    -- px gap between a label's edge and the graph edge
-
-      local GC = DynamicCam.GRAPH_COLORS
-
-      local function fmtLabel(v)
-        local s = string.format("%.2f", v)
-        s = s:gsub("0+$", "")   -- strip trailing zeros after decimal point
-        s = s:gsub("%.$", "")   -- strip trailing decimal point if nothing left
-        return s
-      end
-
-      -- Y-axis labels are zoom levels (always integers).
-      local function fmtYLabel(v)
-        return tostring(math.floor(v + 0.5))
-      end
-
-      -- Pre-compute Y-axis (zoom) label candidates so we know the label-column width
-      -- before positioning the graph frame.
-      -- y pixel = (1 - zoom/maxZoom) * MINI_H: zoom=0 → top, zoom=maxZoom → bottom.
-      local yCandidates = {{y = 0, text = fmtYLabel(maxZoom)}}
-      for i = 1, 4 do
-        local y    = (i / 5) * MINI_H
-        local zoom = maxZoom * (1 - i / 5)
-        table.insert(yCandidates, {y = y, text = fmtYLabel(zoom)})
-      end
-      table.insert(yCandidates, {y = MINI_H, text = fmtYLabel(0)})
-      table.sort(yCandidates, function(a, b) return a.y < b.y end)
-
-      local maxYLabelW = 0
-      for _, c in ipairs(yCandidates) do
-        maxYLabelW = math.max(maxYLabelW, #c.text * charWidth)
-      end
-      -- Reserve space left of the graph: label width + gap + 2px safety margin.
-      local Y_OFFSET = math.ceil(maxYLabelW) + axisGap + 2
-
-      -- Lazily create the graph sub-frame on this row frame.
-      if not row.graphFrame then
-        row.graphFrame = CreateFrame("Frame", nil, row)
-        row.graphFrame.bg = row.graphFrame:CreateTexture(nil, "BACKGROUND")
-        row.graphFrame.bg:SetAllPoints()
-        row.graphFrame.linePool = {}
-        row.graphFrame.lineCount = 0
-      end
-
-      local graphFrame = row.graphFrame
-      graphFrame:ClearAllPoints()
-      graphFrame:SetPoint("TOPLEFT", cbOffsetX + 24 + Y_OFFSET, -24)
-      graphFrame:SetSize(MINI_W, MINI_H)
-      graphFrame:Show()
-
-      graphFrame.bg:SetColorTexture(unpack(GC.gridBackground))
-
-      -- Release any lines from a previous use of this graph frame.
-      ReleaseAllLines(graphFrame)
-
-      -- Helper to acquire a pooled line and configure it.
-      local function PooledLine(startAnchor, sx, sy, endAnchor, ex, ey, thickness, r, g, b, a, layer)
-        local line = AcquireLine(graphFrame)
-        line:SetDrawLayer(layer or "ARTWORK")
-        line:SetThickness(thickness)
-        line:SetColorTexture(r, g, b, a)
-        line:SetStartPoint(startAnchor, graphFrame, sx, sy)
-        line:SetEndPoint(endAnchor, graphFrame, ex, ey)
-      end
-
-      -- Outer border (major grid colour)
-      local gmR, gmG, gmB, gmA = unpack(GC.gridMajor)
-      PooledLine("BOTTOMLEFT", 0, 0, "BOTTOMRIGHT", 0, 0, 1.5, gmR, gmG, gmB, gmA)
-      PooledLine("TOPLEFT",    0, 0, "TOPRIGHT",    0, 0, 1.5, gmR, gmG, gmB, gmA)
-      PooledLine("BOTTOMLEFT", 0, 0, "TOPLEFT",     0, 0, 1.5, gmR, gmG, gmB, gmA)
-      PooledLine("BOTTOMRIGHT",0, 0, "TOPRIGHT",     0, 0, 1.5, gmR, gmG, gmB, gmA)
-
-      -- Fixed grid: 4 interior horizontal lines (5 y-sections), 3 interior vertical lines (4 x-sections).
-      for i = 1, 4 do
-        PooledLine("BOTTOMLEFT", 0, (i/5)*MINI_H, "BOTTOMRIGHT", 0, (i/5)*MINI_H, 1, gmR, gmG, gmB, gmA)
-      end
-      for i = 1, 3 do
-        PooledLine("BOTTOMLEFT", (i/4)*MINI_W, 0, "TOPLEFT", (i/4)*MINI_W, 0, 1, gmR, gmG, gmB, gmA)
-      end
-
-      -- Curve lines (OVERLAY so they render above the grid)
-      local sorted = {}
-      for idx, pt in ipairs(zoomPoints) do sorted[idx] = pt end
-      table.sort(sorted, function(a, b) return a.zoom < b.zoom end)
-
-      for idx = 1, #sorted - 1 do
-        local x1 = ((sorted[idx].value   - minValue) / (maxValue - minValue)) * MINI_W
-        local y1 = (1 - sorted[idx].zoom   / maxZoom) * MINI_H
-        local x2 = ((sorted[idx+1].value - minValue) / (maxValue - minValue)) * MINI_W
-        local y2 = (1 - sorted[idx+1].zoom / maxZoom) * MINI_H
-
-        local line = AcquireLine(graphFrame)
-        line:SetDrawLayer("OVERLAY")
-        line:SetThickness(2)
-        line:SetColorTexture(unpack(GC.curveLine))
-        line:SetStartPoint("BOTTOMLEFT", graphFrame, x1, y1)
-        line:SetEndPoint("BOTTOMLEFT",   graphFrame, x2, y2)
-      end
-
-      -- Y-axis labels (zoom): right-aligned left of the graph.
-      do
-        for i, c in ipairs(yCandidates) do
-          local isLast = (i == #yCandidates)
-          local lbl = AcquireFontString(row)
-          if i == 1 then
-            -- Bottom label (maxZoom): bottom-align with graph bottom
-            lbl:SetPoint("BOTTOMRIGHT", graphFrame, "BOTTOMLEFT", -axisGap, 0)
-          elseif isLast then
-            -- Top label (zoom 0): top-align with graph top
-            lbl:SetPoint("TOPRIGHT", graphFrame, "TOPLEFT", -axisGap, 0)
-          else
-            -- Interior labels: center-aligned
-            lbl:SetPoint("RIGHT", graphFrame, "BOTTOMLEFT", -axisGap, c.y)
-          end
-          lbl:SetText(c.text)
-          lbl:SetTextColor(unpack(GC.gridLabel))
+        -- Leaf: restore the remembered checked state, else default to selected.
+        if checkState[pathKey] ~= nil then
+          myNode.checked = checkState[pathKey]
+        else
+          myNode.checked = true
         end
-      end
-
-      -- X-axis labels: min and max centered below the left/right graph borders; center skipped if it overlaps.
-      do
-        local minGap   = 4
-        local wMin     = #fmtLabel(minValue) * charWidth
-        local wMax     = #fmtLabel(maxValue) * charWidth
-        local wCenter  = #fmtLabel((minValue + maxValue) / 2) * charWidth
-        -- Min and max are centered on the border, so their half-width extends outside.
-        -- Use only the inward-facing half for collision purposes.
-        local minRight   = wMin / 2
-        local maxLeft    = MINI_W - wMax / 2
-        local cntLeft    = MINI_W / 2 - wCenter / 2
-        local cntRight   = MINI_W / 2 + wCenter / 2
-
-        -- Min label: centered below x=0 (left border)
-        local lblMin = AcquireFontString(row)
-        lblMin:SetPoint("TOP", graphFrame, "BOTTOMLEFT", 0, -7)
-        lblMin:SetText(fmtLabel(minValue))
-        lblMin:SetTextColor(unpack(GC.gridLabel))
-
-        -- Center label: only if it clears min and max
-        if cntLeft >= minRight + minGap and cntRight <= maxLeft - minGap then
-          local lblCenter = AcquireFontString(row)
-          lblCenter:SetPoint("TOP", graphFrame, "BOTTOMLEFT", MINI_W / 2, -7)
-          lblCenter:SetText(fmtLabel((minValue + maxValue) / 2))
-          lblCenter:SetTextColor(unpack(GC.gridLabel))
-        end
-
-        -- Max label: centered below x=MINI_W (right border)
-        local lblMax = AcquireFontString(row)
-        lblMax:SetPoint("TOP", graphFrame, "BOTTOMRIGHT", 0, -7)
-        lblMax:SetText(fmtLabel(maxValue))
-        lblMax:SetTextColor(unpack(GC.gridLabel))
-      end
-
-      row:SetHeight(24 + MINI_H + 14 + 5)
-
-    -- ---- Simple single-line row ----
-    else
-      if node.get then
-        local success, val = pcall(node.get)
-        if success and val ~= nil then
-          if type(val) == "number" then
-            val = math.floor(val * 100 + 0.5) / 100
-          end
-          cb.text:SetText(" " .. node.name .. " |cFF888888[" .. tostring(val) .. "]|r")
-        end
-      end
-      row:SetHeight(ROW_HEIGHT)
-    end
-
-    table.insert(allRows, row)
-
-    -- Helper to calculate state based on children
-    local function GetState(r)
-      if not r.childRows or #r.childRows == 0 then
-        return r.node.checked
-      end
-
-      local allChecked = true
-      local allUnchecked = true
-
-      for _, child in ipairs(r.childRows) do
-        local childState = GetState(child)
-        if childState == false then
-          allChecked = false
-        elseif childState == true then
-          allUnchecked = false
-        else -- mixed
-          allChecked = false
-          allUnchecked = false
-        end
-      end
-
-      if allChecked then return true end
-      if allUnchecked then return false end
-      return "mixed"
-    end
-
-    -- Helper to update visuals
-    local function UpdateVisuals(r)
-      local state = GetState(r)
-      local tex = r.cb:GetCheckedTexture()
-
-      if state == true then
-        r.cb:SetChecked(true)
-        tex:SetAlpha(1)
-      elseif state == false then
-        r.cb:SetChecked(false)
-      else -- mixed
-        r.cb:SetChecked(true)
-        tex:SetAlpha(0.4)
       end
     end
-    row.UpdateVisuals = UpdateVisuals
-
-    -- Checkbox Logic
-    cb:SetScript("OnClick", function(self)
-      local currentState = GetState(row)
-      local newState = true
-      if currentState == true then
-        newState = false
-      end
-
-      local function SetStateRecursive(r, state)
-        r.node.checked = state
-        if r.childRows then
-          for _, child in ipairs(r.childRows) do
-            SetStateRecursive(child, state)
-          end
-        end
-        r.UpdateVisuals(r)
-      end
-
-      SetStateRecursive(row, newState)
-
-      local p = row.parentRow
-      while p do
-        p.UpdateVisuals(p)
-        p = p.parentRow
-      end
-    end)
-
-    if node.children then
-      for _, child in ipairs(node.children) do
-        local childRow = CreateRow(parent, child, level + 1, row)
-        table.insert(row.childRows, childRow)
-      end
-    end
-
-    -- Initialize state
-    if node.checked == nil then node.checked = false end
-    UpdateVisuals(row)
-
-    return row
   end
+  InsertNodes(dataProvider, treeData, "", 1)
+  f.dataProvider = dataProvider
+  f.scrollBox:SetDataProvider(dataProvider)
 
-  -- Create all rows from treeData.
-  for _, node in ipairs(treeData) do
-    CreateRow(cf, node, 0, nil)
-  end
-
-  ReLayout()
-
-  -- Whenever OnWidthSet() is called, we set the height of frames to the height of their children frames.
+  -- The widget height tracks the available viewport height so the tree fills the
+  -- options frame and grows/shrinks with it. It does NOT depend on the tree
+  -- contents, so collapse/expand never resizes the widget or perturbs the
+  -- enclosing AceGUI ScrollFrame.
   widget.AdjustHeightFunction = function(self)
-    local cf = f.contentFrame
+    local headerHeight = f.headerFrame and f.headerFrame:GetHeight() or 0
+    local overhead = headerHeight + 10 + f.help:GetStringHeight() + 10
 
-    -- Set the container frame (f) height.
-    local point, _, _, _, yOffset = cf:GetPoint()
-    -- yOffset is negative (e.g. -10), so we subtract it to add the spacing
-    local totalHeight = f.help:GetStringHeight() + math.abs(yOffset) + cf:GetHeight()
-    f:SetHeight(totalHeight)
+    -- Export fills the enclosing AceGUI ScrollFrame's viewport (it is the only
+    -- element on its tab). Import sits below a paste box, so it uses a fixed height
+    -- to avoid overflowing the viewport.
+    local total = overhead + (isImport and 350 or 400)
+    local p = widget.parent
+    if not isImport and p and p.scrollframe then
+      local sf = p.scrollframe
 
-    -- Set the widget frame height to match the container.
-    self:SetHeight(totalHeight)
+      -- Re-run when the viewport is resized. The detached frame has a fixed width
+      -- and only resizes vertically, so OnWidthSet never fires there; hook the
+      -- viewport's size change instead. dcFillWidget is refreshed every call so
+      -- the hook always drives the currently-acquired widget.
+      sf.dcFillWidget = self
+      if not sf.dcFillHooked then
+        sf.dcFillHooked = true
+        sf:HookScript("OnSizeChanged", function(hooked)
+          local w = hooked.dcFillWidget
+          if w and w.AdjustHeightFunction and w.frame and w.frame:IsShown() then
+            w:AdjustHeightFunction()
+          end
+        end)
+      end
+
+      local avail = sf:GetHeight()
+      if avail and avail > overhead + 120 then
+        total = avail - 16
+      end
+    end
+
+    -- Guard against redundant sets (and any feedback from the resize hook).
+    if math.abs((f:GetHeight() or 0) - total) > 0.5 then
+      f:SetHeight(total)
+      self:SetHeight(total)
+    end
   end
 
+  -- Set the initial action button / view section state and size the widget.
+  if f.UpdateUI then f.UpdateUI() end
+end
+
+DynamicCam.customWidgetBuilders["SituationExport"] = function(widget, f)
+  BuildSituationTreeWidget(widget, f, "export")
+end
+
+DynamicCam.customWidgetBuilders["SituationImport"] = function(widget, f)
+  BuildSituationTreeWidget(widget, f, "import")
 end
 
 

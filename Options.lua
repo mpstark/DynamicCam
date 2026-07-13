@@ -1775,6 +1775,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                       function()
                         return S.viewZoom.viewZoomType
                       end,
+                    _dbPath = forExport and {"viewZoom", "viewZoomType"} or nil,
                     set =
                       function(_, newValue)
                         S.viewZoom.viewZoomType = newValue
@@ -1811,6 +1812,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.viewNumber
                           end,
+                        _dbPath = forExport and {"viewZoom", "viewNumber"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.viewNumber = newValue
@@ -1833,6 +1835,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.viewInstant
                           end,
+                        _dbPath = forExport and {"viewZoom", "viewInstant"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.viewInstant = newValue
@@ -1853,6 +1856,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.viewRestore
                           end,
+                        _dbPath = forExport and {"viewZoom", "viewRestore"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.viewRestore = newValue
@@ -1883,6 +1887,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.restoreDefaultViewNumber
                           end,
+                        _dbPath = forExport and {"viewZoom", "restoreDefaultViewNumber"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.restoreDefaultViewNumber = newValue
@@ -1992,6 +1997,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.zoomType
                           end,
+                        _dbPath = forExport and {"viewZoom", "zoomType"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.zoomType = newValue
@@ -2020,6 +2026,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.zoomTimeIsMax
                           end,
+                        _dbPath = forExport and {"viewZoom", "zoomTimeIsMax"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.zoomTimeIsMax = newValue
@@ -2054,6 +2061,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.zoomValue
                           end,
+                        _dbPath = forExport and {"viewZoom", "zoomValue"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.zoomValue = newValue
@@ -2077,6 +2085,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.zoomMin
                           end,
+                        _dbPath = forExport and {"viewZoom", "zoomMin"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.zoomMin = newValue
@@ -2111,6 +2120,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                           function()
                             return S.viewZoom.zoomMax
                           end,
+                        _dbPath = forExport and {"viewZoom", "zoomMax"} or nil,
                         set =
                           function(_, newValue)
                             S.viewZoom.zoomMax = newValue
@@ -3350,18 +3360,12 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
 
         args = {
 
-          description = {
-            type = "description",
-            name = L["Coming soon(TM)."] .. " (In the meantime, enjoy this non-functional preview...)\n\n",
-            order = 1,
-          },
-
-          -- TODO
           exportFrame = {
             type = "input",
             name = "SituationExport",
             dialogControl = "DynamicCam_CustomWidget",
             width = "full",
+            order = 1,
           },
         },
       },
@@ -3375,62 +3379,49 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
         args = {
 
           description = {
-              type = "description",
-              name = L["Coming soon(TM)."],
-              order = 1,
+            type = "description",
+            name = L["<import_desc>"],
+            order = 1,
           },
 
+          importString = {
+            type = "input",
+            name = L["Paste a situation export string here and hit Accept."],
+            desc = L["The settings contained in the string are applied to the currently selected situation, overwriting those settings."],
+            multiline = 8,
+            width = "full",
+            order = 2,
+            disabled = function() return not S end,
+            get = function() return "" end,
+            set =
+              function(_, newValue)
+                newValue = strtrim(newValue or "")
+                if newValue == "" then
+                  DynamicCam.Options.pendingImport = nil
+                else
+                  local decoded = DynamicCam:DecodeImportString(newValue)
+                  if not decoded or decoded.type ~= "DC_SITUATION" or type(decoded.situation) ~= "table" then
+                    DynamicCam:Print(L["Import failed: this is not a valid DynamicCam situation export string."])
+                    DynamicCam.Options.pendingImport = nil
+                  else
+                    DynamicCam.Options.pendingImport = decoded
+                    DynamicCam:Print(L["Loaded export from \"%s\". Tick the settings you want and hit Import."]:format(decoded.name or "?"))
+                  end
+                end
 
-          -- TODO
-          -- copy = {
-              -- type = "execute",
-              -- name = "Copy",
-              -- desc = "Copy this situations settings so that you can paste it into another situation.\n\nDoesn't copy the condition or the advanced mode Lua scripts.",
-              -- hidden = function() return not S end,
-              -- func = function() copiedSituationID = SID end,
-              -- order = 5,
-              -- width = "half",
-          -- },
+                local acr = LibStub("AceConfigRegistry-3.0")
+                acr:NotifyChange("DynamicCam")
+                acr:NotifyChange("DynamicCam_Detached")
+              end,
+          },
 
-          -- paste = {
-              -- type = "execute",
-              -- name = "Paste",
-              -- desc = "Paste the settings from that last copied situation.",
-              -- hidden = function() return not S end,
-              -- disabled = function() return not copiedSituationID end,
-              -- func = function()
-                      -- DynamicCam:CopySituationInto(copiedSituationID, SID)
-                      -- copiedSituationID = nil
-                  -- end,
-              -- order = 6,
-              -- width = "half",
-          -- },
-
-          -- export = {
-              -- type = "execute",
-              -- name = "Export",
-              -- desc = "If you want to share the settings of this situation with others you can export it into a text string. Use the \"Import\" section of the DynamicCam settings to import strings you have received from others.",
-              -- hidden = function() return not S end,
-              -- func = function() DynamicCam:PopupExport(DynamicCam:ExportSituation(SID)) end,
-              -- order = 7,
-              -- width = "half",
-          -- },
-
-          -- helpText = {
-              -- type = "description",
-              -- name = "If you have the DynamicCam import string for a profile or situation, paste it in the text box below to import it. You can generate such import strings yourself using the export functions in the \"Profiles\" or \"Situations\" sections of the DynamicCam settings.\n\n|cFFFF4040YOUR CURRENT PROFILE WILL BE OVERRIDDEN WITHOUT WARNING, SO MAKE A COPY IF YOU WANT TO KEEP IT!|r\n",
-              -- order = 8,
-          -- },
-          -- import = {
-              -- type = "input",
-              -- name = "Paste and hit Accept to import!",
-              -- desc = "Paste the DynamicCam import string of a profile or a situation.",
-              -- get = function() return "" end,
-              -- set = function(_, newValue) DynamicCam:Import(newValue) end,
-              -- multiline = 10,
-              -- width = "full",
-              -- order = 9,
-          -- },
+          importFrame = {
+            type = "input",
+            name = "SituationImport",
+            dialogControl = "DynamicCam_CustomWidget",
+            width = "full",
+            order = 3,
+          },
 
         },
 
