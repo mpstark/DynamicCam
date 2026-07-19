@@ -638,24 +638,27 @@ function DynamicCam:Startup()
   started = true
 
 
-  -- -- For coding
-  -- -- Got to make sure that this is only called once, otherwise changing profiles
-  -- -- (which runs Shutdown/Startup) while a curve editor is open leads to an infinite loop.
-  -- if not self.codingTimerFired then
-    -- self.codingTimerFired = true
-    -- C_Timer.After(0, function()
+  -- For coding
+  -- Got to make sure that this is only called once, otherwise changing profiles
+  -- (which runs Shutdown/Startup) while a curve editor is open leads to an infinite loop.
+  if not self.codingTimerFired then
+    self.codingTimerFired = true
+    C_Timer.After(0, function()
 
-      -- -- To test the options UI.
-      -- -- self:OpenMenu()
-      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
-      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationSettings")
-      -- -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+      -- While building the new UI: open the old detached options frame and the
+      -- new frame side by side after every reload.
+      self:OpenMenu()
+      DynamicCam.Ui.EnsureFrame():Show()
 
-      -- -- To test the zoom-based editor frame UI.
+      -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "standardSettingsTab")
+      -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "situationSettings")
+      -- LibStub("AceConfigDialog-3.0"):SelectGroup("DynamicCam", "situationSettingsTab", "export")
+
+      -- To test the zoom-based editor frame UI.
       -- self:OpenCurveEditor(nil, "test_cameraOverShoulder", -15, 15)
 
-    -- end)
-  -- end
+    end)
+  end
 
   -- C_Timer.After(3, function()
     -- if BugSack then

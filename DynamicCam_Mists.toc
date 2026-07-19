@@ -40,3 +40,4 @@ Options\Widgets.lua
 Options\CvarMonitor.lua
 Options\DetachFrame.lua
 Options.lua
+Ui\MainFrame.lua
