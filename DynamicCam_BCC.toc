@@ -42,3 +42,6 @@ Options\CvarMonitor.lua
 Options\DetachFrame.lua
 Options.lua
 Ui\MainFrame.lua
+Ui\Descriptor.lua
+Ui\Controls.lua
+Ui\SettingsPage.lua

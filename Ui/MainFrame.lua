@@ -9,11 +9,11 @@
 --
 -- The window chrome follows Graphit's MainFrame.lua: a flat panel background,
 -- the Settings panel's portrait-less metal nine-slice, a centred title, a close
--- button, a title-bar drag strip, a bottom-right resize grip, and the inner
--- content background hand-cut as a nine-slice from the Settings panel's own
--- options texture. Top-level tabs are MinimalTabTemplate buttons driven by a
--- RadioButtonGroup, with a solid underlay whose height/alpha mark the selected
--- tab.
+-- button, a bottom-right resize grip, and the inner content background hand-cut
+-- as a nine-slice from the Settings panel's own options texture. The frame is
+-- dragged from any empty area. Top-level tabs are MinimalTabTemplate buttons
+-- driven by a RadioButtonGroup, with a solid underlay whose height/alpha mark
+-- the selected tab.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
@@ -31,14 +31,13 @@ local Ui = DynamicCam.Ui
 -- corner tiles, which must not overlap (see ApplyResizeBounds).
 local DEFAULT_WIDTH  = 760
 local DEFAULT_HEIGHT = 820
-local MIN_WIDTH      = 680
+local MIN_WIDTH      = 640
 local MIN_HEIGHT     = 500
 local MAX_WIDTH      = 1100
 local MAX_HEIGHT_FRACTION = 1    -- cap on height, as a fraction of screen height
 
 -- Content area: the region framed by the inner nine-slice, below the title bar
 -- and the tab row. Gaps are between the frame edge and the content area.
-local TITLE_BAR_HEIGHT   = 28    -- drag strip height, matches the metal top bar
 local CONTENT_GAP_TOP    = 64    -- clears the title bar and the tab row
 local CONTENT_GAP_BOTTOM = 28
 local CONTENT_GAP_LEFT   = 22
@@ -76,14 +75,17 @@ local TAB_BG_ALPHA_UNSELECTED  = 0.3
 
 -- ===== Saved state =====
 
--- All new-UI state (geometry, active tab, background opacity) lives in the
--- account-wide AceDB global table. The frame is built lazily on first toggle,
--- which happens after the addon is initialised, so the db is always ready.
-local function GetConfig()
+-- All new-UI state (geometry, active tab, background opacity, nav collapse,
+-- selected category) lives in the account-wide AceDB global table under
+-- db.global.newUi. Exposed on Ui so the page files share one accessor. The
+-- frame is built lazily on first toggle, after the addon is initialised, so the
+-- db is always ready.
+function Ui.GetConfig()
   local g = DynamicCam.db.global
   g.newUi = g.newUi or {}
   return g.newUi
 end
+local GetConfig = Ui.GetConfig
 
 
 -- ===== Frame =====
@@ -160,17 +162,15 @@ local function BuildFrame()
   f.CloseButton:SetPoint("TOPRIGHT", 1, 1)
   f.CloseButton:SetScript("OnClick", function(self) self:GetParent():Hide() end)
 
-  -- Move via a drag strip across the title bar (stops short of the close
-  -- button). Move on mouse-down (not OnDragStart, which only fires after the
-  -- cursor travels a threshold distance) so the drag is immediate.
+  -- Drag the frame from any empty area, including the title bar: f is the
+  -- bottom-most frame, so clicks on interactive children (buttons, sliders, the
+  -- scroll box, category buttons, rows, the close button, the resize grip) are
+  -- consumed by them, and only non-interactive regions fall through to start a
+  -- drag. Move on mouse-down (not OnDragStart, which only fires after the cursor
+  -- travels a threshold distance) so the drag is immediate.
   f:SetMovable(true)
-  local dragBar = CreateFrame("Frame", nil, f)
-  dragBar:SetPoint("TOPLEFT", 0, 0)
-  dragBar:SetPoint("TOPRIGHT", -28, 0)
-  dragBar:SetHeight(TITLE_BAR_HEIGHT)
-  dragBar:EnableMouse(true)
-  dragBar:SetScript("OnMouseDown", function() f:StartMoving() end)
-  dragBar:SetScript("OnMouseUp", function() f:StopMovingOrSizing(); SaveGeometry() end)
+  f:SetScript("OnMouseDown", function() f:StartMoving() end)
+  f:SetScript("OnMouseUp", function() f:StopMovingOrSizing(); SaveGeometry() end)
 
   -- ===== Resize bounds, geometry restore, screen clamping =====
 
@@ -321,9 +321,16 @@ local function BuildFrame()
   tabRow:SetPoint("BOTTOMRIGHT", contentArea, "TOPRIGHT", 0, TAB_Y)
   tabRow:SetHeight(TAB_ROW_HEIGHT)
 
+  -- MinimalTabTemplate is 37px tall, but its art is bottom-anchored at the
+  -- atlas's native (shorter) height, leaving clickable dead space above each
+  -- tab. Trim each tab's hit rect down to the art height.
+  local tabArt = C_Texture.GetAtlasInfo("Options_Tab_Middle")
+  local tabArtHeight = tabArt and tabArt.height or 24
+
   local tabs = {}
   for i, name in ipairs(tabNames) do
     local tab = CreateFrame("Button", nil, f, "MinimalTabTemplate")
+    tab:SetHitRectInsets(0, 0, math.max(0, tab:GetHeight() - tabArtHeight), 0)
     local bg = tab:CreateTexture(nil, "BACKGROUND", nil, -8)
     bg:SetColorTexture(0.0, 0.0, 0.0)
     bg:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 2, 0)
@@ -356,21 +363,29 @@ local function BuildFrame()
   end
 
   -- Per-tab content frames filling the content area; the selected tab's frame
-  -- is shown, the others hidden. Later phases build the actual pages into
-  -- these; until then each shows a placeholder.
+  -- is shown, the others hidden. A tab with a registered builder (Ui.tabBuilders,
+  -- filled by the page files) gets its page built now; the rest show a
+  -- placeholder until their phase.
+  Ui.tabBuilders = Ui.tabBuilders or {}
   local tabContents = {}
   for i, name in ipairs(tabNames) do
     local c = CreateFrame("Frame", nil, f)
     c:SetAllPoints(contentArea)
     c:Hide()
-    local placeholder = c:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
-    placeholder:SetPoint("CENTER")
-    placeholder:SetText(name .. "\n\n(under construction)")
+    if Ui.tabBuilders[i] then
+      Ui.tabBuilders[i](c)
+    else
+      local placeholder = c:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
+      placeholder:SetPoint("CENTER")
+      placeholder:SetText(name .. "\n\n(under construction)")
+    end
     tabContents[i] = c
   end
   Ui.tabContents = tabContents
 
+  local currentTabIndex
   local function SelectTabContent(index)
+    currentTabIndex = index
     for i, c in ipairs(tabContents) do
       c:SetShown(i == index)
     end
@@ -390,6 +405,21 @@ local function BuildFrame()
     SelectTabContent(tabIndex)
     GetConfig().activeTab = tabIndex
   end, f)
+
+  -- ===== Mouse wheel forwarding =====
+
+  -- The whole window consumes the mouse wheel and applies it to the active tab's
+  -- scroll box (pages expose it as content.wheelScrollBox), so the wheel scrolls
+  -- the content from anywhere over the frame, not only directly over the scroll
+  -- box. Regions with their own wheel-enabled child (the scroll box itself,
+  -- multiline edit boxes) still handle the wheel themselves, as they sit above f.
+  f:EnableMouseWheel(true)
+  f:SetScript("OnMouseWheel", function(_, delta)
+    local c = tabContents[currentTabIndex]
+    if c and c.wheelScrollBox then
+      c.wheelScrollBox:OnMouseWheel(delta)
+    end
+  end)
 
   -- ===== Open / close sounds =====
 

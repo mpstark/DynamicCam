@@ -109,6 +109,7 @@ L["Enemy Target"] = "Enemy Target"
 L["Horizontal Strength"] = "Horizontal Strength"
 L["Vertical Strength"] = "Vertical Strength"
 L["Interaction Target (NPCs)"] = "Interaction Target (NPCs)"
+L["Miscellaneous"] = "Miscellaneous"
 L["<targetFocus_desc>"] = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\", is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat)."
 
 
