@@ -27,33 +27,61 @@ Ui.Controls = Controls
 
 Controls.ROW_HEIGHT    = 35
 Controls.HEADER_HEIGHT = 35
-local LABEL_WIDTH      = 140   -- name column
-local LABEL_LEFT_PAD   = 8
-local VALUE_GAP        = 50    -- room for the slider's value readout
-local RESET_ZONE       = 28    -- reset button column
-local RIGHT_PAD        = 6
-local ZOOM_PAIR_WIDTH  = 49    -- checkbox (24) + gap (2) + gear (23)
-local ZOOM_CAPTION_GAP = 8     -- air between the reset button and the zoom column
+-- A row is a chain of columns, listed here left to right: each WIDTH names a
+-- thing, each GAP names the air on that thing's left. Together they tile the
+-- whole row, so every one of them is independent - changing a gap moves what is
+-- left of it and nothing else. Only the widths and gaps below are tunable; the
+-- positions are derived from them by the *Offset helpers further down.
+local LABEL_LEFT_PAD   = 8     -- row edge -> label
+local LABEL_WIDTH      = 140   -- label ("name column")
+local CONTROL_GAP      = 4     -- label -> slider or checkbox
+local READOUT_GAP      = 2     -- slider -> value readout
+local READOUT_WIDTH    = 40    -- value readout
+local RESET_GAP        = 0     -- value readout -> reset button
+local RESET_SIZE       = 20    -- reset button (its frame is square)
+local ZOOM_GAP         = 8     -- reset button -> zoom-based column
+local ZOOM_PAIR_WIDTH  = 49    -- ... whose width is the wider of its checkbox
+local ZOOM_CAPTION_PAD = 6     --     (24) + gap (2) + gear (23) and its caption
+                               --     plus this padding: see ZOOM_ZONE below
+local RIGHT_PAD        = 6     -- last column -> row edge
+
+-- The slider widget's frame is wider than the slider looks: the template insets
+-- the bar by 19px on each side for the steppers, which are 15px (back) and 13px
+-- (forward) wide. So 4px of the frame's left and 6px of its right are empty.
+-- READOUT_GAP is measured from the visible stepper, hence this correction.
+-- CONTROL_GAP is not corrected: it applies to the control's frame, so that a
+-- row's slider and another row's checkbox still start on the same column.
+local SLIDER_RIGHT_SLACK = 6
+
+-- Vertical placement within the zoom-based column.
 local ZOOM_CTRL_HEIGHT = 40    -- tall enough for the caption to clear the row-
                                -- centered pair; see CreateZoomBasedControl
-local HEADER_TEXT_TOP    = 13    -- heading text, below the row's top
+local ZOOM_CTRL_Y      = -5    -- ditto: how far the whole column rides below the
+                               -- row's center
+local HEADER_TEXT_TOP  = 13    -- heading text, below the row's top
 
 -- Header-right toggle (a 128px atlas, scaled down). It floats over the rows
 -- beneath it, so none of these three affect the layout. X is measured from the
 -- row's RIGHT edge and Y from its TOP, so both go negative to move inwards.
--- Y starts equal to HEADER_TEXT_TOP, which is what lines the button's top up
--- with the heading text; keep them equal to preserve that.
-local HEADER_TOGGLE_SIZE = 40
+-- Y is tuned by eye rather than set to HEADER_TEXT_TOP: the atlas carries
+-- transparent margin, so the art's top sits well below the button's frame.
+-- Retune it after changing HEADER_TOGGLE_SIZE, which scales that margin too.
+local HEADER_TOGGLE_SIZE = 36
 local HEADER_TOGGLE_X    = 0
 local HEADER_TOGGLE_Y    = -8
 
 -- The zoom-based column must fit its "Zoom-based" caption, whose width depends
--- on the locale - so measure it instead of hardcoding.
+-- on the locale - so measure it instead of hardcoding. The measuring string and
+-- the real caption must use the same font, hence the shared constant: with two
+-- separate font names one could be changed without the other and the column
+-- would silently truncate (or waste width).
+local ZOOM_CAPTION_FONT = "GameFontNormalTiny"
 local ZOOM_ZONE
 do
-  local measure = UIParent:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+  local measure = UIParent:CreateFontString(nil, "ARTWORK", ZOOM_CAPTION_FONT)
   measure:SetText(L["Zoom-based"])
-  ZOOM_ZONE = math.max(ZOOM_PAIR_WIDTH, math.ceil(measure:GetStringWidth())) + 6
+  ZOOM_ZONE = math.max(ZOOM_PAIR_WIDTH, math.ceil(measure:GetStringWidth()))
+             + ZOOM_CAPTION_PAD
   measure:Hide()
 end
 
@@ -61,10 +89,20 @@ end
 -- setting, letting their sliders use the freed width.
 Controls.ZOOM_ZONE = ZOOM_ZONE
 
--- Right-edge offset of the reset button column: the zoom column plus breathing
--- room for its caption (none when the category has no zoom column at all).
+-- Where each column's RIGHT edge sits, as a distance inwards from the row's
+-- right edge. Walking the chain from the right is what lets a category without
+-- any zoom-based setting pass zoomZone = 0 and have every column left of it -
+-- reset button, readout, slider - reclaim that width automatically.
 local function ResetOffset(zoomZone)
-  return RIGHT_PAD + zoomZone + (zoomZone > 0 and ZOOM_CAPTION_GAP or 0)
+  return RIGHT_PAD + (zoomZone > 0 and zoomZone + ZOOM_GAP or 0)
+end
+
+local function ReadoutOffset(zoomZone)
+  return ResetOffset(zoomZone) + RESET_SIZE + RESET_GAP
+end
+
+local function SliderOffset(zoomZone)
+  return ReadoutOffset(zoomZone) + READOUT_WIDTH + READOUT_GAP - SLIDER_RIGHT_SLACK
 end
 
 -- Reset button icon (the transmogrify revert arrow), per client flavor.
@@ -213,7 +251,7 @@ end
 -- Disabled (desaturated) while the setting is at its default.
 local function CreateResetButton(row, item, binding, ctx)
   local btn = CreateFrame("Button", nil, row)
-  btn:SetSize(24, 24)
+  btn:SetSize(RESET_SIZE, RESET_SIZE)
   btn:SetPoint("RIGHT", row, "RIGHT", -ResetOffset(ctx.zoomZone or ZOOM_ZONE), 0)
   btn:SetNormalTexture(RESET_TEX)
   btn:GetNormalTexture():SetTexCoord(unpack(RESET_COORDS))
@@ -258,17 +296,17 @@ local function CreateZoomBasedControl(row, item, ctx)
   local cvar = item.cvar
   local range = DynamicCam.cvarRanges[cvar]
 
-  -- ctrl is anchored to the row's RIGHT with y=0, so its vertical center always
-  -- coincides with the row's however tall it is. The extra height therefore
-  -- only adds clearance above and below the centred pair, making room for the
-  -- caption without pushing the pair off centre.
+  -- ZOOM_CTRL_HEIGHT is tall enough to give the caption room above the pair:
+  -- ctrl is anchored by RIGHT (a frame's vertical-middle point), so growing it
+  -- adds clearance symmetrically above and below the pair rather than shifting
+  -- the pair. ZOOM_CTRL_Y then slides the whole column down as one, far enough
+  -- that the caption clears the row above instead of bleeding into it.
   local ctrl = CreateFrame("Frame", nil, row)
   ctrl:SetSize(ZOOM_ZONE, ZOOM_CTRL_HEIGHT)
-  ctrl:SetPoint("RIGHT", row, "RIGHT", -RIGHT_PAD, 0)
+  ctrl:SetPoint("RIGHT", row, "RIGHT", -RIGHT_PAD, ZOOM_CTRL_Y)
 
-  -- Checkbox + gear pair, vertically centered on the row (matching the
-  -- slider): anchoring via LEFT (a frame's vertical-middle point) with y=0
-  -- lands the pair on ctrl's own vertical center, which is the row's center.
+  -- Checkbox + gear pair on ctrl's vertical center, so the two constants above
+  -- are the only things deciding where it sits relative to the slider.
   local check = CreateFrame("CheckButton", nil, ctrl, "UICheckButtonTemplate")
   check:SetSize(24, 24)
   check:SetPoint("LEFT", ctrl, "LEFT", (ZOOM_ZONE - ZOOM_PAIR_WIDTH) / 2, 0)
@@ -292,7 +330,7 @@ local function CreateZoomBasedControl(row, item, ctx)
   -- Caption above the pair, like the old widget: without it the two unlabeled
   -- icons are hard to read. The column is sized to the caption, so it never
   -- truncates.
-  ctrl.caption = ctrl:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+  ctrl.caption = ctrl:CreateFontString(nil, "ARTWORK", ZOOM_CAPTION_FONT)
   ctrl.caption:SetPoint("TOP", ctrl, "TOP", 0, 0)
   ctrl.caption:SetWordWrap(false)
   ctrl.caption:SetText(L["Zoom-based"])
@@ -382,11 +420,11 @@ function Controls.CreateSliderRow(parent, item, ctx)
   local resetBtn = binding.reset and CreateResetButton(row, item, binding, ctx)
   local zoomCtrl = item.zoomBased and CreateZoomBasedControl(row, item, ctx)
 
-  local resetOffset = ResetOffset(ctx.zoomZone or ZOOM_ZONE)
+  local zoomZone = ctx.zoomZone or ZOOM_ZONE
   local widget = CreateFrame("Frame", nil, row, "MinimalSliderWithSteppersTemplate")
   widget:SetHeight(20)
-  widget:SetPoint("LEFT", row.label, "RIGHT", 8, 0)
-  widget:SetPoint("RIGHT", row, "RIGHT", -(resetOffset + RESET_ZONE + VALUE_GAP), 0)
+  widget:SetPoint("LEFT", row.label, "RIGHT", CONTROL_GAP, 0)
+  widget:SetPoint("RIGHT", row, "RIGHT", -SliderOffset(zoomZone), 0)
 
   local minVal, maxVal, step = item.min, item.max, item.step
   local steps = (maxVal - minVal) / step
@@ -411,11 +449,14 @@ function Controls.CreateSliderRow(parent, item, ctx)
   -- echo back into the binding.
   widget:Init(binding.get() or minVal, minVal, maxVal, steps, formatters)
 
-  -- Put the readout into its reserved gap right of the bar.
+  -- Give the readout its own column, overriding the template's anchor (which
+  -- hangs it off the slider bar at a fixed distance, ignoring our layout). The
+  -- number is centred in that column, as in Graphit, so it stays put as its
+  -- width changes with the digit count instead of twitching on every step.
   local rt = widget.RightText
   rt:ClearAllPoints()
-  rt:SetPoint("RIGHT", row, "RIGHT", -(resetOffset + RESET_ZONE - 2), 0)
-  rt:SetWidth(VALUE_GAP - 4)
+  rt:SetPoint("RIGHT", row, "RIGHT", -ReadoutOffset(zoomZone), 0)
+  rt:SetWidth(READOUT_WIDTH)
   rt:SetJustifyH("CENTER")
 
   local refreshing = false
@@ -459,7 +500,7 @@ function Controls.CreateCheckboxRow(parent, item, ctx)
 
   local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
   check:SetSize(28, 28)
-  check:SetPoint("LEFT", row.label, "RIGHT", 8, 0)
+  check:SetPoint("LEFT", row.label, "RIGHT", CONTROL_GAP, 0)
 
   local function GetChecked()
     local v = binding.get()
