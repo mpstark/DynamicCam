@@ -300,20 +300,4 @@ Ui.standardCategories = {
     },
   },
 
-  {
-    name = L["Miscellaneous"],
-    items = {
-      { kind = "checkbox", label = L["Enhanced minimal zoom-in"],
-        tooltip = L["<enhancedMinZoom_desc>"],
-        get = function() return DynamicCam.db.profile.reactiveZoomEnhancedMinZoom end,
-        set = function(v) DynamicCam.db.profile.reactiveZoomEnhancedMinZoom = v end },
-      { kind = "note", text = L["/reload of the UI required!"],
-        shownWhen = function()
-          -- The model frame only exists after a reload with the setting on, so a
-          -- mismatch means the user toggled it since the last reload.
-          return (DynamicCam.modelFrame ~= nil) ~= (DynamicCam.db.profile.reactiveZoomEnhancedMinZoom == true)
-        end },
-    },
-  },
-
 }

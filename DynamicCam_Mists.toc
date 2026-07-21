@@ -6,7 +6,7 @@
 ## Notes-zhCN: 智能动态相机镜头。
 
 ## OptionalDeps: Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
-## SavedVariables: DynamicCamDB, minZoomValues
+## SavedVariables: DynamicCamDB
 
 ## X-Curse-Project-ID: 101120
 ## X-WoWI-ID: 25570

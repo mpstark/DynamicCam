@@ -627,12 +627,6 @@ function DynamicCam:Startup()
   )
 
 
-  -- A frame to determine the current player model.
-  if DynamicCam.db.profile.reactiveZoomEnhancedMinZoom then
-    DynamicCam.modelFrame = CreateFrame("PlayerModel")
-  end
-
-
   constantlyRunningFrame:SetScript("OnUpdate", ConstantlyRunningFrameFunction)
 
   started = true
@@ -809,11 +803,17 @@ end
 -- 4 : New mounted situation IDs.
 -- 5 : Migrated shoulderOffsetZoom to cvarsZoomBased (stored in standardSettings/situationSettings).
 --     Generalized transition times (migrate from zoom/rotation/UI fade times to transitionTime.timeToEnter/Exit).
+-- 6 : Removed the "Enhanced minimal zoom-in" feature.
+--
+-- The steps below fall through, so one call can carry a profile across several
+-- versions. Only the LAST step returns true (telling Startup() to re-set every
+-- profile, which is what rewrites the SavedVariables file): when adding a step,
+-- move that return down to it, or older profiles will stop short of it.
 function DynamicCam:ModernizeProfile(p)
 
   -- If there is no version number, it is most probably a newly created one!
   if not p.version then
-    p.version = 5
+    p.version = 6
     return false
   end
 
@@ -1002,6 +1002,16 @@ function DynamicCam:ModernizeProfile(p)
     end
 
     p.version = 5
+
+  end
+
+
+  if p.version == 5 then
+
+    -- The "Enhanced minimal zoom-in" feature is gone; drop its stored setting.
+    p.reactiveZoomEnhancedMinZoom = nil
+
+    p.version = 6
     return true
 
   end

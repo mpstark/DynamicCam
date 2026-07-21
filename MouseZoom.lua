@@ -15,48 +15,6 @@ end
 
 
 
--------------------------
--- Minimal Zoom-Level  --
--------------------------
-
-
--- When zooming in, the mimimal third person zoom value depends on the current model.
--- We store this in a SaveVariable.
-
--- Initialize the SaveVariable if it does not yet exist.
-if not minZoomValues then
-  minZoomValues = {}
-end
-
-
-local function SetMinZoom(zoom)
-  if not DynamicCam.modelFrame then return end
-
-  DynamicCam.modelFrame:SetUnit("player")
-  -- print("Storing", zoom, "for", DynamicCam.modelFrame:GetModelFileID())
-  minZoomValues[DynamicCam.modelFrame:GetModelFileID()] = zoom
-end
-
-local function GetMinZoom()
-  if IsMounted() then
-    -- For mounted we just take a default instead of storing the value for each mount and player-model.
-    return 1.5
-  else
-
-    if not DynamicCam.modelFrame then return 0.5 end
-
-    -- If we have already stored the minimum value, return it. Else use a default.
-    DynamicCam.modelFrame:SetUnit("player")
-    return minZoomValues[DynamicCam.modelFrame:GetModelFileID()] or 1.5
-  end
-end
-
--- Set to true when zooming out from first person, such that the next zoom is stored as min value.
-local storeMinZoom = false
-
-
-
-
 
 -----------------------
 -- NON-REACTIVE ZOOM --
@@ -75,9 +33,6 @@ local OldCameraZoomOut = CameraZoomOut
 
 
 
--- Notice: The feature of zooming to the smallest third person zoom level does only work good for ReactiveZoom.
--- In NonReactiveZoom it only works if you set the zoom speed to max.
--- That's why we are not doing it for NonReactiveZoom.
 local function NonReactiveZoom(zoomIn, increments)
   -- print("NonReactiveZoom", zoomIn, increments, GetCameraZoom())
 
@@ -112,12 +67,6 @@ end
 local function NonReactiveZoomOut(increments)
   -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
   if increments == 0 then return end
-
-  if storeMinZoom then
-    -- print("User zoomed out again before reaching min value. Interrupting store process.")
-    storeMinZoom = false
-  end
-
   NonReactiveZoom(false, increments)
 end
 
@@ -162,11 +111,6 @@ local function ReactiveZoomTargetCorrectionFunction(_, elapsed)
   if not LibCamera:IsZooming() and not nonReactiveZoomStarted and not nonReactiveZoomInProgress and reactiveZoomTarget ~= currentZoom then
     -- print("Correcting reactiveZoomTarget", reactiveZoomTarget, "to", currentZoom, GetTime())
     reactiveZoomTarget = currentZoom
-
-    if storeMinZoom then
-      SetMinZoom(currentZoom)
-      storeMinZoom = false
-    end
   end
 
   lastZoomForCorrection = currentZoom
@@ -218,30 +162,25 @@ local function ReactiveZoom(zoomIn, increments)
     reactiveZoomTarget = reactiveZoomTarget or currentZoom
 
 
-    -- Always stop at closest third person zoom level.
-    local minZoom = GetMinZoom()
-
     if zoomIn then
 
-      if reactiveZoomTarget - increments < minZoom then
+      if reactiveZoomTarget - increments < 0 then
 
-        if reactiveZoomTarget > minZoom then
-          -- print("go to minZoom", minZoom)
-          reactiveZoomTarget = minZoom
-
-          -- Also update the increments if we need to make a NonReactiveZoom below,
-          -- in case of "zoomTime < secondsPerFrame".
-          increments = currentZoom - minZoom
-        else
-          -- print("go to 0")
-          reactiveZoomTarget = 0
-
-          -- No need to update increments because any zoom target below minZoom
-          -- will result in 0 automatically.
+        -- Also update the increments if we need to make a NonReactiveZoom below,
+        -- in case of "zoomTime < secondsPerFrame": the raw increments may be
+        -- fewer than the distance still to go, which would stop short of first
+        -- person. (Not needed when the target is already 0, as any zoom-in from
+        -- there lands on 0 anyway.)
+        if reactiveZoomTarget > 0 then
+          increments = currentZoom
         end
 
+        -- print("go to 0")
+        reactiveZoomTarget = 0
+
       else
-        reactiveZoomTarget = math.max(0, reactiveZoomTarget - increments)
+        -- No math.max() needed: the branch above covers going below 0.
+        reactiveZoomTarget = reactiveZoomTarget - increments
       end
 
 
@@ -252,13 +191,6 @@ local function ReactiveZoom(zoomIn, increments)
       if currentZoom == 0 then
         -- print("Giving this to non-reactive zoom")
         NonReactiveZoomOut(0.05)
-
-        -- When this zoom is finished, store the minimal zoom distance,
-        -- such that we can also use it while zooming in.
-        if not IsMounted() then
-          storeMinZoom = true
-        end
-
         return
       else
         reactiveZoomTarget = math.min(GetCVar("cameraDistanceMaxZoomFactor")*15, reactiveZoomTarget + increments)
@@ -313,12 +245,6 @@ end
 local function ReactiveZoomOut(increments)
   -- No idea, why WoW does in-out-in-out with increments 0 after each mouse wheel turn.
   if increments == 0 then return end
-
-  if storeMinZoom then
-    -- print("User zoomed out again before reaching min value. Interrupting store process.")
-    storeMinZoom = false
-  end
-
   ReactiveZoom(false, increments)
 end
 

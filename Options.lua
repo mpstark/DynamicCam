@@ -392,44 +392,6 @@ local function CreateSettingsTab(tabOrder, forSituations, forExport)
                 name = L["<reactiveZoom_desc>"],
                 order = 2,
               },
-
-              blank21 = {type = "description", name = " ", order = 2.1, },
-
-              enhancedMinZoom = {
-                type = "toggle",
-                name = L["Enhanced minimal zoom-in"],
-                desc = L["<enhancedMinZoom_desc>"],
-                order = 3,
-                width = "full",
-                get =
-                  function()
-                    return DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
-                  end,
-                set =
-                  function(_, newValue)
-                    DynamicCam.db.profile.reactiveZoomEnhancedMinZoom = newValue
-                  end,
-              },
-
-              reloadMessage = {
-                type = "description",
-                name = "|cFFFF0000" .. L["/reload of the UI required!"] .. "|r",
-                hidden =
-                  function()
-                    return DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or not DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
-                  end,
-                order = 4,
-              },
-              -- Placeholder when reloadMessage is not shown.
-              blank4 = {
-                type = "description",
-                name = " ",
-                hidden =
-                  function()
-                    return not DynamicCam.modelFrame and DynamicCam.db.profile.reactiveZoomEnhancedMinZoom or DynamicCam.modelFrame and not DynamicCam.db.profile.reactiveZoomEnhancedMinZoom
-                  end,
-                order = 4,
-              },
             },
           },
         },

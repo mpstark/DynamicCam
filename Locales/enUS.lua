@@ -75,9 +75,6 @@ L["<quickZoom_desc>"] = "To enable faster zooming with faster mouse wheel moveme
 -- the original claimed a right-click closes the graph, which it does not (there
 -- is no right-click handler); it is closed with this button or its own X.
 L["<visualAid_desc>"] = "Show a visual aid to get a feeling of how Reactive Zoom works."
-L["Enhanced minimal zoom-in"] = "Enhanced minimal zoom-in"
-L["<enhancedMinZoom_desc>"] = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\n|cFFFF0000Enabling \"Enhanced minimal zoom-in\" may cost up to 15% FPS when in CPU limited situations.|r"
-L["/reload of the UI required!"] = "/reload of the UI required!"
 
 
 --------------------------------------------------------------------------------
@@ -161,7 +158,6 @@ L["<targetFocusEnemyEnable_desc>"] = "Enables target focus while you have an ene
 L["<targetFocusInteractEnable_desc>"] = "Enables target focus while you are interacting with an NPC. While it is off, the settings below have no effect."
 L["<targetFocusYaw_desc>"] = "How strongly the camera turns sideways to bring the target towards the center of the screen. Setting it to 0 disables the horizontal effect."
 L["<targetFocusPitch_desc>"] = "How strongly the camera tilts up or down to bring the target towards the center of the screen. Setting it to 0 disables the vertical effect."
-L["Miscellaneous"] = "Miscellaneous"
 -- TO BE DELETED when the old DC frame goes: paragraph 1 applies to both target
 -- kinds, so it was rephrased onto each of the two new category headings; the
 -- bug report and its workaround concern the interaction target, so they went to
