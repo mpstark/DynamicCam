@@ -50,7 +50,6 @@ L["Camera Zoom Speed"] = "Camera Zoom Speed"
 L["How fast the camera can zoom."] = "How fast the camera can zoom."
 L["Zoom Increments"] = "Zoom Increments"
 L["How many yards the camera should travel for each \"tick\" of the mouse wheel."] = "How many yards the camera should travel for each \"tick\" of the mouse wheel."
-L["Use Reactive Zoom"] = "Use Reactive Zoom"
 -- NEW in the new UI: this checkbox had no description of its own before.
 L["<useReactiveZoom_desc>"] = "Enables DynamicCam's Reactive Zoom. While it is off, the mouse wheel zooms the way WoW does by default and the Reactive Zoom settings below have no effect."
 L["Quick-Zoom Additional Increments"] = "Quick-Zoom Additional Increments"
@@ -651,6 +650,10 @@ L["Professions Frame Open"] = "Professions Frame Open"
 -- Each entry is superseded by a new-UI equivalent (Ui/Controls.lua etc.);
 -- remove this whole section once that old frame is removed.
 --------------------------------------------------------------------------------
+-- Superseded by L["Enable"], now that Reactive Zoom's toggle is named like the
+-- one in every other category.
+L["Use Reactive Zoom"] = "Use Reactive Zoom"
+
 -- Superseded by <zoomBased_desc>.
 L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
 L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."

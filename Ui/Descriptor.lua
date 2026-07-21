@@ -113,7 +113,7 @@ Ui.standardCategories = {
       onClick = function() DynamicCam:ToggleRZVA() end,
     },
     items = {
-      { kind = "checkbox", label = L["Use Reactive Zoom"],
+      { kind = "checkbox", label = L["Enable"],
         tooltip = L["<useReactiveZoom_desc>"],
         dbPath = {"reactiveZoomEnabled"} },
       { kind = "slider", label = L["Quick-Zoom Additional Increments"],
