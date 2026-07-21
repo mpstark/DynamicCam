@@ -322,6 +322,7 @@ local function BuildSituationTreeWidget(widget, f, mode)
   -- fragile (empty box / invisible rows / drift).
   local ROW_HEIGHT = 24
   local TREE_INDENT = 20
+  local SCRIPT_BOX_HEIGHT = 80   -- script preview, added below a row's own height
 
   if not f.scrollBox then
 
@@ -392,6 +393,29 @@ local function BuildSituationTreeWidget(widget, f, mode)
       end)
     end
 
+    -- A leaf's value: the live one when exporting, the pasted one when importing.
+    -- nil for groups and for leaves that have none.
+    local function LeafValue(node, data)
+      if #node:GetNodes() > 0 then return nil end
+      if isImport then return data.importValue end
+      if not data.get then return nil end
+      local ok, v = pcall(data.get)
+      if ok then return v end
+      return nil
+    end
+
+    -- Script leaves (data.multiline) show their whole text in a scrollable box
+    -- below the row rather than the truncated one-line preview: a script is the
+    -- one value a user really has to read before ticking it. Returns the text,
+    -- or nil when the row is an ordinary one-liner (including a blank script,
+    -- which gets an inline marker instead of an empty box).
+    local function ScriptText(node, data)
+      if not data.multiline then return nil end
+      local val = LeafValue(node, data)
+      if type(val) ~= "string" or val == "" then return nil end
+      return val
+    end
+
     -- Element initializer: build the row's sub-frames once, then reconfigure them
     -- for the given tree node on each (re)bind.
     local function InitRow(frame, node)
@@ -400,9 +424,12 @@ local function BuildSituationTreeWidget(widget, f, mode)
       if not frame.created then
         frame.created = true
 
+        -- Anchored to the frame's TOP, not its middle: a row carrying a script
+        -- box is taller than ROW_HEIGHT, and these have to stay in its first
+        -- ROW_HEIGHT band. For rows without a box the two are the same.
         frame.expandBtn = CreateFrame("Button", nil, frame)
         frame.expandBtn:SetSize(22, 22)
-        frame.expandBtn:SetPoint("LEFT", 0, 0)
+        frame.expandBtn:SetPoint("TOPLEFT", 0, -(ROW_HEIGHT - 22) / 2)
         frame.expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
 
         frame.cb = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
@@ -410,8 +437,9 @@ local function BuildSituationTreeWidget(widget, f, mode)
 
         frame.label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         frame.label:SetJustifyH("LEFT")
-        frame.label:SetPoint("LEFT", frame.cb, "RIGHT", 2, 0)
-        frame.label:SetPoint("RIGHT", frame, "RIGHT", -4, 0)
+        frame.label:SetHeight(ROW_HEIGHT)
+        frame.label:SetPoint("TOPLEFT", frame.cb, "TOPRIGHT", 2, 0)
+        frame.label:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, 0)
       end
 
       local hasChildren = #node:GetNodes() > 0
@@ -442,7 +470,7 @@ local function BuildSituationTreeWidget(widget, f, mode)
 
       -- Checkbox: leave room for the expand-button column unless this is the root.
       frame.cb:ClearAllPoints()
-      frame.cb:SetPoint("LEFT", data.notCollapsible and 0 or 24, 0)
+      frame.cb:SetPoint("TOPLEFT", data.notCollapsible and 0 or 24, 0)
       ApplyCheckVisual(frame.cb, GetNodeState(node))
       frame.cb:SetScript("OnClick", function()
         SetNodeCheckedRecursive(node, GetNodeState(node) ~= true)
@@ -452,15 +480,15 @@ local function BuildSituationTreeWidget(widget, f, mode)
 
       -- Label (name, plus a compact value preview for leaves). Import shows the
       -- value from the paste string; export shows the live value.
+      local scriptText = ScriptText(node, data)
       local text = data.name or ""
-      if not hasChildren then
-        local val
-        if isImport then
-          val = data.importValue
-        elseif data.get then
-          local ok, v = pcall(data.get)
-          if ok then val = v end
+      if data.multiline and not hasChildren then
+        -- A script's text goes in the box below, so no truncated preview here.
+        if not scriptText then
+          text = text .. " |cFF888888[" .. L["blank"] .. "]|r"
         end
+      elseif not hasChildren then
+        local val = LeafValue(node, data)
         if val ~= nil then
           if type(val) == "table" then
             val = "{...}"
@@ -473,10 +501,57 @@ local function BuildSituationTreeWidget(widget, f, mode)
         end
       end
       frame.label:SetText(text)
+
+      -- Script box, built once per recycled row frame and then shown or hidden.
+      -- The edit box is only a convenient multi-line renderer: mouse disabled so
+      -- it takes no focus and cannot be typed into, while the scroll frame's own
+      -- bar stays live, which is what makes it readable but read-only.
+      if scriptText then
+        if not frame.scriptBox then
+          frame.scriptBox = CreateFrame("Frame", nil, frame, "TooltipBackdropTemplate")
+          -- Anchored under the checkbox, so it follows the row's tree indent.
+          frame.scriptBox:SetPoint("TOPLEFT", frame.cb, "BOTTOMLEFT", 0, 0)
+          frame.scriptBox:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -ROW_HEIGHT)
+          frame.scriptBox:SetHeight(SCRIPT_BOX_HEIGHT)
+
+          frame.scriptScroll = CreateFrame("ScrollFrame", nil, frame.scriptBox, "UIPanelScrollFrameTemplate")
+          frame.scriptScroll:SetPoint("TOPLEFT", 8, -4)
+          frame.scriptScroll:SetPoint("BOTTOMRIGHT", -26, 4)
+
+          local bg = frame.scriptScroll:CreateTexture(nil, "BACKGROUND")
+          bg:SetAllPoints()
+          bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+
+          frame.scriptEdit = CreateFrame("EditBox", nil, frame.scriptScroll)
+          frame.scriptEdit:SetMultiLine(true)
+          frame.scriptEdit:SetFontObject("GameFontHighlightSmall")
+          frame.scriptEdit:SetTextColor(0.533, 0.533, 0.533)
+          frame.scriptEdit:SetTextInsets(2, 2, 4, 2)
+          frame.scriptEdit:SetAutoFocus(false)
+          frame.scriptEdit:EnableMouse(false)
+          frame.scriptScroll:SetScrollChild(frame.scriptEdit)
+
+          frame.scriptScroll:SetScript("OnSizeChanged", function(_, w)
+            frame.scriptEdit:SetWidth(w)
+          end)
+        end
+        frame.scriptEdit:SetText(scriptText)
+        -- Recycled frames keep the previous script's scroll position.
+        frame.scriptScroll:SetVerticalScroll(0)
+        frame.scriptBox:Show()
+      elseif frame.scriptBox then
+        frame.scriptBox:Hide()
+      end
     end
 
     local view = CreateScrollBoxListTreeListView(TREE_INDENT, 0, 0, 0, 0, 0)
-    view:SetElementExtent(ROW_HEIGHT)
+    -- Per-element height rather than one fixed extent, so a script row can carry
+    -- its preview box. Must agree with what InitRow actually builds, hence both
+    -- asking ScriptText. The view drops its cached extents whenever the data
+    -- provider is replaced or the tree is collapsed, so this re-runs by itself.
+    view:SetElementExtentCalculator(function(_, node)
+      return ROW_HEIGHT + (ScriptText(node, node:GetData()) and SCRIPT_BOX_HEIGHT or 0)
+    end)
     view:SetElementInitializer("Frame", InitRow)
     ScrollUtil.InitScrollBoxListWithScrollBar(f.scrollBox, f.scrollBar, view)
     -- Hide the scrollbar when everything fits (no scrolling possible).
