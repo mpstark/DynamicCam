@@ -27,7 +27,6 @@ Ui.Controls = Controls
 
 Controls.ROW_HEIGHT    = 35
 Controls.HEADER_HEIGHT = 35
-Controls.SUBHEADER_HEIGHT = 30
 local LABEL_WIDTH      = 140   -- name column
 local LABEL_LEFT_PAD   = 8
 local VALUE_GAP        = 50    -- room for the slider's value readout
@@ -35,6 +34,18 @@ local RESET_ZONE       = 28    -- reset button column
 local RIGHT_PAD        = 6
 local ZOOM_PAIR_WIDTH  = 49    -- checkbox (24) + gap (2) + gear (23)
 local ZOOM_CAPTION_GAP = 8     -- air between the reset button and the zoom column
+local ZOOM_CTRL_HEIGHT = 40    -- tall enough for the caption to clear the row-
+                               -- centered pair; see CreateZoomBasedControl
+local HEADER_TEXT_TOP    = 13    -- heading text, below the row's top
+
+-- Header-right toggle (a 128px atlas, scaled down). It floats over the rows
+-- beneath it, so none of these three affect the layout. X is measured from the
+-- row's RIGHT edge and Y from its TOP, so both go negative to move inwards.
+-- Y starts equal to HEADER_TEXT_TOP, which is what lines the button's top up
+-- with the heading text; keep them equal to preserve that.
+local HEADER_TOGGLE_SIZE = 40
+local HEADER_TOGGLE_X    = 0
+local HEADER_TOGGLE_Y    = -8
 
 -- The zoom-based column must fit its "Zoom-based" caption, whose width depends
 -- on the locale - so measure it instead of hardcoding.
@@ -124,23 +135,24 @@ local function MakeBinding(item, sid)
 
   return binding
 end
-Controls.MakeBinding = MakeBinding
 
 
 -- ===== Row base =====
 
-local function NewRow(parent, height)
+local function NewRow(parent)
   local row = CreateFrame("Frame", nil, parent)
-  row:SetHeight(height or Controls.ROW_HEIGHT)
+  row:SetHeight(Controls.ROW_HEIGHT)
 
-  -- Settings-style hover highlight across the whole row.
+  -- Settings-style hover highlight across the whole row. Deliberately NOT driven
+  -- by the row's own OnEnter/OnLeave: moving onto a child control (slider, reset
+  -- button, ...) fires the row's OnLeave and the highlight would drop out. The
+  -- page polls row:IsMouseOver() in an OnUpdate instead (a geometric test that
+  -- ignores which frame owns the mouse), so the highlight stays up across the
+  -- whole row. See Ui/SettingsPage.lua.
   row.highlight = row:CreateTexture(nil, "ARTWORK")
   row.highlight:SetColorTexture(1, 1, 1, 0.1)
   row.highlight:SetAllPoints(row)
   row.highlight:Hide()
-  row:EnableMouse(true)
-  row:SetScript("OnEnter", function(self) self.highlight:Show() end)
-  row:SetScript("OnLeave", function(self) self.highlight:Hide() end)
 
   row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   row.label:SetPoint("LEFT", row, "LEFT", LABEL_LEFT_PAD, 0)
@@ -152,12 +164,24 @@ local function NewRow(parent, height)
   return row
 end
 
--- Tooltip on the row: title, optional body, optional grey cvar note.
+-- Tooltip on the row's NAME only (title, optional body, optional grey cvar
+-- note), as in the Settings panel and Graphit: hovering the controls to the
+-- right shows nothing, so the tooltip does not follow the cursor across the
+-- whole row. A FontString takes no mouse, so the trigger is a button spanning
+-- the label's width across the full row height, lining up with the row's hover
+-- highlight (the label is vertically centred, hence the half-height reach).
 local function AddRowTooltip(row, item)
   local hasBody = item.tooltip or item.cvar or item.transformNote
-  if not hasBody then return end
-  row:HookScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+  local hit = CreateFrame("Button", nil, row)
+  local half = row:GetHeight() / 2
+  hit:SetPoint("TOPLEFT", row.label, "LEFT", 0, half)
+  hit:SetPoint("BOTTOMRIGHT", row.label, "RIGHT", 0, -half)
+
+  hit:SetScript("OnEnter", function(self)
+    -- Nothing to say and the name is fully readable: no tooltip at all.
+    if not hasBody and not row.label:IsTruncated() then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip_SetTitle(GameTooltip, item.label)
     if item.tooltip then
       GameTooltip_AddNormalLine(GameTooltip, item.tooltip, true)
@@ -170,7 +194,7 @@ local function AddRowTooltip(row, item)
     end
     GameTooltip:Show()
   end)
-  row:HookScript("OnLeave", GameTooltip_Hide)
+  hit:SetScript("OnLeave", GameTooltip_Hide)
 end
 
 -- Grey or restore a row's label with its enabled state.
@@ -234,14 +258,20 @@ local function CreateZoomBasedControl(row, item, ctx)
   local cvar = item.cvar
   local range = DynamicCam.cvarRanges[cvar]
 
+  -- ctrl is anchored to the row's RIGHT with y=0, so its vertical center always
+  -- coincides with the row's however tall it is. The extra height therefore
+  -- only adds clearance above and below the centred pair, making room for the
+  -- caption without pushing the pair off centre.
   local ctrl = CreateFrame("Frame", nil, row)
-  ctrl:SetSize(ZOOM_ZONE, 34)
+  ctrl:SetSize(ZOOM_ZONE, ZOOM_CTRL_HEIGHT)
   ctrl:SetPoint("RIGHT", row, "RIGHT", -RIGHT_PAD, 0)
 
-  -- Checkbox + gear pair, centered over the caption.
+  -- Checkbox + gear pair, vertically centered on the row (matching the
+  -- slider): anchoring via LEFT (a frame's vertical-middle point) with y=0
+  -- lands the pair on ctrl's own vertical center, which is the row's center.
   local check = CreateFrame("CheckButton", nil, ctrl, "UICheckButtonTemplate")
   check:SetSize(24, 24)
-  check:SetPoint("TOPLEFT", ctrl, "TOPLEFT", (ZOOM_ZONE - ZOOM_PAIR_WIDTH) / 2, 0)
+  check:SetPoint("LEFT", ctrl, "LEFT", (ZOOM_ZONE - ZOOM_PAIR_WIDTH) / 2, 0)
 
   -- The gear sits 2.5px lower than the checkbox center: the checkbox art has a
   -- baked-in bottom shadow, so a plain center alignment LOOKS off (same offset
@@ -259,13 +289,27 @@ local function CreateZoomBasedControl(row, item, ctx)
   gear:SetDisabledTexture(GEAR_TEX)
   gear:GetDisabledTexture():SetTexCoord(0, 0.21093750, 0, 0.421875)
 
-  -- Small caption under the pair, like the old widget: without it the two
-  -- unlabeled icons are hard to read. The column is sized to the caption, so
-  -- it never truncates.
+  -- Caption above the pair, like the old widget: without it the two unlabeled
+  -- icons are hard to read. The column is sized to the caption, so it never
+  -- truncates.
   ctrl.caption = ctrl:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-  ctrl.caption:SetPoint("BOTTOM", ctrl, "BOTTOM", 0, 0)
+  ctrl.caption:SetPoint("TOP", ctrl, "TOP", 0, 0)
   ctrl.caption:SetWordWrap(false)
   ctrl.caption:SetText(L["Zoom-based"])
+
+  -- The tooltip lives on the label, not the controls (checkbox/gear keep only
+  -- their click handlers): a FontString can't take OnEnter/OnLeave itself, so a
+  -- mouse-enabled hitbox frame is sized to it.
+  local captionHit = CreateFrame("Frame", nil, ctrl)
+  captionHit:SetAllPoints(ctrl.caption)
+  captionHit:EnableMouse(true)
+  captionHit:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip_SetTitle(GameTooltip, L["Zoom-based"])
+    GameTooltip_AddNormalLine(GameTooltip, L["<zoomBased_desc>"], true)
+    GameTooltip:Show()
+  end)
+  captionHit:SetScript("OnLeave", GameTooltip_Hide)
 
   ctrl.isEditorOpen = false
 
@@ -297,13 +341,6 @@ local function CreateZoomBasedControl(row, item, ctx)
     PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
     ctx.onChanged()
   end)
-  check:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip_SetTitle(GameTooltip, L["Zoom-based"])
-    GameTooltip_AddNormalLine(GameTooltip, L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."], true)
-    GameTooltip:Show()
-  end)
-  check:SetScript("OnLeave", GameTooltip_Hide)
 
   gear:SetScript("OnClick", function()
     if ctrl.isEditorOpen then
@@ -314,12 +351,6 @@ local function CreateZoomBasedControl(row, item, ctx)
       DynamicCam:OpenCurveEditor(ctx.sid, cvar, range.min, range.max, ctrl)
     end
   end)
-  gear:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip_AddNormalLine(GameTooltip, L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."], true)
-    GameTooltip:Show()
-  end)
-  gear:SetScript("OnLeave", GameTooltip_Hide)
 
   -- rowEnabled: the gate state of the row (e.g. pitch disabled entirely).
   function ctrl.Refresh(rowEnabled)
@@ -459,46 +490,32 @@ function Controls.CreateCheckboxRow(parent, item, ctx)
 end
 
 
--- ===== Header, subheader, button, note rows =====
+-- ===== Header and note rows =====
 
--- Shared by header and subheader rows: white heading text sitting low. Header
--- rows also get a divider line across the top (shown or hidden by the page
--- via row.lineAbove: none above a category's first heading), reserved for
--- separating main sections - DynamicCam has none of those yet, so subheaders
--- (sections within a category) don't draw one.
-local function CreateHeadingRow(parent, item, fontObject, height, wantsLine)
+-- A category heading: white text hung below the row's top, the optional info
+-- "i" (item.info), the optional state toggle (item.toggle), and a divider line
+-- across the top which the page shows or hides via row.lineAbove (none above
+-- the very first category).
+function Controls.CreateHeaderRow(parent, item)
   local row = CreateFrame("Frame", nil, parent)
-  row:SetHeight(height)
+  row:SetHeight(Controls.HEADER_HEIGHT)
 
   -- White, like the Settings panel's (and Graphit's) section headers.
-  -- Left-aligned with the setting rows' labels.
-  row.label = row:CreateFontString(nil, "ARTWORK", fontObject)
-  row.label:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", LABEL_LEFT_PAD, 6)
+  -- Left-aligned with the setting rows' labels, and hung from the row's top so
+  -- it keeps its distance below the divider no matter how tall the row is.
+  row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  row.label:SetPoint("TOPLEFT", row, "TOPLEFT", LABEL_LEFT_PAD, -HEADER_TEXT_TOP)
   row.label:SetTextColor(WHITE_FONT_COLOR:GetRGB())
   row.label:SetText(item.label)
 
-  if wantsLine then
-    row.line = row:CreateTexture(nil, "ARTWORK")
-    row.line:SetColorTexture(1, 1, 1, 0.15)
-    row.line:SetHeight(1)
-    row.line:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -4)
-    row.line:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
-  end
-
-  return row
-end
-
-function Controls.CreateHeaderRow(parent, item)
-  local row = CreateHeadingRow(parent, item, "GameFontNormalLarge", Controls.HEADER_HEIGHT, true)
-
-  -- Optional info "i" right of the title, showing the category's help text as
-  -- a tooltip (as in Graphit): hover-only, no click, no sound.
+  -- Info "i" right of the title, showing the category's help text as a tooltip
+  -- (as in Graphit): hover-only, no click, no sound.
   if item.info then
     local btn = CreateFrame("Button", nil, row)
     btn:SetSize(30, 30)
-    -- Directly right of the title so it tracks the title's length; the -8
-    -- drops it to sit level with the title text (anchored 6px up from the
-    -- row's bottom). No hover glow: it would suggest a click that does nothing.
+    -- Directly right of the title so it tracks the title's length; the -8 drops
+    -- the icon level with the title text. No hover glow: it would suggest a
+    -- click that does nothing.
     btn:SetPoint("BOTTOMLEFT", row.label, "BOTTOMRIGHT", 0, -8)
     btn:SetNormalTexture("Interface\\common\\help-i")
     btn:SetScript("OnEnter", function(self)
@@ -510,25 +527,60 @@ function Controls.CreateHeaderRow(parent, item)
     btn:SetScript("OnLeave", GameTooltip_Hide)
   end
 
-  return row
-end
+  -- Optional state toggle at the header's right edge (Reactive Zoom's visual
+  -- aid). Its art shows whether the target frame is currently open, so it has
+  -- to follow that frame rather than its own clicks - the frame can also be
+  -- closed on its own, and the old UI can toggle it too. There is no event for
+  -- that, so it polls, like the row hover does.
+  --
+  -- It is bigger than the header row and deliberately FLOATS: the row keeps its
+  -- normal height and the button just overhangs the rows beneath it, so its
+  -- size never shifts the layout. That needs a raised frame level, because the
+  -- rows below are created later and would otherwise draw over it.
+  if item.toggle then
+    local toggle = item.toggle
+    local btn = CreateFrame("Button", nil, row)
+    btn:SetSize(HEADER_TOGGLE_SIZE, HEADER_TOGGLE_SIZE)
+    btn:SetPoint("TOPRIGHT", row, "TOPRIGHT", HEADER_TOGGLE_X, HEADER_TOGGLE_Y)
+    btn:SetFrameLevel(row:GetFrameLevel() + 20)
+    btn:SetScript("OnClick", function()
+      PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+      toggle.onClick()
+    end)
+    if toggle.tooltip then
+      btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip_SetTitle(GameTooltip, toggle.title or item.label)
+        GameTooltip_AddNormalLine(GameTooltip, toggle.tooltip, true)
+        GameTooltip:Show()
+      end)
+      btn:SetScript("OnLeave", GameTooltip_Hide)
+    end
 
--- A sub-section heading within a category (e.g. Target Focus's "Enemy
--- Target"): also white, one size below the main header (14 vs 16), one above
--- the row labels (12).
-function Controls.CreateSubheaderRow(parent, item)
-  return CreateHeadingRow(parent, item, "GameFontNormalMed2", Controls.SUBHEADER_HEIGHT, false)
-end
+    -- nil until the first sync, so that pass always applies the atlases.
+    local shownState
+    local function SyncToggle()
+      local on = toggle.isOn()
+      if on == shownState then return end
+      shownState = on
+      -- The art shows the ACTION, not the current state: while the target is
+      -- open the button offers to hide it (VisibilityOff), and while it is
+      -- closed the button offers to show it (VisibilityOn). Hence the inverse.
+      local base = "128-RedButton-Visibility" .. (on and "Off" or "On")
+      btn:SetNormalAtlas(base)
+      btn:SetPushedAtlas(base .. "-Pressed")
+      btn:SetHighlightAtlas(base .. "-Highlight", "ADD")   -- glow over the art
+    end
+    SyncToggle()
+    btn:SetScript("OnUpdate", SyncToggle)
+  end
 
-function Controls.CreateButtonRow(parent, item)
-  local row = CreateFrame("Frame", nil, parent)
-  row:SetHeight(30)
-  local btn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-  btn:SetHeight(24)
-  btn:SetPoint("LEFT", row, "LEFT", 8, 0)
-  btn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-  btn:SetText(item.label)
-  btn:SetScript("OnClick", item.onClick)
+  row.line = row:CreateTexture(nil, "ARTWORK")
+  row.line:SetColorTexture(1, 1, 1, 0.15)
+  row.line:SetHeight(1)
+  row.line:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -4)
+  row.line:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
+
   return row
 end
 
@@ -549,7 +601,5 @@ function Controls.CreateRow(parent, item, ctx)
   if item.kind == "slider" then return Controls.CreateSliderRow(parent, item, ctx) end
   if item.kind == "checkbox" then return Controls.CreateCheckboxRow(parent, item, ctx) end
   if item.kind == "header" then return Controls.CreateHeaderRow(parent, item) end
-  if item.kind == "subheader" then return Controls.CreateSubheaderRow(parent, item) end
-  if item.kind == "button" then return Controls.CreateButtonRow(parent, item) end
   if item.kind == "note" then return Controls.CreateNoteRow(parent, item) end
 end

@@ -605,3 +605,11 @@ function DynamicCam:ToggleRZVA()
   end
 
 end
+
+
+-- For UI that mirrors the visual aid's state (the new settings UI's toggle in
+-- the "Reactive Zoom" header). The frame is created lazily above, so this is
+-- false until it has been opened at least once.
+function DynamicCam:IsRZVAShown()
+  return rzvaFrame ~= nil and rzvaFrame:IsShown()
+end

@@ -13,8 +13,6 @@
 -- CreatePage with a situationId and its override layer on top.
 -------------------------------------------------------------------------------
 
-local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
-
 assert(DynamicCam)
 local Ui = DynamicCam.Ui
 local Controls = Ui.Controls
@@ -281,10 +279,9 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   }
 
   -- All categories are laid out one after another in a single scroll. Each
-  -- opens with a main header; a separator line marks every category boundary
-  -- but the first. prevWasHeading and firstOverall carry across categories.
+  -- opens with a header; a separator line and extra air mark every category
+  -- boundary but the first, so firstOverall carries across categories.
   local firstOverall = true
-  local prevWasHeading = false
   for catIndex, cat in ipairs(categories) do
     -- Categories without any zoom-based setting give that column's width back
     -- to their sliders.
@@ -298,7 +295,7 @@ function Ui.CreatePage(parent, categories, sid, configKey)
     -- and its help text behind the header's "i" icon.
     local items = cat.items
     if items[1] and items[1].kind ~= "header" then
-      items = {{kind = "header", label = cat.name, info = cat.info}}
+      items = {{kind = "header", label = cat.name, info = cat.info, toggle = cat.toggle}}
       for _, item in ipairs(cat.items) do items[#items + 1] = item end
     end
 
@@ -306,18 +303,13 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       local row = Controls.CreateRow(content, item, ctx)
       if row then
         row.category = catIndex
-        local isHeading = item.kind == "header" or item.kind == "subheader"
-        if isHeading then
+        if item.kind == "header" then
           row.isHeader = true
-          -- Separator line only at category boundaries (each category's main
-          -- header), never the first category, never subheaders.
-          row.lineAbove = item.kind == "header" and not firstOverall
-          if row.line then row.line:SetShown(row.lineAbove) end
-          -- Extra air above a heading, unless it sits directly under another
-          -- heading (a subheader right below its category title).
-          row.gapAbove = not firstOverall and not prevWasHeading
+          -- Separator line and extra air at every category boundary except the
+          -- first, which sits at the top and only needs CONTENT_TOP_PAD.
+          row.lineAbove = not firstOverall
+          row.line:SetShown(row.lineAbove)
         end
-        prevWasHeading = isHeading
         firstOverall = false
         rows[#rows + 1] = row
       end
@@ -335,7 +327,7 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       local show = not row.ShouldShow or row.ShouldShow()
       row:SetShown(show)
       if show then
-        if row.gapAbove then y = y + SECTION_GAP end
+        if row.isHeader and row.lineAbove then y = y + SECTION_GAP end
         if not categoryOffsets[row.category] then
           categoryOffsets[row.category] = y
         end
@@ -365,6 +357,21 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   scrollBar:SetHideIfUnscrollable(true)
   scrollBox:SetPanExtent(Controls.ROW_HEIGHT)
   scrollBox:SetInterpolateScroll(true)   -- ease-out on click-scroll, wheel, drag
+
+  -- Row hover highlight, polled rather than event-driven (as in Graphit): a
+  -- row's own OnEnter/OnLeave would drop the highlight the moment the cursor
+  -- moved onto one of its controls, since the control takes the mouse.
+  -- IsMouseOver is purely geometric, so the highlight covers the whole row.
+  -- It ignores clipping too, hence the scrollBox gate: rows scrolled out of
+  -- view still report the cursor as over them.
+  parent:HookScript("OnUpdate", function()
+    local inBox = scrollBox:IsMouseOver()
+    for _, row in ipairs(rows) do
+      if row.highlight then
+        row.highlight:SetShown(inBox and row:IsMouseOver())
+      end
+    end
+  end)
 
   -- ===== Navigation (nav pane <-> scroll position) =====
 
@@ -406,9 +413,16 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       end
     end
 
-    local reachTop = categoryOffsets[lastReachable] or 0
+    -- Clamped to the scroll range, and compared strictly below: the tolerance
+    -- above can put the last reachable header a hair BEYOND max scroll, and an
+    -- unclamped `offset <= reachTop` would then hold at every reachable offset.
+    -- The tail regime would never run and the scrollspy would cap at this
+    -- category, leaving the ones below it unselectable. Which categories that
+    -- hits shifts with any change in content height (a conditional note row
+    -- appearing is enough), so it has to be ruled out rather than tuned around.
+    local reachTop = math.min(categoryOffsets[lastReachable] or 0, range)
     local focus
-    if offset <= reachTop then
+    if offset < reachTop then
       focus = offset                                  -- top-edge regime
     else
       local span = range - reachTop                   -- remaining stuck scroll

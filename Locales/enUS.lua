@@ -42,6 +42,8 @@ L["Enable"] = "Enable"
 -- Options - Mouse Zoom
 --------------------------------------------------------------------------------
 L["Mouse Zoom"] = "Mouse Zoom"
+-- NEW in the new UI: the category heading had no description of its own before.
+L["<mouseZoomCategory_desc>"] = "How the camera moves in and out when you turn the mouse wheel: how far it may zoom out, how fast it travels, and how much distance a single wheel tick covers."
 L["Maximum Camera Distance"] = "Maximum Camera Distance"
 L["How many yards the camera can zoom away from your character."] = "How many yards the camera can zoom away from your character."
 L["Camera Zoom Speed"] = "Camera Zoom Speed"
@@ -49,6 +51,8 @@ L["How fast the camera can zoom."] = "How fast the camera can zoom."
 L["Zoom Increments"] = "Zoom Increments"
 L["How many yards the camera should travel for each \"tick\" of the mouse wheel."] = "How many yards the camera should travel for each \"tick\" of the mouse wheel."
 L["Use Reactive Zoom"] = "Use Reactive Zoom"
+-- NEW in the new UI: this checkbox had no description of its own before.
+L["<useReactiveZoom_desc>"] = "Enables DynamicCam's Reactive Zoom. While it is off, the mouse wheel zooms the way WoW does by default and the Reactive Zoom settings below have no effect."
 L["Quick-Zoom Additional Increments"] = "Quick-Zoom Additional Increments"
 L["How many yards per mouse wheel \"tick\" should be added when quick-zooming."] = "How many yards per mouse wheel \"tick\" should be added when quick-zooming."
 L["Quick-Zoom Enter Threshold"] = "Quick-Zoom Enter Threshold"
@@ -56,7 +60,21 @@ L["How many yards the \"Reactive Zoom Target\" and the \"Current Zoom Value\" ha
 L["Maximum Zoom Time"] = "Maximum Zoom Time"
 L["The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."] = "The maximum time the camera should take to make \"Current Zoom Value\" equal to \"Reactive Zoom Target\"."
 L["Toggle Visual Aid"] = "Toggle Visual Aid"
+
+-- TO BE DELETED when the old DC frame goes: the new UI splits this help text up
+-- over the "Reactive Zoom" category heading and the individual settings it
+-- describes. The four new strings below are its paragraphs, in order.
 L["<reactiveZoom_desc>"] = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Current Zoom Value\" are different, DynamicCam changes the \"Current Zoom Value\" until it matches the \"Reactive Zoom Target\" again.\n\nHow fast this zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value.\n\nTo enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Current Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick.\n\nTo get a feeling of how this works, you can toggle the visual aid while finding your ideal settings. You can also freely move this graph by left-clicking and dragging it. A right-click closes it."
+-- Paragraph 1 -> the "Reactive Zoom" category heading.
+L["<reactiveZoomCategory_desc>"] = "With DynamicCam's Reactive Zoom the mouse wheel controls the so called \"Reactive Zoom Target\". Whenever the \"Reactive Zoom Target\" and the \"Current Zoom Value\" are different, DynamicCam changes the \"Current Zoom Value\" until it matches the \"Reactive Zoom Target\" again."
+-- Paragraph 2 -> "Maximum Zoom Time" slider.
+L["<maximumZoomTime_desc>"] = "How fast the zoom change is happening depends on \"Camera Zoom Speed\" and \"Maximum Zoom Time\". If \"Maximum Zoom Time\" is set low, the zoom change will always be executed fast, regardless of the \"Camera Zoom Speed\" setting. To achieve a slower zoom change, you must set \"Maximum Zoom Time\" to a higher value and \"Camera Zoom Speed\" to a lower value."
+-- Paragraph 3 -> "Quick-Zoom Additional Increments" slider.
+L["<quickZoom_desc>"] = "To enable faster zooming with faster mouse wheel movement, there is \"Quick-Zoom\": if the \"Reactive Zoom Target\" is further away from the \"Current Zoom Value\" than the \"Quick-Zoom Enter Threshold\", the amount of \"Quick-Zoom Additional Increments\" is added to every mouse wheel tick."
+-- Paragraph 4 -> the visual aid toggle in the "Reactive Zoom" heading. Reworded:
+-- the original claimed a right-click closes the graph, which it does not (there
+-- is no right-click handler); it is closed with this button or its own X.
+L["<visualAid_desc>"] = "Show a visual aid to get a feeling of how Reactive Zoom works."
 L["Enhanced minimal zoom-in"] = "Enhanced minimal zoom-in"
 L["<enhancedMinZoom_desc>"] = "Reactive zoom makes it possible to zoom-in closer than level 1. You can achieve this by zooming out one mouse wheel tick from first person.\n\nWith \"Enhanced minimal zoom-in\" we force the camera to also stop at this minimal zoom level when zooming in, before it would snap into first person.\n\n|cFFFF0000Enabling \"Enhanced minimal zoom-in\" may cost up to 15% FPS when in CPU limited situations.|r"
 L["/reload of the UI required!"] = "/reload of the UI required!"
@@ -78,7 +96,14 @@ L["<mouseLook_desc>"] = "How much the camera moves when you move the mouse in \"
 --------------------------------------------------------------------------------
 L["Field of View"] = "Field of View"
 L["The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."] = "The camera's field of view. Lower values are more zoomed in, higher values show more of your surroundings."
+
+-- TO BE DELETED when the old DC frame goes: in the new UI this whole text
+-- became the "Field of View" category's "i" tooltip (what FOV is and how to use
+-- it), while the short line above stays on the slider itself (which way the
+-- values go).
 L["<cameraFov_desc>"] = "The field of view (FOV) determines how much of the game world is visible on your screen at once. A higher FOV shows more of your surroundings but makes everything appear a little further away, while a lower FOV zooms in for a more cinematic, close-up feel.\n\nUsing DynamicCam situations, you can for example widen the FOV while running around and narrow it during NPC interactions or combat."
+-- Both paragraphs -> the "Field of View" category heading.
+L["<cameraFovCategory_desc>"] = "The field of view (FOV) determines how much of the game world is visible on your screen at once. A higher FOV shows more of your surroundings but makes everything appear a little further away, while a lower FOV zooms in for a more cinematic, close-up feel.\n\nUsing DynamicCam situations, you can for example widen the FOV while running around and narrow it during NPC interactions or combat."
 
 
 --------------------------------------------------------------------------------
@@ -87,18 +112,39 @@ L["<cameraFov_desc>"] = "The field of view (FOV) determines how much of the game
 L["Horizontal Offset"] = "Horizontal Offset"
 L["Camera Over Shoulder Offset"] = "Camera Over Shoulder Offset"
 L["Positions the camera left or right from your character."] = "Positions the camera left or right from your character."
+
+-- TO BE DELETED when the old DC frame goes: these are all caveats of the
+-- feature rather than of the slider's value, so in the new UI they became the
+-- "Horizontal Offset" category's "i" tooltip, while the short line above stays
+-- on the slider itself (what it does).
 L["<cameraOverShoulder_desc>"] = "For this to come into effect, DynamicCam automatically temporarily disables WoW's motion sickness setting. So if you need the Motion Sickness setting, do not use the horizontal offset in these situations.\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this."
+-- All paragraphs -> the "Horizontal Offset" category heading.
+L["<cameraOverShoulderCategory_desc>"] = "For this to come into effect, DynamicCam automatically temporarily disables WoW's motion sickness setting. So if you need the Motion Sickness setting, do not use the horizontal offset in these situations.\n\nWhen you are selecting your own character, WoW automatically switches to an offset of zero. There is nothing we can do about this. We also cannot do anything about offset jerks that may occur upon camera-to-wall collisions. A workaround is to use little to no offset while indoors.\n\nFurthermore, WoW strangely applies the offest differntly depending on player model or mount. If you prefer a constant offset, Ludius is working on another addon (CameraOverShoulder Fix) to resolve this."
 
 
 --------------------------------------------------------------------------------
 -- Options - Vertical Pitch
 --------------------------------------------------------------------------------
 L["Vertical Pitch"] = "Vertical Pitch"
+-- NEW in the new UI: neither the category nor these settings explained what
+-- "pitch" actually is; the old help text jumped straight into "Down Scale".
+L["<pitchCategory_desc>"] = "\"Pitch\" is the camera's vertical angle: how far it is tilted up or down.\n\nWhen enabled, DynamicCam pitches the camera automatically instead of keeping it level behind your character, which gives a more cinematic view. Lower \"Pitch\" values pitch the camera upwards, higher values pitch it downwards."
+L["<pitchEnable_desc>"] = "Enables the automatic camera pitch. While it is off, the camera stays level behind your character and the settings below have no effect."
 L["Pitch (on ground)"] = "Pitch (on ground)"
+L["<pitchOnGround_desc>"] = "The camera's vertical angle while you are on the ground. Lower values pitch the camera upwards, higher values pitch it downwards."
 L["Pitch (flying)"] = "Pitch (flying)"
+L["<pitchFlying_desc>"] = "The camera's vertical angle while you are flying. Lower values pitch the camera upwards, higher values pitch it downwards."
 L["Down Scale"] = "Down Scale"
 L["Smart Pivot Cutoff Distance"] = "Smart Pivot Cutoff Distance"
+-- TO BE DELETED when the old DC frame goes: paragraphs 1 and 2 are both about
+-- "Down Scale" (and how to set it up together with "Pitch"), paragraph 3 is
+-- solely about "Smart Pivot Cutoff Distance". In the new UI they became those
+-- two sliders' tooltips, so the category heading carries no help of its own.
 L["<pitch_desc>"] = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above.\n\n\nWhen the camera collides with the ground, it normally performs an upwards pitch on the spot of the camera-to-ground collision. An alternative is that the camera moves closer to your character's feet while performing this pitch. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer.\n\n"
+-- Paragraphs 1 + 2 -> "Down Scale" slider.
+L["<downScale_desc>"] = "If the camera is pitched upwards (lower \"Pitch\" value), the \"Down Scale\" setting determines how much this comes into effect while looking at your character from above. Setting \"Down Scale\" to 0 nullifies the effect of an upwards pitch while looking from above. On the contrary, while you are not looking from above or if the camera is pitched downwards (greater \"Pitch\" value), the \"Down Scale\" setting has little to no effect.\n\nThus, you should first find your preferred \"Pitch\" setting while looking at your character from behind. Afterwards, if you have chosen an upwards pitch, find your preferred \"Down Scale\" setting while looking from above."
+-- Paragraph 3 -> "Smart Pivot Cutoff Distance" slider.
+L["<smartPivot_desc>"] = "When the camera collides with the ground, it normally performs an upwards pitch on the spot of the camera-to-ground collision. An alternative is that the camera moves closer to your character's feet while performing this pitch. The \"Smart Pivot Cutoff Distance\" setting determines the distance that the camera has to be inside of to do the latter. Setting it to 0 never moves the camera closer (WoW's default), whereas setting it to the maximum zoom distance of 39 always moves the camera closer."
 
 
 --------------------------------------------------------------------------------
@@ -109,15 +155,38 @@ L["Enemy Target"] = "Enemy Target"
 L["Horizontal Strength"] = "Horizontal Strength"
 L["Vertical Strength"] = "Vertical Strength"
 L["Interaction Target (NPCs)"] = "Interaction Target (NPCs)"
+-- NEW in the new UI: none of the six Target Focus settings had a description of
+-- their own before. The strength texts are shared by both target kinds.
+L["<targetFocusEnemyEnable_desc>"] = "Enables target focus while you have an enemy targeted. While it is off, the settings below have no effect."
+L["<targetFocusInteractEnable_desc>"] = "Enables target focus while you are interacting with an NPC. While it is off, the settings below have no effect."
+L["<targetFocusYaw_desc>"] = "How strongly the camera turns sideways to bring the target towards the center of the screen. Setting it to 0 disables the horizontal effect."
+L["<targetFocusPitch_desc>"] = "How strongly the camera tilts up or down to bring the target towards the center of the screen. Setting it to 0 disables the vertical effect."
 L["Miscellaneous"] = "Miscellaneous"
+-- TO BE DELETED when the old DC frame goes: paragraph 1 applies to both target
+-- kinds, so it was rephrased onto each of the two new category headings; the
+-- bug report and its workaround concern the interaction target, so they went to
+-- the "Target Focus (NPC)" heading only.
 L["<targetFocus_desc>"] = "If enabled, the camera automatically tries to bring the target closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Enemy Target Focus\" and \"Interaction Target Focus\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\nA workaround, if you want to use both \"Enemy Target Focus\" and \"Interaction Target Focus\", is to only activate \"Enemy Target Focus\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat)."
+-- Paragraph 1, phrased per target kind -> the two category headings. (The new
+-- UI has no "Target Focus" parent any more: the enemy and NPC cases are two
+-- sibling categories that sit next to each other.)
+L["Target Focus (Enemy)"] = "Target Focus (Enemy)"
+L["Target Focus (NPC)"] = "Target Focus (NPC)"
+L["<targetFocusEnemyCategory_desc>"] = "If enabled, the camera automatically tries to bring your current enemy target closer to the center of the screen. The strength determines the intensity of this effect."
+-- Paragraph 1 (NPC wording) plus paragraph 2, whose bug report concerns this
+-- case -> the "Target Focus (NPC)" category heading.
+L["<targetFocusNpcCategory_desc>"] = "If enabled, the camera automatically tries to bring the NPC you are interacting with closer to the center of the screen. The strength determines the intensity of this effect.\n\nIf \"Target Focus (Enemy)\" and \"Target Focus (NPC)\" are both enabled, there seems to be a strange bug with the latter: When interacting with an NPC for the first time, the camera smoothly moves to its new angle as expected. But when you exit the interaction, it snaps immediately into its previous angle. When you then start the interaction again, it snaps again to the new angle. This is repeatable whenever talking to a new NPCs: only the first transition is smooth, all following are immediate.\n\nA workaround, if you want to use both, is to only activate \"Target Focus (Enemy)\" for DynamicCam situations in which you need it and in which NPC interactions are unlikely (like Combat)."
 
 
 --------------------------------------------------------------------------------
 -- Options - Head Tracking
 --------------------------------------------------------------------------------
 L["Head Tracking"] = "Head Tracking"
+-- The old UI shows this greyed, as a technical aside under the Enable checkbox.
+-- The new UI gives that checkbox a plain description instead (below), so this
+-- key can go once the old frame does.
 L["<headTrackingEnable_desc>"] = "(This could also be used as a continuous value between 0 and 1, but it is just multiplied with \"Strength (standing)\" and \"Strength (moving)\" respectively. So there is really no need for another slider.)"
+L["<headTrackingToggle_desc>"] = "Enables head tracking. While it is off, the settings below have no effect."
 L["Strength (standing)"] = "Strength (standing)"
 L["Inertia (standing)"] = "Inertia (standing)"
 L["Strength (moving)"] = "Strength (moving)"
@@ -130,7 +199,24 @@ L["Dead Zone"] = "Dead Zone"
 L["Radius of head movement not affecting the camera. (See explanation below.)"] = "Radius of head movement not affecting the camera. (See explanation below.)"
 L["(slider value devided by 10)"] = "(slider value devided by 10)"
 L["Requires /reload to come into effect!"] = "Requires /reload to come into effect!"
+-- TO BE DELETED when the old DC frame goes: paragraph 1 stayed on the "Head
+-- Tracking" heading; paragraph 2 was split over the Strength / Inertia sliders
+-- it describes; paragraphs 3 and 4 became the "Range Scale" and "Dead Zone"
+-- tooltips (which is why those two no longer say "See explanation below").
 L["<headTracking_desc>"] = "With head tracking enabled the camera follows the movement of your character's head. (While this can be a benefit for immersion, it may also cause nausea if you are prone to motion sickness.)\n\nThe \"Strength\" setting determines the intensity of this effect. Setting it to 0 disables head tracking. The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking. The three cases \"standing\", \"moving\" and \"first person\" can be set up individually. There is no \"Strength\" setting for \"first person\" as it assumes the \"Strength\" settings of \"standing\" and \"moving\" respectively. If you want to enable or disable \"first person\" exclusively, use the \"Inertia\" sliders to disable the unwanted cases.\n\nWith the \"Range Scale\" setting you can set the camera distance beyond which head tracking is reduced or disabled. For example, with the slider set to 30 you will have no head tracking when the camera is more than 30 yards away from your character. However, there is a gradual transition from full head tracking to no head tracking, which starts at one third of the slider value. For example, with the slider value set to 30 you have full head tracking when the camera is closer than 10 yards. Beyond 10 yards, head tracking gradually decreases until it is completely gone beyond 30 yards. Hence, the slider's maximum value is 117 allowing for full head tracking at the maximum camera distance of 39 yards. (Hint: Use DynamicCam's \"Mouse Zoom\" visual aid to track the current camera distance while setting this up.)\n\nThe \"Dead Zone\" setting can be used to ignore smaller head movements. Setting it to 0 has the camera follow every slightest head movement, whereas setting it to a greater value results in it following only greater movements. Notice, that changing this setting only comes into effect after reloading the UI (type /reload into the console)."
+-- Paragraph 1 -> "Head Tracking" category heading.
+L["<headTrackingCategory_desc>"] = "With head tracking enabled the camera follows the movement of your character's head. (While this can be a benefit for immersion, it may also cause nausea if you are prone to motion sickness.)\n\nThe three cases \"standing\", \"moving\" and \"first person\" can be set up individually."
+-- Paragraph 2, split up. Strength -> the two "Strength" sliders.
+L["<headTrackingStrength_desc>"] = "The \"Strength\" setting determines the intensity of the head tracking effect. Setting it to 0 disables head tracking."
+-- Inertia -> the "Inertia (standing)" and "Inertia (moving)" sliders.
+L["<headTrackingInertia_desc>"] = "The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking."
+-- Inertia first person -> the "Inertia (first person)" slider (the case with no
+-- "Strength" slider of its own).
+L["<headTrackingFirstPerson_desc>"] = "The \"Inertia\" setting determines how fast the camera reacts to head movements. Setting it to 0 also disables head tracking.\n\nThere is no \"Strength\" setting for \"first person\" as it assumes the \"Strength\" settings of \"standing\" and \"moving\" respectively. If you want to enable or disable \"first person\" exclusively, use the \"Inertia\" sliders to disable the unwanted cases."
+-- Paragraph 3 -> "Range Scale" slider.
+L["<headTrackingRangeScale_desc>"] = "Camera distance beyond which head tracking is reduced or disabled. For example, with the slider set to 30 you will have no head tracking when the camera is more than 30 yards away from your character. However, there is a gradual transition from full head tracking to no head tracking, which starts at one third of the slider value. For example, with the slider value set to 30 you have full head tracking when the camera is closer than 10 yards. Beyond 10 yards, head tracking gradually decreases until it is completely gone beyond 30 yards. Hence, the slider's maximum value is 117 allowing for full head tracking at the maximum camera distance of 39 yards. (Hint: Use DynamicCam's \"Mouse Zoom\" visual aid to track the current camera distance while setting this up.)"
+-- Paragraph 4 -> "Dead Zone" slider.
+L["<headTrackingDeadZone_desc>"] = "Radius of head movement not affecting the camera. Setting it to 0 has the camera follow every slightest head movement, whereas setting it to a greater value results in it following only greater movements."
 
 
 --------------------------------------------------------------------------------
@@ -470,8 +556,7 @@ L["This graph helps you to\nunderstand how\nReactive Zoom works."] = "This graph
 --------------------------------------------------------------------------------
 L["Zoom-based"] = "Zoom-based"
 L["Edit Curve"] = "Edit Curve"
-L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
-L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."
+L["<zoomBased_desc>"] = "When enabled, this setting's value changes smoothly based on your camera zoom level instead of using a single fixed value.\n\nUse the checkbox to enable or disable this behavior. Click the gear icon to open the curve editor, where you can add control points to define exactly how the value changes as you zoom in and out."
 L["DynamicCam: Zoom-Based Setting"] = "DynamicCam: Zoom-Based Setting"
 L["CVAR: "] = "CVAR: "
 L["Z\no\no\nm"] = "Z\no\no\nm"
@@ -563,3 +648,13 @@ L["Swimming"] = "Swimming"
 L["AFK"] = "AFK"
 L["Pet Battle"] = "Pet Battle"
 L["Professions Frame Open"] = "Professions Frame Open"
+
+--------------------------------------------------------------------------------
+-- DELETE WHEN OLD DC FRAME GOES
+-- Referenced only by the old AceGUI UI (e.g. Options/ControlFactories.lua).
+-- Each entry is superseded by a new-UI equivalent (Ui/Controls.lua etc.);
+-- remove this whole section once that old frame is removed.
+--------------------------------------------------------------------------------
+-- Superseded by <zoomBased_desc>.
+L["Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."] = "Enable zoom-based curve for this setting.\n\nWhen enabled, the value will change smoothly based on your camera zoom level instead of using a single fixed value. Click the gear icon to edit the curve."
+L["Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."] = "Open the curve editor.\n\nAllows you to define exactly how this setting changes as you zoom in and out. You can add control points to create a custom curve."
