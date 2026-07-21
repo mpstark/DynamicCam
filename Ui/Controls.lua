@@ -202,6 +202,28 @@ local function NewRow(parent)
   return row
 end
 
+-- Break a long cvar name over several lines for the tooltip. The tooltip wraps
+-- only at spaces, and a cvar name has none, so past the tooltip's max width the
+-- one long word is not wrapped but clipped with an ellipsis. We insert the
+-- breaks ourselves at camelCase boundaries (the old UI did this by hand for
+-- "Pitch (flying)") so each line fits. Only the display copy is broken;
+-- item.cvar stays intact as the live key.
+local CVAR_WRAP = 23   -- start a new line at the next word once past this length;
+                       -- lower it if any wrapped line still clips
+local function WrapCvar(cvar)
+  local lines, line = {}, ""
+  for i = 1, #cvar do
+    local ch = cvar:sub(i, i)
+    if ch:match("%u") and #line >= CVAR_WRAP then
+      lines[#lines + 1] = line
+      line = ""
+    end
+    line = line .. ch
+  end
+  lines[#lines + 1] = line
+  return table.concat(lines, "\n")
+end
+
 -- Tooltip on the row's NAME only (title, optional body, optional grey cvar
 -- note), as in the Settings panel and Graphit: hovering the controls to the
 -- right shows nothing, so the tooltip does not follow the cursor across the
@@ -225,7 +247,7 @@ local function AddRowTooltip(row, item)
       GameTooltip_AddNormalLine(GameTooltip, item.tooltip, true)
     end
     if item.cvar then
-      GameTooltip_AddDisabledLine(GameTooltip, "cvar: " .. item.cvar, true)
+      GameTooltip_AddDisabledLine(GameTooltip, "cvar: " .. WrapCvar(item.cvar), true)
     end
     if item.transformNote then
       GameTooltip_AddDisabledLine(GameTooltip, item.transformNote, true)
