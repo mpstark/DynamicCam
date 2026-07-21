@@ -32,7 +32,7 @@ Controls.HEADER_HEIGHT = 35
 -- whole row, so every one of them is independent - changing a gap moves what is
 -- left of it and nothing else. Only the widths and gaps below are tunable; the
 -- positions are derived from them by the *Offset helpers further down.
-local LABEL_LEFT_PAD   = 8     -- row edge -> label
+local LABEL_LEFT_PAD   = 0     -- row edge -> label
 local LABEL_WIDTH      = 140   -- label ("name column")
 local CONTROL_GAP      = 4     -- label -> slider or checkbox
 local READOUT_GAP      = 2     -- slider -> value readout
@@ -43,7 +43,7 @@ local ZOOM_GAP         = 8     -- reset button -> zoom-based column
 local ZOOM_PAIR_WIDTH  = 49    -- ... whose width is the wider of its checkbox
 local ZOOM_CAPTION_PAD = 6     --     (24) + gap (2) + gear (23) and its caption
                                --     plus this padding: see ZOOM_ZONE below
-local RIGHT_PAD        = 6     -- last column -> row edge
+local RIGHT_PAD        = 8     -- last column -> row edge
 
 -- The slider widget's frame is wider than the slider looks: the template insets
 -- the bar by 19px on each side for the steppers, which are 15px (back) and 13px

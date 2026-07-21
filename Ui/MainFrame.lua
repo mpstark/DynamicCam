@@ -31,7 +31,7 @@ local Ui = DynamicCam.Ui
 -- corner tiles, which must not overlap (see ApplyResizeBounds).
 local DEFAULT_WIDTH  = 760
 local DEFAULT_HEIGHT = 820
-local MIN_WIDTH      = 600
+local MIN_WIDTH      = 580
 local MIN_HEIGHT     = 500
 local MAX_WIDTH      = 1100
 local MAX_HEIGHT_FRACTION = 1    -- cap on height, as a fraction of screen height
