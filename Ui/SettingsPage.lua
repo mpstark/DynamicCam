@@ -48,8 +48,8 @@ local ARROW_PRESSED  = "shop-header-arrow-pressed"
 local KNOB_SCALE     = 0.75   -- knob size vs the atlas's native size
 -- Knob center X relative to the divider/edge, per state (negative = left of it,
 -- positive = right); it slides between the two as the pane animates.
-local KNOB_X_EXPANDED  = -2   -- while the nav is shown
-local KNOB_X_COLLAPSED = -6   -- while the nav is hidden
+local KNOB_X_EXPANDED  = -4   -- while the nav is shown
+local KNOB_X_COLLAPSED = -5   -- while the nav is hidden
 
 -- The vertical category divider, cut from the options texture (the strip the
 -- shell's nine-slice deliberately excludes). Vertically stretchable mid part.
@@ -61,7 +61,7 @@ local DIVIDER_COORDS = {194 / 1024, 210 / 1024, 330 / 1024, 589 / 1024}
 
 local function CreateCategoryButton(parent, name, index, onSelect)
   local btn = CreateFrame("Button", nil, parent)
-  btn:SetHeight(CATEGORY_ROW_HEIGHT)
+  PixelUtil.SetHeight(btn, CATEGORY_ROW_HEIGHT)
 
   btn.label = btn:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   btn.label:SetPoint("LEFT", btn, "LEFT", 8, 0)
@@ -127,19 +127,25 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   -- fill (Options_List_Hover), and the button labels sit above both (they live
   -- on the buttons, children of the column). This lets the sliding selection bar
   -- eclipse a hovered row instead of a gap opening under the cursor on click.
+  -- Snapped to whole physical pixels (PixelUtil). The row pitch is a logical
+  -- unit count, so at a UI scale other than 1:1 each successive bar would land
+  -- on a different sub-pixel phase, and the bright 1px line along the atlas's
+  -- top edge would blend away on some rows but not others (it looked like the
+  -- top was cut off, and which rows were affected changed with the frame size).
+  -- Snapping gives every bar the same physical size and phase.
   local function PositionBarAt(bar, y)
-    bar:SetPoint("TOPLEFT", column, "TOPLEFT", 0, -(y + 2))
-    bar:SetPoint("TOPRIGHT", column, "TOPRIGHT", -DIVIDER_WIDTH / 2, -(y + 2))
+    PixelUtil.SetPoint(bar, "TOPLEFT", column, "TOPLEFT", 0, -(y + 2))
+    PixelUtil.SetPoint(bar, "TOPRIGHT", column, "TOPRIGHT", -DIVIDER_WIDTH / 2, -(y + 2))
   end
 
   local hoverBar = column:CreateTexture(nil, "ARTWORK", nil, 0)
   hoverBar:SetAtlas("Options_List_Hover")
-  hoverBar:SetHeight(CATEGORY_ROW_HEIGHT - 4)
+  PixelUtil.SetHeight(hoverBar, CATEGORY_ROW_HEIGHT - 4)
   hoverBar:Hide()
 
   local selectionBar = column:CreateTexture(nil, "ARTWORK", nil, 1)
   selectionBar:SetAtlas("Options_List_Active")
-  selectionBar:SetHeight(CATEGORY_ROW_HEIGHT - 4)
+  PixelUtil.SetHeight(selectionBar, CATEGORY_ROW_HEIGHT - 4)
   selectionBar:Hide()
 
   local categoryButtons = {}
@@ -148,8 +154,9 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       page.ScrollToCategory(index)
     end)
     btn.topY = CATEGORY_TOP_PAD + (i - 1) * CATEGORY_ROW_HEIGHT
-    btn:SetPoint("TOPLEFT", column, "TOPLEFT", 0, -btn.topY)
-    btn:SetPoint("TOPRIGHT", column, "TOPRIGHT", -DIVIDER_WIDTH / 2, -btn.topY)
+    -- Snapped like the bars, so each label stays centred in its highlight.
+    PixelUtil.SetPoint(btn, "TOPLEFT", column, "TOPLEFT", 0, -btn.topY)
+    PixelUtil.SetPoint(btn, "TOPRIGHT", column, "TOPRIGHT", -DIVIDER_WIDTH / 2, -btn.topY)
     -- Hover fill follows the mouse. It stays put through a click (the cursor is
     -- still over the row), so the sliding selection bar eclipses it from above
     -- rather than a gap flashing; it hides only when the mouse leaves the row.
