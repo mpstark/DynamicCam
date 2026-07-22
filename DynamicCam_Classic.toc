@@ -1,4 +1,4 @@
-## Interface: 11508
+## Interface: 11509
 ## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
