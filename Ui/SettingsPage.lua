@@ -13,10 +13,41 @@
 -- CreatePage with a situationId and its override layer on top.
 -------------------------------------------------------------------------------
 
+local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
+
 assert(DynamicCam)
 local Ui = DynamicCam.Ui
 local Controls = Ui.Controls
 local GetConfig = Ui.GetConfig   -- shared db.global.newUi accessor (MainFrame.lua)
+
+-- The blue used to mark categories the active situation overrides, and its RGB
+-- for tinting textures/labels. Pulled from the one shared table (Core.lua) that
+-- also colours the overridden rows, so the two can never drift apart.
+local OVERRIDE_ESCAPE = DynamicCam.situationColors.overridden
+local OVERRIDE_R, OVERRIDE_G, OVERRIDE_B =
+  tonumber(OVERRIDE_ESCAPE:sub(5, 6), 16) / 255,
+  tonumber(OVERRIDE_ESCAPE:sub(7, 8), 16) / 255,
+  tonumber(OVERRIDE_ESCAPE:sub(9, 10), 16) / 255
+-- Semi-transparent underlay behind an overridden category's whole section.
+local OVERRIDE_BG_ALPHA = 0.15
+-- How far below its row's top the category separator line sits (AddSectionLine),
+-- and thus where the underlay's top and bottom align (they sit on those lines).
+local SECTION_LINE_INSET = 4
+-- Left edge shared by the row-spanning fills - the override underlay and the row
+-- hover highlight - as a distance rightward from the content's left (the divider's
+-- centre; see the scrollBox anchor). The rows' controls sit further in at
+-- CONTENT_LEFT_PAD, and the highlight is stretched left of its row to reach this,
+-- so a hovered row and an overridden section line up on the left. Their right
+-- edge is the content's right, which is the scroll box's clip edge (nothing can
+-- extend past it).
+local CONTENT_FILL_LEFT = 6
+-- The override banner (the "Currently overridden ..." notice above a header):
+-- kept short and tight to the header so the two read as a stacked pair. It grows
+-- taller if the notice wraps; OVERRIDE_BANNER_TOP_PAD is the air above the text
+-- (below the separator line), whatever the line count.
+local OVERRIDE_BANNER_HEIGHT  = 20
+local OVERRIDE_BANNER_GAP     = 2   -- gap below the banner, down to the header
+local OVERRIDE_BANNER_TOP_PAD = 6
 
 
 -- ===== Layout =====
@@ -25,7 +56,11 @@ local CATEGORY_COL_WIDTH  = 150   -- nav pane width
 local CATEGORY_ROW_HEIGHT = 24
 local CATEGORY_TOP_PAD    = 8
 local DIVIDER_WIDTH       = 16    -- on-screen width of the divider strip
-local CONTENT_LEFT_PAD    = 12    -- gap between the divider and the rows
+local CONTENT_LEFT_PAD    = 12    -- rows' inset from the divider centre, where the
+                                  -- scroll box starts (see the scrollBox anchor)
+-- How far left of a row the row-spanning fills (hover highlight, separator line)
+-- reach, so their left edge lands on CONTENT_FILL_LEFT, level with the underlay.
+local FILL_LEFT_EXTEND    = CONTENT_LEFT_PAD - CONTENT_FILL_LEFT
 local SCROLLBAR_CHANNEL   = 20
 local CONTENT_TOP_PAD     = 4     -- air above the first row, as in Graphit
 local SECTION_GAP         = 15    -- extra air above header rows, as in Graphit
@@ -73,13 +108,38 @@ local function CreateCategoryButton(parent, name, index, onSelect)
   end)
 
   -- The hover and selection fills are shared bars on the column (see CreatePage)
-  -- so they can stack; the button itself draws no fill. Selecting only turns the
-  -- label white.
-  function btn.SetSelected(selected)
+  -- so they can stack; the button itself draws no fill. Selecting turns the label
+  -- white; an overridden category turns it blue (the situation-override colour).
+  -- The colour is set explicitly BOTH ways: SetFontObject does not clear a prior
+  -- SetTextColor, so without the else branch a label would stay blue after its
+  -- category stopped being overridden.
+  local selected, overridden = false, false
+  local function Restyle()
     btn.label:SetFontObject(selected and "GameFontHighlight" or "GameFontNormal")
+    if overridden then
+      btn.label:SetTextColor(OVERRIDE_R, OVERRIDE_G, OVERRIDE_B)
+    else
+      btn.label:SetTextColor(btn.label:GetFontObject():GetTextColor())
+    end
   end
+  function btn.SetSelected(v) selected = v; Restyle() end
+  function btn.SetOverridden(v) overridden = v; Restyle() end
 
   return btn
+end
+
+
+-- ===== Section separator line =====
+
+-- The category separator line, created on a section-top row (a header or an
+-- override banner) so it scrolls with it, and extended left to the fills' shared
+-- edge. Relayout shows it only on the row that is actually its section's top.
+local function AddSectionLine(row)
+  row.line = row:CreateTexture(nil, "ARTWORK")
+  row.line:SetColorTexture(1, 1, 1, 0.15)
+  row.line:SetHeight(1)
+  row.line:SetPoint("TOPLEFT", row, "TOPLEFT", -FILL_LEFT_EXTEND, -SECTION_LINE_INSET)
+  row.line:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -SECTION_LINE_INSET)
 end
 
 
@@ -187,7 +247,10 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   -- ===== Content scroll box =====
 
   local scrollBox = CreateFrame("Frame", nil, parent, "WowScrollBox")
-  scrollBox:SetPoint("TOPLEFT", navClip, "TOPRIGHT", CONTENT_LEFT_PAD, 0)
+  -- Left edge on the divider's centre (navClip's right), so the content - and its
+  -- underlay - can reach onto the divider despite the box clipping its children;
+  -- the rows are inset by CONTENT_LEFT_PAD so they keep their place.
+  scrollBox:SetPoint("TOPLEFT", navClip, "TOPRIGHT", 0, 0)
   scrollBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -SCROLLBAR_CHANNEL, 0)
   -- Exposed so the main window can forward wheel from anywhere over the frame.
   parent.wheelScrollBox = scrollBox
@@ -272,16 +335,88 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   -- ===== Rows =====
 
   local rows = {}
-  local categoryOffsets = {}   -- catIndex -> pixel Y of its header, for the nav
+  local categoryOffsets = {}   -- catIndex -> pixel Y of its first shown row, for the nav
   local ctx = {
     sid = sid,
     onChanged = function() page.RefreshAll() end,
   }
 
-  -- All categories are laid out one after another in a single scroll. Each
-  -- opens with a header; a separator line and extra air mark every category
-  -- boundary but the first, so firstOverall carries across categories.
-  local firstOverall = true
+  -- ===== Situation overrides (standard page only) =====
+
+  -- A category is "overridden" when the active situation has a situation setting
+  -- for any of the category's dbPaths (mirrors the old UI's CheckGroupVars). Only
+  -- meaningful on the standard page; a situation page edits its own layer. Returns
+  -- the overriding situation's name, or nil.
+  local sc = DynamicCam.situationColors
+  local function CategoryOverrideSituation(cat)
+    if sid then return nil end
+    local sitID = DynamicCam.currentSituationID
+    if not sitID then return nil end
+    local situation = DynamicCam.db.profile.situations[sitID]
+    local ss = situation and situation.situationSettings
+    if not ss then return nil end
+    for _, item in ipairs(cat.items) do
+      local p = item.dbPath
+      if p then
+        if p[1] == "cvars" and p[2] then
+          if ss.cvars and ss.cvars[p[2]] ~= nil then return situation.name end
+        elseif ss[p[1]] ~= nil then
+          return situation.name
+        end
+      end
+    end
+    return nil
+  end
+
+  -- overrideState[catIndex] = overriding situation's name, or nil. Recomputed by
+  -- UpdateOverrides; read by the banner rows' ShouldShow and by Relayout's bg.
+  local overrideState = {}
+
+  -- The "Currently overridden by ..." notice inserted above an overridden
+  -- category's header. Outlined font, so it stays legible over the coloured
+  -- section underlay. Text is blue with the situation name in the active-green,
+  -- exactly as the old UI coloured it (same situationColors source).
+  local function CreateOverrideBanner(catIndex)
+    local row = CreateFrame("Frame", nil, content)
+    row:SetHeight(OVERRIDE_BANNER_HEIGHT)
+    row.category = catIndex
+    row.isOverrideBanner = true
+    row.gapAfter = OVERRIDE_BANNER_GAP   -- sit tight above the header
+    AddSectionLine(row)
+
+    -- Left-aligned with the header label, hung near the banner's bottom so it
+    -- reads just above the header rather than floating with a gap between.
+    row.text = row:CreateFontString(nil, "ARTWORK", "GameFontNormalOutline")
+    row.text:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", Controls.LABEL_LEFT_PAD, 0)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(true)   -- the banner grows to fit (see Relayout)
+
+    function row.UpdateText(situationName)
+      local coloredName = sc.colorEnd .. sc.active .. "\"" .. situationName .. "\"" ..
+        sc.colorEnd .. sc.overridden
+      row.text:SetText(sc.overridden ..
+        L["Currently overridden by the active situation %s."]:format(coloredName) .. sc.colorEnd)
+    end
+    return row
+  end
+
+  -- One underlay texture per category, on `content` so it draws behind the row
+  -- frames; shown and stretched over the section by Relayout when overridden.
+  local sectionBg = {}
+  if not sid then
+    for i = 1, #categories do
+      local bg = content:CreateTexture(nil, "BACKGROUND")
+      bg:SetColorTexture(OVERRIDE_R, OVERRIDE_G, OVERRIDE_B, OVERRIDE_BG_ALPHA)
+      bg:Hide()
+      sectionBg[i] = bg
+    end
+  end
+
+  -- All categories are laid out one after another in a single scroll. Each opens
+  -- with a header (preceded, on the standard page, by an override banner that
+  -- shows only while overridden). Relayout draws the section-boundary line and
+  -- extra air above the first shown row of each category but the first.
   for catIndex, cat in ipairs(categories) do
     -- Categories without any zoom-based setting give that column's width back
     -- to their sliders.
@@ -290,6 +425,13 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       if item.zoomBased then hasZoomBased = true break end
     end
     ctx.zoomZone = hasZoomBased and Controls.ZOOM_ZONE or 0
+
+    -- Override banner first, so it sits above the header when shown.
+    if not sid then
+      local banner = CreateOverrideBanner(catIndex)
+      banner.ShouldShow = function() return overrideState[catIndex] ~= nil end
+      rows[#rows + 1] = banner
+    end
 
     -- Every category opens with a section header carrying the category's name
     -- and its help text behind the header's "i" icon.
@@ -305,38 +447,109 @@ function Ui.CreatePage(parent, categories, sid, configKey)
         row.category = catIndex
         if item.kind == "header" then
           row.isHeader = true
-          -- Separator line and extra air at every category boundary except the
-          -- first, which sits at the top and only needs CONTENT_TOP_PAD.
-          row.lineAbove = not firstOverall
-          row.line:SetShown(row.lineAbove)
+          AddSectionLine(row)   -- headers can be a section top (Relayout decides)
         end
-        firstOverall = false
+        -- Stretch the hover highlight left of its row to the fills' shared edge,
+        -- level with an overridden section's underlay.
+        if row.highlight then
+          row.highlight:ClearAllPoints()
+          row.highlight:SetPoint("TOPLEFT", row, "TOPLEFT", -FILL_LEFT_EXTEND, 0)
+          row.highlight:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+        end
         rows[#rows + 1] = row
       end
     end
   end
 
-  -- Stack every row top to bottom in one continuous column, recording where
-  -- each category begins (its header's top). Row heights are width-independent,
-  -- so these offsets stay valid across resizes.
+  -- Recompute which categories the active situation overrides, tint their nav
+  -- labels, and refresh the shown banners' text. Layout (banners appearing,
+  -- underlays) is applied by the following Relayout.
+  local function UpdateOverrides()
+    for i, cat in ipairs(categories) do
+      overrideState[i] = CategoryOverrideSituation(cat)
+      categoryButtons[i].SetOverridden(overrideState[i] ~= nil)
+    end
+    for _, row in ipairs(rows) do
+      if row.isOverrideBanner and overrideState[row.category] then
+        row.UpdateText(overrideState[row.category])
+      end
+    end
+  end
+
+  -- True if any category's override state now differs from what is displayed.
+  -- Cheap enough to poll every frame, and keys off the state rather than the
+  -- active situation alone, so the standard view stays correct against ANY change
+  -- to situation settings: the active situation switching, but also an override
+  -- toggled elsewhere (the old frame, a profile import) while this view is open.
+  local function OverridesChanged()
+    for i, cat in ipairs(categories) do
+      if CategoryOverrideSituation(cat) ~= overrideState[i] then return true end
+    end
+    return false
+  end
+
+  -- Stack every row top to bottom in one continuous column, recording where each
+  -- category begins (its first shown row's top). Row heights are width-
+  -- independent, so these offsets stay valid across resizes. The section line and
+  -- gap go above the first shown row of each category but the first, so they sit
+  -- above the override banner when it is showing and above the header otherwise.
+  -- An overridden category's underlay is stretched over its whole section.
   local didInitialScroll = false
   local function Relayout()
     local y = CONTENT_TOP_PAD
     wipe(categoryOffsets)
+    local firstShown = true
+    local sectionCat, sectionTop   -- category and top-Y of the section in progress
+
+    -- Stretch the finished section's underlay between its separator line and the
+    -- given bottom (the next section's line, or the content end for the last one).
+    -- Left edge shared with the row highlight (CONTENT_FILL_LEFT); right at the
+    -- content edge.
+    local function CloseSection(bottom)
+      if sectionCat and sectionBg[sectionCat] and overrideState[sectionCat] then
+        local top = sectionTop + SECTION_LINE_INSET
+        local bg = sectionBg[sectionCat]
+        bg:ClearAllPoints()
+        bg:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_FILL_LEFT, -top)
+        bg:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -top)
+        bg:SetHeight(math.max(bottom - top, 1))
+        bg:Show()
+      end
+    end
+
     for _, row in ipairs(rows) do
       local show = not row.ShouldShow or row.ShouldShow()
       row:SetShown(show)
       if show then
-        if row.isHeader and row.lineAbove then y = y + SECTION_GAP end
-        if not categoryOffsets[row.category] then
+        local isSectionTop = not categoryOffsets[row.category]
+        if isSectionTop then
+          if not firstShown then y = y + SECTION_GAP end
+          -- The previous section's underlay runs down to THIS section's line.
+          CloseSection(y + SECTION_LINE_INSET)
           categoryOffsets[row.category] = y
+          sectionCat, sectionTop = row.category, y
         end
+        if row.line then row.line:SetShown(isSectionTop and not firstShown) end
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_LEFT_PAD, -y)
         row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -y)
-        y = y + row:GetHeight() + ROW_GAP
+        -- The banner grows to hold its notice: the anchors above fix its width, so
+        -- the outlined text's height now reflects any wrap.
+        if row.isOverrideBanner then
+          row:SetHeight(math.max(OVERRIDE_BANNER_HEIGHT,
+            math.ceil(row.text:GetStringHeight()) + OVERRIDE_BANNER_TOP_PAD))
+        end
+        y = y + row:GetHeight() + (row.gapAfter or ROW_GAP)
+        firstShown = false
       end
     end
+    CloseSection(y)                         -- last section, down to the content end
+
+    -- Hide underlays of categories not currently overridden.
+    for i, bg in ipairs(sectionBg) do
+      if not overrideState[i] then bg:Hide() end
+    end
+
     content:SetHeight(math.max(y, 1))
     scrollBox:FullUpdate()
 
@@ -347,6 +560,8 @@ function Ui.CreatePage(parent, categories, sid, configKey)
       page.ScrollToCategory((configKey and GetConfig()[configKey]) or 1, true)
     end
   end
+
+  UpdateOverrides()   -- initial state, before the first layout
 
   scrollBox:HookScript("OnSizeChanged", function()
     content:SetWidth(scrollBox:GetWidth())
@@ -364,7 +579,14 @@ function Ui.CreatePage(parent, categories, sid, configKey)
   -- IsMouseOver is purely geometric, so the highlight covers the whole row.
   -- It ignores clipping too, hence the scrollBox gate: rows scrolled out of
   -- view still report the cursor as over them.
+  -- Also the cheapest place to keep the override display live: situations switch
+  -- on player state (no event we listen for here), and a situation's settings can
+  -- change from outside this view, so poll the override state and refresh on any
+  -- change rather than only when the active situation flips.
   parent:HookScript("OnUpdate", function()
+    if not sid and OverridesChanged() then
+      page.RefreshAll()
+    end
     local inBox = scrollBox:IsMouseOver()
     for _, row in ipairs(rows) do
       if row.highlight then
@@ -489,7 +711,9 @@ function Ui.CreatePage(parent, categories, sid, configKey)
     for _, row in ipairs(rows) do
       if row.Refresh then row.Refresh() end
     end
-    -- Conditional notes may have appeared/disappeared.
+    -- Override state may have changed (which categories, or the situation name).
+    UpdateOverrides()
+    -- Conditional notes and override banners may have appeared/disappeared.
     Relayout()
   end
 

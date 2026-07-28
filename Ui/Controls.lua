@@ -67,7 +67,7 @@ local HEADER_TEXT_TOP  = 13    -- heading text, below the row's top
 -- transparent margin, so the art's top sits well below the button's frame.
 -- Retune it after changing HEADER_TOGGLE_SIZE, which scales that margin too.
 local HEADER_TOGGLE_SIZE = 36
-local HEADER_TOGGLE_X    = 0
+local HEADER_TOGGLE_X    = -5
 local HEADER_TOGGLE_Y    = -8
 
 -- The zoom-based column must fit its "Zoom-based" caption, whose width depends
@@ -88,6 +88,9 @@ end
 -- The page sets ctx.zoomZone to 0 for categories without any zoom-based
 -- setting, letting their sliders use the freed width.
 Controls.ZOOM_ZONE = ZOOM_ZONE
+
+-- Left inset of every row's label; the override banner aligns its text to it.
+Controls.LABEL_LEFT_PAD = LABEL_LEFT_PAD
 
 -- Where each column's RIGHT edge sits, as a distance inwards from the row's
 -- right edge. Walking the chain from the right is what lets a category without
@@ -556,9 +559,9 @@ end
 -- ===== Header and note rows =====
 
 -- A category heading: white text hung below the row's top, the optional info
--- "i" (item.info), the optional state toggle (item.toggle), and a divider line
--- across the top which the page shows or hides via row.lineAbove (none above
--- the very first category).
+-- "i" (item.info), and the optional state toggle (item.toggle). The category
+-- separator line above the heading is added and positioned by the page (it also
+-- has to sit above the override banner when one is showing), not here.
 function Controls.CreateHeaderRow(parent, item)
   local row = CreateFrame("Frame", nil, parent)
   row:SetHeight(Controls.HEADER_HEIGHT)
@@ -637,12 +640,6 @@ function Controls.CreateHeaderRow(parent, item)
     SyncToggle()
     btn:SetScript("OnUpdate", SyncToggle)
   end
-
-  row.line = row:CreateTexture(nil, "ARTWORK")
-  row.line:SetColorTexture(1, 1, 1, 0.15)
-  row.line:SetHeight(1)
-  row.line:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -4)
-  row.line:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
 
   return row
 end

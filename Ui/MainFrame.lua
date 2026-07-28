@@ -64,6 +64,10 @@ local CHROME_H = CONTENT_GAP_TOP + CONTENT_GAP_BOTTOM - INNER_GAP_TOP - INNER_GA
 local TAB_ROW_HEIGHT = 30
 local TAB_Y          = 6     -- gap between tab bottoms and the content area top
 local TAB_GAP        = 5     -- horizontal gap between neighbouring tabs
+local TAB_H_PAD      = 14    -- padding inside a tab, on each side of its label
+local TAB_INFO_SIZE  = 18    -- the info "i" next to the Standard Settings tab
+local TAB_INFO_GAP   = 2     -- gap between that tab and its "i"
+local TAB_INFO_INDEX = 1     -- which tab carries the "i" (Standard Settings)
 
 -- The selected tab's underlay is a bit taller and less transparent than the
 -- unselected ones; UpdateTabBackgrounds applies these on each selection change.
@@ -342,16 +346,45 @@ local function BuildFrame()
   end
   f.tabs = tabs
 
-  -- Equal tab widths across the row; recomputed when the window is resized.
+  -- Info "i" on the Standard Settings tab: what these settings are, plus the
+  -- meaning of the blue "overridden" marking. Hover-only, no click (it must not
+  -- swallow the tab's own selection), matching the category-header "i" in
+  -- Ui/Controls.lua. Sits inside the tab, just right of the label: it is anchored
+  -- to the label FontString (not the tab) so it tracks it - the tab mixin
+  -- re-centres the label on every selection change, and the "i" follows. The tab
+  -- reserves TAB_INFO_GAP + TAB_INFO_SIZE of its own width for it (see LayoutTabs).
+  do
+    local tab = tabs[TAB_INFO_INDEX]
+    local info = CreateFrame("Button", nil, tab)
+    info:SetSize(TAB_INFO_SIZE, TAB_INFO_SIZE)
+    info:SetPoint("LEFT", tab.Text, "RIGHT", TAB_INFO_GAP, 0)
+    info:SetNormalTexture("Interface\\common\\help-i")
+    info:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
+      GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
+      GameTooltip_AddBlankLineToTooltip(GameTooltip)
+      -- Same blue the overridden category rows use, from the one shared source.
+      local c = DynamicCam.situationColors
+      GameTooltip_AddNormalLine(GameTooltip,
+        c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
+      GameTooltip:Show()
+    end)
+    info:SetScript("OnLeave", GameTooltip_Hide)
+    tab.extraWidth = TAB_INFO_GAP + TAB_INFO_SIZE
+  end
+
+  -- Content-sized tabs packed left to right, like the Settings panel's own tabs
+  -- (widths differ per label; no longer stretched to fill the row). A tab with an
+  -- "i" widens to hold it (tab.extraWidth).
   local function LayoutTabs()
-    local w = (tabRow:GetWidth() - (#tabs - 1) * TAB_GAP) / #tabs
-    if w <= 0 then return end
-    for i, tab in ipairs(tabs) do
-      tab:SetWidth(w)
-      tab:SetPoint("BOTTOMLEFT", tabRow, "BOTTOMLEFT", (i - 1) * (w + TAB_GAP), 0)
+    local x = 0
+    for _, tab in ipairs(tabs) do
+      tab:SetWidth(math.ceil(tab.Text:GetStringWidth()) + 2 * TAB_H_PAD + (tab.extraWidth or 0))
+      tab:SetPoint("BOTTOMLEFT", tabRow, "BOTTOMLEFT", x, 0)
+      x = x + tab:GetWidth() + TAB_GAP
     end
   end
-  tabRow:SetScript("OnSizeChanged", LayoutTabs)
   LayoutTabs()
 
   local function UpdateTabBackgrounds(selectedIndex)
