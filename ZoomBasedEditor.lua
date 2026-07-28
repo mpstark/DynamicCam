@@ -5,10 +5,10 @@ local GetCameraZoom = _G.GetCameraZoom
 
 
 -------------------------------------------------------------------------------
--- ZOOM-BASED CURVE EDITOR (ButtonFrameTemplate)
+-- ZOOM-BASED CURVE EDITOR
 --
--- Complete curve editor for zoom-based settings, built on ButtonFrameTemplate.
--- Users define control points on a graph where:
+-- Complete curve editor for zoom-based settings, in the shared DynamicCam window
+-- chrome (Ui/Window.lua). Users define control points on a graph where:
 --   Y-axis = Camera zoom level (0 at top, max zoom at bottom)
 --   X-axis = Setting value (min to max of the setting)
 -- The system interpolates between points to get the value at any zoom level.
@@ -44,7 +44,16 @@ local ZOOM_INDICATOR_FRAME_LEVEL_OFFSET = 100
 local EDITOR_WIDTH = 300
 local EDITOR_HEIGHT = 450
 
--- Graph layout (padding inside the Inset)
+-- Gaps between the window edge and the chrome's content area (Ui/Window.lua).
+-- The top one is only the starting value: UpdateTopRegionLayout re-anchors it to
+-- whatever the label block above the graph actually measures.
+local CONTENT_GAP_LEFT   = 22
+local CONTENT_GAP_RIGHT  = 18
+local CONTENT_GAP_BOTTOM = 30    -- clears the button bar
+local TOP_REGION_DEFAULT = 120
+local LABEL_BLOCK_TOP    = 32    -- first label line, below the title bar's close button
+
+-- Graph layout (padding inside the content area)
 local GRAPH_PADDING_TOP = 15
 local GRAPH_PADDING_BOTTOM = 40
 local GRAPH_PADDING_LEFT = 45
@@ -430,7 +439,7 @@ end
 local UpdateCurveEditor
 
 -- Re-anchors the instructions text below whichever line-3 widget is visible, then
--- measures the rendered heights and repositions the Inset accordingly.
+-- measures the rendered heights and repositions the content area accordingly.
 local function UpdateTopRegionLayout(f)
   f.instructions:ClearAllPoints()
   if f.currentZoomLabelText:IsShown() then
@@ -438,7 +447,7 @@ local function UpdateTopRegionLayout(f)
   else
     f.instructions:SetPoint("TOPLEFT", f.statusExplanation, "BOTTOMLEFT", 0, -4)
   end
-  f.instructions:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+  f.instructions:SetPoint("RIGHT", f, "RIGHT", -CONTENT_GAP_RIGHT, 0)
 
   -- Defer measurement by one frame so WoW layout has fully settled.
   C_Timer.After(0, function()
@@ -449,9 +458,10 @@ local function UpdateTopRegionLayout(f)
     local topRegionHeight = math.ceil(frameTop - instrBottom) + 4
     if topRegionHeight ~= f.lastTopRegionHeight then
       f.lastTopRegionHeight = topRegionHeight
-      f.Inset:ClearAllPoints()
-      f.Inset:SetPoint("TOPLEFT",     f, "TOPLEFT",     10, -topRegionHeight)
-      f.Inset:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -6,  26)
+      -- Only the top moves; the sides and bottom keep the chrome's gaps.
+      f.contentArea:ClearAllPoints()
+      f.contentArea:SetPoint("TOPLEFT",     f, "TOPLEFT",     CONTENT_GAP_LEFT,   -topRegionHeight)
+      f.contentArea:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -CONTENT_GAP_RIGHT,  CONTENT_GAP_BOTTOM)
       UpdateCurveEditor(f)
     end
   end)
@@ -847,34 +857,33 @@ local function CreateZoomBasedEditorFrame()
   editorStrataCounter = editorStrataCounter + 1
 
   local frameName = "DynamicCamZoomEditor" .. editorStrataCounter
-  local f = CreateFrame("Frame", frameName, UIParent, "ButtonFrameTemplate")
 
-  ButtonFrameTemplate_HidePortrait(f)
-  f:SetSize(EDITOR_WIDTH, EDITOR_HEIGHT)
+  -- Shared window chrome (Ui/Window.lua), so this looks like the main window,
+  -- minus its inner nine-slice: the graph is the only content here and reads
+  -- better without a second box around it. The content area's top is re-anchored
+  -- per editor as its label block grows or shrinks (UpdateTopRegionLayout).
+  local f = DynamicCam.Ui.CreateWindow({
+    name   = frameName,
+    title  = L["DynamicCam: Zoom-Based Setting"],
+    width  = EDITOR_WIDTH,
+    height = EDITOR_HEIGHT,
+    gaps   = {
+      top    = TOP_REGION_DEFAULT,
+      bottom = CONTENT_GAP_BOTTOM,
+      left   = CONTENT_GAP_LEFT,
+      right  = CONTENT_GAP_RIGHT,
+    },
+    innerFrame = false,
+  })
 
   -- Offset each editor so they don't overlap exactly
   local offsetX = 100 + ((editorStrataCounter - 1) % 5) * 40
   local offsetY = -80 - ((editorStrataCounter - 1) % 5) * 40
   f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", offsetX, offsetY)
 
-  f:SetFrameStrata("HIGH")
-  f:SetToplevel(true)
-  f:SetMovable(true)
-  f:EnableMouse(true)
-  f:SetClampedToScreen(true)
-
-  -- Drag to move + raise (OnMouseDown fires immediately, no threshold)
-  f:SetScript("OnMouseDown", function(self, button)
-    if button == "LeftButton" then
-      self:Raise()
-      self:StartMoving()
-    end
-  end)
-  f:SetScript("OnMouseUp", function(self, button)
-    if button == "LeftButton" then
-      self:StopMovingOrSizing()
-    end
-  end)
+  -- The chrome drags from any empty area; raise this editor above its siblings
+  -- when that drag starts, so the one being moved comes to the front.
+  f:HookScript("OnMouseDown", function(self) self:Raise() end)
 
   -- ESC closing is handled by our CloseSpecialWindows wrapper in
   -- DetachFrame.lua (calling EscAllCurveEditors).  We intentionally
@@ -897,16 +906,7 @@ local function CreateZoomBasedEditorFrame()
   f.cvarInfo = nil
   f.ownerWidget = nil
 
-  -- Title
-  f.TitleContainer.TitleText:SetText(L["DynamicCam: Zoom-Based Setting"])
-
-  -- Override the default OnClick which calls HideUIPanel() (a secure function
-  -- that is blocked during combat). We only need a plain Hide() here.
-  f.CloseButton:SetScript("OnClick", function(self)
-    self:GetParent():Hide()
-  end)
-
-  -- Close button tooltip
+  -- Close button tooltip (the chrome supplies the button and its plain Hide()).
   f.CloseButton:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
     GameTooltip:SetText(L["Close"], 1, 0.82, 0, 1, true)
@@ -917,11 +917,13 @@ local function CreateZoomBasedEditorFrame()
     GameTooltip:Hide()
   end)
 
-  -- Info labels (in top region above Inset)
-  -- Line 1: CVAR name (bounded before the close button; clips if too long)
+  -- Info labels, in the top region above the content area. They sit on the
+  -- window itself (not the content area), which is why the content area's top is
+  -- re-anchored below them as they grow (UpdateTopRegionLayout).
+  -- Line 1: CVAR name (bounded by the window's edge; clips if too long)
   f.settingLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  f.settingLabel:SetPoint("TOPLEFT", f.TopTileStreaks, "TOPLEFT", 6, -6)
-  f.settingLabel:SetPoint("RIGHT", f, "RIGHT", -32, 0)
+  f.settingLabel:SetPoint("TOPLEFT", f, "TOPLEFT", CONTENT_GAP_LEFT, -LABEL_BLOCK_TOP)
+  f.settingLabel:SetPoint("RIGHT", f, "RIGHT", -CONTENT_GAP_RIGHT, 0)
   f.settingLabel:SetJustifyH("LEFT")
 
   -- Invisible mouse-capture frame so the (potentially clipped) label shows a tooltip
@@ -943,7 +945,7 @@ local function CreateZoomBasedEditorFrame()
   -- Line 2: Situation/Standard label (colored by status)
   f.situationLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   f.situationLabel:SetPoint("TOPLEFT", f.settingLabel, "BOTTOMLEFT", 0, -4)
-  f.situationLabel:SetPoint("TOPRIGHT", f.TopTileStreaks, "TOPRIGHT", -10, 0)
+  f.situationLabel:SetPoint("TOPRIGHT", f, "TOPRIGHT", -CONTENT_GAP_RIGHT, 0)
   f.situationLabel:SetJustifyH("LEFT")
 
   -- Line 3a: Current Zoom/Value (shown when active)
@@ -965,7 +967,7 @@ local function CreateZoomBasedEditorFrame()
   -- Line 3b: Status explanation (shown when inactive, replaces zoom/value line)
   f.statusExplanation = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   f.statusExplanation:SetPoint("TOPLEFT", f.situationLabel, "BOTTOMLEFT", 0, -4)
-  f.statusExplanation:SetPoint("TOPRIGHT", f.TopTileStreaks, "TOPRIGHT", -10, 0)
+  f.statusExplanation:SetPoint("TOPRIGHT", f, "TOPRIGHT", -CONTENT_GAP_RIGHT, 0)
   f.statusExplanation:SetJustifyH("LEFT")
   f.statusExplanation:SetWordWrap(true)
   f.statusExplanation:Hide()
@@ -978,12 +980,11 @@ local function CreateZoomBasedEditorFrame()
   f.instructions:SetTextColor(unpack(COLORS.gridLabel))
   f.instructions:SetText(L["Left-click: add/drag point\nRight-click: remove point"])
 
-  -- Inset height is managed dynamically by UpdateTopRegionLayout.
-
-  -- Graph frame inside the Inset
-  f.graphFrame = CreateFrame("Frame", nil, f.Inset)
-  f.graphFrame:SetPoint("TOPLEFT", f.Inset, "TOPLEFT", GRAPH_PADDING_LEFT, -GRAPH_PADDING_TOP)
-  f.graphFrame:SetPoint("BOTTOMRIGHT", f.Inset, "BOTTOMRIGHT", -GRAPH_PADDING_RIGHT, GRAPH_PADDING_BOTTOM)
+  -- Graph frame, filling the content area (whose top edge UpdateTopRegionLayout
+  -- moves to sit below the label block above).
+  f.graphFrame = CreateFrame("Frame", nil, f.contentArea)
+  f.graphFrame:SetPoint("TOPLEFT", f.contentArea, "TOPLEFT", GRAPH_PADDING_LEFT, -GRAPH_PADDING_TOP)
+  f.graphFrame:SetPoint("BOTTOMRIGHT", f.contentArea, "BOTTOMRIGHT", -GRAPH_PADDING_RIGHT, GRAPH_PADDING_BOTTOM)
 
   -- Solid background for the grid.
   f.graphFrame.bg = f.graphFrame:CreateTexture(nil, "BACKGROUND")
@@ -1003,7 +1004,8 @@ local function CreateZoomBasedEditorFrame()
   f.xAxisTitle:SetText(L["Value"])
 
 
-  -- Bottom button bar: [Copy] [Paste] [Revert] [Save]
+  -- Bottom button bar: [Copy] [Paste] [Revert] [Save]. Spans the full window
+  -- width, sitting right at its bottom edge.
   -- Each button gets 1/4 of the frame width minus side padding and inter-button gaps.
   local BTN_SIDE_PAD = 4
   local BTN_GAP      = 1
@@ -1505,8 +1507,8 @@ function DynamicCam:OpenCurveEditor(situationId, cvarName, minValue, maxValue, w
   local prefix = L["CVAR: "]
   local fullText = prefix .. cvarName
   frame.settingLabel:SetText(fullText)
-  -- availableWidth: EDITOR_WIDTH minus ~14px left inset (TopTileStreaks+6) and 32px for close button
-  local availableWidth = EDITOR_WIDTH - 46
+  -- The label spans the window between the chrome's side gaps (see settingLabel).
+  local availableWidth = EDITOR_WIDTH - CONTENT_GAP_LEFT - CONTENT_GAP_RIGHT
   if frame.settingLabel:GetStringWidth() > availableWidth then
     local truncated = cvarName
     repeat

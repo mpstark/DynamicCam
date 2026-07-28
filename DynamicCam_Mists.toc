@@ -1,4 +1,4 @@
-## Interface: 50504
+﻿## Interface: 50504
 ## Version: @project-version@
 ## Title: DynamicCam
 ## Author: mpstark, LudiusMaximus
@@ -23,6 +23,8 @@ UiHideModule.lua
 
 
 Core.lua
+
+Ui\Window.lua
 
 MouseZoom.lua
 SituationManager.lua
