@@ -728,5 +728,5 @@ end
 -- Registered with the shell; built when the main frame is first created.
 Ui.tabBuilders = Ui.tabBuilders or {}
 Ui.tabBuilders[1] = function(tabContentFrame)
-  Ui.standardPage = Ui.CreatePage(tabContentFrame, Ui.standardCategories, nil, "standardCategory")
+  Ui.CreatePage(tabContentFrame, Ui.standardCategories, nil, "standardCategory")
 end

@@ -8,7 +8,8 @@
 --
 -- Optionally (opts.innerFrame) the content area is framed by a second, inner
 -- nine-slice hand-cut from the Settings panel's own options texture. The main
--- window uses it; the two graph windows read better without it.
+-- window uses it; the two graph windows read better without it. That box is also
+-- available on its own as Ui.DrawInnerBox, for a page nesting one inside it.
 --
 -- The factory builds the chrome only. Anything a particular window needs on top
 -- (resizing, saved geometry, tabs, the opacity slider) stays with that window;
@@ -52,11 +53,64 @@ local INNER_GAP_RIGHT  = 10
 local INNER_CORNER_W = 60
 local INNER_CORNER_H = 180
 
+-- The smallest region Ui.DrawInnerBox fills without its corners overlapping.
+-- Published for callers that draw a box of their own and have to secure the room
+-- for it themselves (see Ui.RequireContentSize in Ui/MainFrame.lua).
+Ui.INNER_BOX_MIN_WIDTH  = 2 * INNER_CORNER_W
+Ui.INNER_BOX_MIN_HEIGHT = 2 * INNER_CORNER_H
+
 -- The smallest window the inner nine-slice can be drawn in, for the given gaps.
 local function MinSize(gaps)
   local chromeW = gaps.left + gaps.right - INNER_GAP_LEFT - INNER_GAP_RIGHT
   local chromeH = gaps.top + gaps.bottom - INNER_GAP_TOP - INNER_GAP_BOTTOM
   return 2 * INNER_CORNER_W + chromeW, 2 * INNER_CORNER_H + chromeH
+end
+
+
+-- ===== Inner nine-slice =====
+
+-- The Settings inner-content frame, a nine-slice hand-cut from the options
+-- texture so the corners stay crisp and Blizzard's baked-in category divider is
+-- excluded. (The settings page adds a divider back as its own strip, at the
+-- category column's edge.)
+--
+-- SetTexCoord addresses the grid lines between pixels, not the pixels, so each
+-- coordinate is one more than the image editor's pixel index.
+local INNER_FILE = "Interface\\OptionsFrame\\Options"
+local INNER_TEX  = 1024
+local INNER_PIECE = {
+  TL = {1,   150, 61,  330}, TR = {828, 150, 888, 330},  -- corners (60x180)
+  BL = {1,   589, 61,  769}, BR = {828, 589, 888, 769},
+  T  = {101, 150, 120, 330}, B  = {101, 589, 120, 769},  -- clean border slices
+  L  = {1,   330, 61,  589}, R  = {828, 330, 888, 589},  -- (divider-free)
+  C  = {401, 401, 420, 420},                             -- solid center
+}
+
+-- Draws that box around `region`, with its border sitting on the region's edges.
+-- The nine pieces are textures created on `artParent`, which decides what they
+-- draw over: the window chrome passes a layer above the flat panel background,
+-- and a page nesting a second box inside the first passes a layer of its own,
+-- below its content. Corners draw at native size, edges and center stretch - so
+-- a region smaller than two corners (INNER_CORNER_W/H) has them overlap.
+function Ui.DrawInnerBox(artParent, region)
+  local function piece(name)
+    local t = artParent:CreateTexture(nil, "BACKGROUND")
+    t:SetTexture(INNER_FILE)
+    local r = INNER_PIECE[name]
+    t:SetTexCoord(r[1] / INNER_TEX, r[3] / INNER_TEX, r[2] / INNER_TEX, r[4] / INNER_TEX)
+    return t
+  end
+  local tl, tr, bl, br = piece("TL"), piece("TR"), piece("BL"), piece("BR")
+  tl:SetSize(INNER_CORNER_W, INNER_CORNER_H); tl:SetPoint("TOPLEFT",     region, "TOPLEFT")
+  tr:SetSize(INNER_CORNER_W, INNER_CORNER_H); tr:SetPoint("TOPRIGHT",    region, "TOPRIGHT")
+  bl:SetSize(INNER_CORNER_W, INNER_CORNER_H); bl:SetPoint("BOTTOMLEFT",  region, "BOTTOMLEFT")
+  br:SetSize(INNER_CORNER_W, INNER_CORNER_H); br:SetPoint("BOTTOMRIGHT", region, "BOTTOMRIGHT")
+
+  local top = piece("T"); top:SetPoint("TOPLEFT", tl, "TOPRIGHT");    top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
+  local bot = piece("B"); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT");    bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
+  local lft = piece("L"); lft:SetPoint("TOPLEFT", tl, "BOTTOMLEFT");  lft:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
+  local rgt = piece("R"); rgt:SetPoint("TOPLEFT", tr, "BOTTOMLEFT");  rgt:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
+  local cen = piece("C"); cen:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT"); cen:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
 end
 
 
@@ -127,7 +181,6 @@ function Ui.CreateWindow(opts)
   local bgLayer = CreateFrame("Frame", nil, f)
   bgLayer:SetAllPoints(f)
   bgLayer:SetFrameLevel(0)
-  f.bgLayer = bgLayer
 
   -- Flat dark background, inset like the Settings panel's own Bg.
   f.Bg = CreateFrame("Frame", nil, bgLayer, "FlatPanelBackgroundTemplate")
@@ -141,14 +194,6 @@ function Ui.CreateWindow(opts)
   solidBg:SetAllPoints(f.Bg)
   solidBg:SetAlpha(GetConfig().opacity or 0)
   solidBackings[solidBg] = true
-
-  -- The inner nine-slice pieces render on this layer, ABOVE the flat background.
-  -- (Putting them directly on bgLayer would leave them veiled by f.Bg's
-  -- translucent art, since a child frame draws over its parent's textures -
-  -- washing the inner box out.)
-  local innerBgLayer = CreateFrame("Frame", nil, bgLayer)
-  innerBgLayer:SetAllPoints(f)
-  innerBgLayer:SetFrameLevel(f.Bg:GetFrameLevel() + 1)
 
   -- Metal nine-slice border: the Settings panel's portrait-less layout.
   f.NineSlice = CreateFrame("Frame", nil, f, "NineSlicePanelTemplate")
@@ -188,24 +233,6 @@ function Ui.CreateWindow(opts)
 
   if not innerFrame then return f end
 
-  -- The Settings inner-content frame, a nine-slice hand-cut from the options
-  -- texture so the corners stay crisp and Blizzard's baked-in category divider
-  -- is excluded. (The settings page adds a divider back as its own strip, at the
-  -- category column's edge.) The nine pieces are textures on the innerBgLayer,
-  -- above the flat background; corners draw at native size, edges/center stretch.
-  --
-  -- SetTexCoord addresses the grid lines between pixels, not the pixels, so each
-  -- coordinate is one more than the image editor's pixel index.
-  local INNER_FILE = "Interface\\OptionsFrame\\Options"
-  local TEX        = 1024
-  local PIECE = {
-    TL = {1,   150, 61,  330}, TR = {828, 150, 888, 330},  -- corners (60x180)
-    BL = {1,   589, 61,  769}, BR = {828, 589, 888, 769},
-    T  = {101, 150, 120, 330}, B  = {101, 589, 120, 769},  -- clean border slices
-    L  = {1,   330, 61,  589}, R  = {828, 330, 888, 589},  -- (divider-free)
-    C  = {401, 401, 420, 420},                             -- solid center
-  }
-
   -- Invisible region the nine-slice fills. Anchored to the content area, so a
   -- window that moves its content area (the curve editor's varying top region)
   -- drags the border along with it.
@@ -213,24 +240,14 @@ function Ui.CreateWindow(opts)
   region:SetPoint("TOPLEFT", contentArea, "TOPLEFT", -INNER_GAP_LEFT, INNER_GAP_TOP)
   region:SetPoint("BOTTOMRIGHT", contentArea, "BOTTOMRIGHT", INNER_GAP_RIGHT, -INNER_GAP_BOTTOM)
 
-  local function piece(name)
-    local t = innerBgLayer:CreateTexture(nil, "BACKGROUND")
-    t:SetTexture(INNER_FILE)
-    local r = PIECE[name]
-    t:SetTexCoord(r[1] / TEX, r[3] / TEX, r[2] / TEX, r[4] / TEX)
-    return t
-  end
-  local tl, tr, bl, br = piece("TL"), piece("TR"), piece("BL"), piece("BR")
-  tl:SetSize(INNER_CORNER_W, INNER_CORNER_H); tl:SetPoint("TOPLEFT",     region, "TOPLEFT")
-  tr:SetSize(INNER_CORNER_W, INNER_CORNER_H); tr:SetPoint("TOPRIGHT",    region, "TOPRIGHT")
-  bl:SetSize(INNER_CORNER_W, INNER_CORNER_H); bl:SetPoint("BOTTOMLEFT",  region, "BOTTOMLEFT")
-  br:SetSize(INNER_CORNER_W, INNER_CORNER_H); br:SetPoint("BOTTOMRIGHT", region, "BOTTOMRIGHT")
+  -- Its pieces go on a layer of their own, ABOVE the flat background. (Putting
+  -- them directly on bgLayer would leave them veiled by f.Bg's translucent art,
+  -- since a child frame draws over its parent's textures - washing the box out.)
+  local innerBgLayer = CreateFrame("Frame", nil, bgLayer)
+  innerBgLayer:SetAllPoints(f)
+  innerBgLayer:SetFrameLevel(f.Bg:GetFrameLevel() + 1)
 
-  local top = piece("T"); top:SetPoint("TOPLEFT", tl, "TOPRIGHT");    top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
-  local bot = piece("B"); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT");    bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
-  local lft = piece("L"); lft:SetPoint("TOPLEFT", tl, "BOTTOMLEFT");  lft:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
-  local rgt = piece("R"); rgt:SetPoint("TOPLEFT", tr, "BOTTOMLEFT");  rgt:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
-  local cen = piece("C"); cen:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT"); cen:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
+  Ui.DrawInnerBox(innerBgLayer, region)
 
   return f
 end

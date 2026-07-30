@@ -10,8 +10,8 @@
 -- The window chrome comes from Ui/Window.lua, shared with the other DynamicCam
 -- windows. What this file adds on top is what only the main window has: resizing
 -- (grip, bounds, saved geometry), the background opacity slider, and the
--- top-level tabs - MinimalTabTemplate buttons driven by a RadioButtonGroup, with
--- a solid underlay whose height/alpha mark the selected tab.
+-- top-level tabs. The tab row machinery itself (Ui.CreateTabRow) lives here too,
+-- shared with the Situations page's inner tabs.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
@@ -25,9 +25,10 @@ local Ui = DynamicCam.Ui
 -- ===== Window geometry =====
 
 -- First-ever open starts at the default size; thereafter the saved geometry from
--- DynamicCam.db.global.newUi is restored. These minimums are only a taste floor:
--- the hard floor is the one the chrome reports (f.minWidth/minHeight), below
--- which the inner nine-slice's corner tiles would overlap.
+-- DynamicCam.db.global.newUi is restored. These minimums are only a taste floor;
+-- the hard floors come from the art that would break below them - the chrome's
+-- own nine-slice (f.minWidth/minHeight) and whatever the pages claim through
+-- Ui.RequireContentSize. See ApplyResizeBounds, which takes the largest.
 local DEFAULT_WIDTH  = 760
 local DEFAULT_HEIGHT = 820
 local MIN_WIDTH      = 580
@@ -45,14 +46,15 @@ local CONTENT_GAP_RIGHT  = 18
 -- Tab row: sits directly above the content area.
 local TAB_ROW_HEIGHT = 30
 local TAB_Y          = 6     -- gap between tab bottoms and the content area top
+local TAB_INFO_SIZE  = 18    -- the info "i" inside a tab
+local TAB_INFO_GAP   = 2     -- gap between a tab's label and its "i"
+
+-- Shared by every tab row built with Ui.CreateTabRow (the main window's
+-- top-level tabs and the Situations page's inner tabs).
 local TAB_GAP        = 5     -- horizontal gap between neighbouring tabs
 local TAB_H_PAD      = 14    -- padding inside a tab, on each side of its label
-local TAB_INFO_SIZE  = 18    -- the info "i" next to the Standard Settings tab
-local TAB_INFO_GAP   = 2     -- gap between that tab and its "i"
-local TAB_INFO_INDEX = 1     -- which tab carries the "i" (Standard Settings)
-
 -- The selected tab's underlay is a bit taller and less transparent than the
--- unselected ones; UpdateTabBackgrounds applies these on each selection change.
+-- unselected ones, applied on each selection change.
 local TAB_BG_HEIGHT_SELECTED   = 24
 local TAB_BG_HEIGHT_UNSELECTED = 21
 local TAB_BG_ALPHA_SELECTED    = 0.55
@@ -60,6 +62,96 @@ local TAB_BG_ALPHA_UNSELECTED  = 0.3
 
 
 local GetConfig = Ui.GetConfig   -- shared db.global.newUi accessor (Ui/Window.lua)
+
+
+-- ===== Minimum content size =====
+
+-- A page whose layout cannot survive being squeezed states the content-area size
+-- it needs, and the window's resize floor grows to guarantee it. The Situations
+-- page nests a nine-slice box of its own, whose corners draw at native size and
+-- would silently overlap in a short window - so it claims the room for them.
+--
+-- Pages call this while they load, before the window is ever built, so the very
+-- first ApplyResizeBounds already accounts for it.
+local minContentWidth, minContentHeight = 0, 0
+
+function Ui.RequireContentSize(width, height)
+  minContentWidth  = math.max(minContentWidth, width or 0)
+  minContentHeight = math.max(minContentHeight, height or 0)
+end
+
+
+-- ===== Tab rows =====
+
+-- One builder for every row of tabs in the new UI: the main window's top-level
+-- tabs and the Situations page's inner tabs (Ui/SituationsPage.lua). Mirrors
+-- the Settings panel's Game/AddOns tabs: content-sized MinimalTabTemplate
+-- buttons packed left to right, driven by a RadioButtonGroup, which gives the
+-- selected texture and the white (selected) vs gold (unselected) text for free.
+-- Each tab gets a solid underlay whose height and alpha mark the selected state.
+--
+-- The tabs are created as children of `row` and packed from its bottom-left.
+-- The initial selection is applied silently; onSelect(index) then runs on every
+-- user click (with the tab click sound), so the caller brings its initial
+-- content on screen itself.
+--
+-- Returns the tabs array and the layout function, for re-packing after a
+-- caller widens a tab (tab.extraWidth, e.g. the "i" icon inside a tab).
+function Ui.CreateTabRow(row, names, initialIndex, onSelect)
+  -- MinimalTabTemplate is 37px tall, but its art is bottom-anchored at the
+  -- atlas's native (shorter) height, leaving clickable dead space above each
+  -- tab. Trim each tab's hit rect down to the art height.
+  local tabArt = C_Texture.GetAtlasInfo("Options_Tab_Middle")
+  local tabArtHeight = tabArt and tabArt.height or 24
+
+  local tabs = {}
+  for i, name in ipairs(names) do
+    local tab = CreateFrame("Button", nil, row, "MinimalTabTemplate")
+    tab:SetHitRectInsets(0, 0, math.max(0, tab:GetHeight() - tabArtHeight), 0)
+    local bg = tab:CreateTexture(nil, "BACKGROUND", nil, -8)
+    bg:SetColorTexture(0.0, 0.0, 0.0)
+    bg:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 2, 0)
+    bg:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -2, 0)
+    tab.bg = bg
+    tab.Text:SetText(name)
+    tabs[i] = tab
+  end
+
+  -- Content-sized tabs packed left to right, like the Settings panel's own tabs
+  -- (widths differ per label; not stretched to fill the row). A tab with an "i"
+  -- widens to hold it (tab.extraWidth).
+  local function LayoutTabs()
+    local x = 0
+    for _, tab in ipairs(tabs) do
+      tab:SetWidth(math.ceil(tab.Text:GetStringWidth()) + 2 * TAB_H_PAD + (tab.extraWidth or 0))
+      tab:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", x, 0)
+      x = x + tab:GetWidth() + TAB_GAP
+    end
+  end
+  LayoutTabs()
+
+  local function UpdateTabBackgrounds(selectedIndex)
+    for i, tab in ipairs(tabs) do
+      local selected = (i == selectedIndex)
+      tab.bg:SetHeight(selected and TAB_BG_HEIGHT_SELECTED or TAB_BG_HEIGHT_UNSELECTED)
+      tab.bg:SetAlpha(selected and TAB_BG_ALPHA_SELECTED or TAB_BG_ALPHA_UNSELECTED)
+    end
+  end
+
+  -- Select the initial tab BEFORE registering the callback, so the initial
+  -- selection does not fire the click sound.
+  local tabsGroup = CreateRadioButtonGroup()
+  tabsGroup:AddButtons(tabs)
+  tabsGroup:SelectAtIndex(initialIndex)
+  UpdateTabBackgrounds(initialIndex)
+  tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function(_, _, tabIndex)
+    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+    UpdateTabBackgrounds(tabIndex)
+    onSelect(tabIndex)
+  end, row)
+
+  return tabs, LayoutTabs
+end
 
 
 -- ===== Frame =====
@@ -100,8 +192,13 @@ local function BuildFrame()
 
   local function ApplyResizeBounds()
     if not f.SetResizeBounds then return end
-    local minW = math.max(MIN_WIDTH, f.minWidth)
-    local minH = math.max(MIN_HEIGHT, f.minHeight)
+    -- Three floors: the taste minimums above, the one the chrome reports for its
+    -- own nine-slice, and whatever the pages require of the content area, which
+    -- is stated in content-area terms and so has the gaps added back on.
+    local minW = math.max(MIN_WIDTH, f.minWidth,
+      minContentWidth + CONTENT_GAP_LEFT + CONTENT_GAP_RIGHT)
+    local minH = math.max(MIN_HEIGHT, f.minHeight,
+      minContentHeight + CONTENT_GAP_TOP + CONTENT_GAP_BOTTOM)
     local maxHeight = math.max(UIParent:GetHeight() * MAX_HEIGHT_FRACTION, minH)
     f:SetResizeBounds(minW, minH, MAX_WIDTH, maxHeight)
     -- SetResizeBounds only limits future drags; clamp the live size too, so a
@@ -157,86 +254,12 @@ local function BuildFrame()
 
   -- ===== Top-level tabs =====
 
-  -- Mirror the Settings panel's Game/AddOns tabs: MinimalTabTemplate buttons
-  -- driven by a RadioButtonGroup, which gives the selected texture and the
-  -- white (selected) vs gold (unselected) text for free. Each tab gets a solid
-  -- underlay whose height and alpha mark the selected state.
   local tabNames = { L["Standard Settings"], L["Situations"], L["Profiles"], L["About"] }
 
   local tabRow = CreateFrame("Frame", nil, f)
   tabRow:SetPoint("BOTTOMLEFT", contentArea, "TOPLEFT", 0, TAB_Y)
   tabRow:SetPoint("BOTTOMRIGHT", contentArea, "TOPRIGHT", 0, TAB_Y)
   tabRow:SetHeight(TAB_ROW_HEIGHT)
-
-  -- MinimalTabTemplate is 37px tall, but its art is bottom-anchored at the
-  -- atlas's native (shorter) height, leaving clickable dead space above each
-  -- tab. Trim each tab's hit rect down to the art height.
-  local tabArt = C_Texture.GetAtlasInfo("Options_Tab_Middle")
-  local tabArtHeight = tabArt and tabArt.height or 24
-
-  local tabs = {}
-  for i, name in ipairs(tabNames) do
-    local tab = CreateFrame("Button", nil, f, "MinimalTabTemplate")
-    tab:SetHitRectInsets(0, 0, math.max(0, tab:GetHeight() - tabArtHeight), 0)
-    local bg = tab:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetColorTexture(0.0, 0.0, 0.0)
-    bg:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 2, 0)
-    bg:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -2, 0)
-    tab.bg = bg
-    tab.Text:SetText(name)
-    tab:SetPoint("BOTTOMLEFT", tabRow, "BOTTOMLEFT", 0, 0)  -- x set in LayoutTabs
-    tabs[i] = tab
-  end
-  f.tabs = tabs
-
-  -- Info "i" on the Standard Settings tab: what these settings are, plus the
-  -- meaning of the blue "overridden" marking. Hover-only, no click (it must not
-  -- swallow the tab's own selection), matching the category-header "i" in
-  -- Ui/Controls.lua. Sits inside the tab, just right of the label: it is anchored
-  -- to the label FontString (not the tab) so it tracks it - the tab mixin
-  -- re-centres the label on every selection change, and the "i" follows. The tab
-  -- reserves TAB_INFO_GAP + TAB_INFO_SIZE of its own width for it (see LayoutTabs).
-  do
-    local tab = tabs[TAB_INFO_INDEX]
-    local info = CreateFrame("Button", nil, tab)
-    info:SetSize(TAB_INFO_SIZE, TAB_INFO_SIZE)
-    info:SetPoint("LEFT", tab.Text, "RIGHT", TAB_INFO_GAP, 0)
-    info:SetNormalTexture("Interface\\common\\help-i")
-    info:SetScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
-      GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
-      GameTooltip_AddBlankLineToTooltip(GameTooltip)
-      -- Same blue the overridden category rows use, from the one shared source.
-      local c = DynamicCam.situationColors
-      GameTooltip_AddNormalLine(GameTooltip,
-        c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
-      GameTooltip:Show()
-    end)
-    info:SetScript("OnLeave", GameTooltip_Hide)
-    tab.extraWidth = TAB_INFO_GAP + TAB_INFO_SIZE
-  end
-
-  -- Content-sized tabs packed left to right, like the Settings panel's own tabs
-  -- (widths differ per label; no longer stretched to fill the row). A tab with an
-  -- "i" widens to hold it (tab.extraWidth).
-  local function LayoutTabs()
-    local x = 0
-    for _, tab in ipairs(tabs) do
-      tab:SetWidth(math.ceil(tab.Text:GetStringWidth()) + 2 * TAB_H_PAD + (tab.extraWidth or 0))
-      tab:SetPoint("BOTTOMLEFT", tabRow, "BOTTOMLEFT", x, 0)
-      x = x + tab:GetWidth() + TAB_GAP
-    end
-  end
-  LayoutTabs()
-
-  local function UpdateTabBackgrounds(selectedIndex)
-    for i, tab in ipairs(tabs) do
-      local selected = (i == selectedIndex)
-      tab.bg:SetHeight(selected and TAB_BG_HEIGHT_SELECTED or TAB_BG_HEIGHT_UNSELECTED)
-      tab.bg:SetAlpha(selected and TAB_BG_ALPHA_SELECTED or TAB_BG_ALPHA_UNSELECTED)
-    end
-  end
 
   -- Per-tab content frames filling the content area; the selected tab's frame
   -- is shown, the others hidden. A tab with a registered builder (Ui.tabBuilders,
@@ -257,7 +280,6 @@ local function BuildFrame()
     end
     tabContents[i] = c
   end
-  Ui.tabContents = tabContents
 
   local currentTabIndex
   local function SelectTabContent(index)
@@ -267,20 +289,56 @@ local function BuildFrame()
     end
   end
 
-  -- Select the restored tab BEFORE registering the callback, so the initial
-  -- selection does not fire the click sound.
   local activeTab = GetConfig().activeTab or 1
-  local tabsGroup = CreateRadioButtonGroup()
-  tabsGroup:AddButtons(tabs)
-  tabsGroup:SelectAtIndex(activeTab)
-  UpdateTabBackgrounds(activeTab)
-  SelectTabContent(activeTab)
-  tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function(_, _, tabIndex)
-    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
-    UpdateTabBackgrounds(tabIndex)
+  local tabs, layoutTabs = Ui.CreateTabRow(tabRow, tabNames, activeTab, function(tabIndex)
     SelectTabContent(tabIndex)
     GetConfig().activeTab = tabIndex
-  end, f)
+  end)
+  SelectTabContent(activeTab)
+
+  -- Info "i" inside a tab, explaining what that tab's settings are. Hover-only,
+  -- no click (it must not swallow the tab's own selection), matching the
+  -- category-header "i" in Ui/Controls.lua. It sits just right of the label and
+  -- is anchored to the label FontString (not the tab) so it tracks it - the tab
+  -- mixin re-centres the label on every selection change, and the "i" follows.
+  -- The tab reserves TAB_INFO_GAP + TAB_INFO_SIZE of its own width for it, hence
+  -- the single re-layout once they are all attached.
+  local function AddTabInfo(tabIndex, fillTooltip)
+    local tab = tabs[tabIndex]
+    local info = CreateFrame("Button", nil, tab)
+    info:SetSize(TAB_INFO_SIZE, TAB_INFO_SIZE)
+    info:SetPoint("LEFT", tab.Text, "RIGHT", TAB_INFO_GAP, 0)
+    info:SetNormalTexture("Interface\\common\\help-i")
+    info:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      fillTooltip()
+      GameTooltip:Show()
+    end)
+    info:SetScript("OnLeave", GameTooltip_Hide)
+    tab.extraWidth = TAB_INFO_GAP + TAB_INFO_SIZE
+  end
+
+  -- Standard Settings: what these settings are, plus the meaning of the blue
+  -- "overridden" marking.
+  AddTabInfo(1, function()
+    GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
+    GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
+    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    -- Same blue the overridden category rows use, from the one shared source.
+    local c = DynamicCam.situationColors
+    GameTooltip_AddNormalLine(GameTooltip,
+      c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
+  end)
+
+  -- Situations: the counterpart, saying how a situation's settings relate to the
+  -- standard ones.
+  AddTabInfo(2, function()
+    GameTooltip_SetTitle(GameTooltip, L["Situations"])
+    GameTooltip_AddNormalLine(GameTooltip,
+      L["These Situation Settings override the Standard Settings when the respective situation is active."], true)
+  end)
+
+  layoutTabs()
 
   -- ===== Mouse wheel forwarding =====
 
@@ -313,7 +371,6 @@ end
 local function EnsureFrame()
   if not frame then
     frame = BuildFrame()
-    Ui.frame = frame
   end
   return frame
 end

@@ -1010,7 +1010,7 @@ do
     -- In classic, this texture is not included in the game files, so we use a local copy.
     local texturePath = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
       and "Interface\\Common\\CommonDropdownSettings2x"
-      or  "Interface\\AddOns\\" .. folderName .. "\\BLP\\commondropdownsettings2x"
+      or  "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
 
     -- Store the texture coordinates for different highlight states
     Widget.noHighlightNormalCoords  = {0.21875, 0.43750, 0.00000, 0.43750}  -- Texture: center, top

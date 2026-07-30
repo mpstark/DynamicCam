@@ -116,10 +116,10 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 end
 
 -- Zoom-based gear textures (see the curve editor). Not in classic game files,
--- so a local copy ships in the addon's BLP folder.
+-- so a local copy ships in the addon's Ui/Textures folder.
 local GEAR_TEX = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
   and "Interface\\Common\\CommonDropdownSettings2x"
-  or  "Interface\\AddOns\\" .. folderName .. "\\BLP\\commondropdownsettings2x"
+  or  "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
 local GEAR_NORMAL    = {0.21875, 0.43750, 0.00000, 0.43750}
 local GEAR_PRESSED   = {0.21875, 0.43750, 0.43750, 0.87500}
 local GEAR_HL_NORMAL = {0.00000, 0.21875, 0.43750, 0.87500}

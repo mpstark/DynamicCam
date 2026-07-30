@@ -225,6 +225,13 @@ L["Custom:"] = "Custom:"
 L["(modified)"] = "(modified)"
 L["Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"] = "Delete custom situation \"%s\".\n|cFFEE0000Attention: There will be no 'Are you sure?' prompt!|r"
 L["Create a new custom situation."] = "Create a new custom situation."
+-- NEW in the new UI: the Situations page (Ui/SituationsPage.lua).
+L["New Situation"] = "New Situation"
+L["Disable"] = "Disable"
+L["Rename situation"] = "Rename situation"
+L["Delete situation"] = "Delete situation"
+L["Rename situation:"] = "Rename situation:"
+L["Delete situation \"%s\"?"] = "Delete situation \"%s\"?"
 
 
 --------------------------------------------------------------------------------

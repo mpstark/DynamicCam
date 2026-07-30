@@ -47,3 +47,4 @@ Ui\MainFrame.lua
 Ui\Descriptor.lua
 Ui\Controls.lua
 Ui\SettingsPage.lua
+Ui\SituationsPage.lua
