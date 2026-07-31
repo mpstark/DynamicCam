@@ -7,8 +7,11 @@
 -- curve control (checkbox + gear opening the curve editor).
 --
 -- Every factory takes (parent, item, ctx) and returns a row frame. ctx carries:
---   sid        situationId the page edits (nil = standard settings)
+--   sid        situationId the page edits (nil = standard settings); read
+--              lazily everywhere, so the page can retarget it at runtime
 --   onChanged  called after any write, so the page can refresh gated rows
+--   rowGate?   rowGate(row) gate over a whole row, consulted on Refresh
+--              (the situation page's per-category override state)
 -- Rows expose row.Refresh() (re-read the binding, apply enable state) and may
 -- set row.ShouldShow() (conditional note rows).
 -------------------------------------------------------------------------------
@@ -69,6 +72,13 @@ local HEADER_TEXT_TOP  = 13    -- heading text, below the row's top
 local HEADER_TOGGLE_SIZE = 36
 local HEADER_TOGGLE_X    = -5
 local HEADER_TOGGLE_Y    = -8
+
+-- The override checkbox left of a heading (situation pages only): the heading
+-- text moves right to make room for it. Y is its top's distance below the
+-- row's top, tuned so the box centers on the heading text.
+local HEADER_CHECK_SIZE = 28
+local HEADER_CHECK_GAP  = 4    -- checkbox -> heading text
+local HEADER_CHECK_Y    = 7
 
 -- The zoom-based column must fit its "Zoom-based" caption, whose width depends
 -- on the locale - so measure it instead of hardcoding. The measuring string and
@@ -132,17 +142,20 @@ local GEAR_HL_PRESSED= {0.43750, 0.65625, 0.00000, 0.43750}
 -- All slider math happens in display space; toDisplay/fromDisplay convert
 -- from/to the stored value, and minClampZero maps the cvar's real minimum
 -- (e.g. 0.01 damp rate) to a clean 0 on the slider.
-local function MakeBinding(item, sid)
+--
+-- ctx.sid is read on every access, never captured: a situation page retargets
+-- its rows to another situation by just changing ctx.sid and refreshing.
+local function MakeBinding(item, ctx)
   local p1, p2 = item.dbPath and item.dbPath[1], item.dbPath and item.dbPath[2]
 
   local function rawGet()
     if item.get then return item.get() end
-    return DynamicCam:GetSettingsValue(sid, p1, p2)
+    return DynamicCam:GetSettingsValue(ctx.sid, p1, p2)
   end
 
   local function rawSet(v)
     if item.set then item.set(v) return end
-    DynamicCam:SetSettingsValue(v, sid, p1, p2)
+    DynamicCam:SetSettingsValue(v, ctx.sid, p1, p2)
   end
 
   local clamp = item.minClampZero and DynamicCam.CVAR_MIN_CLAMP[item.minClampZero]
@@ -164,10 +177,10 @@ local function MakeBinding(item, sid)
 
   if item.dbPath and not item.get then
     function binding.isDefault()
-      return DynamicCam:GetSettingsValue(sid, p1, p2) == DynamicCam:GetSettingsDefault(p1, p2)
+      return DynamicCam:GetSettingsValue(ctx.sid, p1, p2) == DynamicCam:GetSettingsDefault(p1, p2)
     end
     function binding.reset()
-      DynamicCam:SetSettingsDefault(sid, p1, p2)
+      DynamicCam:SetSettingsDefault(ctx.sid, p1, p2)
     end
     function binding.defaultDisplay()
       return toDisplay(DynamicCam:GetSettingsDefault(p1, p2))
@@ -269,12 +282,20 @@ local function SetLabelEnabled(row, enabled)
   end
 end
 
+-- Whether a row's controls are live, from both gates: the page's own gate over
+-- the whole row (a situation page's per-category override) and the item's own
+-- condition (its group's enable toggle).
+local function RowEnabled(row, item, ctx)
+  if ctx.rowGate and not ctx.rowGate(row) then return false end
+  return not item.enabledWhen or item.enabledWhen(ctx.sid)
+end
+
 
 -- ===== Reset button =====
 
 -- The per-setting reset-to-default button, right of the value readout.
 -- Disabled (desaturated) while the setting is at its default.
-local function CreateResetButton(row, item, binding, ctx)
+local function CreateResetButton(row, binding, ctx)
   local btn = CreateFrame("Button", nil, row)
   btn:SetSize(RESET_SIZE, RESET_SIZE)
   btn:SetPoint("RIGHT", row, "RIGHT", -ResetOffset(ctx.zoomZone or ZOOM_ZONE), 0)
@@ -388,11 +409,22 @@ local function CreateZoomBasedControl(row, item, ctx)
 
   -- Register with the curve editor, so it can sync the gear's pressed state
   -- when the editor opens/closes (also from another instance of this setting).
-  local configId = (ctx.sid or "standard") .. "_" .. cvar
-  ctrl.configId = configId
+  -- The registry is keyed by situation+cvar, and a situation page can retarget
+  -- to another situation (ctx.sid changes) - so registration is re-derived on
+  -- every Refresh rather than fixed at build.
   DynamicCam._activeZoomWidgets = DynamicCam._activeZoomWidgets or {}
-  DynamicCam._activeZoomWidgets[configId] = DynamicCam._activeZoomWidgets[configId] or {}
-  DynamicCam._activeZoomWidgets[configId][ctrl] = true
+  local registry = DynamicCam._activeZoomWidgets
+
+  local function UpdateRegistration()
+    local configId = (ctx.sid or "standard") .. "_" .. cvar
+    if ctrl.configId == configId then return end
+    if ctrl.configId and registry[ctrl.configId] then
+      registry[ctrl.configId][ctrl] = nil
+    end
+    ctrl.configId = configId
+    registry[configId] = registry[configId] or {}
+    registry[configId][ctrl] = true
+  end
 
   check:SetScript("OnClick", function(self)
     local checked = self:GetChecked()
@@ -417,7 +449,18 @@ local function CreateZoomBasedControl(row, item, ctx)
 
   -- rowEnabled: the gate state of the row (e.g. pitch disabled entirely).
   function ctrl.Refresh(rowEnabled)
-    local zoomBased = DynamicCam:IsCvarZoomBased(ctx.sid, cvar)
+    UpdateRegistration()
+    -- Pull the gear's pressed state: the editor pushes changes to registered
+    -- widgets, but a situation switch retargets this widget to a different
+    -- setting entirely, whose editor may or may not be open right now.
+    ctrl.isEditorOpen = DynamicCam:IsEditorOpenForSetting(ctx.sid, cvar)
+    ctrl:UpdateButtonTextures()
+
+    -- The EFFECTIVE state, so a situation row that does not override this cvar
+    -- shows the standard setting's curve being ticked, just as its slider shows
+    -- the standard setting's value. Where the situation does own the cvar this
+    -- is its own state, and on the standard page the two are the same thing.
+    local zoomBased = DynamicCam:IsEffectivelyCvarZoomBased(ctx.sid, cvar)
     check:SetChecked(zoomBased)
     check:SetEnabled(rowEnabled)
     check:SetAlpha(rowEnabled and 1 or 0.5)
@@ -440,9 +483,9 @@ function Controls.CreateSliderRow(parent, item, ctx)
   row.label:SetText(item.label)
   AddRowTooltip(row, item)
 
-  local binding = MakeBinding(item, ctx.sid)
+  local binding = MakeBinding(item, ctx)
 
-  local resetBtn = binding.reset and CreateResetButton(row, item, binding, ctx)
+  local resetBtn = binding.reset and CreateResetButton(row, binding, ctx)
   local zoomCtrl = item.zoomBased and CreateZoomBasedControl(row, item, ctx)
 
   local zoomZone = ctx.zoomZone or ZOOM_ZONE
@@ -492,8 +535,9 @@ function Controls.CreateSliderRow(parent, item, ctx)
   end, row)
 
   function row.Refresh()
-    local enabled = not item.enabledWhen or item.enabledWhen(ctx.sid)
-    local zoomBased = item.zoomBased and DynamicCam:IsCvarZoomBased(ctx.sid, item.cvar)
+    local enabled = RowEnabled(row, item, ctx)
+    -- Effective, matching the zoom control's own display (see its Refresh).
+    local zoomBased = item.zoomBased and DynamicCam:IsEffectivelyCvarZoomBased(ctx.sid, item.cvar)
 
     refreshing = true
     widget:SetValue(binding.get() or minVal)
@@ -521,7 +565,7 @@ function Controls.CreateCheckboxRow(parent, item, ctx)
   row.label:SetText(item.label)
   AddRowTooltip(row, item)
 
-  local binding = MakeBinding(item, ctx.sid)
+  local binding = MakeBinding(item, ctx)
 
   local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
   check:SetSize(28, 28)
@@ -546,7 +590,7 @@ function Controls.CreateCheckboxRow(parent, item, ctx)
 
   function row.Refresh()
     check:SetChecked(GetChecked())
-    local enabled = not item.enabledWhen or item.enabledWhen(ctx.sid)
+    local enabled = RowEnabled(row, item, ctx)
     check:SetEnabled(enabled)
     SetLabelEnabled(row, enabled)
   end
@@ -558,21 +602,58 @@ end
 
 -- ===== Header and note rows =====
 
--- A category heading: white text hung below the row's top, the optional info
+-- A category heading: white text hung below the row's top, the optional
+-- override checkbox (item.overrideToggle, situation pages), the optional info
 -- "i" (item.info), and the optional state toggle (item.toggle). The category
 -- separator line above the heading is added and positioned by the page (it also
 -- has to sit above the override banner when one is showing), not here.
-function Controls.CreateHeaderRow(parent, item)
+function Controls.CreateHeaderRow(parent, item, ctx)
   local row = CreateFrame("Frame", nil, parent)
   row:SetHeight(Controls.HEADER_HEIGHT)
 
   -- White, like the Settings panel's (and Graphit's) section headers.
   -- Left-aligned with the setting rows' labels, and hung from the row's top so
-  -- it keeps its distance below the divider no matter how tall the row is.
+  -- it keeps its distance below the divider no matter how tall the row is. On a
+  -- situation page it starts further right, leaving the row's left end to the
+  -- override checkbox.
+  local labelLeft = LABEL_LEFT_PAD
+  if item.overrideToggle then
+    labelLeft = labelLeft + HEADER_CHECK_SIZE + HEADER_CHECK_GAP
+  end
+
   row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-  row.label:SetPoint("TOPLEFT", row, "TOPLEFT", LABEL_LEFT_PAD, -HEADER_TEXT_TOP)
+  row.label:SetPoint("TOPLEFT", row, "TOPLEFT", labelLeft, -HEADER_TEXT_TOP)
   row.label:SetTextColor(WHITE_FONT_COLOR:GetRGB())
   row.label:SetText(item.label)
+
+  -- The situation page's per-category override checkbox, left of the heading.
+  -- It is the gate the rows below are gated BY, so it is never gated itself;
+  -- row.Refresh keeps it current, since the override state can also change from
+  -- outside (the old frame, an import).
+  if item.overrideToggle then
+    local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    check:SetSize(HEADER_CHECK_SIZE, HEADER_CHECK_SIZE)
+    check:SetPoint("TOPLEFT", row, "TOPLEFT", LABEL_LEFT_PAD, -HEADER_CHECK_Y)
+
+    check:SetScript("OnClick", function(self)
+      local checked = self:GetChecked()
+      PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+      item.overrideToggle.set(checked)
+      ctx.onChanged()
+    end)
+    check:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip_SetTitle(GameTooltip, L["Override Standard Settings"])
+      GameTooltip_AddNormalLine(GameTooltip, L["<overrideStandardToggle_desc>"], true)
+      GameTooltip:Show()
+    end)
+    check:SetScript("OnLeave", GameTooltip_Hide)
+
+    function row.Refresh()
+      check:SetChecked(item.overrideToggle.get())
+    end
+    row.Refresh()
+  end
 
   -- Info "i" right of the title, showing the category's help text as a tooltip
   -- (as in Graphit): hover-only, no click, no sound.
@@ -660,6 +741,6 @@ end
 function Controls.CreateRow(parent, item, ctx)
   if item.kind == "slider" then return Controls.CreateSliderRow(parent, item, ctx) end
   if item.kind == "checkbox" then return Controls.CreateCheckboxRow(parent, item, ctx) end
-  if item.kind == "header" then return Controls.CreateHeaderRow(parent, item) end
+  if item.kind == "header" then return Controls.CreateHeaderRow(parent, item, ctx) end
   if item.kind == "note" then return Controls.CreateNoteRow(parent, item) end
 end

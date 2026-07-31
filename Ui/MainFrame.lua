@@ -31,7 +31,7 @@ local Ui = DynamicCam.Ui
 -- Ui.RequireContentSize. See ApplyResizeBounds, which takes the largest.
 local DEFAULT_WIDTH  = 760
 local DEFAULT_HEIGHT = 820
-local MIN_WIDTH      = 580
+local MIN_WIDTH      = 600
 local MIN_HEIGHT     = 500
 local MAX_WIDTH      = 1100
 local MAX_HEIGHT_FRACTION = 1    -- cap on height, as a fraction of screen height
@@ -43,16 +43,16 @@ local CONTENT_GAP_BOTTOM = 28
 local CONTENT_GAP_LEFT   = 22
 local CONTENT_GAP_RIGHT  = 18
 
--- Tab row: sits directly above the content area.
+-- This window's own tab row: sits directly above the content area.
 local TAB_ROW_HEIGHT = 30
 local TAB_Y          = 6     -- gap between tab bottoms and the content area top
-local TAB_INFO_SIZE  = 18    -- the info "i" inside a tab
-local TAB_INFO_GAP   = 2     -- gap between a tab's label and its "i"
 
 -- Shared by every tab row built with Ui.CreateTabRow (the main window's
 -- top-level tabs and the Situations page's inner tabs).
 local TAB_GAP        = 5     -- horizontal gap between neighbouring tabs
 local TAB_H_PAD      = 14    -- padding inside a tab, on each side of its label
+local TAB_INFO_SIZE  = 18    -- the info "i" inside a tab
+local TAB_INFO_GAP   = 2     -- gap between a tab's label and its "i"
 -- The selected tab's underlay is a bit taller and less transparent than the
 -- unselected ones, applied on each selection change.
 local TAB_BG_HEIGHT_SELECTED   = 24
@@ -83,6 +83,27 @@ end
 
 -- ===== Tab rows =====
 
+-- Info "i" inside a tab, explaining what that tab holds. Hover-only, no click
+-- (it must not swallow the tab's own selection), matching the category-header
+-- "i" in Ui/Controls.lua. It sits just right of the label and is anchored to the
+-- label FontString (not the tab) so it tracks it - the tab mixin re-centres the
+-- label on every selection change, and the "i" follows. The tab reserves
+-- TAB_INFO_GAP + TAB_INFO_SIZE of its own width for it, which is why the row is
+-- laid out only after every icon is attached.
+local function AddTabInfo(tab, fillTooltip)
+  local info = CreateFrame("Button", nil, tab)
+  info:SetSize(TAB_INFO_SIZE, TAB_INFO_SIZE)
+  info:SetPoint("LEFT", tab.Text, "RIGHT", TAB_INFO_GAP, 0)
+  info:SetNormalTexture("Interface\\common\\help-i")
+  info:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    fillTooltip()
+    GameTooltip:Show()
+  end)
+  info:SetScript("OnLeave", GameTooltip_Hide)
+  tab.extraWidth = TAB_INFO_GAP + TAB_INFO_SIZE
+end
+
 -- One builder for every row of tabs in the new UI: the main window's top-level
 -- tabs and the Situations page's inner tabs (Ui/SituationsPage.lua). Mirrors
 -- the Settings panel's Game/AddOns tabs: content-sized MinimalTabTemplate
@@ -95,9 +116,9 @@ end
 -- user click (with the tab click sound), so the caller brings its initial
 -- content on screen itself.
 --
--- Returns the tabs array and the layout function, for re-packing after a
--- caller widens a tab (tab.extraWidth, e.g. the "i" icon inside a tab).
-function Ui.CreateTabRow(row, names, initialIndex, onSelect)
+-- infos is optional: infos[tabIndex] = function() ... end fills a GameTooltip
+-- (already owned and shown for it) behind that tab's info "i".
+function Ui.CreateTabRow(row, names, initialIndex, onSelect, infos)
   -- MinimalTabTemplate is 37px tall, but its art is bottom-anchored at the
   -- atlas's native (shorter) height, leaving clickable dead space above each
   -- tab. Trim each tab's hit rect down to the art height.
@@ -117,18 +138,21 @@ function Ui.CreateTabRow(row, names, initialIndex, onSelect)
     tabs[i] = tab
   end
 
-  -- Content-sized tabs packed left to right, like the Settings panel's own tabs
-  -- (widths differ per label; not stretched to fill the row). A tab with an "i"
-  -- widens to hold it (tab.extraWidth).
-  local function LayoutTabs()
-    local x = 0
-    for _, tab in ipairs(tabs) do
-      tab:SetWidth(math.ceil(tab.Text:GetStringWidth()) + 2 * TAB_H_PAD + (tab.extraWidth or 0))
-      tab:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", x, 0)
-      x = x + tab:GetWidth() + TAB_GAP
+  if infos then
+    for i, fillTooltip in pairs(infos) do
+      AddTabInfo(tabs[i], fillTooltip)
     end
   end
-  LayoutTabs()
+
+  -- Content-sized tabs packed left to right, like the Settings panel's own tabs
+  -- (widths differ per label; not stretched to fill the row). A tab with an "i"
+  -- widens to hold it (tab.extraWidth), hence packing only now.
+  local x = 0
+  for _, tab in ipairs(tabs) do
+    tab:SetWidth(math.ceil(tab.Text:GetStringWidth()) + 2 * TAB_H_PAD + (tab.extraWidth or 0))
+    tab:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", x, 0)
+    x = x + tab:GetWidth() + TAB_GAP
+  end
 
   local function UpdateTabBackgrounds(selectedIndex)
     for i, tab in ipairs(tabs) do
@@ -149,8 +173,6 @@ function Ui.CreateTabRow(row, names, initialIndex, onSelect)
     UpdateTabBackgrounds(tabIndex)
     onSelect(tabIndex)
   end, row)
-
-  return tabs, LayoutTabs
 end
 
 
@@ -289,56 +311,29 @@ local function BuildFrame()
     end
   end
 
+  -- The two settings tabs explain themselves as a pair: Standard Settings says
+  -- when its values apply and what the blue marking means, Situations says what
+  -- a situation is and what setting one up involves.
   local activeTab = GetConfig().activeTab or 1
-  local tabs, layoutTabs = Ui.CreateTabRow(tabRow, tabNames, activeTab, function(tabIndex)
+  Ui.CreateTabRow(tabRow, tabNames, activeTab, function(tabIndex)
     SelectTabContent(tabIndex)
     GetConfig().activeTab = tabIndex
-  end)
+  end, {
+    [1] = function()
+      GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
+      GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
+      GameTooltip_AddBlankLineToTooltip(GameTooltip)
+      -- Same blue the overridden category rows use, from the one shared source.
+      local c = DynamicCam.situationColors
+      GameTooltip_AddNormalLine(GameTooltip,
+        c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
+    end,
+    [2] = function()
+      GameTooltip_SetTitle(GameTooltip, L["Situations"])
+      GameTooltip_AddNormalLine(GameTooltip, L["<situations_desc>"], true)
+    end,
+  })
   SelectTabContent(activeTab)
-
-  -- Info "i" inside a tab, explaining what that tab's settings are. Hover-only,
-  -- no click (it must not swallow the tab's own selection), matching the
-  -- category-header "i" in Ui/Controls.lua. It sits just right of the label and
-  -- is anchored to the label FontString (not the tab) so it tracks it - the tab
-  -- mixin re-centres the label on every selection change, and the "i" follows.
-  -- The tab reserves TAB_INFO_GAP + TAB_INFO_SIZE of its own width for it, hence
-  -- the single re-layout once they are all attached.
-  local function AddTabInfo(tabIndex, fillTooltip)
-    local tab = tabs[tabIndex]
-    local info = CreateFrame("Button", nil, tab)
-    info:SetSize(TAB_INFO_SIZE, TAB_INFO_SIZE)
-    info:SetPoint("LEFT", tab.Text, "RIGHT", TAB_INFO_GAP, 0)
-    info:SetNormalTexture("Interface\\common\\help-i")
-    info:SetScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      fillTooltip()
-      GameTooltip:Show()
-    end)
-    info:SetScript("OnLeave", GameTooltip_Hide)
-    tab.extraWidth = TAB_INFO_GAP + TAB_INFO_SIZE
-  end
-
-  -- Standard Settings: what these settings are, plus the meaning of the blue
-  -- "overridden" marking.
-  AddTabInfo(1, function()
-    GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
-    GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
-    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-    -- Same blue the overridden category rows use, from the one shared source.
-    local c = DynamicCam.situationColors
-    GameTooltip_AddNormalLine(GameTooltip,
-      c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
-  end)
-
-  -- Situations: the counterpart, saying how a situation's settings relate to the
-  -- standard ones.
-  AddTabInfo(2, function()
-    GameTooltip_SetTitle(GameTooltip, L["Situations"])
-    GameTooltip_AddNormalLine(GameTooltip,
-      L["These Situation Settings override the Standard Settings when the respective situation is active."], true)
-  end)
-
-  layoutTabs()
 
   -- ===== Mouse wheel forwarding =====
 

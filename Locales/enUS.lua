@@ -218,6 +218,9 @@ L["<headTrackingDeadZone_desc>"] = "Radius of head movement not affecting the ca
 -- Situations Tab
 --------------------------------------------------------------------------------
 L["Situations"] = "Situations"
+-- NEW in the new UI: the Situations tab's own "i", the counterpart of
+-- <standardSettings_desc> on the Standard Settings tab.
+L["<situations_desc>"] = "A situation is a game state that DynamicCam reacts to, such as riding a mount, being in combat or talking to an NPC. Pick a situation here to set up what it does: which of the Standard Settings it overrides while it is active, what should happen when you enter or leave it, and what decides when it applies."
 L["Select a situation to setup"] = "Select a situation to setup"
 L["<selectedSituation_desc>"] = "\n%sColour codes:%s\n%s- Disabled situation.%s\n%s- Enabled but currently inactive situation.%s\n%s- Enabled and currently active situation.%s\n%s- Enabled situation with fulfilled condition but lower priority than the currently active situation.%s\n%s- Modified stock \"Situation Controls\" (reset recommended).%s\n%s- Erroneous \"Situation Controls\" (fixing required).%s"
 L["If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."] = "If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."

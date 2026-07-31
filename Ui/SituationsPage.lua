@@ -9,8 +9,10 @@
 --
 -- Below the strip, an inner tab row (Situation Settings / Actions / Controls)
 -- and a second nine-slice box holding their pages - the same construction the
--- window itself uses, one level in. The pages are still to come, and the Import
--- and Export buttons will open a window of their own.
+-- window itself uses, one level in. Situation Settings is Ui/SettingsPage.lua's
+-- page in situation mode, i.e. literally the Standard Settings tab's content
+-- plus the override layer; the other two are still to come, as is the window
+-- the Import and Export buttons will open.
 -------------------------------------------------------------------------------
 
 local folderName = ...
@@ -266,7 +268,10 @@ local function ResolveEditBox(self)
   return self.editBox or _G[self:GetName() .. "EditBox"] or self
 end
 
-local RefreshTopStrip   -- set in the builder below; repaints the dropdown text
+-- Set in the builder below: repaints the strip and points the settings page at
+-- the selected situation. The dialogs call it after they change the selection
+-- or a name, which they can only do once the page has been built.
+local RefreshTopStrip
 
 local function CreateSituation(name)
   name = strtrim(name or "")
@@ -642,7 +647,7 @@ Ui.tabBuilders[2] = function(parent)
   -- colour) and re-read the Enabled box. The text is cached, since building and
   -- setting it is the only part worth skipping on an unchanged frame.
   local shownText
-  RefreshTopStrip = function()
+  local function RefreshStrip()
     EnsureSelection()
     local situation = ValidSituation(selectedSID)
 
@@ -657,14 +662,6 @@ Ui.tabBuilders[2] = function(parent)
     enableCheck:SetChecked(situation ~= nil and situation.enabled)
     enableCheck:SetEnabled(situation ~= nil)
   end
-  RefreshTopStrip()
-
-  -- A situation's state colour, name, priority and "(modified)" suffix can all
-  -- change while the page is open (situations switch on player state; the old
-  -- frame may edit in parallel), and a deleted selection must fall back - so
-  -- poll, as the standard page polls its override display. Only runs while the
-  -- page is visible.
-  parent:HookScript("OnUpdate", RefreshTopStrip)
 
   -- ===== Inner tabs and their box =====
 
@@ -700,17 +697,45 @@ Ui.tabBuilders[2] = function(parent)
   boxArt:SetFrameLevel(parent:GetFrameLevel())
   Ui.DrawInnerBox(boxArt, box)
 
+  -- The Situation Settings page is the very page the Standard Settings tab is
+  -- built from - same descriptor, same rows - run in situation mode, which adds
+  -- the per-category override checkboxes and gating (Ui/SettingsPage.lua). The
+  -- other two are still to come; they will want the same scroll box, nav pane
+  -- and scrollspy, so they too should come out of Ui.CreatePage rather than a
+  -- second implementation.
   local tabNames = { L["Situation Settings"], L["Situation Actions"], L["Situation Controls"] }
   local pages = {}
+  local settingsPage
   for i, name in ipairs(tabNames) do
     local c = CreateFrame("Frame", nil, parent)
     c:SetAllPoints(content)
     c:Hide()
-    local placeholder = c:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
-    placeholder:SetPoint("CENTER")
-    placeholder:SetText(name .. "\n\n(under construction)")
+    if i == 1 then
+      settingsPage = Ui.CreatePage(c, Ui.settingsCategories, true, "situationCategory")
+    else
+      local placeholder = c:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
+      placeholder:SetPoint("CENTER")
+      placeholder:SetText(name .. "\n\n(under construction)")
+    end
     pages[i] = c
   end
+
+  -- The strip and the page below it move together: the strip resolves which
+  -- situation is selected (falling back when one is deleted elsewhere), then the
+  -- page is pointed at it. This is the file-scope RefreshTopStrip the situation
+  -- dialogs call, and it can only be assembled here, once both halves exist.
+  RefreshTopStrip = function()
+    RefreshStrip()
+    settingsPage.SetSid(selectedSID)   -- ignores a repeat, so this is cheap
+  end
+  RefreshTopStrip()
+
+  -- A situation's state colour, name, priority and "(modified)" suffix can all
+  -- change while the page is open (situations switch on player state; the old
+  -- frame may edit in parallel), and a deleted selection must fall back - so
+  -- poll, as the settings page polls its override display. Only runs while the
+  -- page is visible.
+  parent:HookScript("OnUpdate", RefreshTopStrip)
 
   local function SelectPage(index)
     for i, c in ipairs(pages) do
@@ -718,10 +743,28 @@ Ui.tabBuilders[2] = function(parent)
     end
   end
 
+  -- Each inner tab carries the help text that stood at the top of the old UI's
+  -- corresponding tab. The Controls one is written for a panel and ends in blank
+  -- lines, which a tooltip would render as trailing space - hence the trim.
   local activeTab = GetConfig().situationTab or 1
   Ui.CreateTabRow(tabRow, tabNames, activeTab, function(tabIndex)
     SelectPage(tabIndex)
     GetConfig().situationTab = tabIndex
-  end)
+  end, {
+    [1] = function()
+      GameTooltip_SetTitle(GameTooltip, L["Situation Settings"])
+      GameTooltip_AddNormalLine(GameTooltip,
+        L["These Situation Settings override the Standard Settings when the respective situation is active."], true)
+    end,
+    [2] = function()
+      GameTooltip_SetTitle(GameTooltip, L["Situation Actions"])
+      GameTooltip_AddNormalLine(GameTooltip,
+        L["Setup stuff to happen while in a situation or when entering/exiting it."], true)
+    end,
+    [3] = function()
+      GameTooltip_SetTitle(GameTooltip, L["Situation Controls"])
+      GameTooltip_AddNormalLine(GameTooltip, strtrim(L["<situationControls_help>"]), true)
+    end,
+  })
   SelectPage(activeTab)
 end

@@ -6,6 +6,11 @@
 -- tables in Options.lua; when the transition is complete, this file is their
 -- only successor.
 --
+-- One list serves both settings views - the Standard Settings tab and the
+-- Situations tab's Situation Settings - exactly as the old UI's one builder
+-- served both. What a situation page adds (the per-category override checkbox
+-- and its gating) is layered on by Ui/SettingsPage.lua, not authored here.
+--
 -- Item kinds:
 --   slider    { label, tooltip?, cvar?, dbPath, min, max, step,
 --               toDisplay?, fromDisplay?,   -- display-space transform pair
@@ -41,8 +46,10 @@
 -- one; it then shows just its name and cvar.
 --
 -- dbPath addresses DynamicCam:Get/SetSettingsValue (standardSettings, or the
--- situation's override when the page runs with a situationId). All ranges are
--- in DISPLAY space; toDisplay/fromDisplay convert from/to the stored value.
+-- edited situation's override on a situation page). It is also what tells that
+-- page which values a category owns, so it can turn the whole category's
+-- override on and off. All ranges are in DISPLAY space; toDisplay/fromDisplay
+-- convert from/to the stored value.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
@@ -63,7 +70,7 @@ local function ReactiveZoomOn(sid)
 end
 
 
-Ui.standardCategories = {
+Ui.settingsCategories = {
 
   {
     name = L["Mouse Look"],
