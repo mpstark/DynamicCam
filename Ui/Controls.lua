@@ -10,10 +10,13 @@
 --   sid        situationId the page edits (nil = standard settings); read
 --              lazily everywhere, so the page can retarget it at runtime
 --   onChanged  called after any write, so the page can refresh gated rows
---   rowGate?   rowGate(row) gate over a whole row, consulted on Refresh
---              (the situation page's per-category override state)
--- Rows expose row.Refresh() (re-read the binding, apply enable state) and may
--- set row.ShouldShow() (conditional note rows).
+--   rowGate?   rowGate(row, item) gate over a whole row, consulted on
+--              Refresh: the page's own conditions (a situation being
+--              selected, the category's override, the category's
+--              enabledWhen)
+-- Rows expose row.Refresh() (re-read the binding, apply enable state), may set
+-- row.ShouldShow() (any kind, from item.shownWhen) and may set
+-- row.MeasureHeight() when their height depends on wrapped text.
 -------------------------------------------------------------------------------
 
 local folderName = ...
@@ -80,6 +83,43 @@ local HEADER_CHECK_SIZE = 28
 local HEADER_CHECK_GAP  = 4    -- checkbox -> heading text
 local HEADER_CHECK_Y    = 7
 
+-- Select row: [<] [ dropdown fills ] [>], the Settings panel's dropdown with
+-- steppers, built exactly as Graphit's setting dropdowns are. It has no value
+-- readout of its own, so it spans the slider's and the readout's columns
+-- together, up to the reset button.
+local SELECT_STEPPER_GAP = 2   -- stepper -> dropdown
+local SELECT_RESET_GAP   = 4   -- forward stepper -> reset button
+
+-- Input row: a scrolling multi-line edit box spanning the same columns as a
+-- select. item.lines sets how many lines of it are visible; the text scrolls
+-- within that, since the lists these hold - comma-separated frame names - run
+-- far past what any reasonable row height could show.
+local INPUT_LINE_HEIGHT = 14   -- one line of ChatFontNormal
+local INPUT_ROW_PAD     = 10   -- air above and below the box within its row
+-- InputScrollFrameTemplate hangs its border art 5px outside the scroll frame on
+-- every side, so the frame is inset by that much for the BORDER to land where
+-- the other controls' edges are.
+local INPUT_BORDER_INSET = 5
+-- Its scroll bar sits inside the right edge (scrollBarX = -10 in
+-- InputScrollFrame_OnLoad), and OnLoad sizes the edit box to width - 18 to clear
+-- it; that 18 has to be reapplied whenever the row is resized.
+local INPUT_BAR_CHANNEL = 18
+-- Fewer lines than this and the scroll bar's knob has no travel worth dragging.
+local INPUT_MIN_LINES = 6
+
+-- Button row: an action rather than a value, so it takes its natural width in
+-- the control column instead of stretching to the reset column like the others.
+local ACTION_BUTTON_WIDTH  = 160
+local ACTION_BUTTON_HEIGHT = 22
+
+-- Note row: a wrapped paragraph spanning the whole row, so it only has air
+-- above and below its text.
+local NOTE_TOP_PAD    = 2
+local NOTE_BOTTOM_PAD = 6
+-- A disabled note FADES rather than turning grey: its string carries its own
+-- colour codes (the red "Attention:" lead), which SetTextColor cannot override.
+local NOTE_DISABLED_ALPHA = 0.4
+
 -- The zoom-based column must fit its "Zoom-based" caption, whose width depends
 -- on the locale - so measure it instead of hardcoding. The measuring string and
 -- the real caption must use the same font, hence the shared constant: with two
@@ -143,18 +183,70 @@ local GEAR_HL_PRESSED= {0.43750, 0.65625, 0.00000, 0.43750}
 -- from/to the stored value, and minClampZero maps the cvar's real minimum
 -- (e.g. 0.01 damp rate) to a clean 0 on the slider.
 --
+-- An item addresses its value either with dbPath (the settings layer) or with
+-- situationPath (the situation object itself); see Ui/Descriptor.lua for what
+-- that distinction means.
+--
 -- ctx.sid is read on every access, never captured: a situation page retargets
 -- its rows to another situation by just changing ctx.sid and refreshing.
+
+-- Walk to the container holding a path's last key, so a caller can read or
+-- assign the leaf. Returns nil when the path does not exist.
+local function ResolvePath(root, path)
+  local t = root
+  for i = 1, #path - 1 do
+    t = t and t[path[i]]
+  end
+  return t, path[#path]
+end
+
 local function MakeBinding(item, ctx)
   local p1, p2 = item.dbPath and item.dbPath[1], item.dbPath and item.dbPath[2]
 
+  -- The second address kind: a path into the situation object itself
+  -- (transitionTime, viewZoom, rotation, hideUI), whose values are per-situation
+  -- by nature and so have no standard setting to fall back to. Their defaults
+  -- come from DynamicCam.situationDefaults, NOT from the standard settings.
+  local sitPath = item.situationPath
+
+  local function Situation()
+    return ctx.sid and DynamicCam.db.profile.situations[ctx.sid]
+  end
+
+  local function SituationDefault()
+    local t, key = ResolvePath(DynamicCam.situationDefaults, sitPath)
+    return t and t[key]
+  end
+
   local function rawGet()
-    if item.get then return item.get() end
+    if item.get then return item.get(ctx.sid) end
+    if sitPath then
+      local t, key = ResolvePath(Situation(), sitPath)
+      return t and t[key]
+    end
     return DynamicCam:GetSettingsValue(ctx.sid, p1, p2)
   end
 
   local function rawSet(v)
-    if item.set then item.set(v) return end
+    if item.set then item.set(v, ctx.sid) return end
+    if sitPath then
+      local t, key = ResolvePath(Situation(), sitPath)
+      if not t then return end
+      local previous = t[key]
+      t[key] = v
+      -- Some of these need work beyond the write (restarting a rotation,
+      -- re-running the UI fade); the item says so with its own apply. Only when
+      -- the value actually MOVED, though: re-applying on a write that changed
+      -- nothing would restart a live rotation for no reason.
+      --
+      -- Worth guarding here, rather than only at the slider, precisely BECAUSE
+      -- apply does more than store a value. A setter that merely re-writes its
+      -- value idempotently would not need this - deduping the drag would be
+      -- enough - but a stateful side effect has to be protected from every
+      -- caller, not just the one that fires most often.
+      if item.apply and previous ~= v then item.apply(ctx.sid) end
+      return
+    end
     DynamicCam:SetSettingsValue(v, ctx.sid, p1, p2)
   end
 
@@ -175,14 +267,19 @@ local function MakeBinding(item, ctx)
     rawSet(fromDisplay(display))
   end
 
-  if item.dbPath and not item.get then
+  -- A reset button appears only where this binding knows the default, which is
+  -- either address kind but not a hand-written get/set.
+  if (item.dbPath or sitPath) and not item.get then
     function binding.isDefault()
+      if sitPath then return rawGet() == SituationDefault() end
       return DynamicCam:GetSettingsValue(ctx.sid, p1, p2) == DynamicCam:GetSettingsDefault(p1, p2)
     end
     function binding.reset()
+      if sitPath then rawSet(SituationDefault()) return end
       DynamicCam:SetSettingsDefault(ctx.sid, p1, p2)
     end
     function binding.defaultDisplay()
+      if sitPath then return toDisplay(SituationDefault()) end
       return toDisplay(DynamicCam:GetSettingsDefault(p1, p2))
     end
   end
@@ -246,7 +343,7 @@ end
 -- whole row. A FontString takes no mouse, so the trigger is a button spanning
 -- the label's width across the full row height, lining up with the row's hover
 -- highlight (the label is vertically centred, hence the half-height reach).
-local function AddRowTooltip(row, item)
+local function AddRowTooltip(row, item, ctx)
   local hasBody = item.tooltip or item.cvar or item.transformNote
 
   local hit = CreateFrame("Button", nil, row)
@@ -259,8 +356,12 @@ local function AddRowTooltip(row, item)
     if not hasBody and not row.label:IsTruncated() then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip_SetTitle(GameTooltip, item.label)
+    -- A tooltip may be a function, for a row whose explanation depends on the
+    -- current state (Zoom Value reads differently per zoom type).
     if item.tooltip then
-      GameTooltip_AddNormalLine(GameTooltip, item.tooltip, true)
+      local body = item.tooltip
+      if type(body) == "function" then body = body(ctx.sid) end
+      GameTooltip_AddNormalLine(GameTooltip, body, true)
     end
     if item.cvar then
       GameTooltip_AddDisabledLine(GameTooltip, "cvar: " .. WrapCvar(item.cvar), true)
@@ -282,11 +383,11 @@ local function SetLabelEnabled(row, enabled)
   end
 end
 
--- Whether a row's controls are live, from both gates: the page's own gate over
--- the whole row (a situation page's per-category override) and the item's own
--- condition (its group's enable toggle).
+-- Whether a row's controls are live, from both gates: the page's own (a
+-- situation being selected, the category's override, the category's shared
+-- condition) and the item's own enabledWhen.
 local function RowEnabled(row, item, ctx)
-  if ctx.rowGate and not ctx.rowGate(row) then return false end
+  if ctx.rowGate and not ctx.rowGate(row, item) then return false end
   return not item.enabledWhen or item.enabledWhen(ctx.sid)
 end
 
@@ -481,7 +582,7 @@ end
 function Controls.CreateSliderRow(parent, item, ctx)
   local row = NewRow(parent)
   row.label:SetText(item.label)
-  AddRowTooltip(row, item)
+  AddRowTooltip(row, item, ctx)
 
   local binding = MakeBinding(item, ctx)
 
@@ -527,10 +628,19 @@ function Controls.CreateSliderRow(parent, item, ctx)
   rt:SetWidth(READOUT_WIDTH)
   rt:SetJustifyH("CENTER")
 
+  -- The template sets a value step but never SetObeyStepOnDrag, so a drag
+  -- reports CONTINUOUS values - many events per step, most of which snap to the
+  -- value we already stored. Acting on those would write and re-apply dozens of
+  -- times a second (which tore a live camera rotation apart) and refresh the
+  -- whole page each time. So act only when the snapped value really moves.
   local refreshing = false
+  local shownValue = binding.get() or minVal   -- correct from frame one
   widget:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
     if refreshing then return end
-    binding.set(Snap(value))
+    local snapped = Snap(value)
+    if snapped == shownValue then return end
+    shownValue = snapped
+    binding.set(snapped)
     ctx.onChanged()
   end, row)
 
@@ -540,7 +650,8 @@ function Controls.CreateSliderRow(parent, item, ctx)
     local zoomBased = item.zoomBased and DynamicCam:IsEffectivelyCvarZoomBased(ctx.sid, item.cvar)
 
     refreshing = true
-    widget:SetValue(binding.get() or minVal)
+    shownValue = binding.get() or minVal
+    widget:SetValue(shownValue)
     widget:FormatValue(widget.Slider:GetValue())
     refreshing = false
 
@@ -563,7 +674,7 @@ end
 function Controls.CreateCheckboxRow(parent, item, ctx)
   local row = NewRow(parent)
   row.label:SetText(item.label)
-  AddRowTooltip(row, item)
+  AddRowTooltip(row, item, ctx)
 
   local binding = MakeBinding(item, ctx)
 
@@ -592,6 +703,222 @@ function Controls.CreateCheckboxRow(parent, item, ctx)
     check:SetChecked(GetChecked())
     local enabled = RowEnabled(row, item, ctx)
     check:SetEnabled(enabled)
+    SetLabelEnabled(row, enabled)
+  end
+  row.Refresh()
+
+  return row
+end
+
+
+-- ===== Select row =====
+
+-- A WowStyle2 dropdown flanked by < > stepper buttons, as the Settings panel
+-- (and Graphit) present a choice: the steppers walk to the previous/next option
+-- and grey out at the ends, and the menu marks the current one in gold rather
+-- than with a radio dot. item.options is a list of { value, text }.
+function Controls.CreateSelectRow(parent, item, ctx)
+  local row = NewRow(parent)
+  row.label:SetText(item.label)
+  AddRowTooltip(row, item, ctx)
+
+  local binding = MakeBinding(item, ctx)
+  local resetBtn = binding.reset and CreateResetButton(row, binding, ctx)
+
+  local dd  = CreateFrame("DropdownButton", nil, row, "WowStyle2DropdownTemplate")
+  local dec = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
+  local inc = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
+
+  local zoomZone = ctx.zoomZone or ZOOM_ZONE
+  dec:SetPoint("LEFT", row.label, "RIGHT", CONTROL_GAP, 0)
+  inc:SetPoint("RIGHT", row, "RIGHT", -(ReadoutOffset(zoomZone) + SELECT_RESET_GAP), 0)
+  dd:SetPoint("LEFT", dec, "RIGHT", SELECT_STEPPER_GAP, 0)
+  dd:SetPoint("RIGHT", inc, "LEFT", -SELECT_STEPPER_GAP, 0)
+
+  dec.normalAtlas, dec.disabledAtlas = "common-dropdown-icon-back", "common-dropdown-icon-back-disabled"
+  inc.normalAtlas, inc.disabledAtlas = "common-dropdown-icon-next", "common-dropdown-icon-next-disabled"
+  dec:OnButtonStateChanged()
+  inc:OnButtonStateChanged()
+
+  -- The button's text. Greyed with a flat disabled colour while the row is off,
+  -- matching the label and the steppers rather than fading the whole control.
+  local rowEnabled = true
+  dd:SetSelectionText(function(selections)
+    local sel = selections and selections[1]
+    local text
+    if sel then
+      text = MenuUtil.GetElementText(sel)
+    else
+      -- Nothing in the list matches the stored value: show it raw rather than
+      -- leaving the button blank.
+      local current = binding.get()
+      text = (current ~= nil and current ~= "") and tostring(current) or nil
+    end
+    if text and not rowEnabled then
+      text = DISABLED_FONT_COLOR:WrapTextInColorCode(text)
+    end
+    return text
+  end)
+
+  dd:SetupMenu(function(_, rootDescription)
+    for _, opt in ipairs(item.options) do
+      -- CreateHighlightRadio (not CreateRadio) is what the Settings panel uses:
+      -- the selected entry in gold text, with no radio dot.
+      rootDescription:CreateHighlightRadio(opt.text,
+        function() return tostring(binding.get()) == tostring(opt.value) end,
+        function()
+          binding.set(opt.value)
+          ctx.onChanged()
+        end)
+    end
+  end)
+
+  -- A stepper greys out at its end of the list, and both die with the row.
+  -- dd:Increment/Decrement do NOT fire OnUpdate, so refresh after those too.
+  local function UpdateSteppers()
+    local previousRadio, nextRadio = dd:CollectSelectionData()
+    dec:SetEnabled(rowEnabled and previousRadio ~= nil)
+    inc:SetEnabled(rowEnabled and nextRadio ~= nil)
+  end
+
+  -- No ctx.onChanged here: Increment/Decrement go through Pick, which fires the
+  -- picked option's own responder - and that already writes and refreshes.
+  local function Step(fn)
+    fn(dd)
+    UpdateSteppers()
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+  end
+  dec:SetScript("OnClick", function() Step(dd.Decrement) end)
+  inc:SetScript("OnClick", function() Step(dd.Increment) end)
+
+  dd:RegisterCallback(DropdownButtonMixin.Event.OnUpdate, UpdateSteppers, dd)
+
+  -- Keep the motion scripts alive while disabled, as Blizzard's own disabled
+  -- controls do, so the row's tooltip still works over a greyed dropdown.
+  dd:SetMotionScriptsWhileDisabled(true)
+
+  function row.Refresh()
+    rowEnabled = RowEnabled(row, item, ctx)
+    dd:SetEnabled(rowEnabled)
+    SetLabelEnabled(row, rowEnabled)
+    -- SetupMenu defers generating until the dropdown is first shown, and these
+    -- rows are built hidden - so make sure there is a description to collect
+    -- the selection from before asking for one.
+    if not dd:HasElements() then dd:GenerateMenu() end
+    dd:SignalUpdate()      -- re-reads the binding and repaints the button text
+    UpdateSteppers()
+    if resetBtn then resetBtn.Refresh(rowEnabled) end
+  end
+  row.Refresh()
+
+  return row
+end
+
+
+-- ===== Input row =====
+
+-- A free-text box on InputScrollFrameTemplate - the Settings panel's own
+-- multi-line input, which the macro editor uses too. It brings its border art,
+-- its scroll bar and an edit box already wired for scrolling; item.lines sets
+-- how many lines are visible.
+--
+-- The value is committed when the box loses focus (Enter inserts a newline, the
+-- box being multi-line). Escape reverts to the stored value, so a half-typed
+-- edit can always be abandoned.
+function Controls.CreateInputRow(parent, item, ctx)
+  local row = NewRow(parent)
+  -- Always a scrolling multi-line box: the template's edit box is multiLine, and
+  -- the lists these hold are far too long for one line anyway.
+  local lines = math.max(item.lines or INPUT_MIN_LINES, INPUT_MIN_LINES)
+  -- Before AddRowTooltip, which sizes its hit rect from the row's height.
+  row:SetHeight(math.max(Controls.ROW_HEIGHT,
+    lines * INPUT_LINE_HEIGHT + 2 * INPUT_BORDER_INSET + INPUT_ROW_PAD))
+  row.label:SetText(item.label)
+  AddRowTooltip(row, item, ctx)
+
+  local binding = MakeBinding(item, ctx)
+  local resetBtn = binding.reset and CreateResetButton(row, binding, ctx)
+
+  -- The Settings panel's own multi-line input (as the macro editor uses): it
+  -- brings its border, its scroll bar, and an edit box already wired to the
+  -- ScrollingEdit_* handlers that keep the text scrolling inside a fixed height.
+  local zoomZone = ctx.zoomZone or ZOOM_ZONE
+  local scroll = CreateFrame("ScrollFrame", nil, row, "InputScrollFrameTemplate")
+  scroll:SetPoint("LEFT", row.label, "RIGHT", CONTROL_GAP + INPUT_BORDER_INSET, 0)
+  scroll:SetPoint("RIGHT", row, "RIGHT",
+    -(ReadoutOffset(zoomZone) + SELECT_RESET_GAP + INPUT_BORDER_INSET), 0)
+  scroll:SetHeight(lines * INPUT_LINE_HEIGHT)
+  scroll.CharCount:Hide()   -- a letter count means nothing for a frame list
+
+  local edit = scroll.EditBox
+  edit:SetFontObject(ChatFontNormal)
+  -- OnLoad did this once against a width we had not set yet.
+  scroll:HookScript("OnSizeChanged", function(self, width)
+    edit:SetWidth(width - INPUT_BAR_CHANNEL)
+  end)
+
+  local function Revert()
+    edit:SetText(binding.get() or "")
+    edit:SetCursorPosition(0)
+  end
+
+  local function Commit()
+    local value = edit:GetText()
+    if value ~= (binding.get() or "") then
+      binding.set(value)
+      ctx.onChanged()
+    end
+    -- Re-read: the setter may normalise what it stored (dropping whitespace,
+    -- reordering a list), and the box should show what was actually kept.
+    Revert()
+  end
+
+  -- Only these two are ours; the template's own OnTextChanged / OnUpdate /
+  -- OnCursorChanged are what do the scrolling and must stay untouched.
+  edit:SetScript("OnEditFocusLost", Commit)
+  edit:SetScript("OnEscapePressed", function(self)
+    Revert()
+    self:ClearFocus()
+  end)
+
+  function row.Refresh()
+    local enabled = RowEnabled(row, item, ctx)
+    edit:SetEnabled(enabled)
+    edit:SetTextColor((enabled and HIGHLIGHT_FONT_COLOR or GRAY_FONT_COLOR):GetRGB())
+    SetLabelEnabled(row, enabled)
+    -- Never yank the text out from under someone mid-edit; the commit that ends
+    -- the edit refreshes it anyway.
+    if not edit:HasFocus() then Revert() end
+    if resetBtn then resetBtn.Refresh(enabled) end
+  end
+  row.Refresh()
+
+  return row
+end
+
+
+-- ===== Button row =====
+
+-- A row whose control performs an action instead of holding a value, so it has
+-- no binding and no reset button. item.onClick(sid) does the work.
+function Controls.CreateButtonRow(parent, item, ctx)
+  local row = NewRow(parent)
+  row.label:SetText(item.label)
+  AddRowTooltip(row, item, ctx)
+
+  local btn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+  btn:SetSize(ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT)
+  btn:SetPoint("LEFT", row.label, "RIGHT", CONTROL_GAP, 0)
+  btn:SetText(item.buttonText or item.label)
+  btn:SetScript("OnClick", function()
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    item.onClick(ctx.sid)
+    ctx.onChanged()
+  end)
+
+  function row.Refresh()
+    local enabled = RowEnabled(row, item, ctx)
+    btn:SetEnabled(enabled)
     SetLabelEnabled(row, enabled)
   end
   row.Refresh()
@@ -725,13 +1052,44 @@ function Controls.CreateHeaderRow(parent, item, ctx)
   return row
 end
 
-function Controls.CreateNoteRow(parent, item)
+-- A note: a whole paragraph rather than a one-liner, so it is left-aligned with
+-- the setting labels and wraps to the row's width, and its row grows to fit.
+--
+-- The font is the NORMAL small one, not a red one: these strings carry their own
+-- colouring (usually just a red "Attention:"/"WARNING:" lead), and a red font
+-- object would swallow it - |r resets to the FontString's own colour, so with a
+-- red base every character after the lead would stay red too.
+--
+-- item.text may be a function, for a note whose wording depends on the current
+-- state; it is then re-evaluated on every Refresh. A note has no control to
+-- disable, so its enabledWhen fades the text instead - it stays readable and
+-- in place, which is the point of a warning.
+function Controls.CreateNoteRow(parent, item, ctx)
   local row = CreateFrame("Frame", nil, parent)
-  row:SetHeight(22)
-  row.text = row:CreateFontString(nil, "ARTWORK", "GameFontRedSmall")
-  row.text:SetPoint("LEFT", row, "LEFT", 8, 0)
-  row.text:SetText(item.text)
-  row.ShouldShow = item.shownWhen
+  row:SetHeight(Controls.ROW_HEIGHT)   -- until the first MeasureHeight
+
+  row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  row.text:SetPoint("TOPLEFT", row, "TOPLEFT", LABEL_LEFT_PAD, -NOTE_TOP_PAD)
+  row.text:SetPoint("RIGHT", row, "RIGHT", -RIGHT_PAD, 0)
+  row.text:SetJustifyH("LEFT")
+  row.text:SetWordWrap(true)
+
+  local dynamic = type(item.text) == "function"
+  row.text:SetText(dynamic and item.text(ctx.sid) or item.text)
+
+  function row.Refresh()
+    if dynamic then row.text:SetText(item.text(ctx.sid)) end
+    row.text:SetAlpha(RowEnabled(row, item, ctx) and 1 or NOTE_DISABLED_ALPHA)
+  end
+  row.Refresh()
+
+  -- Only the page knows the row's width (it anchors it), so the wrapped height
+  -- can be measured only once that has happened - hence a hook, not a size set
+  -- here. See Relayout in Ui/SettingsPage.lua.
+  function row.MeasureHeight()
+    return math.ceil(row.text:GetStringHeight()) + NOTE_TOP_PAD + NOTE_BOTTOM_PAD
+  end
+
   return row
 end
 
@@ -739,8 +1097,20 @@ end
 -- ===== Dispatch =====
 
 function Controls.CreateRow(parent, item, ctx)
-  if item.kind == "slider" then return Controls.CreateSliderRow(parent, item, ctx) end
-  if item.kind == "checkbox" then return Controls.CreateCheckboxRow(parent, item, ctx) end
-  if item.kind == "header" then return Controls.CreateHeaderRow(parent, item, ctx) end
-  if item.kind == "note" then return Controls.CreateNoteRow(parent, item) end
+  local row
+  if item.kind == "slider" then row = Controls.CreateSliderRow(parent, item, ctx) end
+  if item.kind == "checkbox" then row = Controls.CreateCheckboxRow(parent, item, ctx) end
+  if item.kind == "select" then row = Controls.CreateSelectRow(parent, item, ctx) end
+  if item.kind == "input" then row = Controls.CreateInputRow(parent, item, ctx) end
+  if item.kind == "button" then row = Controls.CreateButtonRow(parent, item, ctx) end
+  if item.kind == "header" then row = Controls.CreateHeaderRow(parent, item, ctx) end
+  if item.kind == "note" then row = Controls.CreateNoteRow(parent, item, ctx) end
+
+  -- Conditional visibility applies to every kind, not just notes: a slider
+  -- that only makes sense for one zoom type is hidden rather than greyed. The
+  -- page calls this with no arguments, so bind the situation here.
+  if row and item.shownWhen then
+    row.ShouldShow = function() return item.shownWhen(ctx.sid) end
+  end
+  return row
 end

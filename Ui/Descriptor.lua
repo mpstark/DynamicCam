@@ -6,22 +6,43 @@
 -- tables in Options.lua; when the transition is complete, this file is their
 -- only successor.
 --
--- One list serves both settings views - the Standard Settings tab and the
--- Situations tab's Situation Settings - exactly as the old UI's one builder
--- served both. What a situation page adds (the per-category override checkbox
--- and its gating) is layered on by Ui/SettingsPage.lua, not authored here.
+-- This file's own list (Ui.settingsCategories) serves both settings views - the
+-- Standard Settings tab and the Situations tab's Situation Settings - exactly as
+-- the old UI's one builder served both. What a situation page adds (the
+-- per-category override checkbox and its gating) is layered on by
+-- Ui/SettingsPage.lua, not authored here. Ui/ActionsDescriptor.lua is a second
+-- list in the same format, rendered by the same factories.
 --
--- Item kinds:
+-- Item kinds, common to every list:
 --   slider    { label, tooltip?, cvar?, dbPath, min, max, step,
 --               toDisplay?, fromDisplay?,   -- display-space transform pair
 --               minClampZero?,              -- cvar whose real minimum shows as 0
 --               zoomBased?,                 -- attach the zoom-based curve control
 --               enabledWhen?(sid),          -- gate (greys the row when false)
 --               transformNote? }            -- extra grey tooltip line
---   checkbox  { label, tooltip?, cvar?, dbPath, cvarBool?, get?/set? overrides }
+--   checkbox  { label, tooltip?, cvar?, dbPath, cvarBool?,
+--               get?(sid) / set?(value, sid) }   -- overrides, for a value
+--                                                -- that is DERIVED rather
+--                                                -- than stored (and so has
+--                                                -- no reset button)
+--   select    { label, tooltip?, options = { {value, text}, ... } }
+--                                           -- dropdown with < > steppers
+--   input     { label, tooltip?, lines? }   -- scrolling multi-line text box
+--   button    { label, tooltip?, buttonText?, onClick(sid) }
+--                                           -- an action, not a value
 --   header    { label, info?, toggle? }     -- category header; info becomes the
 --                                           -- "i" icon's tooltip text
---   note      { text, shownWhen()? }        -- red warning line
+--   note      { text }                      -- a wrapped paragraph; text may be
+--                                           -- a function(sid) for a warning
+--                                           -- whose wording depends on state
+--
+-- Any kind may also carry:
+--   tooltip     a string, or a function(sid) when it depends on the state
+--   enabledWhen(sid)   greys the row
+--   shownWhen(sid)     hides it outright - for rows that are ALTERNATIVES to
+--                      one another, never merely inactive ones
+--   ignoreCategoryGate exempt from the category's own enabledWhen (its Enable
+--                      checkbox, or a value that is not the category's subject)
 --
 -- Each category is { name, info?, toggle?, items }. The page prepends a header
 -- row carrying all three, so every category opens with a titled heading whose
@@ -45,11 +66,25 @@
 -- A setting whose tooltip would merely restate its own label is left without
 -- one; it then shows just its name and cvar.
 --
--- dbPath addresses DynamicCam:Get/SetSettingsValue (standardSettings, or the
--- edited situation's override on a situation page). It is also what tells that
--- page which values a category owns, so it can turn the whole category's
--- override on and off. All ranges are in DISPLAY space; toDisplay/fromDisplay
--- convert from/to the stored value.
+-- An item addresses its value one of two ways, and which one says what kind of
+-- value it is:
+--
+--   dbPath        DynamicCam:Get/SetSettingsValue - the standard settings, or
+--                 the edited situation's override of them. These always have a
+--                 value to fall back to, which is what lets a situation page
+--                 turn a whole category's override on and off (it reads the
+--                 category's dbPaths to know which values it owns). Defaults
+--                 come from defaults.profile.standardSettings.
+--   situationPath a path into the situation itself (transitionTime, viewZoom,
+--                 rotation, hideUI). These describe what happens on entering,
+--                 during and on leaving a situation, so they are per-situation
+--                 by nature with nothing to fall back to - no override layer
+--                 applies. Defaults come from DynamicCam.situationDefaults.
+--                 An optional apply(sid) runs after the write for values that
+--                 need more than storing (restarting a rotation, re-fading).
+--
+-- All ranges are in DISPLAY space; toDisplay/fromDisplay convert from/to the
+-- stored value.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")

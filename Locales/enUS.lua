@@ -241,6 +241,10 @@ L["Delete situation \"%s\"?"] = "Delete situation \"%s\"?"
 -- Situation Actions - General
 --------------------------------------------------------------------------------
 L["Situation Actions"] = "Situation Actions"
+-- NEW in the new UI: Set View and Set Zoom are separate categories, so each
+-- enable checkbox explains itself (the old UI had one group and a dropdown).
+L["<setViewEnable_desc>"] = "Switch to one of your saved views when entering this situation. A view brings its own zoom level with it. Enabling this disables \"Set Zoom\", since a situation can only do one of the two."
+L["<setZoomEnable_desc>"] = "Set the camera's zoom level when entering this situation. Enabling this disables \"Set View\", since a situation can only do one of the two."
 L["Setup stuff to happen while in a situation or when entering/exiting it."] = "Setup stuff to happen while in a situation or when entering/exiting it."
 L["Transition Time"] = "Transition Time"
 L["Enter Transition Time"] = "Enter Transition Time"
@@ -353,6 +357,11 @@ Or for short:
 L["Rotation"] = "Rotation"
 L["Start a camera rotation when this situation is active."] = "Start a camera rotation when this situation is active."
 L["Rotation Type"] = "Rotation Type"
+-- NEW in the new UI: category summaries for the Rotation and Fade Out UI
+-- headings. The old UI had no heading of its own for either, so its texts are
+-- all per-setting; these say what the whole category is for.
+L["<rotationCategory_desc>"] = "Turn the camera while this situation is active: either rotating it continuously for as long as the situation lasts, or by a set number of degrees when entering it. Continuous rotation suits situations in which you are not steering the camera yourself, such as taxi rides, teleport casts or being AFK. A rotation by degrees can also be undone again when the situation ends."
+L["<hideUICategory_desc>"] = "Fade out or hide the user interface while this situation is active, to keep the view clear for cinematic moments. You can fade it to a chosen opacity or hide it outright, and exempt individual frames - the minimap, the chat box, your party frames - from being faded with the rest."
 L["<rotationType_desc>"] = "\nContinuously: The camera is rotating horizontally all the time while this situation is active. Only advisable for situations in which you are not mouse-moving the camera; e.g. teleport spell casting, taxi or AFK. Continuous vertical rotation is not possible as it would stop at the perpendicular upwards or downwards view.\n\nBy Degrees: After entering the situation, change the current camera yaw (horizontal) and/or pitch (vertical) by the given amount of degrees."
 L["Continuously"] = "Continuously"
 L["By Degrees"] = "By Degrees"

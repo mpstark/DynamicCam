@@ -45,6 +45,7 @@ Options\DetachFrame.lua
 Options.lua
 Ui\MainFrame.lua
 Ui\Descriptor.lua
+Ui\ActionsDescriptor.lua
 Ui\Controls.lua
 Ui\SettingsPage.lua
 Ui\SituationsPage.lua

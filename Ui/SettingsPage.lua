@@ -10,15 +10,16 @@
 -- visible category (a scrollspy). Category boundaries are marked by a separator
 -- line. The page is built from a descriptor (Ui/Descriptor.lua).
 --
--- One factory serves both settings views (the old UI's forSituations pattern):
--- the Standard Settings tab runs it plainly, and the Situations tab runs it in
--- situation mode - same categories, same rows, plus the override layer: every
--- category heading gets a checkbox turning the situation's override of that
--- category on (starting it from the stock defaults) or off (erasing the
--- situation's values), rows are gated by it, and a grey underlay marks the
--- categories following the standard settings. Which situation the page edits is
--- switched at runtime (page.SetSid); everything reads ctx.sid lazily to allow
--- that.
+-- One factory serves every settings view (the old UI's forSituations pattern).
+-- The Standard Settings tab runs it plainly. The Situations tab runs it twice:
+-- once for Situation Settings, which adds the override layer - a checkbox on
+-- every category heading turning that category's override on (starting it from
+-- the stock defaults) or off (erasing the situation's values), gating its rows
+-- and greying the categories that still follow the standard settings - and once
+-- for Situation Actions, which edits the situation directly and has no such
+-- layer. Which situation a page edits is switched at runtime (page.SetSid);
+-- everything reads ctx.sid lazily to allow that. See Ui.CreatePage for the three
+-- shapes and what each one marks.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
@@ -226,10 +227,19 @@ end
 -- ===== Page =====
 
 -- Builds a settings page into `parent` (a tab content frame) from `categories`
--- (Ui/Descriptor.lua format). With forSituations the page carries the override
--- layer and edits the situation set via page.SetSid (nothing until the first
--- call); otherwise it edits the standard settings. configKey names the
--- db.global.newUi field remembering the selected category.
+-- (Ui/Descriptor.lua format). opts:
+--   configKey       db.global.newUi field remembering the selected category
+--   situation?      the page edits a situation, set via page.SetSid (nothing
+--                   until the first call), rather than the standard settings
+--   overrideLayer?  situation pages only: per-category override checkboxes,
+--                   which gate their category's rows and mark the categories
+--                   that have no override. Situation Settings has this layer;
+--                   Actions and Controls edit the situation directly and do not.
+--
+-- So there are three shapes, and what a marked category MEANS follows from them:
+--   standard page                blue    the active situation overrides this
+--   situation + override layer   grey    no override, following the standard
+--   situation, no layer          (none)  nothing to mark
 --
 -- The mode is its own argument rather than being read off the situation id,
 -- because a nil id means two opposite things: on the standard page it IS the
@@ -238,9 +248,15 @@ end
 -- standard settings. It also has to be known before an id exists at all: which
 -- headings carry an override checkbox, whether banner rows are built, and what
 -- the underlays are coloured, are settled once while building, and the
--- Situations tab builds its page before resolving which situation is selected.
-function Ui.CreatePage(parent, categories, forSituations, configKey)
+-- Situations tab builds its pages before resolving which situation is selected.
+function Ui.CreatePage(parent, categories, opts)
   local page = {}
+
+  local configKey    = opts.configKey
+  local overrideLayer = opts.overrideLayer
+  -- Derived, not passed twice: the override layer only exists on a situation
+  -- page, so a caller cannot set one without the other by mistake.
+  local situationMode = opts.situation or overrideLayer
 
   -- ===== Category column =====
 
@@ -301,7 +317,7 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
   -- (blue); on a situation page it means "no override, still following the
   -- standard settings" (grey). See UpdateOverrides.
   local markR, markG, markB = OVERRIDE_R, OVERRIDE_G, OVERRIDE_B
-  if forSituations then markR, markG, markB = DISABLED_R, DISABLED_G, DISABLED_B end
+  if overrideLayer then markR, markG, markB = DISABLED_R, DISABLED_G, DISABLED_B end
 
   local categoryButtons = {}
   for i, cat in ipairs(categories) do
@@ -447,11 +463,14 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
   -- situation overrides the category.
   local overrideState = {}
 
-  -- What overrideState[catIndex] should be right now.
+  -- What overrideState[catIndex] should be right now. A situation page without
+  -- the override layer has no such concept, and returning nil throughout leaves
+  -- its sections unmarked and its banners unbuilt without further branching.
   local function CurrentOverrideState(cat)
-    if forSituations then
+    if overrideLayer then
       return ctx.sid ~= nil and CategoryHasOverride(cat, ctx.sid)
     end
+    if situationMode then return nil end
     local sitID = DynamicCam.currentSituationID
     if sitID and CategoryHasOverride(cat, sitID) then
       return DynamicCam.db.profile.situations[sitID].name
@@ -460,24 +479,47 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
   end
 
   -- Whether a category's section gets the coloured underlay: the standard page
-  -- marks overridden sections (blue), a situation page marks sections WITHOUT
+  -- marks overridden sections (blue), the override layer marks sections WITHOUT
   -- an override (grey) - those still follow the standard settings.
   local function SectionMarked(catIndex)
-    if forSituations then
+    if overrideLayer then
       return ctx.sid ~= nil and not overrideState[catIndex]
     end
     return overrideState[catIndex] ~= nil
   end
 
-  -- Situation mode: rows are gated by their category's override checkbox -
-  -- while it is off, the situation has no values here and the controls would
-  -- edit nothing meaningful. (During a row's build-time Refresh row.category is
-  -- not set yet and the gate passes; the first gated Refresh comes with the
-  -- page's show.)
-  if forSituations then
-    ctx.rowGate = function(row)
-      return not row.category or overrideState[row.category] == true
+  -- A category may state ONE condition for the whole of it - typically its own
+  -- Enable checkbox. Applying it here rather than repeating it on every row is
+  -- the point: a category with a dozen rows would otherwise carry a dozen copies
+  -- of the same condition, and a row given a slightly different one (or none at
+  -- all) would quietly behave unlike its neighbours.
+  --
+  -- A row opts out with ignoreCategoryGate. The category's own switch must, or
+  -- it could never be turned back on; so must a row that is not about the
+  -- category's subject at all, such as a profile-wide value parked in it.
+  local function CategoryAllows(row, item)
+    if item.ignoreCategoryGate then return true end
+    local condition = row.category and categories[row.category].enabledWhen
+    return not condition or condition(ctx.sid)
+  end
+
+  -- The override layer adds its own gate on top: while a category's override is
+  -- off the situation has no values there, so its controls would edit nothing.
+  -- (During a row's build-time Refresh row.category is not set yet and the gate
+  -- passes; the first gated Refresh comes with the page's show.)
+  if overrideLayer then
+    ctx.rowGate = function(row, item)
+      if row.category and overrideState[row.category] ~= true then return false end
+      return CategoryAllows(row, item)
     end
+  elseif situationMode then
+    -- Without that layer there is nothing to gate by except having a situation
+    -- at all - with none selected the rows would be editing nothing.
+    ctx.rowGate = function(row, item)
+      return ctx.sid ~= nil and CategoryAllows(row, item)
+    end
+  else
+    ctx.rowGate = CategoryAllows
   end
 
   -- The "Currently overridden by ..." notice inserted above an overridden
@@ -500,7 +542,13 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
     row.text:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", Controls.LABEL_LEFT_PAD, 0)
     row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
     row.text:SetJustifyH("LEFT")
-    row.text:SetWordWrap(true)   -- the banner grows to fit (see Relayout)
+    row.text:SetWordWrap(true)
+
+    -- Measured by Relayout, once the row's width is fixed.
+    function row.MeasureHeight()
+      return math.max(OVERRIDE_BANNER_HEIGHT,
+        math.ceil(row.text:GetStringHeight()) + OVERRIDE_BANNER_TOP_PAD)
+    end
 
     function row.UpdateText(situationName)
       local coloredName = sc.colorEnd .. sc.active .. "\"" .. situationName .. "\"" ..
@@ -513,17 +561,20 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
 
   -- One underlay texture per category, on `content` so it draws behind the row
   -- frames; shown and stretched over the section by Relayout while the category
-  -- is marked (see SectionMarked, which also explains the two colours).
+  -- is marked (see SectionMarked, which also explains the two colours). A page
+  -- that marks nothing builds none.
   local sectionBg = {}
-  for i = 1, #categories do
-    local bg = content:CreateTexture(nil, "BACKGROUND")
-    if forSituations then
-      bg:SetColorTexture(DISABLED_R, DISABLED_G, DISABLED_B, SECTION_BG_ALPHA)
-    else
-      bg:SetColorTexture(OVERRIDE_R, OVERRIDE_G, OVERRIDE_B, SECTION_BG_ALPHA)
+  if overrideLayer or not situationMode then
+    for i = 1, #categories do
+      local bg = content:CreateTexture(nil, "BACKGROUND")
+      if overrideLayer then
+        bg:SetColorTexture(DISABLED_R, DISABLED_G, DISABLED_B, SECTION_BG_ALPHA)
+      else
+        bg:SetColorTexture(OVERRIDE_R, OVERRIDE_G, OVERRIDE_B, SECTION_BG_ALPHA)
+      end
+      bg:Hide()
+      sectionBg[i] = bg
     end
-    bg:Hide()
-    sectionBg[i] = bg
   end
 
   -- All categories are laid out one after another in a single scroll. Each opens
@@ -540,20 +591,20 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
     ctx.zoomZone = hasZoomBased and Controls.ZOOM_ZONE or 0
 
     -- Override banner first, so it sits above the header when shown.
-    if not forSituations then
+    if not situationMode then
       local banner = CreateOverrideBanner(catIndex)
       banner.ShouldShow = function() return overrideState[catIndex] ~= nil end
       rows[#rows + 1] = banner
     end
 
     -- Every category opens with a section header carrying the category's name
-    -- and its help text behind the header's "i" icon; in situation mode also
-    -- the checkbox turning this category's override on/off (the header row is
-    -- the natural home of a per-category control).
+    -- and its help text behind the header's "i" icon; with the override layer
+    -- also the checkbox turning this category's override on/off (the header row
+    -- is the natural home of a per-category control).
     local items = cat.items
     if items[1] and items[1].kind ~= "header" then
       local header = {kind = "header", label = cat.name, info = cat.info, toggle = cat.toggle}
-      if forSituations then
+      if overrideLayer then
         header.overrideToggle = {
           get = function() return ctx.sid ~= nil and CategoryHasOverride(cat, ctx.sid) end,
           set = function(enable)
@@ -657,12 +708,10 @@ function Ui.CreatePage(parent, categories, forSituations, configKey)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_LEFT_PAD, -y)
         row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -y)
-        -- The banner grows to hold its notice: the anchors above fix its width, so
-        -- the outlined text's height now reflects any wrap.
-        if row.isOverrideBanner then
-          row:SetHeight(math.max(OVERRIDE_BANNER_HEIGHT,
-            math.ceil(row.text:GetStringHeight()) + OVERRIDE_BANNER_TOP_PAD))
-        end
+        -- A row whose height depends on wrapped text (the override banner, a
+        -- note) can only measure it now: the anchors above are what fixed its
+        -- width, and the wrap follows from that.
+        if row.MeasureHeight then row:SetHeight(row.MeasureHeight()) end
         y = y + row:GetHeight() + (row.gapAfter or ROW_GAP)
         firstShown = false
       end
@@ -870,5 +919,5 @@ end
 -- Registered with the shell; built when the main frame is first created.
 Ui.tabBuilders = Ui.tabBuilders or {}
 Ui.tabBuilders[1] = function(tabContentFrame)
-  Ui.CreatePage(tabContentFrame, Ui.settingsCategories, false, "standardCategory")
+  Ui.CreatePage(tabContentFrame, Ui.settingsCategories, {configKey = "standardCategory"})
 end

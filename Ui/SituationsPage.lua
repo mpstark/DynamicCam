@@ -705,13 +705,18 @@ Ui.tabBuilders[2] = function(parent)
   -- second implementation.
   local tabNames = { L["Situation Settings"], L["Situation Actions"], L["Situation Controls"] }
   local pages = {}
-  local settingsPage
+  local pageObjects = {}   -- the Ui.CreatePage handles, keyed by inner tab
   for i, name in ipairs(tabNames) do
     local c = CreateFrame("Frame", nil, parent)
     c:SetAllPoints(content)
     c:Hide()
     if i == 1 then
-      settingsPage = Ui.CreatePage(c, Ui.settingsCategories, true, "situationCategory")
+      pageObjects[i] = Ui.CreatePage(c, Ui.settingsCategories,
+        {situation = true, overrideLayer = true, configKey = "situationCategory"})
+    elseif i == 2 then
+      -- Actions edit the situation directly, so no override layer.
+      pageObjects[i] = Ui.CreatePage(c, Ui.actionCategories,
+        {situation = true, configKey = "actionCategory"})
     else
       local placeholder = c:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
       placeholder:SetPoint("CENTER")
@@ -726,7 +731,8 @@ Ui.tabBuilders[2] = function(parent)
   -- dialogs call, and it can only be assembled here, once both halves exist.
   RefreshTopStrip = function()
     RefreshStrip()
-    settingsPage.SetSid(selectedSID)   -- ignores a repeat, so this is cheap
+    -- Every built page follows the selection; SetSid ignores a repeat.
+    for _, page in pairs(pageObjects) do page.SetSid(selectedSID) end
   end
   RefreshTopStrip()
 
