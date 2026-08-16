@@ -382,9 +382,10 @@ end
         condition = [[-- Check for "Racing" buff first, which is the most common one.
 if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
-  local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
   -- Cannot read auras during combat (any more).
-  if aura and (not issecretvalue or not issecretvalue(aura.spellId)) and this.raceBuffs[aura.spellId] then
+  local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, "player", i)
+  if not ok then return false end
+  if aura and this.raceBuffs[aura.spellId] then
     return true
   end
 end
@@ -605,19 +606,16 @@ for _, v in pairs(annoyingSpellList) do
 end
 ]],
         priority = 1000,
-        condition = [[for i = 1, 40 do
-  local spellId = nil
-  if UnitBuff then     -- Classic
-    _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-  else     -- Retail
-    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-    -- Cannot read auras during combat (any more).
-    if aura and (not issecretvalue or not issecretvalue(aura.spellId)) then
-      spellId = aura.spellId
-    end
+        condition = [[if UnitBuff then     -- Classic
+  for i = 1, 40 do
+    local _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+    if spellId and this.annoyingSpells[spellId] then return true end
   end
-
-  if spellId and this.annoyingSpells[spellId] then return true end
+else     -- Retail
+  for spellId in pairs(this.annoyingSpells) do
+    -- Also returns nil in combat.
+    if C_UnitAuras.GetPlayerAuraBySpellID(spellId) then return true end
+  end
 end
 return false]],
 },
