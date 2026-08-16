@@ -545,7 +545,7 @@ function DynamicCam:OnInitialize()
   self:RegisterChatCommand("showUI", "ShowUISlash")
 
   -- Disable the ActionCam warning message.
-  UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
+  GameEvent.UnregisterInternalEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
 
 
 end
