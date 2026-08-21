@@ -426,6 +426,30 @@ GameTooltip:HookScript("OnShow", GameTooltipHider)
 
 
 
+-- Frame properties written by addon code can come back as "secret" values, which
+-- cannot be used in a boolean test (see the ignoreParentAlpha tracking below for the
+-- case that made us aware of this). The game does not tell us which aspects behave
+-- this way, and the taint need not be ours: any other addon writing to the same frame
+-- has the same effect. So we read such properties through helpers that are guaranteed
+-- to yield a plain boolean, assuming whichever value is harmless if we cannot know.
+local function SecretSafeBool(value, valueIfSecret)
+  if issecretvalue and issecretvalue(value) then return valueIfSecret end
+  return value and true or false
+end
+
+-- Assuming "not shown" makes us leave the frame alone.
+local function IsShown(frame)
+  local shown = frame:IsShown()
+  return SecretSafeBool(shown, false)
+end
+
+-- Assuming "protected" keeps us from touching the frame while in combat lockdown.
+local function IsProtected(frame)
+  local protected = frame:IsProtected()
+  return SecretSafeBool(protected, true)
+end
+
+
 local function ConditionalHide(frame)
   if not frame then return end
 
@@ -435,16 +459,16 @@ local function ConditionalHide(frame)
   -- Functions calling it must make sure, it is not  called in combat lockdown.
 
   -- TODO: What if the combat started while the fade out was already happening???
-  if frame:IsProtected() and InCombatLockdown() then
+  if IsProtected(frame) and InCombatLockdown() then
     print("ERROR: Should not try to hide", frame:GetName(), "in combat lockdown!")
   end
 
   if frame.ludius_shownBeforeFadeOut == nil then
     -- if frame:GetName() == debugFrameName then print("Remember it was shown", frame:IsShown()) end
-    frame.ludius_shownBeforeFadeOut = frame:IsShown()
+    frame.ludius_shownBeforeFadeOut = IsShown(frame)
   end
 
-  if frame:IsShown() then
+  if IsShown(frame) then
     frame:Hide()
   end
 end
@@ -455,13 +479,13 @@ local function ConditionalShow(frame)
 
   -- if frame:GetName() == debugFrameName then print("ConditionalShow", frame:GetName(), frame.ludius_shownBeforeFadeOut) end
 
-  if frame:IsProtected() and InCombatLockdown() then
+  if IsProtected(frame) and InCombatLockdown() then
     print("ERROR: Should not try to show", frame:GetName(), "in combat lockdown!")
   end
 
 
   -- If the frame is already shown, we leave it be.
-  if not frame:IsShown() then
+  if not IsShown(frame) then
 
     -- For party and raid member frames, we cannot rely on ludius_shownBeforeFadeOut,
     -- so some more complex checks are necessary.
@@ -476,7 +500,7 @@ local function ConditionalShow(frame)
         -- Only show the party member frames, if we are in a party that is not a raid.
         -- (Use CompactRaidFrameContainer:IsShown() instead of UnitInRaid("player") because people might use
         -- an addon like SoloRaidFrame to show the raid frame even while not in raid.)
-        if UnitInParty("player") and not CompactRaidFrameContainer:IsShown() then
+        if UnitInParty("player") and not IsShown(CompactRaidFrameContainer) then
           -- Only for as many frames as there are party members.
           local numGroupMembers = GetNumGroupMembers()
           local frameNumber = tonumber(string_match(frame:GetName(), "^PartyMemberFrame(%d+)"))
@@ -497,7 +521,7 @@ local function ConditionalShow(frame)
 
       -- (Again also use CompactRaidFrameContainer:IsShown() because people might use
       -- an addon like SoloRaidFrame to show the raid frame even while not in raid.)
-      if UnitInParty("player") or CompactRaidFrameContainer:IsShown() then
+      if UnitInParty("player") or IsShown(CompactRaidFrameContainer) then
         frame:Show()
       end
 
@@ -522,7 +546,7 @@ local trackedIgnoreParentAlpha = {}
 
 
 -- To prevent other addons (Immersion, I'm looking in your direction) from
--- setting Minimap's and MinimapCluster's ignoreParentAlpha to false, when DynamicCam does not.
+-- setting Minimap's and MinimapCluster's ignoreParentAlpha to false, when this module does not.
 local function ParentAlphaGuard(self, ignoreParentAlpha)
   -- print(self:GetName(), "SetIgnoreParentAlpha", ignoreParentAlpha, self.ludius_intendedIgnoreParentAlpha)
   if self.ludius_intendedIgnoreParentAlpha ~= nil and ignoreParentAlpha ~= self.ludius_intendedIgnoreParentAlpha then
@@ -545,8 +569,8 @@ local function IsIgnoringParentAlpha(frame)
   if tracked ~= nil then
     return tracked
   end
-  -- Frame hasn't been modified by us yet; the API value is untainted.
-  return frame:IsIgnoringParentAlpha()
+  -- We have not modified this frame yet, but another addon may well have.
+  return SecretSafeBool(frame:IsIgnoringParentAlpha(), false)
 end
 
 local function TrackSetIgnoreParentAlpha(frame, ignoreParentAlpha)
@@ -648,7 +672,7 @@ end
 -- This is needed for example, if the keeping or fading of a frame should be governed by another addon.
 -- Like MinimapCluster is governed by Immersion and should therefore not be modified by IEF.
 -- FadeInFrame() will automatically ignore non-faded frames as it will not find our ludius_ flags.
-local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlpha)
+local function DoFadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlpha)
 
   if not frame or targetIgnoreParentAlpha == nil then return end
   
@@ -699,7 +723,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
   fadeInfo.finishedArg2 = targetAlpha
   fadeInfo.finishedFunc = function(finishedArg1, finishedArg2)
     -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), finishedArg2) end
-    if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
+    if finishedArg2 == 0 and (not IsProtected(finishedArg1) or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
       -- if finishedArg1:GetName() == debugFrameName then print("...and hiding!", finishedArg2) end
       ConditionalHide(finishedArg1)
     end
@@ -760,7 +784,7 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
         -- if finishedArg1:GetName() == debugFrameName then print("Fade out finished", finishedArg1:GetName(), finishedArg2) end
         finishedArg1:SetAlpha(1)
         ConditionalSetIgnoreParentAlpha(finishedArg1, false)
-        if finishedArg2 == 0 and (not finishedArg1:IsProtected() or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
+        if finishedArg2 == 0 and (not IsProtected(finishedArg1) or not InCombatLockdown()) and not keepDefaultHiddenFramesAsParent[finishedArg1] then
           ConditionalHide(finishedArg1)
         end
 
@@ -785,8 +809,8 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
     frame:SetAlpha(fadeInfo.endAlpha)
     fadeInfo.finishedFunc(frame, targetAlpha)
 
-  -- This is for some frames to not being shown in between situations that are both hiding them.
-  elseif (frame == MinimapCluster or frame == ObjectiveTrackerFrame) and targetAlpha == 0 and targetIgnoreParentAlpha == false and frame:GetParent():GetAlpha() == 0 and frame:IsShown() then
+  -- This is for some frames to not being shown in between two consecutive fade-outs that are both hiding them.
+  elseif (frame == MinimapCluster or frame == ObjectiveTrackerFrame) and targetAlpha == 0 and targetIgnoreParentAlpha == false and frame:GetParent():GetAlpha() == 0 and IsShown(frame) then
     fadeInfo.finishedFunc(frame, targetAlpha)
 
   else
@@ -797,7 +821,30 @@ local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlph
 end
 
 
-local function FadeInFrame(frame, duration, enteringCombat)
+-- A single misbehaving frame must not abort the whole fade and with it whatever else
+-- the calling addon is doing. So we fade every frame on its own and let a failure skip
+-- just that frame. Each distinct failure is reported once, so it can still be diagnosed
+-- instead of vanishing silently.
+local reportedFadeErrors = {}
+local function ReportFadeError(frame, errorMessage)
+  local frameName = "unknown frame"
+  if frame then
+    local gotName, name = pcall(frame.GetName, frame)
+    if gotName and name then frameName = name end
+  end
+  if reportedFadeErrors[frameName] then return end
+  reportedFadeErrors[frameName] = true
+  print(folderName .. ": Could not fade", frameName, "-", errorMessage)
+end
+
+
+local function FadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAlpha)
+  local ok, errorMessage = pcall(DoFadeOutFrame, frame, duration, targetIgnoreParentAlpha, targetAlpha)
+  if not ok then ReportFadeError(frame, errorMessage) end
+end
+
+
+local function DoFadeInFrame(frame, duration, enteringCombat)
 
   if not frame then return end
 
@@ -824,7 +871,7 @@ local function FadeInFrame(frame, duration, enteringCombat)
 
   if enteringCombat then
     -- When entering combat we have to show protected frames, which cannot be shown any more during combat.
-    if frame:IsProtected() then
+    if IsProtected(frame) then
       ConditionalShow(frame)
     end
     frame.ludius_alreadyOnIt = nil
@@ -908,6 +955,12 @@ local function FadeInFrame(frame, duration, enteringCombat)
   frame.ludius_fadeout = nil
   SetMouseOverAlpha(frame)
 
+end
+
+
+local function FadeInFrame(frame, duration, enteringCombat)
+  local ok, errorMessage = pcall(DoFadeInFrame, frame, duration, enteringCombat)
+  if not ok then ReportFadeError(frame, errorMessage) end
 end
 
 
