@@ -382,8 +382,10 @@ end
         condition = [[-- Check for "Racing" buff first, which is the most common one.
 if C_UnitAuras.GetPlayerAuraBySpellID(369968) ~= nil then return true end
 for i = 1, 40 do
-  local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
   -- Cannot read auras during combat (any more).
+  -- Since WoW 12.1 this raises an error instead of returning secret values, hence the pcall.
+  local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, "player", i)
+  if not ok then return false end
   if aura and (not issecretvalue or not issecretvalue(aura.spellId)) and this.raceBuffs[aura.spellId] then
     return true
   end
@@ -582,11 +584,19 @@ for _, v in pairs(teleportSpellList) do
 end
 ]],
         priority = 130,
-        condition = [[local _, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
+        condition = [[local _, _, _, _, _, _, _, _, spellId = UnitCastingInfo("player")
+-- Cast information may be secret, in which case we must not use it as a table key.
+if not spellId or (issecretvalue and issecretvalue(spellId)) then return false end
 if this.teleportSpells[spellId] then return true end
 return false]],
         executeOnEnter = [[local _, _, _, startTime, endTime = UnitCastingInfo("player")
-this.timeToEnter = (endTime - startTime)/1000]],
+-- The cast may be over by the time we enter, and cast information may be secret.
+-- Setting nil rather than a stale value, so the configured transition time applies.
+if not startTime or not endTime or (issecretvalue and (issecretvalue(startTime) or issecretvalue(endTime))) then
+  this.timeToEnter = nil
+else
+  this.timeToEnter = (endTime - startTime)/1000
+end]],
       },
       ["201"] = {
         name = L["Annoying Spells"] .. " (no combat in retail)",
@@ -605,19 +615,17 @@ for _, v in pairs(annoyingSpellList) do
 end
 ]],
         priority = 1000,
-        condition = [[for i = 1, 40 do
-  local spellId = nil
-  if UnitBuff then     -- Classic
-    _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-  else     -- Retail
-    local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
-    -- Cannot read auras during combat (any more).
-    if aura and (not issecretvalue or not issecretvalue(aura.spellId)) then
-      spellId = aura.spellId
-    end
+        condition = [[if UnitBuff then     -- Classic
+  for i = 1, 40 do
+    local _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+    if spellId and this.annoyingSpells[spellId] then return true end
   end
-
-  if spellId and this.annoyingSpells[spellId] then return true end
+else     -- Retail
+  -- Cannot read auras during combat (any more), but as GetPlayerAuraBySpellID returns nil
+  -- instead of raising an error, we can use it to check our few spells directly.
+  for spellId in pairs(this.annoyingSpells) do
+    if C_UnitAuras.GetPlayerAuraBySpellID(spellId) then return true end
+  end
 end
 return false]],
 },
@@ -724,9 +732,11 @@ end]],
   2366, 2368, 3570, 11993, 28695, 50300, 74519, 110413, 158745, 195114, 265819, 265821, 265823, 265825, 265827, 265829, 265831, 265834, 265835, 309780, 366252, 441327,
 }]],
         priority = 120,
-        condition = [[local name, _, _, _, _, _, _, _, spellId  = UnitCastingInfo("player")
+        condition = [[local name, _, _, _, _, _, _, _, spellId = UnitCastingInfo("player")
 -- Uncomment this to find out more spell IDs.
 -- print(name, spellId)
+-- Cast information may be secret, in which case we must not compare it.
+if not spellId or (issecretvalue and issecretvalue(spellId)) then return false end
 for _, v in pairs(this.spells) do
   if v == spellId then return true end
 end
@@ -745,7 +755,7 @@ return false]]
         condition = [[if ProfessionsFrame then return ProfessionsFrame:IsShown() end
 -- For classic:
 if TradeSkillFrame then return TradeSkillFrame:IsShown() end
-        ]]
+return false]]
       },
     },
 
