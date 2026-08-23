@@ -771,12 +771,19 @@ local function CvarUpdateFunction(self, elapsed)
             else
               targetValue = GetCvarValueForSituation(easing.newSituationId, cvarName, cameraZoom)
             end
-            value = easing.startValue + (targetValue - easing.startValue) * blendFactor
+            -- A cvar may be missing from the settings of either situation, in which case there
+            -- is nothing to blend. Leaving value at nil falls through to Priority 2/3 instead of
+            -- taking the whole update function down with an arithmetic error.
+            if targetValue then
+              value = easing.startValue + (targetValue - easing.startValue) * blendFactor
+            end
           else
             -- Normal cvars: cross-fade between old and new situation values at current zoom.
             local oldValue = GetCvarValueForSituation(easing.oldSituationId, cvarName, cameraZoom)
             local newValue = GetCvarValueForSituation(easing.newSituationId, cvarName, cameraZoom)
-            value = oldValue + (newValue - oldValue) * blendFactor
+            if oldValue and newValue then
+              value = oldValue + (newValue - oldValue) * blendFactor
+            end
           end
         end
       end
