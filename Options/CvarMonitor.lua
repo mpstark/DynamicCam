@@ -184,11 +184,44 @@ hooksecurefunc("ResetView", function(view) viewIsReset[tonumber(view)] = true en
 
 local validValuesCameraView = {[1] = true, [2] = true, [3] = true, [4] = true, [5] = true,}
 
+-- Motion Sickness (CameraKeepCharacterCentered and CameraReduceUnexpectedMovement) prevents
+-- both shoulder offset and dynamic pitch from taking effect, so we switch it off while either
+-- of them is in use. Both of them have to be taken into account when restoring it, or else
+-- switching one off restores a setting the other one still needs suppressed.
+local function ShoulderOffsetInUse()
+  if not DynamicCam.db then return false end
+  -- We check the configured value instead of the current cvar, because with
+  -- "according to zoom level" the cvar may momentarily be 0.
+  return DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "cvars", "test_cameraOverShoulder") ~= 0
+end
+
+local function DynamicPitchInUse()
+  return tonumber(GetCVar("test_cameraDynamicPitch")) == 1
+end
+
+-- We may have no stored value, if the cvar was never switched on while we were watching.
+local function RestoreMotionSicknessCvar(cvar, userValue)
+  if not userValue or userValue == GetCVar(cvar) then return end
+  -- print("|cFF00FF00Restoring", cvar, "|r")
+  SetCVar(cvar, userValue, "DynamicCam")
+end
+
+
 hooksecurefunc("SetCVar", function(cvar, value, flag)
   -- print(cvar, value, flag)
 
-  -- We are only handling cvar calls not done by DynamicCam.
+  -- Only the corrective calls below carry this flag. Everything else DynamicCam sets goes
+  -- through here unflagged on purpose, because applying a situation has to be monitored too.
   if flag == "DynamicCam" then return end
+
+  -- Depending on the caller, value may be a boolean, a number or a string.
+  -- We normalise it once, so the checks below do not have to cope with all three.
+  local numericValue
+  if type(value) == "boolean" then
+    numericValue = value and 1 or 0
+  else
+    numericValue = tonumber(value)
+  end
 
 
   -- Automatically undo forbidden motion sickness setting.
@@ -197,12 +230,12 @@ hooksecurefunc("SetCVar", function(cvar, value, flag)
     DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
     -- print("|cFF0000FFStoring userCameraKeepCharacterCentered!|r", GetCVar("CameraKeepCharacterCentered"))
 
-    if value == true or tonumber(value) == 1 then
-      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+    if numericValue == 1 then
+      if ShoulderOffsetInUse() then
         print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
         SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
 
-      elseif tonumber(GetCVar("test_cameraDynamicPitch")) == 1 then
+      elseif DynamicPitchInUse() then
         print("|cFFFF0000" .. L["While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!"] .. "|r")
         SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
       end
@@ -215,8 +248,8 @@ hooksecurefunc("SetCVar", function(cvar, value, flag)
     DynamicCam.userCameraReduceUnexpectedMovement = GetCVar("CameraReduceUnexpectedMovement")
     -- print("|cFF0000FFStoring userCameraReduceUnexpectedMovement!|r", GetCVar("CameraReduceUnexpectedMovement"))
 
-    if value == true or tonumber(value) == 1 then
-      if tonumber(GetCVar("test_cameraOverShoulder")) ~= 0 then
+    if numericValue == 1 then
+      if ShoulderOffsetInUse() then
         print("|cFFFF0000" .. L["While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!"] .. "|r")
         SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
       end
@@ -226,61 +259,59 @@ hooksecurefunc("SetCVar", function(cvar, value, flag)
   elseif cvar == "test_cameraOverShoulder" then
 
     -- If necessary, prevent Motion Sickness.
-    if tonumber(value) ~= 0 then
+    if numericValue ~= 0 then
 
       if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
-        -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
-        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        -- print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraKeepCharacterCentered!|r")
+        -- We used to assert here that we had stored this value before. But the cvar can also
+        -- be changed without going through SetCVar (console command, or another addon calling
+        -- C_CVar.SetCVar directly), so our stored value may be out of date. Whatever is set
+        -- right before we override it is by definition what we have to restore afterwards.
+        DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
         SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
       end
       if tonumber(GetCVar("CameraReduceUnexpectedMovement")) == 1 then
         -- print("|cFFFF0000While you are using horizontal camera offset, DynamicCam prevents CameraReduceUnexpectedMovement!|r")
-        assert(DynamicCam.userCameraReduceUnexpectedMovement == GetCVar("CameraReduceUnexpectedMovement"))
+        DynamicCam.userCameraReduceUnexpectedMovement = GetCVar("CameraReduceUnexpectedMovement")
         SetCVar("CameraReduceUnexpectedMovement", false, "DynamicCam")
       end
 
     -- If no longer necessary, restore Motion Sickness.
-    -- (cvar may become 0 "according to zoom level", so we check
-    elseif DynamicCam:GetSettingsValue(DynamicCam.currentSituationID, "cvars", "test_cameraOverShoulder") == 0 then
-      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
-        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
-        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
+    elseif not ShoulderOffsetInUse() then
+      -- Dynamic pitch needs CameraKeepCharacterCentered suppressed as well.
+      if not DynamicPitchInUse() then
+        RestoreMotionSicknessCvar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered)
       end
-      if DynamicCam.userCameraReduceUnexpectedMovement ~= GetCVar("CameraReduceUnexpectedMovement") then
-        -- print("|cFF00FF00Restoring CameraReduceUnexpectedMovement!|r")
-        SetCVar("CameraReduceUnexpectedMovement", DynamicCam.userCameraReduceUnexpectedMovement, "DynamicCam")
-      end
+      RestoreMotionSicknessCvar("CameraReduceUnexpectedMovement", DynamicCam.userCameraReduceUnexpectedMovement)
     end
 
 
   elseif cvar == "test_cameraDynamicPitch" then
 
     -- If necessary, prevent Motion Sickness.
-    if tonumber(value) == 1 then
+    if numericValue == 1 then
       if tonumber(GetCVar("CameraKeepCharacterCentered")) == 1 then
         -- print("|cFFFF0000While you are using vertical camera pitch, DynamicCam prevents CameraKeepCharacterCentered!|r")
-        assert(DynamicCam.userCameraKeepCharacterCentered == GetCVar("CameraKeepCharacterCentered"))
+        DynamicCam.userCameraKeepCharacterCentered = GetCVar("CameraKeepCharacterCentered")
         SetCVar("CameraKeepCharacterCentered", false, "DynamicCam")
       end
 
     -- If no longer necessary, restore Motion Sickness.
-    else
-      if DynamicCam.userCameraKeepCharacterCentered ~= GetCVar("CameraKeepCharacterCentered") then
-        -- print("|cFF00FF00Restoring CameraKeepCharacterCentered!|r")
-        SetCVar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered, "DynamicCam")
-      end
+    -- (Shoulder offset needs CameraKeepCharacterCentered suppressed as well.)
+    elseif not ShoulderOffsetInUse() then
+      RestoreMotionSicknessCvar("CameraKeepCharacterCentered", DynamicCam.userCameraKeepCharacterCentered)
     end
 
 
 
 
   -- https://github.com/Mpstark/DynamicCam/issues/40
-  elseif cvar == "cameraView" and not validValuesCameraView[tonumber(value)] then
-    print("|cFFFF0000" .. L["cameraView=%s prevented by DynamicCam!"]:format(value) .. "|r")
+  elseif cvar == "cameraView" and not validValuesCameraView[numericValue] then
+    print("|cFFFF0000" .. L["cameraView=%s prevented by DynamicCam!"]:format(tostring(value)) .. "|r")
     SetCVar("cameraView", GetCVarDefault("cameraView"), "DynamicCam")
 
   -- Switch to a default view, if user switches to cameraSmoothStyle.
-  elseif cvar == "cameraSmoothStyle" and value ~= "0" then
+  elseif cvar == "cameraSmoothStyle" and numericValue ~= 0 then
     -- The order (first reset then set) is important, because if you are already
     -- in view 1 and do a reset, it also sets the view. If this is followed by
     -- another setView, you get an undesired instant view switch.

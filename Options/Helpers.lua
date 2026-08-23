@@ -212,6 +212,13 @@ function DynamicCam:GetSettingsValue(situationId, index1, index2)
   -- Is this a request for a standard or situation setting?
   local settingsTable = self:GetSettingsTable(situationId)
 
+  -- The situation may not exist in the current profile (e.g. right after a profile change).
+  -- We are reading here, so falling back to the standard settings is better than erroring out,
+  -- particularly because this is also called from the per-frame cvar update.
+  if not settingsTable then
+    settingsTable = self.db.profile.standardSettings
+  end
+
   -- Is this a request for the cvars sub table?
   if index1 == "cvars" and index2 then
     -- Is there a user setting?
