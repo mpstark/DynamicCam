@@ -11,11 +11,23 @@
 ## Notes-esMX: Una cámara más dinámica.
 ## Notes-frFR: Une caméra plus dynamique.
 ## Notes-itIT: Una telecamera più dinamica.
+## Notes-koKR: 더 역동적인 카메라.
 ## Notes-ptBR: Uma câmera mais dinâmica.
 ## Notes-ruRU: Более динамичная камера.
-## Notes-koKR: 더 역동적인 카메라.
 ## Notes-zhCN: 智能动态相机镜头。
 ## Notes-zhTW: 智能動態相機鏡頭。
+
+## Category: Other
+## Category-deDE: Anderes
+## Category-esES: Otros
+## Category-esMX: Otros
+## Category-frFR: Autre
+## Category-itIT: Altro
+## Category-koKR: 기타
+## Category-ptBR: Outro
+## Category-ruRU: Другое
+## Category-zhCN: 其它
+## Category-zhTW: 其他
 
 ## OptionalDeps: Bartender4, GW2_UI, Immersion, Immersion_ExtraFade
 ## SavedVariables: DynamicCamDB, minZoomValues
