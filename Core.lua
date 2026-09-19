@@ -18,6 +18,35 @@ DynamicCam = LibStub("AceAddon-3.0"):NewAddon(folderName, "AceConsole-3.0", "Ace
 DynamicCam.LibCamera = LibCamera
 
 
+-- Which game we are running on. Blizzard's WOW_PROJECT_ID does not distinguish WoW Forever: it answers
+-- WOW_PROJECT_MAINLINE there, even though Forever is a 1.60 game with none of retail's content. So we add an
+-- id of our own and use DynamicCam.projectId instead of WOW_PROJECT_ID everywhere. A string can never collide with
+-- a number Blizzard may assign later, and once they do assign one, only these lines have to change.
+-- Interface versions are major*10000 + minor*100 + patch, so 1.x spans 10000-19999. Classic Era sits at 1.15.x,
+-- Forever at 1.60.x.
+DynamicCam.WOW_PROJECT_FOREVER = "forever"
+
+local interfaceVersion = select(4, GetBuildInfo())
+if interfaceVersion >= 16000 and interfaceVersion < 20000 then
+  DynamicCam.projectId = DynamicCam.WOW_PROJECT_FOREVER
+else
+  DynamicCam.projectId = WOW_PROJECT_ID
+end
+
+
+-- Whether the running client actually has a texture file, so we can fall back to a copy we ship ourselves. Asking
+-- the client beats deducing it from the flavor, which is how we used to decide and which Forever broke: a path the
+-- client does not know leaves the texture empty.
+local textureProbe
+function DynamicCam.GameTextureExists(path)
+  textureProbe = textureProbe or UIParent:CreateTexture()
+  textureProbe:SetTexture(path)
+  local exists = textureProbe:GetTexture() ~= nil
+  textureProbe:SetTexture(nil)
+  return exists
+end
+
+
 DynamicCam.currentSituationID = nil
 
 -- Situation status color codes for UI text.

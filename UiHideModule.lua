@@ -316,7 +316,9 @@ end
 
 
 
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+-- ReputationWatchBar and MainMenuExpBar are the old classic status bars. Where they exist we hook those, and
+-- everywhere else the status tracking bar containers, which is what this used to decide from the client flavor.
+if not ReputationWatchBar then
 
   local function SetMouseOverFading(barManager)
     -- Have to do this for the single bars.
@@ -416,7 +418,7 @@ end
 
 
 
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+if TooltipDataProcessor then
   TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, GameTooltipHider)
 else
   GameTooltip:HookScript("OnTooltipSetItem", GameTooltipHider)

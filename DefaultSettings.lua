@@ -764,8 +764,9 @@ return false]]
 }
 
 
--- Special modifications for classic.
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+-- Special modifications for the clients that do not have retail's content. Forever reaches this too: it
+-- answers WOW_PROJECT_MAINLINE, which is why it used to keep all of the situations below.
+if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
 
   -- No pet battles before mists.
   DynamicCam.defaults.profile.situations["310"] = nil
@@ -780,7 +781,7 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
 
 
-  if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+  if DynamicCam.projectId == WOW_PROJECT_CLASSIC then
 
     -- Cannot have SHIPMENT_CRAFTER_CLOSED, SHIPMENT_CRAFTER_OPENED, TRANSMOGRIFY_CLOSE, TRANSMOGRIFY_OPEN.
     -- In classic also not PLAYER_INTERACTION_MANAGER_FRAME_HIDE and PLAYER_INTERACTION_MANAGER_FRAME_SHOW.
@@ -799,8 +800,11 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
     DynamicCam.defaults.profile.situations["170"] = nil
 
 
-  -- Currently Wrath classic.
-  else
+  -- BCC, Wrath, Cata, Mists and the Anniversary clients. Not Forever: its event surface is retail's (it has
+  -- PLAYER_INTERACTION_MANAGER, TRANSMOGRIFY and SHIPMENT_CRAFTER), so neither list applies to it.
+  -- TODO: check in game whether Forever has flying mounts (situations 101, 102 and 105) and vehicles (170).
+  -- If it does not, they have to be removed for it as well.
+  elseif DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
 
     -- Cannot have "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}

@@ -14,7 +14,7 @@ local Options = DynamicCam.Options
 
 
 DynamicCam.cameraDistanceMaxZoomFactor_max = 39
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
   DynamicCam.cameraDistanceMaxZoomFactor_max = 50
 end
 
@@ -1607,7 +1607,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
               transitionTimeReset = {
                 type = "execute",
                 name = L["Reset"],
-                image = "Interface\\Transmogrify\\Transmogrify",
+                image = Options.resetButtonImage,
                 imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
@@ -1724,7 +1724,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
-                image = "Interface\\Transmogrify\\Transmogrify",
+                image = Options.resetButtonImage,
                 imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
@@ -2241,7 +2241,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
-                image = "Interface\\Transmogrify\\Transmogrify",
+                image = Options.resetButtonImage,
                 imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,
@@ -2435,7 +2435,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                 type = "execute",
                 -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
                 name = L["Reset"],
-                image = "Interface\\Transmogrify\\Transmogrify",
+                image = Options.resetButtonImage,
                 imageCoords = Options.resetButtonImageCoords,
                 imageWidth = 25/1.5,
                 imageHeight = 24/1.5,

@@ -12,11 +12,22 @@ local Options = DynamicCam.Options
 
 
 -------------------------------------------------------------------------------
--- Reset Button Image Coordinates
+-- Reset Button Image
 -------------------------------------------------------------------------------
+-- The transmogrify revert arrow. Where it sits inside Transmogrify.blp differs per client, so we ask the atlas for
+-- it and keep the hard-coded pairs only as a fallback for clients without that atlas. The pairs alone are not
+-- enough: Forever reports WOW_PROJECT_MAINLINE but puts the icon somewhere else again, and the mainline pair is a
+-- square crop of a 25x24 icon, so it came out padded even where it was "right".
+Options.resetButtonImage = "Interface\\Transmogrify\\Transmogrify"
 Options.resetButtonImageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
   Options.resetButtonImageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875}
+end
+
+local revertAtlas = C_Texture.GetAtlasInfo("transmog-icon-revert-small")
+if revertAtlas then
+  Options.resetButtonImage = revertAtlas.file
+  Options.resetButtonImageCoords = {revertAtlas.leftTexCoord, revertAtlas.rightTexCoord, revertAtlas.topTexCoord, revertAtlas.bottomTexCoord}
 end
 
 
@@ -108,7 +119,7 @@ function Options.CreateSliderResetButton(order, forSituations, index1, index2, t
     -- name = CreateAtlasMarkup("transmog-icon-revert-small", 20, 20),
 
     name = L["Reset"],
-    image = "Interface\\Transmogrify\\Transmogrify",
+    image = Options.resetButtonImage,
     imageCoords = Options.resetButtonImageCoords,
     imageWidth = 25/1.5,
     imageHeight = 24/1.5,

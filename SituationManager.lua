@@ -348,8 +348,8 @@ local unsetMoreQuestDialogTimer = nil
 local waitForQuestFrameToReopen = 0.3
 
 
--- GetNumActiveQuests() does not exist in classic.
-if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
+-- Not every client has GetNumActiveQuests().
+if GetNumActiveQuests then
 
   -- When an NPC has more than one quest, after accepting/returning the first quest,
   -- the QuestFrame disappears for a short time, which momentarily exits
@@ -1144,7 +1144,9 @@ DynamicCam.FlyingMountList = {}
 local maintainFlyingMountListFrame = CreateFrame ("Frame")
 maintainFlyingMountListFrame:RegisterEvent("PLAYER_LOGIN")
 maintainFlyingMountListFrame:SetScript("OnEvent", function()
-  if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
+  -- A genuine "which game is this" question: LibMountInfo needs the retail mount journal filters to tell flying
+  -- mounts apart, and there is nothing to test for that short of the client itself.
+  if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then return end
   
   -- Update our local reference to match LibMountInfo
   DynamicCam.FlyingMountList = LibMountInfo.flyingMounts
