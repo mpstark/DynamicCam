@@ -662,6 +662,7 @@ L["Swimming"] = "Swimming"
 L["AFK"] = "AFK"
 L["Pet Battle"] = "Pet Battle"
 L["Professions Frame Open"] = "Professions Frame Open"
+L["Camping"] = "Camping"
 
 --------------------------------------------------------------------------------
 -- DELETE WHEN OLD DC FRAME GOES

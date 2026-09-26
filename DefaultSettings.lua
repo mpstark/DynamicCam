@@ -738,6 +738,16 @@ return false]]
         priority = 105,
         condition = [[return IsSwimming("player")]]
       },
+      -- WoW Forever: sitting at a campfire applies the "Welcoming Campfire" buff.
+      ["324"] = {
+        name = L["Camping"],
+        events = {"UNIT_AURA"},
+        priority = 40,
+        condition = [[if C_UnitAuras.GetPlayerAuraBySpellID(1229739) ~= nil then return true end     -- Welcoming Campfire
+return false]],
+        -- The buff lasts 60 s and is reapplied ~5 s after it expires while you keep sitting.
+        delay = 6,
+      },
       ["330"] = {
         name = L["Professions Frame Open"],
         events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},
@@ -766,6 +776,7 @@ if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
   DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
   DynamicCam.defaults.profile.situations["130"] = nil    -- Dragon Racing
+  DynamicCam.defaults.profile.situations["324"] = nil    -- Camping (WoW Forever)
 
 
 
