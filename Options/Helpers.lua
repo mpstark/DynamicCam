@@ -284,10 +284,12 @@ function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
   for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do
     if _G["AceGUI30Pullout" .. i] then _G["AceGUI30Pullout" .. i]:SetIgnoreParentAlpha(ignoreParentAlpha) end
   end
-  -- Also apply to the detached pop-out frame if it is open.
+  -- Also apply to the detached pop-out frame if it is open. It has an AceConfigDialog app name
+  -- of its own rather than "DynamicCam", so this used to look up a slot that is never filled.
   local acd = LibStub("AceConfigDialog-3.0")
-  if acd.OpenFrames and acd.OpenFrames["DynamicCam"] then
-    acd.OpenFrames["DynamicCam"].frame:SetIgnoreParentAlpha(ignoreParentAlpha)
+  local detachedApp = Options.DETACHED_APP
+  if detachedApp and acd.OpenFrames and acd.OpenFrames[detachedApp] then
+    acd.OpenFrames[detachedApp].frame:SetIgnoreParentAlpha(ignoreParentAlpha)
   end
 end
 

@@ -14,6 +14,9 @@ local acr = LibStub("AceConfigRegistry-3.0")
 -- that the detached frame has its own status tables and OpenFrames slot,
 -- letting it coexist with the Blizzard-panel-embedded "DynamicCam" frame.
 local DETACHED_APP = "DynamicCam_Detached"
+-- Shared, so that the "do not fade out this settings frame" exemption in Options/Helpers.lua
+-- can reach the detached frame without repeating the name.
+Options.DETACHED_APP = DETACHED_APP
 local DETACHED_FRAME_WIDTH = 680  -- fixed width; east-edge resizer is disabled
 
 -- Module-level state.
@@ -77,6 +80,9 @@ proxy:Hide()
 local function HasVisibleFrames()
   return detachedOpen or DynamicCam:HasVisibleCurveEditors()
 end
+-- Shared, so that the emergency ESC in Core.lua can tell whether this press was meant for one
+-- of these frames rather than for fading the UI back in.
+Options.HasVisibleFrames = HasVisibleFrames
 
 proxy:SetScript("OnHide", function(self)
   -- Capture the flag synchronously into a local before scheduling the
@@ -100,6 +106,9 @@ proxy:SetScript("OnHide", function(self)
 
     -- Genuine ESC: close our frames.
     if acd.OpenFrames and acd.OpenFrames[DETACHED_APP] then
+      -- AceGUI plays this from its close button's OnClick, not from the widget's Hide(), so
+      -- closing by ESC would otherwise be silent. Same sound, so both ways of closing match.
+      PlaySound(SOUNDKIT.GS_TITLE_OPTION_EXIT)
       acd.OpenFrames[DETACHED_APP]:Hide()
     end
     DynamicCam:EscAllCurveEditors()
@@ -304,6 +313,11 @@ function Options:OpenDetached()
   detachedWidget = widget
   detachedOpen   = true
   Options:ShowEscProxy()
+
+  -- AceGUI pools its frames, so we get a different one from open to open. The "do not fade out
+  -- this settings frame" setting therefore has to be applied here as well, not just when the
+  -- user changes it.
+  DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
 
   widget.frame:Raise()  -- bring to front on every open
 
