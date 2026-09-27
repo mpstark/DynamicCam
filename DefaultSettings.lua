@@ -749,13 +749,12 @@ return false]]
         priority = 105,
         condition = [[return IsSwimming("player")]]
       },
-      -- WoW Forever: sitting at a campfire applies the "Welcoming Campfire" buff.
-      ["324"] = {
+      -- WoW Forever: sitting at a campfire applies the "Welcoming Campfire" buff (spell id 1229739).
+      ["325"] = {
         name = L["Camping"],
         events = {"UNIT_AURA"},
         priority = 40,
-        condition = [[if C_UnitAuras.GetPlayerAuraBySpellID(1229739) ~= nil then return true end     -- Welcoming Campfire
-return false]],
+        condition = [[return C_UnitAuras.GetPlayerAuraBySpellID(1229739) ~= nil]],
         -- The buff lasts 60 s and is reapplied ~5 s after it expires while you keep sitting.
         delay = 6,
       },
@@ -791,7 +790,6 @@ if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
   DynamicCam.defaults.profile.situations["107"] = nil    -- Mounted (only Skyriding)
   DynamicCam.defaults.profile.situations["130"] = nil    -- Skyriding Races
   DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
-  DynamicCam.defaults.profile.situations["324"] = nil    -- Camping (WoW Forever)
 
   -- Neither flying mounts nor vehicles in vanilla classic or in Forever, so these can never become true.
   -- Taxi flights do not count: every mounted situation already excludes them with UnitOnTaxi().
@@ -835,6 +833,13 @@ if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
 
   end
 
+end
+
+
+-- Camping exists only in Forever, so every other client loses it - retail included, which the block
+-- above never touches.
+if DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
+  DynamicCam.defaults.profile.situations["325"] = nil    -- Camping
 end
 
 
