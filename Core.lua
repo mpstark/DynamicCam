@@ -18,6 +18,35 @@ DynamicCam = LibStub("AceAddon-3.0"):NewAddon(folderName, "AceConsole-3.0", "Ace
 DynamicCam.LibCamera = LibCamera
 
 
+-- Which game we are running on. Blizzard's WOW_PROJECT_ID does not distinguish WoW Forever: it answers
+-- WOW_PROJECT_MAINLINE there, even though Forever is a 1.60 game with none of retail's content. So we add an
+-- id of our own and use DynamicCam.projectId instead of WOW_PROJECT_ID everywhere. A string can never collide with
+-- a number Blizzard may assign later, and once they do assign one, only these lines have to change.
+-- Interface versions are major*10000 + minor*100 + patch, so 1.x spans 10000-19999. Classic Era sits at 1.15.x,
+-- Forever at 1.60.x.
+DynamicCam.WOW_PROJECT_FOREVER = "forever"
+
+local interfaceVersion = select(4, GetBuildInfo())
+if interfaceVersion >= 16000 and interfaceVersion < 20000 then
+  DynamicCam.projectId = DynamicCam.WOW_PROJECT_FOREVER
+else
+  DynamicCam.projectId = WOW_PROJECT_ID
+end
+
+
+-- Whether the running client actually has a texture file, so we can fall back to a copy we ship ourselves. Asking
+-- the client beats deducing it from the flavor, which is how we used to decide and which Forever broke: a path the
+-- client does not know leaves the texture empty.
+local textureProbe
+function DynamicCam.GameTextureExists(path)
+  textureProbe = textureProbe or UIParent:CreateTexture()
+  textureProbe:SetTexture(path)
+  local exists = textureProbe:GetTexture() ~= nil
+  textureProbe:SetTexture(nil)
+  return exists
+end
+
+
 DynamicCam.currentSituationID = nil
 
 -- Situation status color codes for UI text.
@@ -222,45 +251,111 @@ UpdateCurrentShoulderOffset = DynamicCam.UpdateCurrentShoulderOffset
 -- FADE UI --
 -------------
 
--- We Show() this frame, whenever we are hiding the UI.
--- Inserting it into UISpecialFrames leads to the frame being hidden when
--- the user presses ESCAPE. So we can use the frame's OnHide script to
--- bring the UI back.
+-- To prevent unintended showing of UIParent, we set this flag whenever we have hidden it.
+local uiParentHidden = false
+
+
+-- We Show() this frame whenever we are hiding the UI, and put it into UISpecialFrames so that it
+-- gets hidden again when the user presses ESC.
+--
+-- UISpecialFrames is not an ESC hook, though: it is walked by CloseSpecialWindows(), which
+-- CloseAllWindows() calls - and that is called by the micro menu, by the settings panel and by a
+-- handful of game events. Being hidden therefore only tells us that SOMETHING closed all windows,
+-- which is why opening the game settings used to fade the UI back in as if ESC had been pressed.
+--
+-- ToggleGameMenu() is what the ESC binding calls, and it is the only one of those callers that
+-- goes through it - but it closes the windows from inside its own body, so our OnHide runs before
+-- the hook below can tell us. Hence we wait a frame before deciding, and put the frame back when
+-- it turns out that nobody pressed ESC.
+--
+-- We deliberately do NOT use RegisterGameMenuEscHandler(), even though it has a priority named
+-- AddOn: it ends with table.sort() over its shared handler list, so registering from addon code
+-- rewrites every slot and taints Blizzard's own handlers. The one that calls SpellStopCasting()
+-- then throws ADDON_ACTION_FORBIDDEN on every ESC press.
 local fadeUIEscapeHandlerFrame = CreateFrame("Frame", "DynamicCamfadeUIEscapeHandlerFrame")
 tinsert(UISpecialFrames, fadeUIEscapeHandlerFrame:GetName())
+
+-- Only true during the screen frame in which ESC was pressed.
+local escapeWasPressed = false
+hooksecurefunc("ToggleGameMenu", function()
+  escapeWasPressed = true
+  C_Timer.After(0, function() escapeWasPressed = false end)
+end)
+
+-- ToggleGameMenu() is not quite the same thing as an ESC press, though: closing the settings frame
+-- calls it too, by any means and without any key being pressed.
+--   SettingsPanel:Close() -> ExitWithCommit() -> TransitionBackOpeningPanel()
+-- which does HideUIPanel(self) and then ToggleGameMenu(). The HideUIPanel() comes first, so this
+-- flag is already set by the time the cascade reaches our OnHide below.
+--
+-- Options/DetachFrame.lua keeps the same flag for its own ESC proxy. Duplicated on purpose for
+-- now: the two answer different questions (close my frames vs. fade the UI back in), and giving
+-- them one shared signal is a change of its own.
+local settingsPanelJustClosed = false
+SettingsPanel:HookScript("OnHide", function()
+  settingsPanelJustClosed = true
+  C_Timer.After(0, function() settingsPanelJustClosed = false end)
+end)
+
+-- Pressing ESC only brings the UI back while the current situation asks for it.
+local function EmergencyShowEnabled()
+  local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
+  return curSituation ~= nil and curSituation.hideUI ~= nil and curSituation.hideUI.emergencyShowEscEnabled == true
+end
 
 fadeUIEscapeHandlerFrame:SetScript("OnHide", function(self)
   -- print("Hiding FadeUIEscapeHandler")
 
-  if not DynamicCam.db.profile.situations[DynamicCam.currentSituationID].hideUI.emergencyShowEscEnabled then return end
+  -- Read synchronously: this flag resets itself on a timer that was scheduled before the one
+  -- below, so by the time that one runs the flag is false again.
+  local wasSettingsClose = settingsPanelJustClosed
 
-  -- We do not even have to Show() UIParent here, because whenever
-  -- UIParent is hidden the first press of ESCAPE will bring
-  -- UIParent back. Only a second ESCAPE press would then hide
-  -- all shown UISpecialFrames. That's why we are always hiding
-  -- fadeUIEscapeHandlerFrame after UIParent's OnHide handler.
-  -- (see below).
+  -- ESC closes the topmost frame first, so a press that closes one of our own frames is not a
+  -- press for fading the UI back in. Also read synchronously, because DetachFrame.lua closes
+  -- those frames from a deferred timer of its own: right now they still count as open.
+  local options = DynamicCam.Options
+  local ownFrameWasOpen = options ~= nil and options.HasVisibleFrames ~= nil and options.HasVisibleFrames()
 
-  -- Use this as default.
-  local fadeInTime = 0.5
+  -- Whoever hid us did so from inside ToggleGameMenu() if and only if this was an ESC press, and
+  -- that only becomes visible once ToggleGameMenu() returns. So decide on the next frame.
+  C_Timer.After(0, function()
 
-  -- Check if we are currently in a situation with fadeInTime.
-  local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
-  if curSituation and curSituation.hideUI.enabled then
-    fadeInTime = curSituation.transitionTime.timeToExit
-  end
+    -- Anything but a real ESC press that the current situation asks us to act on has to leave the
+    -- UI exactly as it was: the micro menu, the settings panel and a handful of game events all
+    -- close all windows too. We put our marker back so that the next ESC still works, and because
+    -- leaveCombatFrame reads its shown state to decide whether to fade out again after combat.
+    if not escapeWasPressed or wasSettingsClose or ownFrameWasOpen or not EmergencyShowEnabled() then
+      if ludius_UiHideModule.uiHiddenTime ~= 0 then self:Show() end
+      return
+    end
 
-  DynamicCam:FadeInUI(fadeInTime)
+    -- No need to Show() UIParent, even when the whole UI was hidden: ESC brings UIParent back by
+    -- itself, and the hook below then hides this frame, which is how we got here.
+
+    -- Use this as default.
+    local fadeInTime = 0.5
+
+    -- Check if we are currently in a situation with fadeInTime.
+    local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
+    if curSituation and curSituation.hideUI and curSituation.hideUI.enabled then
+      fadeInTime = curSituation.transitionTime.timeToExit
+    end
+
+    DynamicCam:FadeInUI(fadeInTime)
+  end)
 end)
 -- For debugging.
 -- fadeUIEscapeHandlerFrame:SetScript("OnShow", function() print("Showing FadeUIEscapeHandler") end)
 
 
--- Whenever UIParent is hidden, the first ESCAPE press brings UIParent back.
--- A second ESCAPE press would be needed to hide UISpecialFrames.
--- So we already hide fadeUIEscapeHandlerFrame with the first ESCAPE press.
+-- Whenever UIParent is hidden, the first ESC press brings UIParent back by itself, without ever
+-- reaching ToggleGameMenu(). So that is an ESC press too, and we say so before hiding the frame,
+-- which fades the rest back in rather than leaving the user to press ESC a second time.
+-- uiParentHidden is already false when FadeInUI() shows UIParent itself, so its own Show() does
+-- not look like a key press here.
 UIParent:HookScript("OnShow", function()
   if fadeUIEscapeHandlerFrame:IsShown() then
+    if uiParentHidden then escapeWasPressed = true end
     fadeUIEscapeHandlerFrame:Hide()
   end
 end)
@@ -278,11 +373,6 @@ local function UIEscapeHandlerDisable()
 end
 -- When the UI is loaded fadeUIEscapeHandlerFrame is shown, so we hide it.
 UIEscapeHandlerDisable()
-
-
-
--- To prevent unintended showing of UIParent, we set this flag whenever we have hidden it.
-local uiParentHidden = false
 
 
 
@@ -322,7 +412,7 @@ leaveCombatFrame:SetScript("OnEvent", function()
   if fadeUIEscapeHandlerFrame:IsShown() then
     -- Check if we are currently in a situation with hideUI settings.
     local curSituation = DynamicCam.db.profile.situations[DynamicCam.currentSituationID]
-    if curSituation and curSituation.hideUI.enabled then
+    if curSituation and curSituation.hideUI and curSituation.hideUI.enabled then
       DynamicCam:FadeOutUI(0, curSituation.hideUI)
     end
   end

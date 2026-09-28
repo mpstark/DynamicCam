@@ -1007,10 +1007,12 @@ do
 
     -- Base texture path
     -- https://wago.tools/files?search=interface%2Fcommon%2Fcommondropdownsettings2x
-    -- In classic, this texture is not included in the game files, so we use a local copy.
-    local texturePath = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
-      and "Interface\\Common\\CommonDropdownSettings2x"
-      or  "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
+    -- Not every client ships this texture, so we ask the client instead of guessing from its flavor and fall back
+    -- to the copy we ship ourselves.
+    local texturePath = "Interface\\Common\\CommonDropdownSettings2x"
+    if not DynamicCam.GameTextureExists(texturePath) then
+      texturePath = "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
+    end
 
     -- Store the texture coordinates for different highlight states
     Widget.noHighlightNormalCoords  = {0.21875, 0.43750, 0.00000, 0.43750}  -- Texture: center, top

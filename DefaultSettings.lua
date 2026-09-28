@@ -748,6 +748,15 @@ return false]]
         priority = 105,
         condition = [[return IsSwimming("player")]]
       },
+      -- WoW Forever: sitting at a campfire applies the "Welcoming Campfire" buff (spell id 1229739).
+      ["325"] = {
+        name = L["Camping"],
+        events = {"UNIT_AURA"},
+        priority = 40,
+        condition = [[return C_UnitAuras.GetPlayerAuraBySpellID(1229739) ~= nil]],
+        -- The buff lasts 60 s and is reapplied ~5 s after it expires while you keep sitting.
+        delay = 6,
+      },
       ["330"] = {
         name = L["Professions Frame Open"],
         events = {"TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE"},
@@ -763,54 +772,73 @@ return false]]
 }
 
 
--- Special modifications for classic.
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+-- Special modifications for the clients that do not have retail's content. Forever is one of them, even
+-- though Blizzard's WOW_PROJECT_ID answers WOW_PROJECT_MAINLINE there (at least at the time of beta) - which
+-- is exactly why we test DynamicCam.projectId instead, derived from the interface version in Core.lua.
+if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
 
-  -- No pet battles before mists.
-  DynamicCam.defaults.profile.situations["310"] = nil
+  -- ##### Which situations can occur at all. #####
 
+  -- No pet battles before Mists.
+  DynamicCam.defaults.profile.situations["310"] = nil    
+
+  -- No Skyriding or Dracthyr before Dragonflight.
   DynamicCam.defaults.profile.situations["103"] = nil    -- Mounted (only flying-mount + airborne + Skyriding)
   DynamicCam.defaults.profile.situations["104"] = nil    -- Mounted (only flying-mount + Skyriding)
   DynamicCam.defaults.profile.situations["106"] = nil    -- Mounted (only airborne + Skyriding)
   DynamicCam.defaults.profile.situations["107"] = nil    -- Mounted (only Skyriding)
-
+  DynamicCam.defaults.profile.situations["130"] = nil    -- Skyriding Races
   DynamicCam.defaults.profile.situations["120"] = nil    -- Dracthyr Soar
-  DynamicCam.defaults.profile.situations["130"] = nil    -- Dragon Racing
+
+  -- Neither flying mounts nor vehicles in vanilla classic or in Forever, so these can never become true.
+  -- Taxi flights do not count: every mounted situation already excludes them with UnitOnTaxi().
+  if DynamicCam.projectId == WOW_PROJECT_CLASSIC or DynamicCam.projectId == DynamicCam.WOW_PROJECT_FOREVER then
+    DynamicCam.defaults.profile.situations["101"] = nil    -- Mounted (only flying-mount)
+    DynamicCam.defaults.profile.situations["102"] = nil    -- Mounted (only flying-mount + airborne)
+    DynamicCam.defaults.profile.situations["105"] = nil    -- Mounted (only airborne)
+    DynamicCam.defaults.profile.situations["170"] = nil    -- Vehicle
+
+  -- In TBC, Wrath, Cata and Mists there is no way to filter for flying mounts.
+  else
+    DynamicCam.defaults.profile.situations["101"] = nil    -- Mounted (only flying-mount)
+    DynamicCam.defaults.profile.situations["102"] = nil    -- Mounted (only flying-mount + airborne)
+  end
 
 
+  -- ##### Which events the situations listen to. #####
 
-  if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+  -- The situations above are defined with retail's event lists, and the lists below repeat them with
+  -- only these few events changed:
+  --
+  --   SHIPMENT_CRAFTER_* and TRANSMOGRIFY_*  only on retail and Forever.
+  --   PLAYER_INTERACTION_MANAGER_FRAME_*     everywhere except vanilla classic.
+  --   TAXIMAP_OPENED and TAXIMAP_CLOSED      only on vanilla classic, which reports the flight master
+  --                                          this way instead of through the interaction manager.
+  --
+  -- Forever is absent from the branches below because it needs none of this: its event surface is
+  -- retail's, whatever its version number suggests.
+  if DynamicCam.projectId == WOW_PROJECT_CLASSIC then
 
-    -- Cannot have SHIPMENT_CRAFTER_CLOSED, SHIPMENT_CRAFTER_OPENED, TRANSMOGRIFY_CLOSE, TRANSMOGRIFY_OPEN.
-    -- In classic also not PLAYER_INTERACTION_MANAGER_FRAME_HIDE and PLAYER_INTERACTION_MANAGER_FRAME_SHOW.
+    -- No crafting orders, no transmog and no interaction manager, but TAXIMAP instead.
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW", "TAXIMAP_OPENED", "TAXIMAP_CLOSED"}
 
     DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
 
+  -- TBC, Wrath, Cata and Mists.
+  elseif DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
 
-    -- No flying in classic.
-    DynamicCam.defaults.profile.situations["101"] = nil
-    DynamicCam.defaults.profile.situations["102"] = nil
-    DynamicCam.defaults.profile.situations["105"] = nil
-
-
-    -- No vehicles before wrath.
-    DynamicCam.defaults.profile.situations["170"] = nil
-
-
-  -- Currently Wrath classic.
-  else
-
-    -- Cannot have "SHIPMENT_CRAFTER_CLOSED", "SHIPMENT_CRAFTER_OPENED", "TRANSMOGRIFY_CLOSE", "TRANSMOGRIFY_OPEN
+    -- No crafting orders and no transmog, but the interaction manager is there.
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}
-
-
-    -- No way to filter for flying mounts in Wrath classic.
-    DynamicCam.defaults.profile.situations["101"] = nil
-    DynamicCam.defaults.profile.situations["102"] = nil
 
   end
 
+end
+
+
+-- Camping exists only in Forever, so every other client loses it - retail included, which the block
+-- above never touches.
+if DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
+  DynamicCam.defaults.profile.situations["325"] = nil    -- Camping
 end
 
 

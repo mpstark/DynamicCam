@@ -127,6 +127,9 @@ for i = 1, 4, 1 do
   flagFrames["PartyMemberFrame" .. i] = true
   flagFrames["PartyMemberFrame" .. i .. "NotPresentIcon"] = true
 end
+-- Clients with Edit Mode (retail, Forever, Mists Classic) have no PartyMemberFrameN any more.
+-- Their party member frames, as well as the raid-style CompactPartyFrame, are children of PartyFrame.
+flagFrames["PartyFrame"] = true
 
 
 
@@ -184,6 +187,13 @@ else
   defaultHiddenFrames["StanceBar"] = true
   defaultHiddenFrames["PetActionBar"] = true
   defaultHiddenFrames["PossessBar"] = true
+  -- MainMenuBar became MainActionBar (retail since 11.2.7, Forever, Mists Classic) and PossessBar became
+  -- PossessActionBar. The bags and the micro menu are no longer inside MicroButtonAndBagsBar either, but
+  -- are children of UIParent on their own. We keep the old names for the clients that still have them.
+  defaultHiddenFrames["MainActionBar"] = true
+  defaultHiddenFrames["PossessActionBar"] = true
+  defaultHiddenFrames["BagsBar"] = true
+  defaultHiddenFrames["MicroMenuContainer"] = true
 end
 
 
@@ -316,7 +326,9 @@ end
 
 
 
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+-- ReputationWatchBar and MainMenuExpBar are the old classic status bars. Where they exist we hook those, and
+-- everywhere else the status tracking bar containers, which is what this used to decide from the client flavor.
+if not ReputationWatchBar then
 
   local function SetMouseOverFading(barManager)
     -- Have to do this for the single bars.
@@ -416,7 +428,7 @@ end
 
 
 
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+if TooltipDataProcessor then
   TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, GameTooltipHider)
 else
   GameTooltip:HookScript("OnTooltipSetItem", GameTooltipHider)
@@ -1037,6 +1049,7 @@ Addon.HideUI = function(fadeOutTime, config)
   FadeOutFrame(EncounterBar, fadeOutTime, config.keepEncounterBar, config.keepEncounterBar and 1 or config.UIParentAlpha)
 
   FadeOutFrame(CompactRaidFrameContainer, fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
+  FadeOutFrame(PartyFrame, fadeOutTime, config.keepPartyRaidFrame, config.keepPartyRaidFrame and 1 or config.UIParentAlpha)
 
 
 
@@ -1056,7 +1069,12 @@ Addon.HideUI = function(fadeOutTime, config)
 
         -- If the frame does not exist yet (e.g. ClassTrainerFrame), try again after a short time.
         if not _G[k] then
-          C_Timer.After(0.3, function() FadeOutFrame(_G[k], fadeOutTime, true, 1) end)
+          C_Timer.After(0.3, function()
+            -- The UI may have been faded back in while we waited. Fading the frame out now would
+            -- leave it ignoring parent alpha with no fade-in left to undo it.
+            if ludius_UiHideModule.uiHiddenTime == 0 then return end
+            FadeOutFrame(_G[k], fadeOutTime, true, 1)
+          end)
         else
           -- At the moment we are not supporting custom alphas for kept frames, so we set it to 1.
           FadeOutFrame(_G[k], fadeOutTime, true, 1)
@@ -1087,6 +1105,10 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
 
   -- print("ShowUI", folderName, fadeInTime, enteringCombat)
 
+  -- Remembered before currentConfig is cleared, because the custom frames that were kept during
+  -- the fade-out have to be faded back in below.
+  local hiddenConfig = currentConfig
+
   if not enteringCombat then
     ludius_UiHideModule.uiHiddenTime = 0
     currentConfig = nil
@@ -1097,10 +1119,25 @@ Addon.ShowUI = function(fadeInTime, enteringCombat)
 
 
   FadeInFrame(CompactRaidFrameContainer, fadeInTime, enteringCombat)
+  FadeInFrame(PartyFrame, fadeInTime, enteringCombat)
 
 
   for k in pairs(defaultHiddenFrames) do
     FadeInFrame(_G[k], fadeInTime, enteringCombat)
+  end
+
+
+  -- The counterpart of the customFramesToKeep loop in HideUI(). Without it, the frames kept during
+  -- the fade-out hold on to the SetIgnoreParentAlpha(true) that made them stay visible, which makes
+  -- them immune to every later fade. We do this regardless of keepCustomFrames, because the setting
+  -- may have been switched off since the fade-out, and a frame we never touched is skipped by
+  -- FadeInFrame() anyway.
+  if hiddenConfig and hiddenConfig.customFramesToKeep then
+    for k in pairs(hiddenConfig.customFramesToKeep) do
+      if not defaultHiddenFrames[k] and not flagFrames[k] then
+        FadeInFrame(_G[k], fadeInTime, enteringCombat)
+      end
+    end
   end
 
 
