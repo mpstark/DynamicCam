@@ -462,17 +462,42 @@ local function IsProtected(frame)
 end
 
 
+-- Edit Mode action bars (retail, Forever, Mists Classic) replace Show() and Hide() with Lua functions
+-- that store the shown state in the bar and rearrange all bottom or right bars. When addon code calls
+-- them, these stored values get tainted. Blizzard's own rearranging of the bars in combat (e.g. when the
+-- pet bar appears or disappears) then reads them and gets blocked: "tried to call the protected function
+-- MainActionBar:SetPointBase()". So instead we hide these bars by moving them to a hidden parent. This
+-- runs none of the bars' Lua code, and Blizzard's layout keeps treating them as shown, so the other bars
+-- do not move into their place while the UI is hidden.
+local hiddenParent = CreateFrame("Frame", nil, UIParent)
+hiddenParent:SetAllPoints()
+hiddenParent:Hide()
+
+local function IsEditModeActionBar(frame)
+  return frame.EditModeActionBar_OnLoad ~= nil
+end
+
+
 local function ConditionalHide(frame)
   if not frame then return end
 
   -- if frame:GetName() == debugFrameName then print("ConditionalHide", frame:GetName(), frame:GetParent():GetName(), frame:IsIgnoringParentAlpha()) end
 
   -- Checking for combat lockdown is not this function's concern.
-  -- Functions calling it must make sure, it is not  called in combat lockdown.
+  -- Functions calling it must make sure it is not called in combat lockdown.
 
   -- TODO: What if the combat started while the fade out was already happening???
   if IsProtected(frame) and InCombatLockdown() then
     print("ERROR: Should not try to hide", frame:GetName(), "in combat lockdown!")
+  end
+
+  if IsEditModeActionBar(frame) then
+    if frame.ludius_parentBeforeFadeOut == nil then
+      frame.ludius_parentBeforeFadeOut = frame:GetParent()
+      frame.ludius_frameLevelBeforeFadeOut = frame:GetFrameLevel()
+      frame:SetParent(hiddenParent)
+    end
+    return
   end
 
   if frame.ludius_shownBeforeFadeOut == nil then
@@ -487,7 +512,20 @@ end
 
 
 local function ConditionalShow(frame)
-  if not frame or frame.ludius_shownBeforeFadeOut == nil then return end
+  if not frame then return end
+
+  if frame.ludius_parentBeforeFadeOut ~= nil then
+    if IsProtected(frame) and InCombatLockdown() then
+      print("ERROR: Should not try to show", frame:GetName(), "in combat lockdown!")
+    end
+    frame:SetParent(frame.ludius_parentBeforeFadeOut)
+    frame:SetFrameLevel(frame.ludius_frameLevelBeforeFadeOut)
+    frame.ludius_parentBeforeFadeOut = nil
+    frame.ludius_frameLevelBeforeFadeOut = nil
+    return
+  end
+
+  if frame.ludius_shownBeforeFadeOut == nil then return end
 
   -- if frame:GetName() == debugFrameName then print("ConditionalShow", frame:GetName(), frame.ludius_shownBeforeFadeOut) end
 
@@ -706,12 +744,12 @@ local function DoFadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAl
 
 
   -- If a frame to be kept is not a direct child of UIParent,
-  -- we have to make sure that the parent gets not hidden later.
+  -- we have to make sure that the parent does not get hidden later.
   -- (e.g. In classic, the status tracking bars are children of MainMenuBar,
   -- which normally is in defaultHiddenFrames.)
   if targetIgnoreParentAlpha and targetAlpha > 0 then
     local currentParent = frame:GetParent()
-    while currentParent and currentParent ~= UIParent and currentParrent ~= WorldFrame do
+    while currentParent and currentParent ~= UIParent and currentParent ~= WorldFrame do
       keepDefaultHiddenFramesAsParent[currentParent] = true
       currentParent = currentParent:GetParent()
     end
@@ -720,7 +758,7 @@ local function DoFadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAl
 
   -- ludius_alphaBeforeFadeOut is only set, if this is a fresh FadeOutFrame().
   -- It is set to nil after a FadeOutFrame() is completed.
-  -- Otherwise, we might falsely asume a wrong ludius_alphaBeforeFadeOut
+  -- Otherwise, we might falsely assume a wrong ludius_alphaBeforeFadeOut
   -- value while a fade-in is still in progress.
   if frame.ludius_alphaBeforeFadeOut == nil then
     frame.ludius_alphaBeforeFadeOut = frame:GetAlpha()
@@ -754,7 +792,7 @@ local function DoFadeOutFrame(frame, duration, targetIgnoreParentAlpha, targetAl
     -- Notice that we cannot use ludius_alphaBeforeFadeOut or ludius_alphaAfterFadeOut as this flag,
     -- because ludius_fadeout is unset at the beginning of a fade out
     -- and ludius_alphaBeforeFadeOut is unset at the end of a fade out.
-    -- For an OnEnable/OnLeave during fade out, we do not want the alpha to change.
+    -- For an OnEnter/OnLeave during fade out, we do not want the alpha to change.
     frame.ludius_fadeout = true
     -- This is to let SetMouseOverAlpha() know which
     -- alpha to go back to OnLeave while the frame is faded or fading out.
@@ -873,7 +911,7 @@ local function DoFadeInFrame(frame, duration, enteringCombat)
   UIFrameFadeRemoveFrame(frame)
 
   -- Only do something if we have touched this frame before.
-  if frame.ludius_shownBeforeFadeOut == nil and frame.ludius_alphaBeforeFadeOut == nil and frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
+  if frame.ludius_shownBeforeFadeOut == nil and frame.ludius_parentBeforeFadeOut == nil and frame.ludius_alphaBeforeFadeOut == nil and frame.ludius_ignoreParentAlphaBeforeFadeOut == nil then
     frame.ludius_alreadyOnIt = nil
     return
   end
@@ -1013,7 +1051,12 @@ Addon.HideUI = function(fadeOutTime, config)
   FadeOutFrame(Minimap, fadeOutTime, config.keepMinimap, config.keepMinimap and 1 or config.UIParentAlpha)
 
   FadeOutFrame(GameTooltip, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
-  C_Timer.After(fadeOutTime, function() hideGameTooltip = (config.keepTooltip == false) end)
+  C_Timer.After(fadeOutTime, function()
+    -- The UI may have been faded back in while we waited. Setting the flag now would keep
+    -- suppressing tooltips until the next ShowUI().
+    if ludius_UiHideModule.uiHiddenTime == 0 then return end
+    hideGameTooltip = (config.keepTooltip == false)
+  end)
   local shoppingTooltip1, shoppingTooltip2 = unpack(GameTooltip.shoppingTooltips)
   FadeOutFrame(shoppingTooltip1, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
   FadeOutFrame(shoppingTooltip2, fadeOutTime, config.keepTooltip, config.keepTooltip and 1 or config.UIParentAlpha)
