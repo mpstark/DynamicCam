@@ -772,10 +772,10 @@ return false]]
 }
 
 
--- Special modifications for the clients that do not have retail's content. Forever is one of them, even
--- though Blizzard's WOW_PROJECT_ID answers WOW_PROJECT_MAINLINE there (at least at the time of beta) - which
--- is exactly why we test DynamicCam.projectId instead, derived from the interface version in Core.lua.
-if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
+-- Special modifications for the clients that do not have retail's content. Forever is one of them.
+-- Its project id, WOW_PROJECT_CAMELOT, is only defined in Forever. On every other client it is nil,
+-- which WOW_PROJECT_ID never is, so comparing with it still gives the right answer there.
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
 
   -- ##### Which situations can occur at all. #####
 
@@ -792,7 +792,7 @@ if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
 
   -- Neither flying mounts nor vehicles in vanilla classic or in Forever, so these can never become true.
   -- Taxi flights do not count: every mounted situation already excludes them with UnitOnTaxi().
-  if DynamicCam.projectId == WOW_PROJECT_CLASSIC or DynamicCam.projectId == DynamicCam.WOW_PROJECT_FOREVER then
+  if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC or WOW_PROJECT_ID == WOW_PROJECT_CAMELOT then
     DynamicCam.defaults.profile.situations["101"] = nil    -- Mounted (only flying-mount)
     DynamicCam.defaults.profile.situations["102"] = nil    -- Mounted (only flying-mount + airborne)
     DynamicCam.defaults.profile.situations["105"] = nil    -- Mounted (only airborne)
@@ -817,7 +817,7 @@ if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
   --
   -- Forever is absent from the branches below because it needs none of this: its event surface is
   -- retail's, whatever its version number suggests.
-  if DynamicCam.projectId == WOW_PROJECT_CLASSIC then
+  if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
 
     -- No crafting orders, no transmog and no interaction manager, but TAXIMAP instead.
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW", "TAXIMAP_OPENED", "TAXIMAP_CLOSED"}
@@ -825,7 +825,7 @@ if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
     DynamicCam.defaults.profile.situations["301"].events = {"MAIL_SHOW", "MAIL_CLOSED", "GOSSIP_CLOSED"}
 
   -- TBC, Wrath, Cata and Mists.
-  elseif DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
+  elseif WOW_PROJECT_ID ~= WOW_PROJECT_CAMELOT then
 
     -- No crafting orders and no transmog, but the interaction manager is there.
     DynamicCam.defaults.profile.situations["300"].events = {"AUCTION_HOUSE_CLOSED", "AUCTION_HOUSE_SHOW", "BANKFRAME_CLOSED", "BANKFRAME_OPENED", "CLOSE_TABARD_FRAME", "GOSSIP_CLOSED", "GOSSIP_SHOW", "GUILD_REGISTRAR_CLOSED", "GUILD_REGISTRAR_SHOW", "MERCHANT_CLOSED", "MERCHANT_SHOW", "OPEN_TABARD_FRAME", "PET_STABLE_CLOSED", "PET_STABLE_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_TARGET_CHANGED", "QUEST_COMPLETE", "QUEST_DETAIL", "QUEST_FINISHED", "QUEST_GREETING", "QUEST_PROGRESS", "TRAINER_CLOSED", "TRAINER_SHOW"}
@@ -837,7 +837,7 @@ end
 
 -- Camping exists only in Forever, so every other client loses it - retail included, which the block
 -- above never touches.
-if DynamicCam.projectId ~= DynamicCam.WOW_PROJECT_FOREVER then
+if WOW_PROJECT_ID ~= WOW_PROJECT_CAMELOT then
   DynamicCam.defaults.profile.situations["325"] = nil    -- Camping
 end
 

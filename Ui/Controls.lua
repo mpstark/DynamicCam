@@ -158,18 +158,17 @@ local function SliderOffset(zoomZone)
   return ReadoutOffset(zoomZone) + READOUT_WIDTH + READOUT_GAP - SLIDER_RIGHT_SLACK
 end
 
--- Reset button icon (the transmogrify revert arrow), per client flavor.
-local RESET_TEX = "Interface\\Transmogrify\\Transmogrify"
-local RESET_COORDS = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
-  RESET_COORDS = {0.533203125, 0.58203125, 0.248046875, 0.294921875}
-end
+-- Reset button icon (the transmogrify revert arrow), the same as in the old
+-- options (Options/ControlFactories.lua), which find it per client.
+local RESET_TEX = DynamicCam.Options.resetButtonImage
+local RESET_COORDS = DynamicCam.Options.resetButtonImageCoords
 
--- Zoom-based gear textures (see the curve editor). Not in classic game files,
+-- Zoom-based gear textures (see the curve editor). Not every client ships them,
 -- so a local copy ships in the addon's Ui/Textures folder.
-local GEAR_TEX = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
-  and "Interface\\Common\\CommonDropdownSettings2x"
-  or  "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
+local GEAR_TEX = "Interface\\Common\\CommonDropdownSettings2x"
+if not DynamicCam.GameTextureExists(GEAR_TEX) then
+  GEAR_TEX = "Interface\\AddOns\\" .. folderName .. "\\Ui\\Textures\\commondropdownsettings2x"
+end
 local GEAR_NORMAL    = {0.21875, 0.43750, 0.00000, 0.43750}
 local GEAR_PRESSED   = {0.21875, 0.43750, 0.43750, 0.87500}
 local GEAR_HL_NORMAL = {0.00000, 0.21875, 0.43750, 0.87500}

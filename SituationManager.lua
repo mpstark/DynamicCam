@@ -1146,7 +1146,7 @@ maintainFlyingMountListFrame:RegisterEvent("PLAYER_LOGIN")
 maintainFlyingMountListFrame:SetScript("OnEvent", function()
   -- A genuine "which game is this" question: LibMountInfo needs the retail mount journal filters to tell flying
   -- mounts apart, and there is nothing to test for that short of the client itself.
-  if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then return end
+  if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
   
   -- Update our local reference to match LibMountInfo
   DynamicCam.FlyingMountList = LibMountInfo.flyingMounts

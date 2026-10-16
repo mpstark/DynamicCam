@@ -14,7 +14,7 @@ local Options = DynamicCam.Options
 
 
 DynamicCam.cameraDistanceMaxZoomFactor_max = 39
-if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
   DynamicCam.cameraDistanceMaxZoomFactor_max = 50
 end
 
@@ -2662,7 +2662,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                         type = "toggle",
                         -- Only retail has Skyriding, so everywhere else this option is about a frame
                         -- the player never sees. The classic clients do not even have EncounterBar.
-                        hidden = DynamicCam.projectId ~= WOW_PROJECT_MAINLINE,
+                        hidden = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE,
                         name = L["Keep Encounter Frame (Skyriding Vigor)"],
                         desc = L["Do not fade out the Encounter Frame, which while skyriding is the Vigor display."],
                         get =

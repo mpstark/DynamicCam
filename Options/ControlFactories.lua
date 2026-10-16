@@ -16,11 +16,11 @@ local Options = DynamicCam.Options
 -------------------------------------------------------------------------------
 -- The transmogrify revert arrow. Where it sits inside Transmogrify.blp differs per client, so we ask the atlas for
 -- it and keep the hard-coded pairs only as a fallback for clients without that atlas. The pairs alone are not
--- enough: Forever reports WOW_PROJECT_MAINLINE but puts the icon somewhere else again, and the mainline pair is a
--- square crop of a 25x24 icon, so it came out padded even where it was "right".
+-- enough: Forever puts the icon somewhere else again, and the mainline pair is a square crop of a 25x24 icon, so
+-- it came out padded even where it was "right".
 Options.resetButtonImage = "Interface\\Transmogrify\\Transmogrify"
 Options.resetButtonImageCoords = {0.58203125, 0.64453125, 0.30078125, 0.36328125}
-if DynamicCam.projectId ~= WOW_PROJECT_MAINLINE then
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
   Options.resetButtonImageCoords = {0.533203125, 0.58203125, 0.248046875, 0.294921875}
 end
 
