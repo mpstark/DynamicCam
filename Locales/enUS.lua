@@ -647,6 +647,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "Mounted (only flying-mount + Sky
 L["Mounted (only airborne)"] = "Mounted (only airborne)"
 L["Mounted (only airborne + Skyriding)"] = "Mounted (only airborne + Skyriding)"
 L["Mounted (only Skyriding)"] = "Mounted (only Skyriding)"
+L["Shaman Ghost Wolf"] = "Shaman Ghost Wolf"
 L["Druid Travel Form"] = "Druid Travel Form"
 L["Dracthyr Soar"] = "Dracthyr Soar"
 L["Skyriding Race"] = "Skyriding Race"

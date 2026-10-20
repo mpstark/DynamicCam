@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "騎乘（僅限飛行坐騎 + �
 L["Mounted (only airborne)"] = "騎乘（僅限空中）"
 L["Mounted (only airborne + Skyriding)"] = "騎乘（僅限空中 + 天空騎術）"
 L["Mounted (only Skyriding)"] = "騎乘（僅限天空騎術）"
+L["Shaman Ghost Wolf"] = "薩滿鬼魂之狼"
 L["Druid Travel Form"] = "德魯伊旅行形態"
 L["Dracthyr Soar"] = "半龍人飛騰"
 L["Skyriding Race"] = "天空騎術競速"

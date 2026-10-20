@@ -337,6 +337,15 @@ return isInstance and instanceType == "pvp" and UnitAffectingCombat("player")]],
         condition = "return IsMounted() and not UnitOnTaxi(\"player\") and DynamicCam:SkyridingOn()",
       },
 
+      ["112"] = {
+        name = L["Shaman Ghost Wolf"],
+        events = {"UPDATE_SHAPESHIFT_FORM"},
+        priority = 100,
+        condition = [[-- Ghost Wolf can have either of these shapeshift form IDs.
+local formId = GetShapeshiftFormID()
+return formId == 16 or formId == 48]],
+      },
+
       ["115"] = {
         name = L["Druid Travel Form"],
         events = {"UPDATE_SHAPESHIFT_FORM"},

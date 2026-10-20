@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "На маунте (только 
 L["Mounted (only airborne)"] = "На маунте (только в воздухе)"
 L["Mounted (only airborne + Skyriding)"] = "На маунте (только в воздухе + Высший пилотаж)"
 L["Mounted (only Skyriding)"] = "На маунте (только Высший пилотаж)"
+L["Shaman Ghost Wolf"] = "Призрачный волк шамана"
 L["Druid Travel Form"] = "Походный облик друида"
 L["Dracthyr Soar"] = "Драктир Парение"
 L["Skyriding Race"] = "Гонка Высшего пилотажа"

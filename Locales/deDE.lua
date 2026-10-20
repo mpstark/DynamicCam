@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "Reittier (nur Flugreittier + Him
 L["Mounted (only airborne)"] = "Reittier (nur in der Luft)"
 L["Mounted (only airborne + Skyriding)"] = "Reittier (nur in der Luft + Himmelsreiten)"
 L["Mounted (only Skyriding)"] = "Reittier (nur Himmelsreiten)"
+L["Shaman Ghost Wolf"] = "Schamane Geisterwolf"
 L["Druid Travel Form"] = "Druide Reisegestalt"
 L["Dracthyr Soar"] = "Dracthyr Segeln"
 L["Skyriding Race"] = "Himmelsreiten-Rennen"

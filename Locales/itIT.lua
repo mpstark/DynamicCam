@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "Cavalcatura (solo volante + Volo
 L["Mounted (only airborne)"] = "Cavalcatura (solo in volo)"
 L["Mounted (only airborne + Skyriding)"] = "Cavalcatura (solo in volo + Volo Dinamico)"
 L["Mounted (only Skyriding)"] = "Cavalcatura (solo Volo Dinamico)"
+L["Shaman Ghost Wolf"] = "Lupo Spettrale Sciamano"
 L["Druid Travel Form"] = "Forma di Viaggio Druido"
 L["Dracthyr Soar"] = "Dracthyr Volteggio"
 L["Skyriding Race"] = "Gara di Volo Dinamico"

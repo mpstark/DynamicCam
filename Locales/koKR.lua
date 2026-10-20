@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "탈것 (비행 탈것만 + 하�
 L["Mounted (only airborne)"] = "탈것 (공중만)"
 L["Mounted (only airborne + Skyriding)"] = "탈것 (공중만 + 하늘비행)"
 L["Mounted (only Skyriding)"] = "탈것 (하늘비행만)"
+L["Shaman Ghost Wolf"] = "주술사 늑대 정령"
 L["Druid Travel Form"] = "드루이드 여행 변신"
 L["Dracthyr Soar"] = "드랙티르 비상"
 L["Skyriding Race"] = "하늘비행 경주"

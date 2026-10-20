@@ -531,6 +531,7 @@ L["Mounted (only flying-mount + Skyriding)"] = "Montura (solo voladora + Cielon�
 L["Mounted (only airborne)"] = "Montura (solo en el aire)"
 L["Mounted (only airborne + Skyriding)"] = "Montura (solo en el aire + Cielonáutica)"
 L["Mounted (only Skyriding)"] = "Montura (solo Cielonáutica)"
+L["Shaman Ghost Wolf"] = "Lobo fantasmal de chamán"
 L["Druid Travel Form"] = "Forma de viaje de druida"
 L["Dracthyr Soar"] = "Dracthyr Elevarse"
 L["Skyriding Race"] = "Carrera de Cielonáutica"
