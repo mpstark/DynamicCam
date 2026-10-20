@@ -477,6 +477,32 @@ local function IsEditModeActionBar(frame)
   return frame.EditModeActionBar_OnLoad ~= nil
 end
 
+-- SetParent() changes the frame level of the frame, and shifts all its descendants by the same amount.
+-- Levels that would drop below 0 end up at the maximum level instead, and shifting back cannot undo
+-- that. This breaks UI addons that deliberately put a child frame below its parent: GW2_UI's backdrop
+-- of each action button (level 1 below a button at level 52) ended up at level 10000, covering the
+-- button's icon and hotkey. So we remember the strata and level of the whole subtree and restore them.
+local savedFrameLevels = {}
+
+local function SaveFrameLevels(frame, levels)
+  levels[frame] = {frame:GetFrameStrata(), frame:GetFrameLevel()}
+  for _, child in ipairs({frame:GetChildren()}) do
+    SaveFrameLevels(child, levels)
+  end
+end
+
+-- Top-down, because changing a parent's level or strata moves its children along.
+local function RestoreFrameLevels(frame, levels)
+  local saved = levels[frame]
+  if saved then
+    if frame:GetFrameStrata() ~= saved[1] then frame:SetFrameStrata(saved[1]) end
+    if frame:GetFrameLevel() ~= saved[2] then frame:SetFrameLevel(saved[2]) end
+  end
+  for _, child in ipairs({frame:GetChildren()}) do
+    RestoreFrameLevels(child, levels)
+  end
+end
+
 
 local function ConditionalHide(frame)
   if not frame then return end
@@ -494,7 +520,8 @@ local function ConditionalHide(frame)
   if IsEditModeActionBar(frame) then
     if frame.ludius_parentBeforeFadeOut == nil then
       frame.ludius_parentBeforeFadeOut = frame:GetParent()
-      frame.ludius_frameLevelBeforeFadeOut = frame:GetFrameLevel()
+      savedFrameLevels[frame] = {}
+      SaveFrameLevels(frame, savedFrameLevels[frame])
       frame:SetParent(hiddenParent)
     end
     return
@@ -519,9 +546,11 @@ local function ConditionalShow(frame)
       print("ERROR: Should not try to show", frame:GetName(), "in combat lockdown!")
     end
     frame:SetParent(frame.ludius_parentBeforeFadeOut)
-    frame:SetFrameLevel(frame.ludius_frameLevelBeforeFadeOut)
+    if savedFrameLevels[frame] then
+      RestoreFrameLevels(frame, savedFrameLevels[frame])
+      savedFrameLevels[frame] = nil
+    end
     frame.ludius_parentBeforeFadeOut = nil
-    frame.ludius_frameLevelBeforeFadeOut = nil
     return
   end
 
