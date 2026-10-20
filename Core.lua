@@ -711,7 +711,8 @@ function DynamicCam:Startup()
   started = true
 
 
-  -- -- For coding
+  -- --@debug@
+  -- -- For coding. The release script refuses to run while this block is switched on.
   -- -- Got to make sure that this is only called once, otherwise changing profiles
   -- -- (which runs Shutdown/Startup) while a curve editor is open leads to an infinite loop.
   -- if not self.codingTimerFired then
@@ -732,6 +733,7 @@ function DynamicCam:Startup()
 
   --   end)
   -- end
+  -- --@end-debug@]===]
 
   -- C_Timer.After(3, function()
     -- if BugSack then
