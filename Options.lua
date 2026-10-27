@@ -2792,7 +2792,7 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                   },
                   settingsPanelIgnoreParentAlpha = {
                     type = "toggle",
-                    name = L["Do not fade out this \"Interface\" settings frame."],
+                    name = L["Keep settings windows"],
                     get =
                       function()
                         return DynamicCam.db.profile.settingsPanelIgnoreParentAlpha

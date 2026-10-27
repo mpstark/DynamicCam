@@ -427,8 +427,8 @@ Using /showUI or /hideUI without any arguments takes the current situation's fad
     /showUI 0
 
 to show the UI without any delay.]]
-L["<hideUIHelp_desc>"] = "While setting up your desired UI fade effects, it can be annoying when this \"Interface\" settings frame fades out as well. If this box is checked, it will not be faded out.\n\nThis setting is global for all situations."
-L["Do not fade out this \"Interface\" settings frame."] = "Do not fade out this \"Interface\" settings frame."
+L["<hideUIHelp_desc>"] = "While setting up your desired UI fade effects, it can be annoying when the settings fade out as well. If this box is checked, DynamicCam's settings windows (including their menus and popups), the game's \"Options\" window and the \"Game Menu\" stay visible.\n\nThis setting is global for all situations."
+L["Keep settings windows"] = "Keep settings windows"
 
 
 --------------------------------------------------------------------------------

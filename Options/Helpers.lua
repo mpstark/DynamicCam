@@ -291,6 +291,8 @@ function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
   if detachedApp and acd.OpenFrames and acd.OpenFrames[detachedApp] then
     acd.OpenFrames[detachedApp].frame:SetIgnoreParentAlpha(ignoreParentAlpha)
   end
+  -- And to the new UI's windows and popups (Ui/Window.lua).
+  DynamicCam.Ui.SetWindowsIgnoreParentAlpha(ignoreParentAlpha)
 end
 
 

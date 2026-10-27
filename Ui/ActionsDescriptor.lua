@@ -489,16 +489,10 @@ Ui.actionCategories = {
       { kind = "checkbox", label = L["Pressing Esc fades the UI back in."],
         tooltip = L["<emergencyShow_desc>"],
         situationPath = {"hideUI", "emergencyShowEscEnabled"} },
-      -- The one genuinely global value on this page: it is about this settings
-      -- window, not about any situation, so it is addressed on the profile - and
+      -- The one genuinely global value on this page: it is about the settings
+      -- windows, not about any situation, so it is addressed on the profile - and
       -- it stays usable whether or not THIS situation fades the UI.
-      --
-      -- TODO: has no effect yet. SettingsPanelSetIgnoreParentAlpha only knows
-      -- about the OLD UI's frames (the Blizzard Settings panel, the AceGUI
-      -- dropdowns, the detached window) - not this window. Left until the old UI
-      -- is retired, so the exemption can be written once for whatever frames
-      -- remain, rather than twice for two UIs that fade differently.
-      { kind = "checkbox", label = L["Do not fade out this \"Interface\" settings frame."],
+      { kind = "checkbox", label = L["Keep settings windows"],
         tooltip = L["<hideUIHelp_desc>"],
         ignoreCategoryGate = true,
         get = function() return DynamicCam.db.profile.settingsPanelIgnoreParentAlpha end,

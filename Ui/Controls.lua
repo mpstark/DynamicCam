@@ -725,6 +725,7 @@ function Controls.CreateSelectRow(parent, item, ctx)
   local resetBtn = binding.reset and CreateResetButton(row, binding, ctx)
 
   local dd  = CreateFrame("DropdownButton", nil, row, "WowStyle2DropdownTemplate")
+  Ui.FadeMenuWithDropdown(dd)
   local dec = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
   local inc = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
 

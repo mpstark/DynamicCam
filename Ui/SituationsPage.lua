@@ -281,7 +281,9 @@ local function CreateSituation(name)
   RefreshTopStrip()
 end
 
-StaticPopupDialogs["DYNAMICCAM_UI_NEW_SITUATION"] = {
+-- All three dialogs stay visible during a UI fade like the windows do, when the
+-- profile says so (Ui.ExemptDialogFromFade).
+StaticPopupDialogs["DYNAMICCAM_UI_NEW_SITUATION"] = Ui.ExemptDialogFromFade({
   text = L["Enter name for custom situation:"],
   button1 = L["Create"],
   button2 = L["Cancel"],
@@ -301,7 +303,7 @@ StaticPopupDialogs["DYNAMICCAM_UI_NEW_SITUATION"] = {
     CreateSituation(editBox:GetText())
     editBox:GetParent():Hide()
   end,
-}
+})
 
 local function RenameSituation(id, name)
   name = strtrim(name or "")
@@ -311,7 +313,7 @@ local function RenameSituation(id, name)
   RefreshTopStrip()
 end
 
-StaticPopupDialogs["DYNAMICCAM_UI_RENAME_SITUATION"] = {
+StaticPopupDialogs["DYNAMICCAM_UI_RENAME_SITUATION"] = Ui.ExemptDialogFromFade({
   text = L["Rename situation:"],
   button1 = SAVE,
   button2 = CANCEL,
@@ -336,13 +338,13 @@ StaticPopupDialogs["DYNAMICCAM_UI_RENAME_SITUATION"] = {
     RenameSituation(dialog.data and dialog.data.id, editBox:GetText())
     dialog:Hide()
   end,
-}
+})
 
 -- Unlike the old UI's unprompted "-" button, deleting here asks first (as
 -- Graphit's preset delete does). DeleteCustomSituation exits the situation if
 -- active and notifies the old Options module; our poll picks up the fallback
 -- selection.
-StaticPopupDialogs["DYNAMICCAM_UI_DELETE_SITUATION"] = {
+StaticPopupDialogs["DYNAMICCAM_UI_DELETE_SITUATION"] = Ui.ExemptDialogFromFade({
   text = L["Delete situation \"%s\"?"],
   button1 = DELETE,
   button2 = CANCEL,
@@ -354,7 +356,7 @@ StaticPopupDialogs["DYNAMICCAM_UI_DELETE_SITUATION"] = {
   OnAccept = function(self, data)
     if data then DynamicCam:DeleteCustomSituation(data.id) end
   end,
-}
+})
 
 
 -- ===== Page builder =====
@@ -429,6 +431,7 @@ Ui.tabBuilders[2] = function(parent)
     BUTTON_BLOCK_WIDTH + DROPDOWN_GAP_LEFT, -DROPDOWN_Y)
   dropdown:SetPoint("TOPRIGHT", strip, "TOPRIGHT",
     -(ENABLE_BLOCK_WIDTH + DROPDOWN_GAP_RIGHT), -DROPDOWN_Y)
+  Ui.FadeMenuWithDropdown(dropdown)
 
   -- Hovering the closed dropdown explains the list's colour coding, formatted
   -- from the same shared colour table the entries are painted with - exactly

@@ -323,8 +323,8 @@ Die Verwendung von /showUI oder /hideUI ohne Argumente übernimmt die Einblend- 
     /showUI 0
 
 um das Interface ohne Verzögerung anzuzeigen.]]
-L["<hideUIHelp_desc>"] = "Während ihr eure gewünschten Interface-Ausblend-Effekte einrichtet, kann es nervig sein, wenn dieses „Interface“-Einstellungsfenster ebenfalls ausgeblendet wird. Wenn dieses Feld aktiviert ist, wird es nicht ausgeblendet.\n\nDiese Einstellung gilt global für alle Situationen."
-L["Do not fade out this \"Interface\" settings frame."] = "Dieses „Interface“-Einstellungsfenster nicht ausblenden."
+L["<hideUIHelp_desc>"] = "Während ihr eure gewünschten Interface-Ausblend-Effekte einrichtet, kann es nervig sein, wenn die Einstellungen ebenfalls ausgeblendet werden. Wenn dieses Feld aktiviert ist, bleiben die Einstellungsfenster von DynamicCam (samt ihrer Menüs und Pop-ups), das „Optionen“-Fenster des Spiels und das „Spielmenü“ sichtbar.\n\nDiese Einstellung gilt global für alle Situationen."
+L["Keep settings windows"] = "Einstellungsfenster behalten"
 
 
 --------------------------------------------------------------------------------

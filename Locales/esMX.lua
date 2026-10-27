@@ -323,8 +323,8 @@ Usar /showUI o /hideUI sin argumentos toma el tiempo de aparición o desaparici�
     /showUI 0
 
 para mostrar la interfaz sin ningún retraso.]]
-L["<hideUIHelp_desc>"] = "Mientras configuras tus efectos de desvanecimiento de interfaz deseados, puede ser molesto cuando este marco de ajustes «Interfaz» se desvanece también. Si esta casilla está marcada, no se desvanecerá.\n\nEste ajuste es global para todas las situaciones."
-L["Do not fade out this \"Interface\" settings frame."] = "No desvanecer este marco de ajustes «Interfaz»."
+L["<hideUIHelp_desc>"] = "Mientras configuras tus efectos de desvanecimiento de interfaz deseados, puede ser molesto que los ajustes se desvanezcan también. Si esta casilla está marcada, las ventanas de ajustes de DynamicCam (incluidos sus menús y ventanas emergentes), la ventana «Opciones» del juego y el «Menú de juego» permanecen visibles.\n\nEste ajuste es global para todas las situaciones."
+L["Keep settings windows"] = "Mantener ventanas de ajustes"
 
 
 --------------------------------------------------------------------------------

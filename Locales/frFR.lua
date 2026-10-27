@@ -323,8 +323,8 @@ Utiliser /showUI ou /hideUI sans aucun argument prend le temps d'apparition ou d
     /showUI 0
 
 pour afficher l'interface sans aucun délai.]]
-L["<hideUIHelp_desc>"] = "Pendant que vous configurez vos effets de masquage d'interface souhaités, il peut être ennuyeux que ce cadre de réglages « Interface » disparaisse également. Si cette case est cochée, il ne sera pas estompé.\n\nCe réglage est global pour toutes les situations."
-L["Do not fade out this \"Interface\" settings frame."] = "Ne pas estomper ce cadre de réglages « Interface »."
+L["<hideUIHelp_desc>"] = "Pendant que vous configurez vos effets de masquage d'interface souhaités, il peut être ennuyeux que les réglages disparaissent également. Si cette case est cochée, les fenêtres de réglages de DynamicCam (y compris leurs menus et fenêtres contextuelles), la fenêtre « Options » du jeu et le « Menu de jeu » restent visibles.\n\nCe réglage est global pour toutes les situations."
+L["Keep settings windows"] = "Garder les fenêtres de réglages"
 
 
 --------------------------------------------------------------------------------

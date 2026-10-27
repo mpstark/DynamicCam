@@ -14,6 +14,10 @@
 -- The factory builds the chrome only. Anything a particular window needs on top
 -- (resizing, saved geometry, tabs, the opacity slider) stays with that window;
 -- see Ui/MainFrame.lua, which is the only resizable one.
+--
+-- Also here, as it concerns every window: the exemption from the UI fade
+-- ("Keep settings windows"), which the new UI's popups and dropdown menus
+-- take part in too.
 -------------------------------------------------------------------------------
 
 local L = LibStub("AceLocale-3.0"):GetLocale("DynamicCam")
@@ -131,6 +135,86 @@ function Ui.SetWindowOpacity(value)
 end
 
 
+-- ===== Exemption from the UI fade =====
+
+-- The profile setting settingsPanelIgnoreParentAlpha ("Keep settings windows")
+-- keeps DynamicCam's settings windows visible while a situation fades the UI out. Windows are built lazily,
+-- so each one picks the setting up when it is created, and
+-- DynamicCam:SettingsPanelSetIgnoreParentAlpha updates the ones that exist.
+local windows = {}
+
+-- Blizzard's popup dialogs are shared frames, which other addons and Blizzard
+-- itself show too. So a DynamicCam popup only borrows one: it applies the
+-- setting while shown and gives the frame back as it found it. The value found
+-- is kept here, keyed by the borrowed frame.
+local borrowedDialogs = {}
+
+function Ui.SetWindowsIgnoreParentAlpha(ignoreParentAlpha)
+  for window in pairs(windows) do
+    window:SetIgnoreParentAlpha(ignoreParentAlpha)
+  end
+  for dialog in pairs(borrowedDialogs) do
+    dialog:SetIgnoreParentAlpha(ignoreParentAlpha)
+  end
+end
+
+-- Wraps a StaticPopupDialogs definition's OnShow and OnHide so the dialog takes
+-- part in the exemption. Returns the definition, to wrap it where it is assigned.
+function Ui.ExemptDialogFromFade(dialogInfo)
+  local onShow, onHide = dialogInfo.OnShow, dialogInfo.OnHide
+  dialogInfo.OnShow = function(dialog, data)
+    -- Not again when shown twice without a hide in between, or the value found
+    -- would be our own.
+    if borrowedDialogs[dialog] == nil then
+      borrowedDialogs[dialog] = dialog:IsIgnoringParentAlpha()
+    end
+    dialog:SetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+    if onShow then onShow(dialog, data) end
+  end
+  dialogInfo.OnHide = function(dialog, data)
+    if borrowedDialogs[dialog] ~= nil then
+      dialog:SetIgnoreParentAlpha(borrowedDialogs[dialog])
+      borrowedDialogs[dialog] = nil
+    end
+    if onHide then onHide(dialog, data) end
+  end
+  return dialogInfo
+end
+
+-- Blizzard's dropdown menus are parented outside UIParent, so a UI fade never
+-- reaches them. Instead, while open, the menu of a DynamicCam dropdown copies
+-- that dropdown's effective alpha every frame: it fades along with its window,
+-- or stays when the window is exempt. (Should the dropdown disappear altogether,
+-- the menu manager closes its menu by itself.)
+local followedMenus = {}   -- [menu] = its dropdown, while open
+
+local menuFollower = CreateFrame("Frame")
+menuFollower:Hide()
+menuFollower:SetScript("OnUpdate", function()
+  for menu, dropdown in pairs(followedMenus) do
+    menu:SetAlpha(dropdown:GetEffectiveAlpha())
+  end
+end)
+
+function Ui.FadeMenuWithDropdown(dropdown)
+  dropdown:RegisterCallback(DropdownButtonMixin.Event.OnMenuOpen, function()
+    local menu = dropdown.menu
+    if not menu then return end
+    followedMenus[menu] = dropdown
+    menu:SetAlpha(dropdown:GetEffectiveAlpha())
+    menuFollower:Show()
+  end, dropdown)
+  dropdown:RegisterCallback(DropdownButtonMixin.Event.OnMenuClose, function(_, _, menu)
+    if followedMenus[menu] then
+      followedMenus[menu] = nil
+      -- Menu frames are pooled and shared with every other menu in the game.
+      menu:SetAlpha(1)
+    end
+    if not next(followedMenus) then menuFollower:Hide() end
+  end, dropdown)
+end
+
+
 -- ===== Factory =====
 
 -- opts:
@@ -163,6 +247,8 @@ function Ui.CreateWindow(opts)
   f:SetToplevel(true)
   f:EnableMouse(true)
   f:SetClampedToScreen(true)
+  windows[f] = true
+  f:SetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
   if innerFrame then
     f.minWidth, f.minHeight = MinSize(gaps)
   else

@@ -14,7 +14,7 @@ local acr = LibStub("AceConfigRegistry-3.0")
 -- that the detached frame has its own status tables and OpenFrames slot,
 -- letting it coexist with the Blizzard-panel-embedded "DynamicCam" frame.
 local DETACHED_APP = "DynamicCam_Detached"
--- Shared, so that the "do not fade out this settings frame" exemption in Options/Helpers.lua
+-- Shared, so that the "Keep settings windows" exemption in Options/Helpers.lua
 -- can reach the detached frame without repeating the name.
 Options.DETACHED_APP = DETACHED_APP
 local DETACHED_FRAME_WIDTH = 680  -- fixed width; east-edge resizer is disabled
@@ -314,8 +314,8 @@ function Options:OpenDetached()
   detachedOpen   = true
   Options:ShowEscProxy()
 
-  -- AceGUI pools its frames, so we get a different one from open to open. The "do not fade out
-  -- this settings frame" setting therefore has to be applied here as well, not just when the
+  -- AceGUI pools its frames, so we get a different one from open to open. The "Keep settings
+  -- windows" setting therefore has to be applied here as well, not just when the
   -- user changes it.
   DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
 
