@@ -361,6 +361,11 @@ if GetNumActiveQuests then
   -- without accepting a quest.
   -- That's why we have to do some tricks to know that the NPC still has quests when exiting
   -- the situation, so we can enforce an extra delay of 0.3 seconds (should be enough).
+  --
+  -- This only bridges the gap for DynamicCam's own situation. With the action cam's "target focus
+  -- on interaction" (test_cameraTargetFocusInteractEnable) the camera still swings away from the
+  -- NPC and back, because the game itself ends the interaction between accepting one quest and
+  -- reopening the dialog for the next. Nothing we can prevent from the addon's side.
   local questFrameClosed = true
   local lastQuestFrameCloseTime = GetTime()
 

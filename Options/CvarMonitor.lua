@@ -13,150 +13,85 @@ assert(DynamicCam)
 -- and leave a tooltip note in the default UI settings.
 -------------------------------------------------------------------------------
 
-local mouseLookSpeedSlider = nil
-local MouseLookSpeedSliderOrignialTooltipEnter = nil
-local MouseLookSpeedSliderOrignialTooltipLeave = nil
+-- The rows of the settings list are pooled frames, which Blizzard reuses for other settings
+-- while scrolling and switching categories. Anything we write into them taints them, and the
+-- next setting using such a frame is initialised in tainted execution: its slider is then
+-- blocked from setting its cvar in combat, and settings whose state depends on a protected
+-- function (like the Discord voice settings) raise ADDON_ACTION_FORBIDDEN while scrolling.
+-- So we only call widget methods on them and hook their scripts instead of replacing them,
+-- which leaves no trace in their Lua tables. In particular, we must not use the slider's own
+-- SetEnabled, which stores the state in a field. Blizzard reinitialises a reused frame
+-- completely, so nothing has to be undone when a frame moves on to another setting.
 
-local motionSicknessElement = nil
-local indexCentered = nil
-local indexReduced = nil
-local indexBoth = nil
-local indexNone = nil
-local motionSicknessElementOriginalTooltipEnter = nil
-local motionSicknessElementOriginalTooltipLeave = nil
+local hookedFrames = {}
 
-hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function(self)
+local function AddTooltipNote(row, frame, label, title, text)
+  if hookedFrames[frame] then return end
+  hookedFrames[frame] = true
+  frame:HookScript("OnEnter", function()
+    -- The frame may have moved on to another setting since.
+    if row.Text:GetText() ~= label then return end
+    SettingsTooltip:AddLine(" ")
+    SettingsTooltip:AddLine("|cFFFF0000" .. title .. "|r", _, _, _, true)
+    SettingsTooltip:AddLine(text, _, _, _, true)
+    SettingsTooltip:Show()
+  end)
+end
 
-  local foundMouseLookSpeedSlider = false
-  local foundMotionSicknessElement = false
-
-  -- ###################### Mouse ######################
-  if SettingsPanel.Container.SettingsList.Header.Title:GetText() == CONTROLS_LABEL then
-
-    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-    for i, child in ipairs(children) do
-      if child.Text then
-        if child.Text:GetText() == MOUSE_LOOK_SPEED then
-          -- print("Found", child.Text:GetText(), MOUSE_LOOK_SPEED)
-          foundMouseLookSpeedSlider = true
-
-          if not mouseLookSpeedSlider then
-            -- print("Disabling slider")
-            mouseLookSpeedSlider = child.SliderWithSteppers
-
-            if not MouseLookSpeedSliderOrignialTooltipEnter then
-              MouseLookSpeedSliderOrignialTooltipEnter = mouseLookSpeedSlider.Slider:GetScript("OnEnter")
-              MouseLookSpeedSliderOrignialTooltipLeave = mouseLookSpeedSlider.Slider:GetScript("OnLeave")
-            end
-
-            -- Change tooltip.
-            mouseLookSpeedSlider.Slider:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000" .. L["Disabled"] .. "|r", _, _, _, true)
-              GameTooltip:AddLine(L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."], _, _, _, true)
-              GameTooltip:Show()
-            end)
-            mouseLookSpeedSlider.Slider:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-            end)
-          end
-
-          -- Got to make sure, the slider stays disabled.
-          if mouseLookSpeedSlider.Slider:IsEnabled() then
-            -- Function name "SetEnabled" introduced in 11.0.0.
-            if mouseLookSpeedSlider.SetEnabled then
-              mouseLookSpeedSlider:SetEnabled(false)
-            else
-              mouseLookSpeedSlider:SetEnabled_(false)
-            end
-          end
-
-          break
-        end
-      end
+-- What the slider's SetEnabled(false) does, minus the field.
+local function DisableSlider(sliderWithSteppers)
+  sliderWithSteppers.Slider:SetEnabled(false)
+  sliderWithSteppers.Slider.Thumb:SetAlpha(0.7)
+  local r, g, b = GRAY_FONT_COLOR:GetRGB()
+  sliderWithSteppers.LeftText:SetVertexColor(r, g, b)
+  sliderWithSteppers.RightText:SetVertexColor(r, g, b)
+  sliderWithSteppers.TopText:SetVertexColor(r, g, b)
+  sliderWithSteppers.MinText:SetVertexColor(r, g, b)
+  sliderWithSteppers.MaxText:SetVertexColor(r, g, b)
+  for _, stepper in ipairs({ sliderWithSteppers.Back, sliderWithSteppers.Forward }) do
+    stepper:SetEnabled(false)
+    -- The classic slider does not fade its steppers out, and would not fade them back in either.
+    if sliderWithSteppers.IsSliderEnabled then
+      stepper:SetAlpha(0.5)
+      stepper:DesaturateHierarchy(1)
     end
-
-
-
-  -- ###################### Motion Sickness ######################
-  elseif SettingsPanel.Container.SettingsList.Header.Title:GetText() == ACCESSIBILITY_GENERAL_LABEL then
-
-    -- Retail got rid of the drop down and only uses a single checkbox now.
-
-    -- Bizarrely, since 11.0.2 checking the checkbox sets
-    -- CameraKeepCharacterCentered = false  and  CameraReduceUnexpectedMovement = true
-    -- whereas unchecking the checkbox sets
-    -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
-    -- Either variable will stop shoulder offset to take effect, so we disable the checkbox completely.
-
-
-    local children = { SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }
-    for i, child in ipairs(children) do
-      if child.Text then
-        if child.Text:GetText() == MOTION_SICKNESS_CHECKBOX then
-          -- print("Found", child.Text:GetText(), MOTION_SICKNESS_CHECKBOX)
-          foundMotionSicknessElement = true
-
-          if not motionSicknessElement then
-            -- print("Disabling motion sickness checkox.")
-            -- Renamed to "Checkbox" in 11.0.0.
-            if child.Checkbox then
-              motionSicknessElement = child.Checkbox
-            else
-              motionSicknessElement = child.CheckBox
-            end
-
-            if not motionSicknessElementOriginalTooltipEnter then
-              motionSicknessElementOriginalTooltipEnter = motionSicknessElement:GetScript("OnEnter")
-              motionSicknessElementOriginalTooltipLeave = motionSicknessElement:GetScript("OnLeave")
-            end
-
-            -- Change tooltip.
-            motionSicknessElement:SetScript("OnEnter", function(self)
-              GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0)
-              GameTooltip:AddLine("|cFFFF0000" .. L["Attention"] .. "|r", _, _, _, true)
-              GameTooltip:AddLine(L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."]:format(MOTION_SICKNESS_CHECKBOX), _, _, _, true)
-              GameTooltip:Show()
-            end)
-            motionSicknessElement:SetScript("OnLeave", function(self)
-              GameTooltip:Hide()
-            end)
-
-          end
-
-          break
-        end
-      end
-    end
-
   end
+end
 
+hooksecurefunc(SettingsPanel.Container.SettingsList.ScrollBox, "Update", function()
 
+  -- Both settings can also turn up among the search results.
+  local category = SettingsPanel.Container.SettingsList.Header.Title:GetText()
+  if category ~= CONTROLS_LABEL and category ~= ACCESSIBILITY_GENERAL_LABEL and category ~= SETTINGS_SEARCH_RESULTS then return end
 
-  -- If the slider is used for something else and we have changed it before, undo the change.
-  if mouseLookSpeedSlider and not foundMouseLookSpeedSlider then
-    -- print("Re-enabling slider")
-    mouseLookSpeedSlider.Slider:SetScript("OnEnter", MouseLookSpeedSliderOrignialTooltipEnter)
-    mouseLookSpeedSlider.Slider:SetScript("OnLeave", MouseLookSpeedSliderOrignialTooltipLeave)
-    if not mouseLookSpeedSlider.Slider:IsEnabled() then
-      -- Function name "SetEnabled" introduced in 11.0.0.
-      if mouseLookSpeedSlider.SetEnabled then
-        mouseLookSpeedSlider:SetEnabled(false)
-      else
-        mouseLookSpeedSlider:SetEnabled_(false)
+  for _, row in ipairs({ SettingsPanel.Container.SettingsList.ScrollBox.ScrollTarget:GetChildren() }) do
+    local label = row.Text and row.Text:GetText()
+
+    -- ###################### Mouse ######################
+    if label == MOUSE_LOOK_SPEED and row.SliderWithSteppers then
+
+      -- Got to make sure, the slider stays disabled.
+      if row.SliderWithSteppers.Slider:IsEnabled() then
+        DisableSlider(row.SliderWithSteppers)
       end
+      AddTooltipNote(row, row.SliderWithSteppers.Slider, label, L["Disabled"], L["Your DynamicCam addon lets you adjust horizontal and vertical mouse look speed individually! Just go to the \"Mouse Look\" settings of DynamicCam to make the adjustments there."])
+
+
+    -- ###################### Motion Sickness ######################
+    elseif label == MOTION_SICKNESS_CHECKBOX then
+
+      -- Retail got rid of the drop down and only uses a single checkbox now.
+
+      -- Bizarrely, since 11.0.2 checking the checkbox sets
+      -- CameraKeepCharacterCentered = false  and  CameraReduceUnexpectedMovement = true
+      -- whereas unchecking the checkbox sets
+      -- CameraKeepCharacterCentered = true  and  CameraReduceUnexpectedMovement = false
+      -- Either variable will stop shoulder offset to take effect, so the SetCVar hook below
+      -- undoes the checkbox while the offset (or dynamic pitch) is in use, and the tooltip says so.
+
+      -- Renamed to "Checkbox" in 11.0.0.
+      AddTooltipNote(row, row.Checkbox or row.CheckBox, label, L["Attention"], L["The \"%s\" setting is disabled by DynamicCam, while you are using the horizontal camera over shoulder offset."]:format(MOTION_SICKNESS_CHECKBOX))
     end
-    mouseLookSpeedSlider = nil
-  end
-
-
-  -- If the checkbox is used for something else and we have changed it before, undo the change.
-  if motionSicknessElement and not foundMotionSicknessElement then
-    -- print("Re-enabling checkbox")
-    motionSicknessElement:SetScript("OnEnter", motionSicknessElementOriginalTooltipEnter)
-    motionSicknessElement:SetScript("OnLeave", motionSicknessElementOriginalTooltipLeave)
-
-    motionSicknessElement = nil
   end
 
 end)
