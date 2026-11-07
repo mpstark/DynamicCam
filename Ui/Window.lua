@@ -293,8 +293,15 @@ function Ui.CreateWindow(opts)
 
   -- Close button in the top-right corner. Plain Hide() - a templated close
   -- button's default OnClick calls the secure HideUIPanel(), blocked in combat.
-  f.CloseButton = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-  f.CloseButton:SetPoint("TOPRIGHT", 1, 1)
+  -- Forever gives the close buttons of its own frames a bigger size and a higher
+  -- position, set by the OnLoad of UIPanelCloseButtonDefaultAnchors, so there we
+  -- inherit that template to match them.
+  if WOW_PROJECT_ID == WOW_PROJECT_CAMELOT then
+    f.CloseButton = CreateFrame("Button", nil, f, "UIPanelCloseButtonDefaultAnchors")
+  else
+    f.CloseButton = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    f.CloseButton:SetPoint("TOPRIGHT", 1, 1)
+  end
   f.CloseButton:SetScript("OnClick", function(self) self:GetParent():Hide() end)
 
   -- Drag the window from any empty area, including the title bar: f is the
