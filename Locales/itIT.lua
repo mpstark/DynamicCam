@@ -323,7 +323,7 @@ Usare /showUI o /hideUI senza argomenti prende il tempo di dissolvenza in entrat
     /showUI 0
 
 per mostrare l'interfaccia senza alcun ritardo.]]
-L["<hideUIHelp_desc>"] = "Mentre imposti gli effetti di dissolvenza dell'interfaccia desiderati, può essere fastidioso quando anche le impostazioni si dissolvono. Se questa casella è selezionata, le finestre delle impostazioni di DynamicCam (compresi i loro menu e popup), la finestra « Opzioni » del gioco e il « Menu di gioco » restano visibili.\n\nQuesta impostazione è globale per tutte le situazioni."
+L["<hideUIHelp_desc>"] = "Mentre imposti gli effetti di dissolvenza dell'interfaccia desiderati, può essere fastidioso quando anche le impostazioni si dissolvono. Se questa casella è selezionata, le finestre delle impostazioni di DynamicCam (compresi i loro menu e popup), la finestra « Opzioni » del gioco e il « Menu di gioco » restano visibili mentre questa situazione dissolve l'interfaccia."
 L["Keep settings windows"] = "Mantieni finestre delle impostazioni"
 
 

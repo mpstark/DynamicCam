@@ -323,7 +323,7 @@ Usar /showUI ou /hideUI sem argumentos assume o tempo de aparecimento ou desapar
     /showUI 0
 
 para mostrar a interface sem qualquer atraso.]]
-L["<hideUIHelp_desc>"] = "Ao configurar seus efeitos de desvanecimento de interface desejados, pode ser irritante quando as configurações também desaparecem. Se esta caixa estiver marcada, as janelas de configurações do DynamicCam (incluindo seus menus e pop-ups), a janela \"Opções\" do jogo e o \"Menu do Jogo\" permanecem visíveis.\n\nEsta configuração é global para todas as situações."
+L["<hideUIHelp_desc>"] = "Ao configurar seus efeitos de desvanecimento de interface desejados, pode ser irritante quando as configurações também desaparecem. Se esta caixa estiver marcada, as janelas de configurações do DynamicCam (incluindo seus menus e pop-ups), a janela \"Opções\" do jogo e o \"Menu do Jogo\" permanecem visíveis enquanto esta situação desvanece a interface."
 L["Keep settings windows"] = "Manter janelas de configurações"
 
 

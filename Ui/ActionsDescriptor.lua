@@ -489,16 +489,19 @@ Ui.actionCategories = {
       { kind = "checkbox", label = L["Pressing Esc fades the UI back in."],
         tooltip = L["<emergencyShow_desc>"],
         situationPath = {"hideUI", "emergencyShowEscEnabled"} },
-      -- The one genuinely global value on this page: it is about the settings
-      -- windows, not about any situation, so it is addressed on the profile - and
-      -- it stays usable whether or not THIS situation fades the UI.
+      -- Not a plain situationPath: custom situations from before this setting
+      -- lack it, and a missing value means checked.
       { kind = "checkbox", label = L["Keep settings windows"],
         tooltip = L["<hideUIHelp_desc>"],
-        ignoreCategoryGate = true,
-        get = function() return DynamicCam.db.profile.settingsPanelIgnoreParentAlpha end,
-        set = function(value)
-          DynamicCam.db.profile.settingsPanelIgnoreParentAlpha = value
-          DynamicCam:SettingsPanelSetIgnoreParentAlpha(value)
+        get = function(sid)
+          local s = Situation(sid)
+          return s and s.hideUI.keepSettingsWindows ~= false
+        end,
+        set = function(value, sid)
+          local s = Situation(sid)
+          if not s then return end
+          s.hideUI.keepSettingsWindows = value
+          ApplyFade(sid)
         end },
     },
   },

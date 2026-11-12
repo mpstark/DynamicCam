@@ -317,7 +317,7 @@ function Options:OpenDetached()
   -- AceGUI pools its frames, so we get a different one from open to open. The "Keep settings
   -- windows" setting therefore has to be applied here as well, not just when the
   -- user changes it.
-  DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+  DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.settingsWindowsIgnoreParentAlpha)
 
   widget.frame:Raise()  -- bring to front on every open
 

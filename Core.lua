@@ -501,6 +501,8 @@ function DynamicCam:FadeOutUI(fadeOutTime, settings)
     -- print("Remembering", UIParent.ludius_alphaBeforeFadeOut)
   end
 
+  self:SettingsPanelSetIgnoreParentAlpha(settings.keepSettingsWindows ~= false)
+
   EaseUIParentAlpha(settings.hideEntireUI and 0 or settings.fadeOpacity, fadeOutTime)
 
   if settings.hideEntireUI then
@@ -578,6 +580,9 @@ function DynamicCam:FadeInUI(fadeInTime)
       -- print("Fade in finished")
       UIParent.ludius_alphaBeforeFadeOut = nil
       UIParent.ludius_intendedUIParentAlpha = nil
+      -- Settings windows that were faded have faded back in along with UIParent by now.
+      -- (A fade-out starting in the meantime stops this fade-in, callback included.)
+      DynamicCam:SettingsPanelSetIgnoreParentAlpha(true)
     end
 
     -- print("UIParent.ludius_alphaBeforeFadeOut", UIParent.ludius_alphaBeforeFadeOut)
@@ -694,13 +699,15 @@ function DynamicCam:Startup()
   end
 
 
-  self:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+  -- Outside of a UI fade, the settings windows ignore the parent alpha. FadeOutUI() then applies
+  -- the "Keep settings windows" setting of the situation that fades.
+  self:SettingsPanelSetIgnoreParentAlpha(true)
   hooksecurefunc(
     LibStub("AceGUI-3.0"),
     "Create",
     function(_, widgetType)
       if widgetType == "Dropdown-Pullout" then
-        DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+        DynamicCam:SettingsPanelSetIgnoreParentAlpha(DynamicCam.settingsWindowsIgnoreParentAlpha)
       end
     end
   )
@@ -885,6 +892,7 @@ end
 -- 5 : Migrated shoulderOffsetZoom to cvarsZoomBased (stored in standardSettings/situationSettings).
 --     Generalized transition times (migrate from zoom/rotation/UI fade times to transitionTime.timeToEnter/Exit).
 -- 6 : Removed the "Enhanced minimal zoom-in" feature.
+-- 7 : "Keep settings windows" became a situation setting (hideUI.keepSettingsWindows).
 --
 -- The steps below fall through, so one call can carry a profile across several
 -- versions. Only the LAST step returns true (telling Startup() to re-set every
@@ -894,7 +902,7 @@ function DynamicCam:ModernizeProfile(p)
 
   -- If there is no version number, it is most probably a newly created one!
   if not p.version then
-    p.version = 6
+    p.version = 7
     return false
   end
 
@@ -1093,6 +1101,18 @@ function DynamicCam:ModernizeProfile(p)
     p.reactiveZoomEnhancedMinZoom = nil
 
     p.version = 6
+
+  end
+
+
+  if p.version == 6 then
+
+    -- "Keep settings windows" moved from the profile into each situation, where it is on by
+    -- default. The old value is deliberately not carried over: it only made a difference for
+    -- users who wanted the settings windows to fade with the UI, which hardly anyone does.
+    p.settingsPanelIgnoreParentAlpha = nil
+
+    p.version = 7
     return true
 
   end

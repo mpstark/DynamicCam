@@ -49,6 +49,7 @@ UiHideModule.lua
 Core.lua
 
 Ui\Window.lua
+Ui\Tooltip.lua
 
 MouseZoom.lua
 SituationManager.lua

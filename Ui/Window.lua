@@ -137,10 +137,11 @@ end
 
 -- ===== Exemption from the UI fade =====
 
--- The profile setting settingsPanelIgnoreParentAlpha ("Keep settings windows")
--- keeps DynamicCam's settings windows visible while a situation fades the UI out. Windows are built lazily,
--- so each one picks the setting up when it is created, and
--- DynamicCam:SettingsPanelSetIgnoreParentAlpha updates the ones that exist.
+-- The situation setting hideUI.keepSettingsWindows ("Keep settings windows")
+-- keeps DynamicCam's settings windows visible while that situation fades the UI
+-- out. DynamicCam:SettingsPanelSetIgnoreParentAlpha applies it to the windows
+-- that exist and remembers it in DynamicCam.settingsWindowsIgnoreParentAlpha,
+-- which windows built later (they are built lazily) pick up when created.
 local windows = {}
 
 -- Blizzard's popup dialogs are shared frames, which other addons and Blizzard
@@ -168,7 +169,7 @@ function Ui.ExemptDialogFromFade(dialogInfo)
     if borrowedDialogs[dialog] == nil then
       borrowedDialogs[dialog] = dialog:IsIgnoringParentAlpha()
     end
-    dialog:SetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+    dialog:SetIgnoreParentAlpha(DynamicCam.settingsWindowsIgnoreParentAlpha)
     if onShow then onShow(dialog, data) end
   end
   dialogInfo.OnHide = function(dialog, data)
@@ -248,7 +249,7 @@ function Ui.CreateWindow(opts)
   f:EnableMouse(true)
   f:SetClampedToScreen(true)
   windows[f] = true
-  f:SetIgnoreParentAlpha(DynamicCam.db.profile.settingsPanelIgnoreParentAlpha)
+  f:SetIgnoreParentAlpha(DynamicCam.settingsWindowsIgnoreParentAlpha)
   if innerFrame then
     f.minWidth, f.minHeight = MinSize(gaps)
   else

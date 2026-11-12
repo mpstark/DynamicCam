@@ -440,7 +440,7 @@ Ui.tabBuilders[2] = function(parent)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip_SetTitle(GameTooltip, L["Select a situation to setup"])
     local e = sc.colorEnd
-    GameTooltip_AddNormalLine(GameTooltip, L["<selectedSituation_desc>"]:format(
+    Ui.AddTooltipText(GameTooltip, L["<selectedSituation_desc>"]:format(
       sc.header, e,
       sc.disabled, e,
       sc.inactive, e,
@@ -448,7 +448,7 @@ Ui.tabBuilders[2] = function(parent)
       sc.overridden, e,
       sc.modified, e,
       sc.error, e
-    ), true)
+    ))
     GameTooltip:Show()
   end)
   dropdown:HookScript("OnLeave", GameTooltip_Hide)
@@ -485,7 +485,7 @@ Ui.tabBuilders[2] = function(parent)
     if not situation then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip_SetTitle(GameTooltip, L["Enable"])
-    GameTooltip_AddNormalLine(GameTooltip, L["If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."]:format(situation.name), true)
+    Ui.AddTooltipText(GameTooltip, L["If this box is checked, DynamicCam will enter the situation \"%s\" whenever its condition is fulfilled and no other situation with higher priority is active."]:format(situation.name))
     GameTooltip:Show()
   end)
   enableCheck:SetScript("OnLeave", GameTooltip_Hide)
@@ -762,17 +762,17 @@ Ui.tabBuilders[2] = function(parent)
   end, {
     [1] = function()
       GameTooltip_SetTitle(GameTooltip, L["Situation Settings"])
-      GameTooltip_AddNormalLine(GameTooltip,
-        L["These Situation Settings override the Standard Settings when the respective situation is active."], true)
+      Ui.AddTooltipText(GameTooltip,
+        L["These Situation Settings override the Standard Settings when the respective situation is active."])
     end,
     [2] = function()
       GameTooltip_SetTitle(GameTooltip, L["Situation Actions"])
-      GameTooltip_AddNormalLine(GameTooltip,
-        L["Setup stuff to happen while in a situation or when entering/exiting it."], true)
+      Ui.AddTooltipText(GameTooltip,
+        L["Setup stuff to happen while in a situation or when entering/exiting it."])
     end,
     [3] = function()
       GameTooltip_SetTitle(GameTooltip, L["Situation Controls"])
-      GameTooltip_AddNormalLine(GameTooltip, strtrim(L["<situationControls_help>"]), true)
+      Ui.AddTooltipText(GameTooltip, strtrim(L["<situationControls_help>"]))
     end,
   })
   SelectPage(activeTab)

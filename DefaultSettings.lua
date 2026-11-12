@@ -65,6 +65,10 @@ DynamicCam.situationDefaults = {
 
     emergencyShowEscEnabled = true,
 
+    -- "Keep settings windows". Custom situations from before this setting lack it,
+    -- so it is read as "~= false" everywhere.
+    keepSettingsWindows = true,
+
     hideEntireUI       = false,
     keepFrameRate      = false,
 
@@ -109,7 +113,6 @@ DynamicCam.defaults = {
     -- Global settings.
 
     zoomRestoreSetting = "adaptive",
-    settingsPanelIgnoreParentAlpha = true,
 
     -- Standard settings (for when no situation is overriding them).
     standardSettings = {

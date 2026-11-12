@@ -7,6 +7,15 @@ assert(DynamicCam)
 ------------
 -- LOCALS --
 ------------
+
+-- These presets are currently not reachable by users: the "Profile presets" group in Options.lua only
+-- says "Coming soon(TM)", and its preset dropdown is commented out. They are profile exports from
+-- several years ago, and their situation scripts have not kept up with the stock situations since.
+-- E.g. "Shushudaa's preset" brings its own executeOnInit for Hearth/Teleport (200), which still sets
+-- this.spells, while the stock condition has expected this.teleportSpells since GitHub issue #121
+-- (reported in issue #159). ModernizeProfile() on import does not touch scripts. So before any of
+-- them is offered again, re-export it from a current version, or drop its script overrides in favour
+-- of the stock scripts.
 local presets = {
 
   ["Immersive"] = {

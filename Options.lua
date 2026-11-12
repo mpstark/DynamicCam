@@ -2790,17 +2790,22 @@ local function CreateSituationSettingsTab(tabOrder, forExport)
                     name = L["<hideUIHelp_desc>"],
                     order = 1,
                   },
-                  settingsPanelIgnoreParentAlpha = {
+                  keepSettingsWindows = {
                     type = "toggle",
                     name = L["Keep settings windows"],
+                    disabled =
+                      function()
+                        return not S.hideUI.enabled
+                      end,
                     get =
                       function()
-                        return DynamicCam.db.profile.settingsPanelIgnoreParentAlpha
+                        -- Custom situations from before this setting lack it.
+                        return S.hideUI.keepSettingsWindows ~= false
                       end,
                     set =
                       function(_, newValue)
-                        DynamicCam.db.profile.settingsPanelIgnoreParentAlpha = newValue
-                        DynamicCam:SettingsPanelSetIgnoreParentAlpha(newValue)
+                        S.hideUI.keepSettingsWindows = newValue
+                        ApplyUIFade()
                       end,
                     width = "full",
                     order = 2,

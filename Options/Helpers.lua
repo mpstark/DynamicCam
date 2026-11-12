@@ -278,7 +278,11 @@ function DynamicCam:SetSettingsDefault(situationId, index1, index2)
 end
 
 
+-- The value last applied, for settings frames that only come into being later.
+DynamicCam.settingsWindowsIgnoreParentAlpha = true
+
 function DynamicCam:SettingsPanelSetIgnoreParentAlpha(ignoreParentAlpha)
+  DynamicCam.settingsWindowsIgnoreParentAlpha = ignoreParentAlpha
   GameMenuFrame:SetIgnoreParentAlpha(ignoreParentAlpha)
   SettingsPanel:SetIgnoreParentAlpha(ignoreParentAlpha)
   for i = 1, LibStub("AceGUI-3.0"):GetNextWidgetNum("Dropdown-Pullout") do

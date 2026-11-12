@@ -321,16 +321,16 @@ local function BuildFrame()
   end, {
     [1] = function()
       GameTooltip_SetTitle(GameTooltip, L["Standard Settings"])
-      GameTooltip_AddNormalLine(GameTooltip, L["<standardSettings_desc>"], true)
+      Ui.AddTooltipText(GameTooltip, L["<standardSettings_desc>"])
       GameTooltip_AddBlankLineToTooltip(GameTooltip)
       -- Same blue the overridden category rows use, from the one shared source.
       local c = DynamicCam.situationColors
-      GameTooltip_AddNormalLine(GameTooltip,
-        c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd, true)
+      Ui.AddTooltipText(GameTooltip,
+        c.overridden .. L["<standardSettingsOverridden_desc>"] .. c.colorEnd)
     end,
     [2] = function()
       GameTooltip_SetTitle(GameTooltip, L["Situations"])
-      GameTooltip_AddNormalLine(GameTooltip, L["<situations_desc>"], true)
+      Ui.AddTooltipText(GameTooltip, L["<situations_desc>"])
     end,
   })
   SelectTabContent(activeTab)
